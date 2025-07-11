@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
+  <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 flex items-center justify-center h-screen overflow-hidden">
+  <div id="particles-js"></div>
+
+  <div class="bg-[#f4f1eb] p-6 rounded-lg shadow-lg w-96 z-10 relative">
+    <img src="maquinasmedellinlogo.jpg" alt="Máquinas Medellín" class="w-24 mx-auto mb-4">
+    <h1 class="text-2xl font-bold mb-4 text-center">Inicio de sesión</h1>
+
+    <label class="block mb-2 font-semibold">Ingrese su número de empleado</label>
+    <input
+      type="text"
+      id="codigoEmpleado"
+      class="w-full border border-gray-300 p-2 rounded mb-4"
+      placeholder="Ej: 12345"
+    >
+
+    <button
+      onclick="verificarCodigo()"
+      class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+    >
+      Aceptar
+    </button>
+  </div>
+
+  <script src="particles-config.js"></script>
+  <script>
+    function verificarCodigo() {
+      const codigo = document.getElementById("codigoEmpleado").value;
+
+      if (codigo === "12345") {
+        // Puedes personalizar esto según tus necesidades
+        localStorage.setItem("nombreCajero", "Emilio");
+        localStorage.setItem("local", "El Mekatiadero");
+        window.location.href = "interfaz de restaurante.html";
+      } else {
+        alert("Código inválido. Intenta de nuevo.");
+      }
+    }
+  </script>
+</body>
+</html>
+
+
+
+
+

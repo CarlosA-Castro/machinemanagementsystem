@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interfaz Local</title>
+   <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body class="bg-[#f4f1eb] text-gray-900 font-sans relative">
+
+  <!-- Fondo de partículas -->
+  <div id="particles-js" class="fixed w-full h-full z-0 top-0 left-0"></div>
+
+  <div class="flex h-screen">
+    <!-- Barra lateral -->
+    <aside class="w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+      <div>
+        <div class="p-6 text-2xl font-bold border-b border-gray-200">Máquinas Medellín</div>
+        <nav class="mt-4 space-y-3 px-4 text-sm font-medium">
+          <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">🏠 Home</a>
+          <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">📦 Ingresar paquete</a>
+          <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">⚠️ Falla paquete</a>
+          <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">💥 Falla máquina</a>
+        </nav>
+        <div class="mt-6 px-4 text-sm">
+          <a href="https://wa.me/573218001092" target="_blank" class="text-blue-600 hover:underline">📞 Soporte</a>
+        </div>
+      </div>
+    <div class="bg-gray-900 p-4 text-sm border-t border-gray-700 text-white">
+  <div class="mb-1">👤 Emilio | El Mekatiadero</div>
+  <a href="login.html" class="text-red-400 hover:underline">Salir</a>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="flex-1 p-8 overflow-y-auto">
+      <h1 class="text-3xl font-bold mb-2" id="nombreCajero"></h1>
+      <p class="mb-6 text-lg">📍 Local: <strong id="localCajero"></strong></p>
+
+      <!-- Código QR escaneado -->
+      <div class="bg-white rounded-xl p-6 shadow-md mb-8 w-full max-w-xl">
+        <label for="codigoQR" class="block font-semibold mb-2">Código QR:</label>
+        <input id="codigoQR" type="text" readonly placeholder="QR escaneado aparecerá aquí" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-100">
+        <button class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition w-full">📷 Escanear QR</button>
+      </div>
+
+      <!-- Tabla de registros -->
+      <div class="bg-white rounded-xl p-6 shadow-md">
+        <h2 class="text-xl font-bold mb-4">Historial de QR escaneados</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-200 text-left uppercase tracking-wider">
+              <tr>
+                <th class="p-3">#</th>
+                <th class="p-3">Código QR</th>
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Hora</th>
+              </tr>
+            </thead>
+            <tbody id="tablaRegistros" class="text-gray-800">
+              <!-- Registros QR irán aquí -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Script de partículas -->
+  <script src="particles-config-local.js"></script>
+  <script>
+    const nombre = localStorage.getItem("nombreCajero");
+    const local = localStorage.getItem("local");
+
+    if (!nombre || !local) {
+      window.location.href = "Login.html";
+    } else {
+      document.getElementById("nombreCajero").textContent = `Bienvenido, ${nombre} 👋`;
+      document.getElementById("localCajero").textContent = local;
+    }
+  </script>
+</body>
+</html>
