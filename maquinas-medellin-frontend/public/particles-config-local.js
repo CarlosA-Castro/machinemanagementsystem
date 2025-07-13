@@ -8,13 +8,13 @@ particlesJS("particles-js", {
       }
     },
     color: {
-      value: "#333333" 
+      value: "#333333"
     },
     shape: {
       type: "circle"
     },
     opacity: {
-      value: 0.4, 
+      value: 0.4,
       random: false
     },
     size: {
@@ -24,7 +24,7 @@ particlesJS("particles-js", {
     line_linked: {
       enable: true,
       distance: 150,
-      color: "#1f1f1f", 
+      color: "#1f1f1f",
       opacity: 0.4,
       width: 1.2
     },
@@ -36,12 +36,17 @@ particlesJS("particles-js", {
     }
   },
   interactivity: {
+    detect_on: "canvas",
     events: {
       onhover: {
-        enable: true,
-        mode: "repulse"
-      }
+        enable: false
+      },
+      onclick: {
+        enable: false
+      },
+      resize: true
     }
   },
   retina_detect: true
 });
+

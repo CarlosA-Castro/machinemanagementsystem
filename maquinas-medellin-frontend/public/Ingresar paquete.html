@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ingreso de Paquete</title>
+    <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <!-- Librería de partículas -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <style>
+      #particles-js {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .contenido {
+        position: relative;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body class="relative h-screen flex items-center justify-center bg-gray-100">
+
+    <!-- Fondo partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Contenido principal -->
+    <div class="contenido bg-white rounded-xl shadow-2xl p-10 w-full max-w-3xl space-y-10">
+      <div>
+        <h1 class="text-3xl font-bold flex items-center gap-2">
+          📦 Ingreso de Paquete
+        </h1>
+        <p class="text-sm text-gray-600 mt-2">
+          Escanee un código QR para asignar turnos a un paquete
+        </p>
+      </div>
+
+      <!-- Código QR -->
+      <div class="space-y-2">
+        <label class="block font-semibold">Código QR:</label>
+        <input
+          id="codigoQR"
+          type="text"
+          readonly
+          placeholder="QR escaneado aparecerá aquí"
+          class="w-full p-2 border rounded bg-gray-100"
+        />
+        <button
+          class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-lg font-semibold flex items-center justify-center gap-2"
+        >
+          📷 Escanear QR
+        </button>
+      </div>
+
+      <!-- Selección de paquete -->
+      <div>
+        <h2 class="text-xl font-bold mb-3 flex items-center gap-1">
+          🎯 Seleccione el paquete:
+        </h2>
+        <div class="grid grid-cols-5 gap-3">
+          <!-- Botones P1 - P10 -->
+          <button onclick="abrirConfirmacion(1)" class="btnPaquete">P1</button>
+          <button onclick="abrirConfirmacion(2)" class="btnPaquete">P2</button>
+          <button onclick="abrirConfirmacion(3)" class="btnPaquete">P3</button>
+          <button onclick="abrirConfirmacion(4)" class="btnPaquete">P4</button>
+          <button onclick="abrirConfirmacion(5)" class="btnPaquete">P5</button>
+          <button onclick="abrirConfirmacion(6)" class="btnPaquete">P6</button>
+          <button onclick="abrirConfirmacion(7)" class="btnPaquete">P7</button>
+          <button onclick="abrirConfirmacion(8)" class="btnPaquete">P8</button>
+          <button onclick="abrirConfirmacion(9)" class="btnPaquete">P9</button>
+          <button onclick="abrirConfirmacion(10)" class="btnPaquete">P10</button>
+        </div>
+      </div>
+
+      <!-- Volver -->
+      <div class="text-sm">
+        <a href="interfaz de restaurante.html" class="text-blue-600 hover:underline">🔙 Volver atrás</a>
+      </div>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div
+      id="modalConfirmacion"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl text-center space-y-4">
+        <h3 class="text-xl font-bold">¿Desea ingresar el producto?</h3>
+        <p class="text-gray-700">Turno <span id="paqueteSeleccionado"></span> sobre el código QR</p>
+        <p class="font-semibold">Costo: $$$</p>
+        <div class="flex justify-center gap-4 mt-4">
+          <button onclick="cerrarModal()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+            Cancelar
+          </button>
+          <button onclick="confirmarIngreso()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lógica JS -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script src="particles-config-local.js"></script>
+
+<script>
+  // Estilo para botones
+  document.querySelectorAll(".btnPaquete").forEach(btn => {
+    btn.classList.add("bg-gray-200", "hover:bg-blue-300", "text-gray-800", "px-4", "py-2", "rounded-lg", "font-semibold");
+  });
+
+  // Modal
+  let paqueteTemp = null;
+
+  function abrirConfirmacion(numero) {
+    paqueteTemp = numero;
+    document.getElementById('paqueteSeleccionado').innerText = 'P' + numero;
+    document.getElementById('modalConfirmacion').classList.remove('hidden');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalConfirmacion').classList.add('hidden');
+  }
+
+  function confirmarIngreso() {
+    cerrarModal();
+    alert('✅ Paquete P' + paqueteTemp + ' asignado correctamente.');
+  }
+</script>
