@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reporte de Falla</title>
+    <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <style>
+      #particles-js {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .contenido {
+        position: relative;
+        z-index: 10;
+      }
+      
+      /* Estilo para los cuadros translúcidos */
+      .glass-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+      }
+      
+      .glass-card:hover {
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+        transform: translateY(-2px);
+      }
+      
+      .glass-title {
+        color: #1a237e;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .glass-subtitle {
+        color: #283593;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      
+      .glass-divider {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+        margin: 1rem 0;
+      }
+      
+      .machine-item {
+        transition: all 0.2s ease;
+        padding: 0.5rem;
+        border-radius: 8px;
+      }
+      
+      .machine-item:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateX(5px);
+      }
+    </style>
+  </head>
+  <body class="relative h-full bg-gray-100">
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Contenido principal -->
+    <div class="contenido max-w-6xl mx-auto p-10 space-y-10">
+      <!-- Sección de título y descripción -->
+      <div class="glass-card">
+        <h1 class="text-4xl font-bold text-center glass-title">⚠️ Reporte de Falla</h1>
+        <div class="glass-divider"></div>
+        <p class="text-center text-gray-700">
+          Escanee el QR en el que se presentó la falla y seleccione la máquina sobre la cual se reportará el error y se hará la devolución.
+        </p>
+      </div>
+
+      <!-- Sección de QR -->
+      <div class="glass-card space-y-4">
+        <h2 class="text-2xl font-semibold glass-subtitle">🔍 Código QR:</h2>
+        <div class="space-y-2">
+          <input
+            id="codigoQR"
+            type="text"
+            readonly
+            placeholder="QR escaneado aparecerá aquí"
+            class="w-full p-3 border rounded-lg bg-white bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            class="bg-blue-600 hover:bg-blue-700 text-white w-full py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+          >
+            <span>📷</span> Escanear QR
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección de Máquinas -->
+      <div class="glass-card space-y-6">
+        <h2 class="text-2xl font-semibold glass-subtitle">🎮 Máquinas:</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Máquina De Basket -->
+          <div 
+            onclick="abrirModal('Máquina De Basket')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Basket.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Basket</p>
+          </div>
+          
+          <!-- Máquina De Disco Hockey -->
+          <div 
+            onclick="abrirModal('Máquina De Disco Hockey')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Disco Hockey.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Disco Hockey</p>
+          </div>
+          
+          <!-- Máquina De Pelea -->
+          <div 
+            onclick="abrirModal('Máquina De Pelea')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Pelea.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Pelea</p>
+          </div>
+          
+          <!-- Máquina De Peluches 1 -->
+          <div 
+            onclick="abrirModal('Máquina De Peluches 1')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Peluches 1.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Peluches 1</p>
+          </div>
+          
+          <!-- Máquina De Peluches 2 -->
+          <div 
+            onclick="abrirModal('Máquina De Peluches 2')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Peluches 2.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Peluches 2</p>
+          </div>
+          
+          <!-- Máquina De Simulador 1 -->
+          <div 
+            onclick="abrirModal('Máquina De Simulador 1')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Simulador 1.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Simulador 1</p>
+          </div>
+          
+          <!-- Máquina De Simulador 2 -->
+          <div 
+            onclick="abrirModal('Máquina De Simulador 2')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Simulador 2.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Simulador 2</p>
+          </div>
+          
+          <!-- Máquina De Simulador Connection -->
+          <div 
+            onclick="abrirModal('Máquina De Simulador Connection')" 
+            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
+          >
+            <img src="Simulador Connection.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <p class="font-semibold text-center">Máquina De Simulador Connection</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón Volver -->
+      <div class="text-center">
+  <a href="interfaz de restaurante.html" class="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+    🔙 Volver atrás
+  </a>
+</div>
+    </div>
+
+    <!-- Modal -->
+    <div
+  id="modal"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden"
+>
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+    <h3 class="text-2xl font-bold text-center text-blue-900">Confirmación de Reporte de Falla</h3>
+    <hr class="my-4 border-blue-200" />
+
+    <p class="text-gray-700 mb-2">
+      Se devolverán <span id="turnosDevolverPreview" class="font-bold">X</span> turnos sobre el código QR
+    </p>
+    <p class="text-gray-700 mb-4">
+      Máquina en error: <span id="maquinaSeleccionada" class="font-semibold"></span>
+    </p>
+
+    <input
+      id="turnosDevolver"
+      type="number"
+      min="1"
+      placeholder="Cantidad de turnos a devolver"
+      class="w-full p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+      oninput="actualizarPreview()"
+    />
+
+    <div class="flex justify-center gap-4">
+      <button 
+        onclick="cerrarModal()" 
+        class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
+      >
+        Cancelar
+      </button>
+      <button 
+        onclick="confirmarFalla()" 
+        class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+      >
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+    <!-- JS -->
+    <script src="particles-config-local.js"></script>
+    <script>
+      // Partículas
+      particlesJS.load('particles-js', 'particles-config-local.js', () => {
+        console.log('✅ Partículas cargadas');
+      });
+
+      // Modal
+      let maquinaActual = '';
+      function abrirModal(nombre) {
+        maquinaActual = nombre;
+        document.getElementById("maquinaSeleccionada").innerText = nombre;
+        document.getElementById("turnosDevolver").value = "";
+        document.getElementById("turnosDevolverPreview").innerText = "X";
+        document.getElementById("modal").classList.remove("hidden");
+      }
+
+      function cerrarModal() {
+        document.getElementById("modal").classList.add("hidden");
+      }
+
+      function actualizarPreview() {
+        const valor = document.getElementById("turnosDevolver").value;
+        document.getElementById("turnosDevolverPreview").innerText = valor || "X";
+      }
+
+      function confirmarFalla() {
+        const cantidad = document.getElementById("turnosDevolver").value;
+        if (!cantidad || cantidad <= 0) {
+          alert("⚠️ Ingresa una cantidad válida de turnos");
+          return;
+        }
+
+        const qr = document.getElementById("codigoQR").value || "QR desconocido";
+        alert(`✅ Se devolverán ${cantidad} turnos sobre el código QR: ${qr} para la ${maquinaActual}`);
+        cerrarModal();
+      }
+    </script>
+  </body>
+</html>
