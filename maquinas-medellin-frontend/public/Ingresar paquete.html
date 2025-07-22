@@ -11,6 +11,8 @@
     />
     <!-- Librería de partículas -->
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
     <style>
       #particles-js {
         position: fixed;
@@ -43,6 +45,7 @@
       </div>
 
       <!-- Código QR -->
+       <div id="reader" class="mt-4 hidden"></div>
       <div class="space-y-2">
         <label class="block font-semibold">Código QR:</label>
         <input
@@ -132,4 +135,40 @@
     cerrarModal();
     alert('✅ Paquete P' + paqueteTemp + ' asignado correctamente.');
   }
+  const botonEscanear = document.querySelector('button'); // el botón azul (primer <button>)
+const qrInput = document.getElementById('codigoQR');
+const qrDiv = document.getElementById('reader');
+let scannerActivo = false;
+let html5QrCode;
+
+botonEscanear.addEventListener('click', async () => {
+  if (scannerActivo) return;
+
+  try {
+    // Mostrar contenedor
+    qrDiv.classList.remove('hidden');
+
+    html5QrCode = new Html5Qrcode("reader");
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: 250
+      },
+      qrCodeMessage => {
+        qrInput.value = qrCodeMessage;
+        html5QrCode.stop();
+        scannerActivo = false;
+        qrDiv.classList.add('hidden');
+      },
+      errorMessage => {
+        // console.log("QR error:", errorMessage);
+      }
+    );
+    scannerActivo = true;
+  } catch (error) {
+    alert("Error accediendo a la cámara: " + error);
+  }
+});
+
 </script>
