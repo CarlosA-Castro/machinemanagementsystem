@@ -47,21 +47,48 @@
   </div>
 
   <script src="particles-config.js"></script>
+
   <script>
-    function verificarCodigo() {
-      const codigo = document.getElementById("codigoEmpleado").value;
+  function verificarCodigo() {
+  const codigo = document.getElementById("codigoEmpleado").value.trim();
 
-      if (codigo === "12345") {
-        // Puedes personalizar esto según tus necesidades
-        localStorage.setItem("nombreCajero", "Emilio");
-        localStorage.setItem("local", "El Mekatiadero");
-        window.location.href = "interfaz de restaurante.html";
-      } else {
-        alert("Código inválido. Intenta de nuevo.");
-      }
+  if (!codigo) {
+    alert("Por favor ingrese su código.");
+    return;
+  }
+
+  fetch("http://127.0.0.1:5000/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codigo })
+  })
+  .then(async res => {
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = {valido:false, raw: text}; }
+    if (!res.ok) {
+      // servidor devolvió 500 u otro error
+      throw new Error(`HTTP ${res.status} - ${text}`);
     }
-  </script>
+    return data;
+  })
+  .then(data => {
+    if (data.valido) {
+      localStorage.setItem("nombreCajero", data.nombre);
+      localStorage.setItem("rol", data.role);
+      window.location.href = "interfaz de restaurante.html";
+    } else {
+      alert("Código inválido. Intenta de nuevo.");
+    }
+  })
+  .catch(err => {
+    console.error("Error al conectar con el servidor:", err);
+    alert("Error de conexión o servidor. Mira la consola para más detalle.");
+  });
+}
 
+  </script>
+  
 </body>
 </html>
 
