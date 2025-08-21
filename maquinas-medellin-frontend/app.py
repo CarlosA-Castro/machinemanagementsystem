@@ -1,11 +1,19 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, render_template
 import mysql.connector
 from flask_cors import CORS
+import os
 
-app = Flask(__name__)
+# 📁 Configuración de Flask para servir archivos estáticos y plantillas
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, 'public', 'static'),
+    template_folder=os.path.join(BASE_DIR, 'public', 'templates')
+)
 CORS(app)
 
-# Conexión a la base de datos
+# 🔌 Conexión a la base de datos
 db = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -14,20 +22,19 @@ db = mysql.connector.connect(
 )
 cursor = db.cursor(dictionary=True)
 
-# Ruta principal: muestra el login.html
+# 🏠 Ruta principal: muestra el login
 @app.route('/')
 def mostrar_login():
-    ruta_base = os.path.dirname(os.path.abspath(__file__))
-    return send_from_directory(ruta_base, 'Login.html')
+    return render_template('login.html')
 
-import os
-
+# 🔍 Ruta de verificación (opcional para listar archivos en static)
 @app.route('/verificar')
 def verificar():
-    archivos = os.listdir(os.path.dirname(os.path.abspath(__file__)))
+    carpeta_static = os.path.join(BASE_DIR, 'static')
+    archivos = os.listdir(carpeta_static)
     return jsonify(archivos)
 
-# Ruta para procesar el login (solo por contraseña)
+# 🔐 Ruta para procesar el login
 @app.route('/login', methods=['POST'])
 def procesar_login():
     data = request.get_json() or {}
@@ -57,5 +64,6 @@ def procesar_login():
             "message": str(e)
         }), 500
 
+# 🚀 Ejecutar el servidor
 if __name__ == '__main__':
     app.run(debug=True)
