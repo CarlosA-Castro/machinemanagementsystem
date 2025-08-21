@@ -8,8 +8,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(
     __name__,
-    static_folder=os.path.join(BASE_DIR, 'public', 'static'),
-    template_folder=os.path.join(BASE_DIR, 'public', 'templates')
+    static_folder=os.path.join(BASE_DIR, 'static'),       # ✅ ahora apunta a /static
+    template_folder=os.path.join(BASE_DIR, 'templates')   # ✅ ahora apunta a /templates
 )
 CORS(app)
 
@@ -25,9 +25,9 @@ cursor = db.cursor(dictionary=True)
 # 🏠 Ruta principal: muestra el login
 @app.route('/')
 def mostrar_login():
-    return render_template('login.html')
+    return render_template('login.html')   # Flask buscará en /templates/login.html
 
-# 🔍 Ruta de verificación (opcional para listar archivos en static)
+# 🔍 Ruta de verificación para listar archivos en /static
 @app.route('/verificar')
 def verificar():
     carpeta_static = os.path.join(BASE_DIR, 'static')
