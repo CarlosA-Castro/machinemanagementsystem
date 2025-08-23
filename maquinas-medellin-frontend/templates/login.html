@@ -4,9 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login</title>
-  <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+
+  <!-- Icono del sitio -->
+  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/png" />
+
+  <!-- Tailwind y librería de partículas -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
   <style>
     html, body {
       margin: 0;
@@ -24,10 +29,13 @@
   </style>
 </head>
 <body class="bg-gray-900 flex items-center justify-center h-screen overflow-hidden">
+
+  <!-- Fondo partículas -->
   <div id="particles-js"></div>
 
+  <!-- Contenedor del formulario -->
   <div class="bg-[#f4f1eb] p-6 rounded-lg shadow-lg w-96 z-10 relative">
-    <img src="maquinasmedellinlogo.jpg" alt="Máquinas Medellín" class="w-24 mx-auto mb-4">
+    <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Máquinas Medellín" class="w-24 mx-auto mb-4">
     <h1 class="text-2xl font-bold mb-4 text-center">Inicio de sesión</h1>
 
     <label class="block mb-2 font-semibold">Ingrese su número de empleado</label>
@@ -46,53 +54,39 @@
     </button>
   </div>
 
-  <script src="particles-config.js"></script>
+  <!-- Tu configuración de partículas -->
+  <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
 
+  <!-- Script de verificación de login -->
   <script>
-  function verificarCodigo() {
-  const codigo = document.getElementById("codigoEmpleado").value.trim();
+    function verificarCodigo() {
+      const codigo = document.getElementById("codigoEmpleado").value.trim();
 
-  if (!codigo) {
-    alert("Por favor ingrese su código.");
-    return;
-  }
+      if (!codigo) {
+        alert("Por favor ingrese su código.");
+        return;
+      }
 
-  fetch("http://127.0.0.1:5000/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ codigo })
-  })
-  .then(async res => {
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = {valido:false, raw: text}; }
-    if (!res.ok) {
-      // servidor devolvió 500 u otro error
-      throw new Error(`HTTP ${res.status} - ${text}`);
+      fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.valido) {
+          localStorage.setItem("nombreCajero", data.nombre);
+          localStorage.setItem("rol", data.role);
+          window.location.href = "/interfaz";
+        } else {
+          alert("Código inválido. Intenta de nuevo.");
+        }
+      })
+      .catch(err => {
+        console.error("Error al conectar con el servidor:", err);
+        alert("Error de conexión o servidor.");
+      });
     }
-    return data;
-  })
-  .then(data => {
-    if (data.valido) {
-      localStorage.setItem("nombreCajero", data.nombre);
-      localStorage.setItem("rol", data.role);
-      window.location.href = "interfaz de restaurante.html";
-    } else {
-      alert("Código inválido. Intenta de nuevo.");
-    }
-  })
-  .catch(err => {
-    console.error("Error al conectar con el servidor:", err);
-    alert("Error de conexión o servidor. Mira la consola para más detalle.");
-  });
-}
-
   </script>
-  
 </body>
 </html>
-
-
-
-
-
