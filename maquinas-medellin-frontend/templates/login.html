@@ -6,7 +6,7 @@
   <title>Login</title>
 
   <!-- Icono del sitio -->
-  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/png" />
+  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
 
   <!-- Tailwind y librería de partículas -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -35,7 +35,8 @@
 
   <!-- Contenedor del formulario -->
   <div class="bg-[#f4f1eb] p-6 rounded-lg shadow-lg w-96 z-10 relative">
-    <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Máquinas Medellín" class="w-24 mx-auto mb-4">
+   <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Máquinas Medellín" class="w-24 mx-auto mb-4">
+
     <h1 class="text-2xl font-bold mb-4 text-center">Inicio de sesión</h1>
 
     <label class="block mb-2 font-semibold">Ingrese su número de empleado</label>
@@ -46,16 +47,13 @@
       placeholder="Ej: 12345"
     >
 
-    <button
-      onclick="verificarCodigo()"
-      class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
-    >
-      Aceptar
-    </button>
+   <button type="button" onclick="verificarCodigo()" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+  Aceptar
+</button>
   </div>
 
-  <!-- Tu configuración de partículas -->
-  <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
+  <!-- Configuración de partículas -->
+ <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
 
   <!-- Script de verificación de login -->
   <script>
@@ -74,14 +72,18 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (data.valido) {
-          localStorage.setItem("nombreCajero", data.nombre);
-          localStorage.setItem("rol", data.role);
-          window.location.href = "/interfaz";
-        } else {
-          alert("Código inválido. Intenta de nuevo.");
-        }
-      })
+  console.log("Respuesta /login:", data);
+  if (data.valido) {
+    localStorage.setItem("nombreCajero", data.nombre);
+    localStorage.setItem("rol", data.role);
+    const destino = "/local";
+    console.log("Redirigiendo a:", destino);
+    window.location.assign(destino);
+  } else {
+    alert("Código inválido. Intenta de nuevo.");
+  }
+})
+
       .catch(err => {
         console.error("Error al conectar con el servidor:", err);
         alert("Error de conexión o servidor.");

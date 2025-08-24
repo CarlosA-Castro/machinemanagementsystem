@@ -64,6 +64,11 @@ def procesar_login():
             "message": str(e)
         }), 500
 
+# 📌 Ruta de la interfaz principal
+@app.route('/local')
+def mostrar_local():
+    return render_template('local.html')   # Flask buscará en /templates/local.html
+
 # 🚀 Ejecutar el servidor
 if __name__ == '__main__':
     app.run(debug=True)
