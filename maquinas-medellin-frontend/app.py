@@ -70,13 +70,19 @@ def mostrar_local():
     print("📍 Ruta /local accedida")
     return render_template('local.html')
 
+# 📦 Ruta para la interfaz de ingresar paquete - ¡AÑADIDA!
+@app.route('/package')
+def mostrar_package():
+    print("📦 Ruta /package accedida")
+    return render_template('package.html')
+
 # 🆕 Ruta para redireccionar Login.html a la raíz
 @app.route('/Login.html')
 def redirect_login():
     print("🔄 Redirigiendo Login.html a /")
     return redirect('/')
 
-# 🐛 Endpoint para debug de localStorage - ¡AÑADIDO!
+# 🐛 Endpoint para debug de localStorage
 @app.route('/debug/localstorage')
 def debug_localstorage():
     return jsonify({
@@ -85,7 +91,7 @@ def debug_localstorage():
         "rol": "Test Rol"
     })
 
-# 🐛 Endpoint para verificar sesión - ¡AÑADIDO!
+# 🐛 Endpoint para verificar sesión
 @app.route('/check-session')
 def check_session():
     return jsonify({
