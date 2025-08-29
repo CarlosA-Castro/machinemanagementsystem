@@ -64,13 +64,21 @@ def procesar_login():
             "message": str(e)
         }), 500
 
-# 📌 Ruta de la interfaz principal
+# 📌 Ruta de la interfaz principal MEJORADA
 @app.route('/local')
 def mostrar_local():
     print("📍 Ruta /local accedida")
+    
+    # ✅ Obtener parámetros de URL para fallback
+    nombre = request.args.get('nombre')
+    local = request.args.get('local')
+    
+    if nombre and local:
+        print(f"📦 Parámetros recibidos: {nombre}, {local}")
+    
     return render_template('local.html')
 
-# 📦 Ruta para la interfaz de ingresar paquete - ¡AÑADIDA!
+# 📦 Ruta para la interfaz de ingresar paquete
 @app.route('/package')
 def mostrar_package():
     print("📦 Ruta /package accedida")
