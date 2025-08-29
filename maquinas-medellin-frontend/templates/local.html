@@ -3,11 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interfaz Local</title>
-   <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+  <title>Local</title>
+  
+  <!-- ✅ FAVICON CORREGIDO -->
+   <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+
+  <!-- Tailwind y librería de partículas -->
+
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+  
   <style>
     html, body {
       margin: 0;
@@ -22,13 +29,12 @@
       top: 0;
       left: 0;
     }
-    
   </style>
 </head>
+
 <body class="bg-[#f4f1eb] text-gray-900 font-sans relative">
 
-  <!-- Fondo de partículas -->
-  <div id="particles-js" class="fixed w-full h-full z-0 top-0 left-0"></div>
+  <div id="particles-js"></div>
 
   <div class="flex h-screen">
     <!-- Barra lateral -->
@@ -37,17 +43,18 @@
         <div class="p-6 text-2xl font-bold border-b border-gray-200">Máquinas Medellín</div>
         <nav class="mt-4 space-y-3 px-4 text-sm font-medium">
           <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">🏠 Home</a>
-          <a href="ingresar paquete.html" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">📦 Ingresar paquete</a>
-          <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">⚠️ Falla paquete</a>
-         <a href="Interfaz falla maquina.html" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">⚠️ Falla máquina</a>
+          <a href="/package" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">📦 Ingresar paquete</a>
+          <a href="/package/failure" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">⚠️ Falla paquete</a>
+          <a href="/machinereport" class="block py-2 px-4 rounded-lg hover:bg-gray-200 transition">⚠️ Falla máquina</a>
         </nav>
         <div class="mt-6 px-4 text-sm">
           <a href="https://wa.me/573218001092" target="_blank" class="text-blue-600 hover:underline">📞 Soporte</a>
         </div>
       </div>
-    <div class="bg-gray-900 p-4 text-sm border-t border-gray-700 text-white">
-  <div class="mb-1">👤 Emilio | El Mekatiadero</div>
-  <a href="login.html" class="text-red-400 hover:underline">Salir</a>
+      <!-- Enlace de salida con limpieza de sesión -->
+      <div class="bg-gray-900 p-4 text-sm border-t border-gray-700 text-white">
+        <div class="mb-1">👤 <span id="nombreUsuario">Usuario</span> | <span id="localUsuario">Local</span></div>
+        <a href="/" onclick="limpiarSesion()" class="text-red-400 hover:underline">Salir</a>
       </div>
     </aside>
 
@@ -57,22 +64,22 @@
       <p class="mb-6 text-lg">📍 Local: <strong id="localCajero"></strong></p>
 
       <!-- Sección para escanear QR -->
-<div class="bg-white rounded-xl p-6 shadow-md mb-6">
-  <label for="resultadoQR" class="block text-sm font-medium text-gray-700 mb-2">Código QR:</label>
-  <input type="text" id="resultadoQR" placeholder="QR escaneado aparecerá aquí" 
-         class="w-full border border-gray-300 rounded-lg p-2 mb-4" readonly />
-  
-  <button onclick="toggleScanner()" class="bg-blue-600 hover:bg-white hover:text-blue-600 border border-blue-600 transition-all text-white font-bold py-2 px-4 rounded">
-    📷 <span id="scannerText">Escanear QR</span>
-  </button>
-  
-  <div id="contenedorQR" class="mt-4 hidden mx-auto w-full max-w-md">
-    <div id="reader" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
-    <button onclick="detenerScanner()" class="mt-2 bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm">
-      Detener escaneo
-    </button>
-  </div>
-</div>
+      <div class="bg-white rounded-xl p-6 shadow-md mb-6">
+        <label for="resultadoQR" class="block text-sm font-medium text-gray-700 mb-2">Código QR:</label>
+        <input type="text" id="resultadoQR" placeholder="QR escaneado aparecerá aquí" 
+               class="w-full border border-gray-300 rounded-lg p-2 mb-4" readonly />
+        
+        <button onclick="toggleScanner()" class="bg-blue-600 hover:bg-white hover:text-blue-600 border border-blue-600 transition-all text-white font-bold py-2 px-4 rounded">
+          📷 <span id="scannerText">Escanear QR</span>
+        </button>
+        
+        <div id="contenedorQR" class="mt-4 hidden mx-auto w-full max-w-md">
+          <div id="reader" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
+          <button onclick="detenerScanner()" class="mt-2 bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded text-sm">
+            Detener escaneo
+          </button>
+        </div>
+      </div>
 
       <!-- Tabla de registros -->
       <div class="bg-white rounded-xl p-6 shadow-md">
@@ -96,21 +103,64 @@
     </main>
   </div>
 
-  <!-- Script de partículas -->
-  <script src="particles-config-local.js"></script>
-  <script>
-    const nombre = localStorage.getItem("nombreCajero");
-    const local = localStorage.getItem("local");
+  <!-- Ruta de partículas -->
+  <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
+<script>
+  // Configuración de partículas para el admin
+  particlesJS("particles-js", {
+    particles: {
+      number: { value: 80, density: { enable: true, value_area: 800 } },
+      color: { value: "#3B82F6" },
+      opacity: { value: 0.5, random: true },
+      size: { value: 3, random: true },
+      line_linked: {
+        enable: true,
+        distance: 150,
+        color: "#3B82F6",
+        opacity: 0.4,
+        width: 1
+      }
+    }
+  });
+  
+</script>
+// ✅ VERIFICACIÓN MEJORADA
+function verificarSesion() {
+    console.log("=== 🔍 INSPECCIÓN sessionStorage ===");
+
+    const nombre = sessionStorage.getItem("nombreUsuario");
+    const local = sessionStorage.getItem("localUsuario");
+    const rol = sessionStorage.getItem("rolUsuario");
+    
+    console.log("📦 Datos en sessionStorage:");
+    console.log("nombreUsuario:", nombre);
+    console.log("localUsuario:", local);
+    console.log("rolUsuario:", rol);
 
     if (!nombre || !local) {
-      window.location.href = "Login.html";
-    } else {
-      document.getElementById("nombreCajero").textContent = `Bienvenido, ${nombre} 👋`;
-      document.getElementById("localCajero").textContent = local;
+        console.log("❌ FALTAN DATOS - Redirigiendo a login...");
+        sessionStorage.clear();
+        window.location.href = "/";
+        return;
     }
-  </script>
+
+    console.log("✅ DATOS COMPLETOS - Mostrando interfaz");
+    document.getElementById("nombreCajero").textContent = `Bienvenido, ${nombre} 👋`;
+    document.getElementById("localCajero").textContent = local;
+    
+    const userElement = document.querySelector("#nombreUsuario");
+    const localElement = document.querySelector("#localUsuario");
+    
+    if (userElement) userElement.textContent = nombre;
+    if (localElement) localElement.textContent = local;
+}
+
+// Ejecutar la verificación al cargar
+verificarSesion();
+</script>
+
 <script>
-  let html5QrcodeScanner = null;
+let html5QrcodeScanner = null;
 
 function toggleScanner() {
   const contenedor = document.getElementById("contenedorQR");
@@ -131,12 +181,11 @@ function iniciarScanner() {
   html5QrcodeScanner = new Html5QrcodeScanner(
     "reader",
     { fps: 10, qrbox: { width: 250, height: 250 } },
-    /* verbose= */ false
+    false
   );
 
   html5QrcodeScanner.render(
     (decodedText) => {
-      // Escaneo exitoso
       document.getElementById("resultadoQR").value = decodedText;
       agregarFilaQR(decodedText);
       detenerScanner();
@@ -144,7 +193,6 @@ function iniciarScanner() {
       document.getElementById("scannerText").textContent = "Escanear QR";
     },
     (errorMessage) => {
-      // Manejo de errores
       console.log("Error escaneando:", errorMessage);
     }
   );

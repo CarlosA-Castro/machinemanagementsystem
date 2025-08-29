@@ -84,6 +84,12 @@ def mostrar_package():
     print("📦 Ruta /package accedida")
     return render_template('package.html')
 
+# 👨‍💼 Ruta para el panel de administración
+@app.route('/admin')
+def mostrar_admin():
+    print("👨‍💼 Ruta /admin accedida - Panel de administración")
+    return render_template('admin.html')
+
 # 🆕 Ruta para redireccionar Login.html a la raíz
 @app.route('/Login.html')
 def redirect_login():
