@@ -84,6 +84,12 @@ def mostrar_package():
     print("📦 Ruta /package accedida")
     return render_template('package.html')
 
+# 📦 Ruta para la interfaz de reporte de máquina
+@app.route('/machinereport')
+def mostrar_machine_report():
+    print("📦 Ruta /machinereport accedida")
+    return render_template('machinereport.html')
+
 # 👨‍💼 Ruta para el panel de administración
 @app.route('/admin')
 def mostrar_admin():
