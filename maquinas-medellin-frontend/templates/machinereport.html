@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reporte de Falla</title>
-    <link rel="icon" href="maquinasmedellinlogo.jpg" type="image/png" />
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
       rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
      <style>
         #scanner-container {
             display: none;
@@ -104,7 +105,7 @@
       }
     </style>
 </head>
-<body class="relative h-full bg-gray-100"></body>
+<body class="relative h-full bg-gray-100">
     <!-- Fondo de partículas -->
     <div id="particles-js"></div>
 
@@ -118,20 +119,26 @@
           Escanee el QR en el que se presentó la falla y seleccione la máquina sobre la cual se reportará el error y se hará la devolución.
         </p>
       </div>
-        <!-- Sección QR -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold mb-3 text-gray-800">🔍 Código QR</h2>
-                <input id="qr-result" type="text" readonly 
-                       class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 mb-3 text-center font-medium" 
-                       placeholder="QR escaneado aparecerá aquí">
-                <button id="btn-scan-qr" 
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors">
-                    <span>📷</span> Escanear QR
-                </button>
-            </div>
+      
+      <!-- Sección QR -->
+      <div class="glass-card">
+        <h2 class="text-xl font-semibold mb-3 glass-subtitle">🔍 Código QR</h2>
+        <input id="qr-result" type="text" readonly 
+               class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 mb-3 text-center font-medium" 
+               placeholder="QR escaneado aparecerá aquí">
+        <button id="btn-scan-qr" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors">
+            <span>📷</span> <span id="scanner-text">Escanear QR</span>
+        </button>
+        
+        <!-- Contenedor para el escáner HTML5 QR -->
+        <div id="html5-qrcode-container" class="mt-4 hidden mx-auto w-full max-w-md">
+          <div id="html5-qrcode-scanner" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
+        </div>
+      </div>
             
-            <!-- Sección Máquinas -->
-             <div class="glass-card space-y-6">
+      <!-- Sección Máquinas -->
+      <div class="glass-card space-y-6">
         <h2 class="text-2xl font-semibold glass-subtitle">🎮 Máquinas:</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Máquina De Basket -->
@@ -139,7 +146,7 @@
             onclick="abrirModal('Máquina De Basket')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Basket.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/Basket.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Basket</p>
           </div>
           
@@ -148,7 +155,7 @@
             onclick="abrirModal('Máquina De Disco Hockey')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Disco Hockey.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/DiscoHockey.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Disco Hockey</p>
           </div>
           
@@ -157,7 +164,7 @@
             onclick="abrirModal('Máquina De Pelea')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Pelea.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/Pelea.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Pelea</p>
           </div>
           
@@ -166,7 +173,7 @@
             onclick="abrirModal('Máquina De Peluches 1')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Peluches 1.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/peluches1.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Peluches 1</p>
           </div>
           
@@ -175,7 +182,7 @@
             onclick="abrirModal('Máquina De Peluches 2')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Peluches 2.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/Peluches2.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Peluches 2</p>
           </div>
           
@@ -184,7 +191,7 @@
             onclick="abrirModal('Máquina De Simulador 1')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Simulador 1.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/Simulador1.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Simulador 1</p>
           </div>
           
@@ -193,7 +200,7 @@
             onclick="abrirModal('Máquina De Simulador 2')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Simulador 2.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/Simulador2.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Simulador 2</p>
           </div>
           
@@ -202,231 +209,254 @@
             onclick="abrirModal('Máquina De Simulador Connection')" 
             class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
           >
-            <img src="Simulador Connection.jpg" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
+            <img src="{{ url_for('static', filename='img/SimuladorConnection.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Simulador Connection</p>
           </div>
         </div>
       </div>
-        <!-- Botón Volver -->
-         <div class="text-center">
-  <a href="interfaz de restaurante.html" class="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-    🔙 Volver atrás
-  </a>
-</div>
-    </div>
-    <!-- Scanner QR -->
-    <div id="scanner-container">
-        <video id="qr-video" playsinline></video>
-        <button id="btn-close-scan" class="mt-6 bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-            Cerrar Escáner
-        </button>
+      
+      <!-- Botón Volver -->
+      <div class="text-center">
+        <a href="{{ url_for('mostrar_local') }}" class="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+          🔙 Volver al Local
+        </a>
+      </div>
     </div>
 
     <!-- Modal de Confirmación -->
-     <div
-  id="modal"
-  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden"
->
-  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-    <h3 class="text-2xl font-bold text-center text-blue-900">Confirmación de Reporte de Falla</h3>
-    <hr class="my-4 border-blue-200" />
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
+      <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <h3 class="text-2xl font-bold text-center text-blue-900">Confirmación de Reporte de Falla</h3>
+        <hr class="my-4 border-blue-200" />
 
-    <p class="text-gray-700 mb-2">
-      Se devolverán <span id="turnosDevolverPreview" class="font-bold">X</span> turnos sobre el código QR
-    </p>
-    <p class="text-gray-700 mb-4">
-      Máquina en error: <span id="maquinaSeleccionada" class="font-semibold"></span>
-    </p>
+        <p class="text-gray-700 mb-2">
+          Se devolverán <span id="turnosDevolverPreview" class="font-bold">X</span> turnos sobre el código QR
+        </p>
+        <p class="text-gray-700 mb-4">
+          Máquina en error: <span id="maquinaSeleccionada" class="font-semibold"></span>
+        </p>
 
-    <input
-      id="turnosDevolver"
-      type="number"
-      min="1"
-      placeholder="Cantidad de turnos a devolver"
-      class="w-full p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-      oninput="actualizarPreview()"
-    />
+        <input
+          id="turnosDevolver"
+          type="number"
+          min="1"
+          placeholder="Cantidad de turnos a devolver"
+          class="w-full p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+          oninput="actualizarPreview()"
+        />
 
-    <div class="flex justify-center gap-4">
-      <button 
-        onclick="cerrarModal()" 
-        class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
-      >
-        Cancelar
-      </button>
-      <button 
-        onclick="confirmarFalla()" 
-        class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-      >
-        Confirmar
-      </button>
+        <div class="flex justify-center gap-4">
+          <button 
+            onclick="cerrarModal()" 
+            class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            onclick="confirmarFalla()" 
+            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
- <script src="particles-config-local.js"></script>
- <script src="particles-config-local.js"></script>
+
     <script>
-      // Partículas
-      particlesJS.load('particles-js', 'particles-config-local.js', () => {
-        console.log('✅ Partículas cargadas');
-      });
-        // Variables de estado
-        let selectedMachine = null;
-        let scannedQR = null;
-        let scanning = false;
-        let videoStream = null;
-        
-        // Elementos del DOM
-        const qrResult = document.getElementById('qr-result');
-        const btnScanQR = document.getElementById('btn-scan-qr');
-        const scannerContainer = document.getElementById('scanner-container');
-        const qrVideo = document.getElementById('qr-video');
-        const btnCloseScan = document.getElementById('btn-close-scan');
-        const confirmModal = document.getElementById('confirm-modal');
-        
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', checkCompatibility);
-        btnScanQR.addEventListener('click', startScanning);
-        btnCloseScan.addEventListener('click', stopScanning);
-        
-        // Funciones
-        function checkCompatibility() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                btnScanQR.disabled = true;
-                btnScanQR.innerHTML = '<span>❌ Escáner no compatible</span>';
-                btnScanQR.classList.add('bg-gray-400', 'cursor-not-allowed');
-                btnScanQR.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+      // Configuración de partículas azules
+      document.addEventListener('DOMContentLoaded', function() {
+        particlesJS('particles-js', {
+          particles: {
+            number: {
+              value: 80,
+              density: {
+                enable: true,
+                value_area: 800
+              }
+            },
+            color: {
+              value: '#3b82f6' // Color azul para las partículas
+            },
+            shape: {
+              type: 'circle',
+              stroke: {
+                width: 0,
+                color: '#000000'
+              }
+            },
+            opacity: {
+              value: 0.5,
+              random: true,
+              anim: {
+                enable: true,
+                speed: 1,
+                opacity_min: 0.1,
+                sync: false
+              }
+            },
+            size: {
+              value: 3,
+              random: true,
+              anim: {
+                enable: true,
+                speed: 2,
+                size_min: 0.3,
+                sync: false
+              }
+            },
+            line_linked: {
+              enable: true,
+              distance: 150,
+              color: '#3b82f6', // Color azul para las conexiones
+              opacity: 0.4,
+              width: 1
+            },
+            move: {
+              enable: true,
+              speed: 1,
+              direction: 'none',
+              random: true,
+              straight: false,
+              out_mode: 'out',
+              bounce: false,
+              attract: {
+                enable: false,
+                rotateX: 600,
+                rotateY: 1200
+              }
             }
-        }
-        
-        async function startScanning() {
-            try {
-                // Solicitar acceso a la cámara
-                videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                });
-                
-                qrVideo.srcObject = videoStream;
-                qrVideo.play();
-                scannerContainer.style.display = 'flex';
-                scanning = true;
-                
-                // Iniciar detección de QR
-                requestAnimationFrame(scanQRCode);
-                
-            } catch (err) {
-                console.error("Error al acceder a la cámara:", err);
-                alert("No se pudo acceder a la cámara. Por favor asegúrate de haber dado los permisos necesarios.");
-                stopScanning();
-            }
-        }
-        
-        function stopScanning() {
-            scanning = false;
-            scannerContainer.style.display = 'none';
-            
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-            
-            // Mostrar modal si hay máquina seleccionada
-            if (selectedMachine && scannedQR) {
-                showConfirmation();
-            }
-        }
-        
-        function scanQRCode() {
-            if (!scanning) return;
-            
-            if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
-                const canvas = document.createElement('canvas');
-                canvas.width = qrVideo.videoWidth;
-                canvas.height = qrVideo.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
-                
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert",
-                });
-                
-                if (code) {
-                    scannedQR = code.data;
-                    qrResult.value = scannedQR;
-                    stopScanning();
+          },
+          interactivity: {
+            detect_on: 'canvas',
+            events: {
+              onhover: {
+                enable: true,
+                mode: 'grab'
+              },
+              onclick: {
+                enable: true,
+                mode: 'push'
+              },
+              resize: true
+            },
+            modes: {
+              grab: {
+                distance: 140,
+                line_linked: {
+                  opacity: 1
                 }
+              },
+              push: {
+                particles_nb: 4
+              }
             }
-            
-            if (scanning) {
-                requestAnimationFrame(scanQRCode);
-            }
+          },
+          retina_detect: true
+        });
+      });
+
+      // Variables para el escáner QR
+      let html5QrCodeScanner = null;
+      let scannerActivo = false;
+      
+      // Elementos del DOM
+      const qrResult = document.getElementById('qr-result');
+      const btnScanQR = document.getElementById('btn-scan-qr');
+      const scannerText = document.getElementById('scanner-text');
+      const html5QrcodeContainer = document.getElementById('html5-qrcode-container');
+
+      // Inicialización del escáner
+      btnScanQR.addEventListener('click', toggleScanner);
+
+      function toggleScanner() {
+        if (scannerActivo) {
+          // Si ya está activo, detener el escáner
+          detenerScanner();
+          scannerText.textContent = "Escanear QR";
+          return;
         }
         
-        function selectMachine(machine) {
-            selectedMachine = machine;
-            document.getElementById('selected-machine').textContent = machine;
-            
-            if (scannedQR) {
-                showConfirmation();
-            } else {
-                alert("Por favor escanea primero el código QR");
-            }
-        }
-        
-        function showConfirmation() {
-            document.getElementById('scanned-qr').textContent = scannedQR;
-            confirmModal.classList.remove('hidden');
-        }
-        
-        function closeModal() {
-            confirmModal.classList.add('hidden');
-        }
-        
-        function submitReport() {
-            alert(`✅ Reporte enviado correctamente\n\nMáquina: ${selectedMachine}\nCódigo QR: ${scannedQR}`);
-            closeModal();
-            // Resetear el formulario
-            qrResult.value = '';
-            scannedQR = null;
-            selectedMachine = null;
-        }
-
-    // Modal-related functions (moved outside submitReport)
-    let maquinaActual = '';
-    function abrirModal(nombre) {
-      maquinaActual = nombre;
-      document.getElementById("maquinaSeleccionada").innerText = nombre;
-      document.getElementById("turnosDevolver").value = "";
-      document.getElementById("turnosDevolverPreview").innerText = "X";
-      document.getElementById("modal").classList.remove("hidden");
-    }
-
-    function cerrarModal() {
-      document.getElementById("modal").classList.add("hidden");
-    }
-
-    function actualizarPreview() {
-      const valor = document.getElementById("turnosDevolver").value;
-      document.getElementById("turnosDevolverPreview").innerText = valor || "X";
-    }
-
-    function confirmarFalla() {
-      const cantidad = document.getElementById("turnosDevolver").value;
-      if (!cantidad || cantidad <= 0) {
-        alert("⚠ Ingresa una cantidad válida de turnos");
-        return;
+        // Iniciar escáner
+        iniciarScanner();
+        scannerText.textContent = "Escaneando...";
       }
 
-      const qr = document.getElementById("qr-result").value || "QR desconocido";
-      alert(`✅ Se devolverán ${cantidad} turnos sobre el código QR: ${qr} para la ${maquinaActual}`);
-      cerrarModal();
-    }
+      function iniciarScanner() {
+        if (!html5QrCodeScanner) {
+          html5QrCodeScanner = new Html5QrcodeScanner(
+            "html5-qrcode-scanner",
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            false
+          );
+
+          html5QrCodeScanner.render(
+            (decodedText) => {
+              qrResult.value = decodedText;
+              detenerScanner();
+              html5QrcodeContainer.classList.add("hidden");
+              scannerText.textContent = "Escanear QR";
+              scannerActivo = false;
+              
+              // Si hay una máquina seleccionada, mostrar el modal
+              if (maquinaActual) {
+                abrirModal(maquinaActual);
+              }
+            },
+            (errorMessage) => {
+              console.log("Error escaneando:", errorMessage);
+            }
+          );
+        }
+        
+        html5QrcodeContainer.classList.remove("hidden");
+        scannerActivo = true;
+      }
+
+      function detenerScanner() {
+        if (html5QrCodeScanner) {
+          html5QrCodeScanner.clear().catch(error => {
+            console.error("Error al detener el escáner:", error);
+          });
+        }
+        html5QrcodeContainer.classList.add("hidden");
+        scannerActivo = false;
+      }
+
+      // Funciones del modal
+      let maquinaActual = '';
+      
+      function abrirModal(nombre) {
+        maquinaActual = nombre;
+        document.getElementById("maquinaSeleccionada").innerText = nombre;
+        document.getElementById("turnosDevolver").value = "";
+        document.getElementById("turnosDevolverPreview").innerText = "X";
+        document.getElementById("modal").classList.remove("hidden");
+      }
+
+      function cerrarModal() {
+        document.getElementById("modal").classList.add("hidden");
+      }
+
+      function actualizarPreview() {
+        const valor = document.getElementById("turnosDevolver").value;
+        document.getElementById("turnosDevolverPreview").innerText = valor || "X";
+      }
+
+      function confirmarFalla() {
+        const cantidad = document.getElementById("turnosDevolver").value;
+        if (!cantidad || cantidad <= 0) {
+          alert("⚠ Ingresa una cantidad válida de turnos");
+          return;
+        }
+
+        const qr = document.getElementById("qr-result").value || "QR desconocido";
+        alert(`✅ Se devolverán ${cantidad} turnos sobre el código QR: ${qr} para la ${maquinaActual}`);
+        cerrarModal();
+        
+        // Limpiar campos después de confirmar
+        qrResult.value = "";
+        maquinaActual = "";
+      }
     </script>
 </body>
 </html>
