@@ -78,6 +78,11 @@ def mostrar_local():
     
     return render_template('local.html')
 
+@app.route('/packagefailure')
+def mostrar_package_failure():
+    print("📦 Ruta /packagefailure accedida - Reporte de Paquetes")
+    return render_template('packagefailure.html')
+
 # 📦 Ruta para la interfaz de ingresar paquete
 @app.route('/package')
 def mostrar_package():
