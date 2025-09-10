@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Local - Máquinas Medellín</title>
-  
-  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+  <title>Máquinas Medellín - Local</title>
 
+  <!-- FAVICON -->
+  <link rel="icon" href="maquinasmedellinlogo.ico" type="image/x-icon">
+
+  <!-- Tailwind y librería de partículas -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
@@ -16,7 +18,9 @@
       margin: 0;
       padding: 0;
       height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+    
     #particles-js {
       position: fixed;
       width: 100%;
@@ -25,87 +29,118 @@
       top: 0;
       left: 0;
     }
-    .history-row:hover {
-      background-color: #f3f4f6;
+    
+    /* Estilos personalizados adicionales */
+    .bg-custom-sidebar {
+      background-color: #1a2a6c;
+    }
+    
+    .bg-custom-header {
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+    }
+    
+    .text-custom-primary {
+      color: #1a2a6c;
+    }
+    
+    .border-custom {
+      border-color: #1a2a6c;
+    }
+    
+    .btn-primary {
+      background-color: #1a2a6c;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: #0d1b4d;
     }
   </style>
 </head>
 
-<body class="bg-[#f4f1eb] text-gray-900 font-sans relative">
+<body class="bg-gray-100 text-gray-900 relative">
 
   <div id="particles-js"></div>
 
   <div class="flex h-screen">
+    
     <!-- Barra lateral -->
-    <aside class="w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+    <aside class="w-64 bg-custom-sidebar text-white shadow-lg flex flex-col justify-between">
       <div>
-        <div class="p-6 text-2xl font-bold border-b border-gray-200">Máquinas Medellín</div>
-        <nav class="mt-4 space-y-3 px-4 text-sm font-medium">
-          <a href="#" class="block py-2 px-4 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">🏠 Home</a>
-          <a href="/package" class="block py-2 px-4 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">📦 Ingresar paquete</a>
-          <a href="/package/failure" class="block py-2 px-4 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">⚠️ Falla paquete</a>
-          <a href="/machinereport" class="block py-2 px-4 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">⚠️ Falla máquina</a>
+        <div class="p-6 text-2xl font-bold border-b border-gray-200 bg-custom-header">
+          <span class="text-white">Máquinas Medellín</span>
+        </div>
+        <nav class="mt-6 space-y-2 px-4 text-sm font-medium">
+          <a href="#" class="block py-3 px-4 rounded-lg bg-blue-800 text-white transition">🏠 Home</a>
+          <a href="/package" class="block py-3 px-4 rounded-lg hover:bg-blue-700 transition">📦 Ingresar paquete</a>
+          <a href="/package/failure" class="block py-3 px-4 rounded-lg hover:bg-blue-700 transition">⚠️ Falla paquete</a>
+          <a href="/machinereport" class="block py-3 px-4 rounded-lg hover:bg-blue-700 transition">⚠️ Falla máquina</a>
         </nav>
-        <div class="mt-6 px-4 text-sm">
-          <a href="https://wa.me/573218001092" target="_blank" class="text-blue-400 hover:underline">📞 Soporte</a>
+        <div class="mt-8 px-4 text-sm">
+          <a href="https://wa.me/573218001092" target="_blank" class="text-blue-300 hover:text-white hover:underline flex items-center">
+            <span class="mr-2">📞</span> Soporte
+          </a>
         </div>
       </div>
-      <!-- Información de usuario -->
-      <div class="bg-gray-800 p-4 text-sm border-t border-gray-700 text-white">
-        <div class="mb-1">👤 <span id="nombreUsuario">Andrés Felipe Gomez</span> | <span id="localUsuario">El mekatiadero</span></div>
-        <a href="/" onclick="limpiarSesion()" class="text-red-400 hover:underline">Salir</a>
+
+      <!-- Información de usuario y salida -->
+      <div class="bg-blue-900 p-4 text-sm border-t border-blue-700 text-white">
+        <div class="mb-2">👤 <span id="nombreUsuario">Usuario</span> - <span id="localUsuario">Local</span></div>
+        <a href="/" onclick="limpiarSesion()" class="text-red-300 hover:text-white hover:underline">Salir</a>
       </div>
     </aside>
 
     <!-- Contenido principal -->
-    <main class="flex-1 p-8 overflow-y-auto">
-      <h1 class="text-3xl font-bold mb-2">Bienvenido, Andrés Felipe Gomez</h1>
-      <p class="mb-6 text-lg">📍 Local: <strong>El mekatiadero</strong></p>
+    <main class="flex-1 p-6 overflow-y-auto">
+
+      <!-- Encabezado con información del usuario -->
+      <div class="bg-white rounded-xl p-6 shadow-md mb-6">
+        <h1 class="text-3xl font-bold text-custom-primary mb-2" id="nombreCajero">Bienvenido/a</h1>
+        <p class="text-lg text-gray-700">📍 Local: <strong id="localCajero" class="text-custom-primary">Cargando...</strong></p>
+      </div>
 
       <!-- Sección para escanear QR -->
       <div class="bg-white rounded-xl p-6 shadow-md mb-6">
-        <label for="resultadoQR" class="block text-sm font-medium text-gray-700 mb-2">Código QR:</label>
-        <input type="text" id="resultadoQR" placeholder="QR escaneado aparecerá aquí" 
-               class="w-full border border-gray-300 rounded-lg p-2 mb-4" readonly />
+        <h2 class="text-xl font-bold text-custom-primary mb-4">Código QR</h2>
+        <label for="resultadoQR" class="block text-sm font-medium text-gray-700 mb-2">QR escaneado aparecerá aquí:</label>
+        <input type="text" id="resultadoQR" placeholder="Esperando escaneo..." 
+               class="w-full border border-gray-300 rounded-lg p-3 mb-4 text-center font-mono" readonly />
         
-        <button id="btnEscanearQR" class="bg-blue-600 hover:bg-white hover:text-blue-600 border border-blue-600 transition-all text-white font-bold py-2 px-4 rounded">
-          📷 <span id="scannerText">Escanear QR</span>
-        </button>
+        <div class="flex space-x-3">
+          <button onclick="toggleScanner()" class="btn-primary font-bold py-2 px-6 rounded flex items-center">
+            <span class="mr-2">📷</span> <span id="scannerText">Escanear QR</span>
+          </button>
+          
+          <button onclick="limpiarQR()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+            Limpiar
+          </button>
+        </div>
         
         <div id="contenedorQR" class="mt-4 hidden mx-auto w-full max-w-md">
           <div id="reader" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
+          <button onclick="detenerScanner()" class="mt-3 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded">
+            Detener escaneo
+          </button>
         </div>
       </div>
 
       <!-- Tabla de registros -->
       <div class="bg-white rounded-xl p-6 shadow-md">
-        <h2 class="text-xl font-bold mb-4">Historial de QR escaneados</h2>
-        <p class="text-sm text-gray-600 mb-4">Estos son los códigos QR que has escaneado recientemente:</p>
+        <h2 class="text-xl font-bold text-custom-primary mb-4">Historial de QR escaneados</h2>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-gray-200 text-left uppercase tracking-wider">
+            <thead class="bg-gray-200 text-left uppercase">
               <tr>
-                <th class="p-3">#</th>
-                <th class="p-3">Código QR</th>
-                <th class="p-3">Fecha</th>
-                <th class="p-3">Hora</th>
-                <th class="p-3">Acciones</th>
+                <th class="p-3 font-semibold">#</th>
+                <th class="p-3 font-semibold">Código QR</th>
+                <th class="p-3 font-semibold">Fecha</th>
+                <th class="p-3 font-semibold">Hora</th>
               </tr>
             </thead>
             <tbody id="tablaRegistros" class="text-gray-800">
-              <!-- Ejemplo de registro previo -->
-              <tr class="history-row">
-                <td class="p-3">1</td>
-                <td class="p-3 font-mono">AECT3372</td>
-                <td class="p-3">09/02/2025</td>
-                <td class="p-3">17:44:30</td>
-                <td class="p-3">
-                  <button onclick="verDetalles('AECT3372')" class="text-blue-600 hover:text-blue-800 text-xs">
-                    Ver detalles
-                  </button>
-                </td>
+              <tr>
+                <td class="p-3 text-center" colspan="4">No hay registros de escaneos</td>
               </tr>
-              <!-- Los nuevos registros se agregarán aquí -->
             </tbody>
           </table>
         </div>
@@ -114,123 +149,80 @@
   </div>
 
   <script>
-    // Configuración de partículas azules (igual que en la interfaz de ingreso de paquetes)
-    document.addEventListener('DOMContentLoaded', function() {
-      particlesJS('particles-js', {
-        particles: {
-          number: {
-            value: 80,
-            density: {
-              enable: true,
-              value_area: 800
-            }
-          },
-          color: {
-            value: '#3b82f6' // Color azul para las partículas
-          },
-          shape: {
-            type: 'circle',
-            stroke: {
-              width: 0,
-              color: '#000000'
-            }
-          },
-          opacity: {
-            value: 0.5,
-            random: true,
-            anim: {
-              enable: true,
-              speed: 1,
-              opacity_min: 0.1,
-              sync: false
-            }
-          },
-          size: {
-            value: 3,
-            random: true,
-            anim: {
-              enable: true,
-              speed: 2,
-              size_min: 0.3,
-              sync: false
-            }
-          },
-          line_linked: {
-            enable: true,
-            distance: 150,
-            color: '#3b82f6', // Color azul para las conexiones
-            opacity: 0.4,
-            width: 1
-          },
-          move: {
-            enable: true,
-            speed: 1,
-            direction: 'none',
-            random: true,
-            straight: false,
-            out_mode: 'out',
-            bounce: false,
-            attract: {
-              enable: false,
-              rotateX: 600,
-              rotateY: 1200
-            }
-          }
-        },
-        interactivity: {
-          detect_on: 'canvas',
-          events: {
-            onhover: {
-              enable: true,
-              mode: 'grab'
-            },
-            onclick: {
-              enable: true,
-              mode: 'push'
-            },
-            resize: true
-          },
-          modes: {
-            grab: {
-              distance: 140,
-              line_linked: {
-                opacity: 1
-              }
-            },
-            push: {
-              particles_nb: 4
-            }
-          }
-        },
-        retina_detect: true
-      });
-    });
 
-    // Función para ver detalles de un código QR
-    function verDetalles(codigo) {
-      alert(`Detalles del código QR: ${codigo}\n\nEsta funcionalidad mostraría más información sobre el elemento escaneado.`);
-    }
-    
-    // Función para limpiar sesión
-    function limpiarSesion() {
-      console.log("Sesión limpiada");
-      // Aquí iría la lógica para limpiar sessionStorage
-    }
-    
-    // Funcionalidad del escáner QR (mejorada como en la interfaz de ingreso)
-    let html5QrcodeScanner = null;
-    let scannerActivo = false;
-
-    document.getElementById('btnEscanearQR').addEventListener('click', function() {
-      if (scannerActivo) {
-        // Si ya está activo, detener el escáner
-        detenerScanner();
-        document.getElementById('scannerText').textContent = "Escanear QR";
-        return;
+    // Configuración de partículas con color oscuro 
+    particlesJS("particles-js", {
+      particles: {
+        number: { value: 60, density: { enable: true, value_area: 800 } },
+        color: { value: "#1a2a6c" }, // Color azul oscuro
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: {
+          enable: true,
+          distance: 150,
+          color: "#1a2a6c", // Color azul oscuro
+          opacity: 0.4,
+          width: 1
+        },
+        move: {
+          enable: true,
+          speed: 2,
+          direction: "none",
+          random: true,
+          straight: false,
+          out_mode: "out",
+          bounce: false
+        }
+      },
+      interactivity: {
+        detect_on: "canvas",
+        events: {
+          onhover: { enable: true, mode: "grab" },
+          onclick: { enable: true, mode: "push" },
+          resize: true
+        }
       }
-      
-      toggleScanner();
     });
+
+    // Simulación de datos de usuario
+    const usuarios = {
+      "admin123": { nombre: "Andrés Felipe Gomez", local: "El Mekatiadero" },
+      "user456": { nombre: "María Rodriguez", local: "Centro Comercial San Diego" },
+      "local789": { nombre: "Carlos López", local: "Mall La Central" }
+    };
+
+    // Función para limpiar la sesión
+    function limpiarSesion() {
+      sessionStorage.removeItem('claveUsuario');
+      console.log("Sesión limpiada");
+    }
+
+    // Función para cargar datos del usuario
+    function cargarDatosUsuario() {
+
+      // Simulamos que obtenemos la clave de sessionStorage
+      const clave = sessionStorage.getItem('claveUsuario') || 'admin123';
+      
+      const usuario = usuarios[clave] || { 
+        nombre: "Usuario Invitado", 
+        local: "Local no asignado" 
+      };
+      
+      // Actualizar la interfaz con los datos del usuario
+      document.getElementById("nombreCajero").textContent = `Bienvenido/a, ${usuario.nombre}`;
+      document.getElementById("localCajero").textContent = usuario.local;
+      document.getElementById("nombreUsuario").textContent = usuario.nombre;
+      document.getElementById("localUsuario").textContent = usuario.local;
+      
+      console.log("Datos de usuario cargados:", usuario);
+    }
+
+    // Función para limpiar el campo QR
+    function limpiarQR() {
+      document.getElementById("resultadoQR").value = "";
+    }
+
+    let html5QrcodeScanner = null;
 
     function toggleScanner() {
       const contenedor = document.getElementById("contenedorQR");
@@ -240,37 +232,35 @@
         iniciarScanner();
         contenedor.classList.remove("hidden");
         scannerText.textContent = "Escaneando...";
-        scannerActivo = true;
       } else {
         detenerScanner();
         contenedor.classList.add("hidden");
         scannerText.textContent = "Escanear QR";
-        scannerActivo = false;
       }
     }
 
     function iniciarScanner() {
-      if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5QrcodeScanner(
-          "reader",
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          false
-        );
+      html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false
+      );
 
-        html5QrcodeScanner.render(
-          (decodedText) => {
-            document.getElementById("resultadoQR").value = decodedText;
-            agregarFilaQR(decodedText);
-            detenerScanner();
-            document.getElementById("contenedorQR").classList.add("hidden");
-            document.getElementById("scannerText").textContent = "Escanear QR";
-            scannerActivo = false;
-          },
-          (errorMessage) => {
-            console.log("Error escaneando:", errorMessage);
-          }
-        );
-      }
+      html5QrcodeScanner.render(
+        (decodedText) => {
+          document.getElementById("resultadoQR").value = decodedText;
+          agregarFilaQR(decodedText);
+          detenerScanner();
+          document.getElementById("contenedorQR").classList.add("hidden");
+          document.getElementById("scannerText").textContent = "Escanear QR";
+          
+          
+          console.log("QR escaneado:", decodedText);
+        },
+        (errorMessage) => {
+          console.log("Error escaneando:", errorMessage);
+        }
+      );
     }
 
     function detenerScanner() {
@@ -280,28 +270,32 @@
         });
         html5QrcodeScanner = null;
       }
-      scannerActivo = false;
     }
 
     function agregarFilaQR(codigo) {
       const tabla = document.getElementById("tablaRegistros");
-      const fila = tabla.insertRow(1); // Insertar después del ejemplo existente
-      fila.className = "history-row";
-      const index = tabla.rows.length - 1; // Restar 1 por la fila de ejemplo
+      
+      // Si la tabla está vacía (solo tiene el mensaje)
+      if (tabla.rows.length === 1 && tabla.rows[0].textContent.includes("No hay registros")) {
+        tabla.innerHTML = '';
+      }
+      
+      const fila = tabla.insertRow();
+      const index = tabla.rows.length;
       const fecha = new Date();
       
       fila.innerHTML = `
-        <td class="p-3">${index}</td>
+        <td class="p-3 font-mono">${index}</td>
         <td class="p-3 font-mono">${codigo}</td>
         <td class="p-3">${fecha.toLocaleDateString()}</td>
         <td class="p-3">${fecha.toLocaleTimeString()}</td>
-        <td class="p-3">
-          <button onclick="verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs">
-            Ver detalles
-          </button>
-        </td>
       `;
     }
+
+    // Cargar datos del usuario cuando la página esté lista
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarDatosUsuario();
+    });
   </script>
 </body>
 </html>

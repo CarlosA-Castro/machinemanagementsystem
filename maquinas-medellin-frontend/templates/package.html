@@ -4,13 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ingreso de Paquete</title>
-    <!-- ✅ FAVICON CORREGIDO -->
     <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}?v=2" type="image/jpg">
-    <link
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
-      rel="stylesheet"
-    />
-    <!-- Librería de partículas -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -38,6 +33,11 @@
       .btnPaquete:hover {
         background-color: #93c5fd;
         transform: translateY(-2px);
+      }
+      .paquete-info {
+        font-size: 0.8rem;
+        margin-top: 0.2rem;
+        color: #6b7280;
       }
     </style>
   </head>
@@ -81,18 +81,8 @@
         <h2 class="text-xl font-bold mb-3 flex items-center gap-1">
           🎯 Seleccione el paquete:
         </h2>
-        <div class="grid grid-cols-5 gap-3">
-          <!-- Botones P1 - P10 -->
-          <button onclick="abrirConfirmacion(1)" class="btnPaquete">P1</button>
-          <button onclick="abrirConfirmacion(2)" class="btnPaquete">P2</button>
-          <button onclick="abrirConfirmacion(3)" class="btnPaquete">P3</button>
-          <button onclick="abrirConfirmacion(4)" class="btnPaquete">P4</button>
-          <button onclick="abrirConfirmacion(5)" class="btnPaquete">P5</button>
-          <button onclick="abrirConfirmacion(6)" class="btnPaquete">P6</button>
-          <button onclick="abrirConfirmacion(7)" class="btnPaquete">P7</button>
-          <button onclick="abrirConfirmacion(8)" class="btnPaquete">P8</button>
-          <button onclick="abrirConfirmacion(9)" class="btnPaquete">P9</button>
-          <button onclick="abrirConfirmacion(10)" class="btnPaquete">P10</button>
+        <div id="paquetes-container" class="grid grid-cols-5 gap-3">
+          <!-- Los botones se cargarán dinámicamente -->
         </div>
       </div>
 
@@ -103,14 +93,11 @@
     </div>
 
     <!-- Modal de confirmación -->
-    <div
-      id="modalConfirmacion"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden"
-    >
+    <div id="modalConfirmacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
       <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl text-center space-y-4">
         <h3 class="text-xl font-bold">¿Desea ingresar el producto?</h3>
         <p class="text-gray-700">Paquete <span id="paqueteSeleccionado"></span> sobre el código QR</p>
-        <p class="font-semibold">Costo: $$$</p>
+        <p class="font-semibold" id="precioPaquete">Costo: $0</p>
         <div class="flex justify-center gap-4 mt-4">
           <button onclick="cerrarModal()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
             Cancelar
@@ -123,105 +110,93 @@
     </div>
 
     <script>
-      // Configuración de partículas azules con fondo original
+      // Variables globales
+      let paquetesData = [];
+      let paqueteTemp = null;
+      let codigoQR = '';
+
+      // Configuración de partículas
       document.addEventListener('DOMContentLoaded', function() {
         particlesJS('particles-js', {
           particles: {
-            number: {
-              value: 80,
-              density: {
-                enable: true,
-                value_area: 800
-              }
-            },
-            color: {
-              value: '#3b82f6' // Color azul para las partículas
-            },
-            shape: {
-              type: 'circle',
-              stroke: {
-                width: 0,
-                color: '#000000'
-              }
-            },
-            opacity: {
-              value: 0.5,
-              random: true,
-              anim: {
-                enable: true,
-                speed: 1,
-                opacity_min: 0.1,
-                sync: false
-              }
-            },
-            size: {
-              value: 3,
-              random: true,
-              anim: {
-                enable: true,
-                speed: 2,
-                size_min: 0.3,
-                sync: false
-              }
-            },
-            line_linked: {
-              enable: true,
-              distance: 150,
-              color: '#3b82f6', // Color azul para las conexiones
-              opacity: 0.4,
-              width: 1
-            },
-            move: {
-              enable: true,
-              speed: 1,
-              direction: 'none',
-              random: true,
-              straight: false,
-              out_mode: 'out',
-              bounce: false,
-              attract: {
-                enable: false,
-                rotateX: 600,
-                rotateY: 1200
-              }
-            }
+            number: { value: 80, density: { enable: true, value_area: 800 } },
+            color: { value: '#3b82f6' },
+            shape: { type: 'circle', stroke: { width: 0, color: '#000000' } },
+            opacity: { value: 0.5, random: true, anim: { enable: true, speed: 1, opacity_min: 0.1, sync: false } },
+            size: { value: 3, random: true, anim: { enable: true, speed: 2, size_min: 0.3, sync: false } },
+            line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
+            move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
           },
           interactivity: {
             detect_on: 'canvas',
             events: {
-              onhover: {
-                enable: true,
-                mode: 'grab'
-              },
-              onclick: {
-                enable: true,
-                mode: 'push'
-              },
+              onhover: { enable: true, mode: 'grab' },
+              onclick: { enable: true, mode: 'push' },
               resize: true
             },
             modes: {
-              grab: {
-                distance: 140,
-                line_linked: {
-                  opacity: 1
-                }
-              },
-              push: {
-                particles_nb: 4
-              }
+              grab: { distance: 140, line_linked: { opacity: 1 } },
+              push: { particles_nb: 4 }
             }
           },
           retina_detect: true
         });
+
+        // Cargar paquetes al iniciar
+        cargarPaquetes();
       });
 
-      // Estilo para botones (ya definido en CSS)
-      // Modal
-      let paqueteTemp = null;
+      // Cargar paquetes desde la base de datos
+      async function cargarPaquetes() {
+        try {
+          const response = await fetch('/api/paquetes');
+          const paquetes = await response.json();
+          
+          if (response.ok) {
+            paquetesData = paquetes;
+            renderizarPaquetes(paquetes);
+          } else {
+            console.error('Error cargando paquetes:', paquetes.error);
+            alert('Error al cargar los paquetes');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error de conexión al cargar paquetes');
+        }
+      }
 
-      function abrirConfirmacion(numero) {
-        paqueteTemp = numero;
-        document.getElementById('paqueteSeleccionado').innerText = 'P' + numero;
+      // Renderizar botones de paquetes
+      function renderizarPaquetes(paquetes) {
+        const container = document.getElementById('paquetes-container');
+        container.innerHTML = '';
+        
+        paquetes.forEach(paquete => {
+          const button = document.createElement('button');
+          button.className = 'btnPaquete';
+          button.innerHTML = `
+            P${paquete.id}
+            <div class="paquete-info">
+              ${paquete.turns} turns<br>
+              $${paquete.price.toLocaleString()}
+            </div>
+          `;
+          button.onclick = () => abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
+          container.appendChild(button);
+        });
+      }
+
+      function abrirConfirmacion(id, turns, price) {
+        // Verificar si hay un código QR escaneado
+        codigoQR = document.getElementById('codigoQR').value;
+        
+        if (!codigoQR) {
+          alert('⚠️ Primero debe escanear un código QR');
+          return;
+        }
+        
+        paqueteTemp = { id, turns, price };
+        document.getElementById('paqueteSeleccionado').innerText = 'P' + id;
+        document.getElementById('precioPaquete').innerText = `Costo: $${price.toLocaleString()} - ${turns} turnos`;
         document.getElementById('modalConfirmacion').classList.remove('hidden');
       }
 
@@ -229,11 +204,42 @@
         document.getElementById('modalConfirmacion').classList.add('hidden');
       }
 
-      function confirmarIngreso() {
+      async function confirmarIngreso() {
+        if (!paqueteTemp || !codigoQR) {
+          alert('Error: Datos incompletos');
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/asignar-paquete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              codigo_qr: codigoQR,
+              paquete_id: paqueteTemp.id
+            })
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            alert('✅ ' + result.message);
+            // Limpiar campos
+            document.getElementById('codigoQR').value = '';
+            codigoQR = '';
+          } else {
+            alert('❌ Error: ' + result.error);
+          }
+        } catch (error) {
+          alert('❌ Error de conexión: ' + error.message);
+        }
+        
         cerrarModal();
-        alert('✅ Paquete P' + paqueteTemp + ' asignado correctamente.');
       }
 
+      // Funcionalidad del escáner QR
       const botonEscanear = document.getElementById('btnEscanear');
       const qrInput = document.getElementById('codigoQR');
       const qrDiv = document.getElementById('reader');

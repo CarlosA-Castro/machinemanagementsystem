@@ -5,104 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reporte de Falla</title>
     <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
-      rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-     <style>
-        #scanner-container {
-            display: none;
+    <style>
+        #particles-js {
             position: fixed;
             top: 0;
             left: 0;
+            z-index: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
         }
-        #qr-video {
-            width: 90%;
-            max-width: 500px;
-            border: 3px solid #3b82f6;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-        }
-        .machine-btn {
-            transition: all 0.3s ease;
-        }
-        .machine-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .contenido {
+            position: relative;
+            z-index: 10;
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
         }
-         #particles-js {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 0;
-        width: 100%;
-        height: 100%;
-      }
-      .contenido {
-        position: relative;
-        z-index: 10;
-      }
-      
-      /* Estilo para los cuadros translúcidos */
-      .glass-card {
-        background: rgba(255, 255, 255, 0.15);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-        padding: 2rem;
-        margin-bottom: 2rem;
-        transition: all 0.3s ease;
-      }
-      
-      .glass-card:hover {
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
-        transform: translateY(-2px);
-      }
-      
-      .glass-title {
-        color: #1a237e;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      
-      .glass-subtitle {
-        color: #283593;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-      }
-      
-      .glass-divider {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-        margin: 1rem 0;
-      }
-      
-      .machine-item {
-        transition: all 0.2s ease;
-        padding: 0.5rem;
-        border-radius: 8px;
-      }
-      
-      .machine-item:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateX(5px);
-      }
+        .glass-card:hover {
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+            transform: translateY(-2px);
+        }
+        .glass-title {
+            color: #1a237e;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .glass-subtitle {
+            color: #283593;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .glass-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+            margin: 1rem 0;
+        }
+        .machine-item {
+            transition: all 0.2s ease;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .machine-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+        .info-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body class="relative h-full bg-gray-100">
@@ -126,6 +92,20 @@
         <input id="qr-result" type="text" readonly 
                class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 mb-3 text-center font-medium" 
                placeholder="QR escaneado aparecerá aquí">
+        
+        <!-- Información del QR -->
+        <div id="qr-info" class="info-card hidden">
+          <h3 class="font-semibold text-green-600">✅ QR Válido</h3>
+          <p>Turnos disponibles: <span id="turnos-disponibles" class="font-bold">0</span></p>
+          <p>Turnos totales: <span id="turnos-totales" class="font-bold">0</span></p>
+          <p>Paquete: <span id="paquete-info" class="font-bold">-</span></p>
+        </div>
+
+        <div id="qr-error" class="info-card bg-red-100 hidden">
+          <h3 class="font-semibold text-red-600">❌ QR No Válido</h3>
+          <p>El código QR no tiene turnos asignados o no existe.</p>
+        </div>
+
         <button id="btn-scan-qr" 
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors">
             <span>📷</span> <span id="scanner-text">Escanear QR</span>
@@ -141,74 +121,43 @@
       <div class="glass-card space-y-6">
         <h2 class="text-2xl font-semibold glass-subtitle">🎮 Máquinas:</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Máquina De Basket -->
-          <div 
-            onclick="abrirModal('Máquina De Basket')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <!-- Máquinas (se mantienen igual) -->
+          <div onclick="abrirModal('Máquina De Basket', 1)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/Basket.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Basket</p>
           </div>
           
-          <!-- Máquina De Disco Hockey -->
-          <div 
-            onclick="abrirModal('Máquina De Disco Hockey')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Disco Hockey', 2)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/DiscoHockey.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Disco Hockey</p>
           </div>
           
-          <!-- Máquina De Pelea -->
-          <div 
-            onclick="abrirModal('Máquina De Pelea')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Pelea', 3)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/Pelea.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Pelea</p>
           </div>
           
-          <!-- Máquina De Peluches 1 -->
-          <div 
-            onclick="abrirModal('Máquina De Peluches 1')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/peluches1.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Peluches 1</p>
           </div>
           
-          <!-- Máquina De Peluches 2 -->
-          <div 
-            onclick="abrirModal('Máquina De Peluches 2')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/Peluches2.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Peluches 2</p>
           </div>
           
-          <!-- Máquina De Simulador 1 -->
-          <div 
-            onclick="abrirModal('Máquina De Simulador 1')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Simulador 1', 6)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/Simulador1.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Simulador 1</p>
           </div>
           
-          <!-- Máquina De Simulador 2 -->
-          <div 
-            onclick="abrirModal('Máquina De Simulador 2')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Simulador 2', 7)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/Simulador2.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Simulador 2</p>
           </div>
           
-          <!-- Máquina De Simulador Connection -->
-          <div 
-            onclick="abrirModal('Máquina De Simulador Connection')" 
-            class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10"
-          >
+          <div onclick="abrirModal('Máquina De Simulador Connection', 8)" class="machine-item cursor-pointer p-4 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10">
             <img src="{{ url_for('static', filename='img/SimuladorConnection.jpg') }}" class="rounded-lg shadow-md w-full h-40 object-cover mb-2" />
             <p class="font-semibold text-center">Máquina De Simulador Connection</p>
           </div>
@@ -229,33 +178,33 @@
         <h3 class="text-2xl font-bold text-center text-blue-900">Confirmación de Reporte de Falla</h3>
         <hr class="my-4 border-blue-200" />
 
-        <p class="text-gray-700 mb-2">
-          Se devolverán <span id="turnosDevolverPreview" class="font-bold">X</span> turnos sobre el código QR
-        </p>
-        <p class="text-gray-700 mb-4">
-          Máquina en error: <span id="maquinaSeleccionada" class="font-semibold"></span>
-        </p>
+        <div id="modal-info">
+          <p class="text-gray-700 mb-2">
+            Se devolverán <span id="turnosDevolverPreview" class="font-bold">X</span> turnos sobre el código QR
+          </p>
+          <p class="text-gray-700 mb-2">
+            Máquina en error: <span id="maquinaSeleccionada" class="font-semibold"></span>
+          </p>
+          <p class="text-gray-700 mb-4">
+            Turnos disponibles después: <span id="turnos-despues" class="font-bold">0</span>
+          </p>
 
-        <input
-          id="turnosDevolver"
-          type="number"
-          min="1"
-          placeholder="Cantidad de turnos a devolver"
-          class="w-full p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-          oninput="actualizarPreview()"
-        />
+          <input
+            id="turnosDevolver"
+            type="number"
+            min="1"
+            max="1"
+            placeholder="Cantidad de turnos a devolver"
+            class="w-full p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+            oninput="actualizarPreview()"
+          />
+        </div>
 
         <div class="flex justify-center gap-4">
-          <button 
-            onclick="cerrarModal()" 
-            class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
-          >
+          <button onclick="cerrarModal()" class="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors">
             Cancelar
           </button>
-          <button 
-            onclick="confirmarFalla()" 
-            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-          >
+          <button onclick="confirmarFalla()" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
             Confirmar
           </button>
         </div>
@@ -263,120 +212,60 @@
     </div>
 
     <script>
-      // Configuración de partículas azules
-      document.addEventListener('DOMContentLoaded', function() {
-        particlesJS('particles-js', {
-          particles: {
-            number: {
-              value: 80,
-              density: {
-                enable: true,
-                value_area: 800
-              }
-            },
-            color: {
-              value: '#3b82f6' // Color azul para las partículas
-            },
-            shape: {
-              type: 'circle',
-              stroke: {
-                width: 0,
-                color: '#000000'
-              }
-            },
-            opacity: {
-              value: 0.5,
-              random: true,
-              anim: {
-                enable: true,
-                speed: 1,
-                opacity_min: 0.1,
-                sync: false
-              }
-            },
-            size: {
-              value: 3,
-              random: true,
-              anim: {
-                enable: true,
-                speed: 2,
-                size_min: 0.3,
-                sync: false
-              }
-            },
-            line_linked: {
-              enable: true,
-              distance: 150,
-              color: '#3b82f6', // Color azul para las conexiones
-              opacity: 0.4,
-              width: 1
-            },
-            move: {
-              enable: true,
-              speed: 1,
-              direction: 'none',
-              random: true,
-              straight: false,
-              out_mode: 'out',
-              bounce: false,
-              attract: {
-                enable: false,
-                rotateX: 600,
-                rotateY: 1200
-              }
-            }
-          },
-          interactivity: {
-            detect_on: 'canvas',
-            events: {
-              onhover: {
-                enable: true,
-                mode: 'grab'
-              },
-              onclick: {
-                enable: true,
-                mode: 'push'
-              },
-              resize: true
-            },
-            modes: {
-              grab: {
-                distance: 140,
-                line_linked: {
-                  opacity: 1
-                }
-              },
-              push: {
-                particles_nb: 4
-              }
-            }
-          },
-          retina_detect: true
-        });
-      });
-
-      // Variables para el escáner QR
+      // Variables globales
       let html5QrCodeScanner = null;
       let scannerActivo = false;
+      let maquinaActual = '';
+      let maquinaIdActual = 0;
+      let qrCodeActual = '';
+      let turnosDisponibles = 0;
       
       // Elementos del DOM
       const qrResult = document.getElementById('qr-result');
       const btnScanQR = document.getElementById('btn-scan-qr');
       const scannerText = document.getElementById('scanner-text');
       const html5QrcodeContainer = document.getElementById('html5-qrcode-container');
+      const qrInfo = document.getElementById('qr-info');
+      const qrError = document.getElementById('qr-error');
 
-      // Inicialización del escáner
-      btnScanQR.addEventListener('click', toggleScanner);
+      // Configuración de partículas
+      document.addEventListener('DOMContentLoaded', function() {
+        particlesJS('particles-js', {
+          particles: {
+            number: { value: 80, density: { enable: true, value_area: 800 } },
+            color: { value: '#3b82f6' },
+            shape: { type: 'circle', stroke: { width: 0, color: '#000000' } },
+            opacity: { value: 0.5, random: true, anim: { enable: true, speed: 1, opacity_min: 0.1, sync: false } },
+            size: { value: 3, random: true, anim: { enable: true, speed: 2, size_min: 0.3, sync: false } },
+            line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
+            move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
+          },
+          interactivity: {
+            detect_on: 'canvas',
+            events: {
+              onhover: { enable: true, mode: 'grab' },
+              onclick: { enable: true, mode: 'push' },
+              resize: true
+            },
+            modes: {
+              grab: { distance: 140, line_linked: { opacity: 1 } },
+              push: { particles_nb: 4 }
+            }
+          },
+          retina_detect: true
+        });
 
-      function toggleScanner() {
+        // Inicialización del escáner
+        btnScanQR.addEventListener('click', toggleScanner);
+      });
+
+      async function toggleScanner() {
         if (scannerActivo) {
-          // Si ya está activo, detener el escáner
           detenerScanner();
           scannerText.textContent = "Escanear QR";
           return;
         }
         
-        // Iniciar escáner
         iniciarScanner();
         scannerText.textContent = "Escaneando...";
       }
@@ -390,16 +279,20 @@
           );
 
           html5QrCodeScanner.render(
-            (decodedText) => {
+            async (decodedText) => {
               qrResult.value = decodedText;
+              qrCodeActual = decodedText;
               detenerScanner();
               html5QrcodeContainer.classList.add("hidden");
               scannerText.textContent = "Escanear QR";
               scannerActivo = false;
               
+              // Verificar el QR en la base de datos
+              await verificarQR(decodedText);
+              
               // Si hay una máquina seleccionada, mostrar el modal
               if (maquinaActual) {
-                abrirModal(maquinaActual);
+                abrirModal(maquinaActual, maquinaIdActual);
               }
             },
             (errorMessage) => {
@@ -422,14 +315,50 @@
         scannerActivo = false;
       }
 
-      // Funciones del modal
-      let maquinaActual = '';
-      
-      function abrirModal(nombre) {
+      // Verificar QR en la base de datos
+      async function verificarQR(qrCode) {
+        try {
+          const response = await fetch(`/api/verificar-qr/${qrCode}`);
+          const data = await response.json();
+          
+          if (response.ok && data.existe) {
+            turnosDisponibles = data.turns_remaining;
+            document.getElementById('turnos-disponibles').textContent = data.turns_remaining;
+            document.getElementById('turnos-totales').textContent = data.total_turns;
+            document.getElementById('paquete-info').textContent = data.package_name || 'Sin paquete';
+            
+            qrInfo.classList.remove('hidden');
+            qrError.classList.add('hidden');
+          } else {
+            qrInfo.classList.add('hidden');
+            qrError.classList.remove('hidden');
+            turnosDisponibles = 0;
+          }
+        } catch (error) {
+          console.error('Error verificando QR:', error);
+          alert('Error al verificar el código QR');
+        }
+      }
+
+      function abrirModal(nombre, id) {
         maquinaActual = nombre;
+        maquinaIdActual = id;
+        
+        if (!qrCodeActual) {
+          alert('⚠️ Primero debe escanear un código QR');
+          return;
+        }
+        
+        if (turnosDisponibles <= 0) {
+          alert('⚠️ Este código QR no tiene turnos disponibles');
+          return;
+        }
+
         document.getElementById("maquinaSeleccionada").innerText = nombre;
-        document.getElementById("turnosDevolver").value = "";
-        document.getElementById("turnosDevolverPreview").innerText = "X";
+        document.getElementById("turnosDevolver").value = "1";
+        document.getElementById("turnosDevolver").max = turnosDisponibles;
+        document.getElementById("turnosDevolverPreview").innerText = "1";
+        document.getElementById("turnos-despues").innerText = turnosDisponibles - 1;
         document.getElementById("modal").classList.remove("hidden");
       }
 
@@ -439,23 +368,54 @@
 
       function actualizarPreview() {
         const valor = document.getElementById("turnosDevolver").value;
-        document.getElementById("turnosDevolverPreview").innerText = valor || "X";
+        const turnos = parseInt(valor) || 0;
+        
+        if (turnos > turnosDisponibles) {
+          document.getElementById("turnosDevolver").value = turnosDisponibles;
+          document.getElementById("turnosDevolverPreview").innerText = turnosDisponibles;
+          document.getElementById("turnos-despues").innerText = 0;
+        } else {
+          document.getElementById("turnosDevolverPreview").innerText = valor || "X";
+          document.getElementById("turnos-despues").innerText = turnosDisponibles - turnos;
+        }
       }
 
-      function confirmarFalla() {
-        const cantidad = document.getElementById("turnosDevolver").value;
-        if (!cantidad || cantidad <= 0) {
+      async function confirmarFalla() {
+        const cantidad = parseInt(document.getElementById("turnosDevolver").value);
+        
+        if (!cantidad || cantidad <= 0 || cantidad > turnosDisponibles) {
           alert("⚠ Ingresa una cantidad válida de turnos");
           return;
         }
 
-        const qr = document.getElementById("qr-result").value || "QR desconocido";
-        alert(`✅ Se devolverán ${cantidad} turnos sobre el código QR: ${qr} para la ${maquinaActual}`);
-        cerrarModal();
+        try {
+          const response = await fetch('/api/reportar-falla', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              qr_code: qrCodeActual,
+              machine_id: maquinaIdActual,
+              machine_name: maquinaActual,
+              turnos_devueltos: cantidad
+            })
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            alert(`✅ ${result.message}\nSe devolvieron ${cantidad} turnos`);
+            // Actualizar la información del QR
+            await verificarQR(qrCodeActual);
+          } else {
+            alert('❌ Error: ' + result.error);
+          }
+        } catch (error) {
+          alert('❌ Error de conexión: ' + error.message);
+        }
         
-        // Limpiar campos después de confirmar
-        qrResult.value = "";
-        maquinaActual = "";
+        cerrarModal();
       }
     </script>
 </body>
