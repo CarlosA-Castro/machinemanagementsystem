@@ -107,6 +107,7 @@
 
     <!-- Secciones de administración -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
       <!-- Gestión de Usuarios -->
       <div class="bg-white rounded-xl p-6 shadow-md card-hover">
         <h2 class="text-xl font-bold mb-4 text-gray-800">
@@ -202,7 +203,7 @@
     <div id="contenido-dinamico" class="mt-8 bg-white rounded-xl p-6 shadow-md hidden">
       <h2 class="text-2xl font-bold mb-4 text-gray-800" id="titulo-seccion">Sección</h2>
       <div id="contenido-seccion">
-        <!-- Aquí se cargará el contenido de cada sección -->
+        <!-- Contenido de cada sección -->
       </div>
     </div>
   </main>
@@ -230,7 +231,7 @@
 
   function cargarSeccion(seccion) {
     console.log(`Cargando sección: ${seccion}`);
-    // Aquí iría la lógica para cargar el contenido dinámico
+    // Lógica para cargar el contenido dinámico
     document.getElementById('titulo-seccion').textContent = `Sección: ${seccion}`;
     document.getElementById('contenido-seccion').innerHTML = `
       <p class="text-gray-600">Contenido de ${seccion} se cargará aquí.</p>

@@ -82,11 +82,11 @@
           🎯 Seleccione el paquete:
         </h2>
         <div id="paquetes-container" class="grid grid-cols-5 gap-3">
-          <!-- Los botones se cargarán dinámicamente -->
+          
         </div>
       </div>
 
-      <!-- ✅ VOLVER CORREGIDO -->
+      
       <div class="text-sm">
         <a href="{{ url_for('mostrar_local') }}" class="text-blue-600 hover:underline">🔙 Volver</a>
       </div>
@@ -279,7 +279,7 @@
               botonEscanear.innerHTML = '📷 Escanear QR';
             },
             errorMessage => {
-              // console.log("QR error:", errorMessage);
+              
             }
           );
           scannerActivo = true;

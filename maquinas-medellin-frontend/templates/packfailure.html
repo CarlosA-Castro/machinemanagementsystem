@@ -309,7 +309,7 @@
                         scannerText.textContent = "Escanear QR";
                         scannerActivo = false;
                         
-                        // Verificar el paquete escaneado
+                       
                         verificarPaquete(decodedText);
                     },
                     (errorMessage) => {
@@ -332,12 +332,12 @@
             scannerActivo = false;
         }
 
-        // Simulación de verificación del paquete (en una app real, esto sería una llamada al backend)
+       
         function verificarPaquete(codigoQR) {
-            // Simular una llamada al servidor
+            
             setTimeout(() => {
-                // Datos simulados del paquete
-                const usos = Math.floor(Math.random() * 4); // 0-3 usos aleatorios para simulación
+                
+                const usos = Math.floor(Math.random() * 4); 
                 
                 paqueteActual = {
                     codigo: codigoQR,

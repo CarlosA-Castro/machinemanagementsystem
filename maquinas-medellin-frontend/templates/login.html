@@ -73,7 +73,7 @@ function verificarCodigo() {
   .then(res => res.json())
   .then(data => {
     if (data.valido) {
-      // ✅ GUARDAR DATOS EN sessionStorage
+      // GUARDAR DATOS EN sessionStorage
       sessionStorage.setItem("nombreUsuario", data.nombre);
       sessionStorage.setItem("rolUsuario", data.role);
       sessionStorage.setItem("localUsuario", data.local);
@@ -81,12 +81,12 @@ function verificarCodigo() {
       
       console.log("✅ Login exitoso. Rol:", data.role);
       
-      // ✅ REDIRIGIR SEGÚN EL ROL
-      if (data.role === 'admin' || data.role === 'admin_restaurante') {
-        // Admins y admin_restaurante ven el modal de selección
+      // REDIRIGIR SEGÚN EL ROL
+      if (data.role === 'admin') {
+        // Admins ven el modal de selección
         mostrarModalSeleccion(data.role);
-      } else if (data.role === 'cajero') {
-        // Cajeros van directamente al local
+      } else if (data.role === 'cajero' || data.role === 'admin_restaurante') {
+        // Cajeros y admin_restaurante van directamente al local
         window.location.href = "/local";
       } else {
         // Para cualquier otro rol, redirección por defecto
@@ -103,7 +103,7 @@ function verificarCodigo() {
   });
 }
 
-// ✅ MODAL DE SELECCIÓN PARA ADMINS
+// MODAL DE SELECCIÓN PARA ADMINS
 function mostrarModalSeleccion(rol) {
   const esAdminRestaurante = rol === 'admin_restaurante';
   const titulo = esAdminRestaurante ? 'Admin Restaurante' : 'Administrador';
@@ -160,7 +160,6 @@ function cerrarModal() {
   }
 }
 
-// ✅ Agregar FontAwesome para los iconos (si no está)
 if (!document.querySelector('link[href*="font-awesome"]')) {
   const faLink = document.createElement('link');
   faLink.rel = 'stylesheet';

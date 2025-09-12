@@ -30,7 +30,6 @@ except Exception as e:
 # 🏠 Rutas
 @app.route('/')
 def mostrar_login():
-    # Limpiar sesión al cargar login
     session.clear()
     return render_template('login.html')
 
@@ -50,7 +49,6 @@ def procesar_login():
         print(f"👤 Usuario encontrado: {usuario}")
 
         if usuario:
-            # GUARDAR EN SESIÓN FLASK
             session['user_id'] = usuario['id']
             session['user_name'] = usuario['name']
             session['user_role'] = usuario['role']
@@ -70,118 +68,71 @@ def procesar_login():
 
     except Exception as e:
         print(f"❌ Error en /login: {e}")
-        return jsonify({
-            "valido": False,
-            "error": "server_error",
-            "message": str(e)
-        }), 500
+        return jsonify({"valido": False, "error": "server_error", "message": str(e)}), 500
 
-# 📌 Ruta de la interfaz principal
+# 📌 Interfaz principal
 @app.route('/local')
 def mostrar_local():
-    print("📍 Ruta /local accedida")
-    
-    # Verificar si el usuario está logueado
     if not session.get('logged_in'):
-        print("⚠️ Usuario no autenticado, redirigiendo a login")
         return redirect(url_for('mostrar_login'))
-    
-    # Obtener datos de la sesión
-    nombre_usuario = session.get('user_name', 'Usuario')
-    local_usuario = session.get('user_local', 'El Mekatiadero')
-    
-    print(f"👤 Usuario en sesión: {nombre_usuario}, Local: {local_usuario}")
-    
-    return render_template('local.html', 
-                         nombre_usuario=nombre_usuario,
-                         local_usuario=local_usuario)
+    return render_template('local.html',
+                           nombre_usuario=session.get('user_name', 'Usuario'),
+                           local_usuario=session.get('user_local', 'El Mekatiadero'))
 
-# 📦 Ruta para la interfaz de ingresar paquete
+# 📦 Interfaz paquetes
 @app.route('/package')
 def mostrar_package():
-    print("📦 Ruta /package accedida")
-    
-    # Verificar autenticación
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
-    
-    nombre_usuario = session.get('user_name', 'Usuario')
-    local_usuario = session.get('user_local', 'El Mekatiadero')
-    
     return render_template('package.html',
-                         nombre_usuario=nombre_usuario,
-                         local_usuario=local_usuario)
+                           nombre_usuario=session.get('user_name', 'Usuario'),
+                           local_usuario=session.get('user_local', 'El Mekatiadero'))
 
-# ⚠️ Ruta para falla de paquete
+# ⚠️ Reporte de paquete
 @app.route('/package/failure')
 def mostrar_package_failure():
-    print("📦 Ruta /package/failure accedida - Reporte de Paquetes")
-    
-    # Verificar autenticación
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
-    
-    nombre_usuario = session.get('user_name', 'Usuario')
-    local_usuario = session.get('user_local', 'El Mekatiadero')
-    
     return render_template('packfailure.html',
-                         nombre_usuario=nombre_usuario,
-                         local_usuario=local_usuario)
+                           nombre_usuario=session.get('user_name', 'Usuario'),
+                           local_usuario=session.get('user_local', 'El Mekatiadero'))
 
-# ⚠️ Ruta para reporte de máquina
+# ⚠️ Reporte de máquina
 @app.route('/machinereport')
 def mostrar_machine_report():
-    print("📦 Ruta /machinereport accedida")
-    
-    # Verificar autenticación
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
-    
-    nombre_usuario = session.get('user_name', 'Usuario')
-    local_usuario = session.get('user_local', 'El Mekatiadero')
-    
     return render_template('machinereport.html',
-                         nombre_usuario=nombre_usuario,
-                         local_usuario=local_usuario)
+                           nombre_usuario=session.get('user_name', 'Usuario'),
+                           local_usuario=session.get('user_local', 'El Mekatiadero'))
 
-# 👨‍💼 Ruta para el panel de administración
+# 👨‍💼 Admin
 @app.route('/admin')
 def mostrar_admin():
-    print("👨‍💼 Ruta /admin accedida - Panel de administración")
-    
-    # Verificar autenticación y rol
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
-    
     if session.get('user_role') != 'admin':
         return redirect(url_for('mostrar_local'))
-    
-    nombre_usuario = session.get('user_name', 'Administrador')
-    local_usuario = session.get('user_local', 'Sistema')
-    
     return render_template('admin.html',
-                         nombre_usuario=nombre_usuario,
-                         local_usuario=local_usuario)
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
 
-# 🚪 Ruta para logout
+# 🚪 Logout
 @app.route('/logout')
 def logout():
     session.clear()
-    print("🚪 Usuario cerró sesión")
     return redirect(url_for('mostrar_login'))
 
-# 🆕 Ruta para redireccionar Login.html a la raíz
+# 🆕 Redireccionar Login.html
 @app.route('/Login.html')
 def redirect_login():
-    print("🔄 Redirigiendo Login.html a /")
     return redirect('/')
 
-# 🐛 Endpoint para debug de sesión
+# 🐛 Debug
 @app.route('/debug/session')
 def debug_session():
     return jsonify(dict(session))
 
-# 🐛 Endpoint para verificar sesión
 @app.route('/check-session')
 def check_session():
     return jsonify({
@@ -194,21 +145,17 @@ def check_session():
 def health_check():
     return jsonify({"status": "ok", "message": "Server is running"})
 
-# 🆕 NUEVAS RUTAS PARA PAQUETES - AJUSTADAS A TU ESTRUCTURA
-
-# Endpoint para obtener información de los paquetes
+# 📦 Obtener paquetes
 @app.route('/api/paquetes', methods=['GET'])
 def obtener_paquetes():
     try:
         cursor.execute("SELECT * FROM TurnPackage ORDER BY id")
-        paquetes = cursor.fetchall()
-        
-        return jsonify(paquetes)
+        return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo paquetes: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Endpoint para asignar un paquete a un código QR
+# 📦 Asignar paquete a QR (CORREGIDO)
 @app.route('/api/asignar-paquete', methods=['POST'])
 def asignar_paquete():
     try:
@@ -219,36 +166,45 @@ def asignar_paquete():
         if not codigo_qr or not paquete_id:
             return jsonify({'error': 'Faltan datos requeridos'}), 400
         
-        # Primero verificamos si el código QR existe
-        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (codigo_qr,))
-        qr_existente = cursor.fetchone()
-        
-        qr_id = None
-        if qr_existente:
-            qr_id = qr_existente['id']
-        else:
-            # Si no existe, creamos el código QR
-            cursor.execute("INSERT INTO QRCode (code) VALUES (%s)", (codigo_qr,))
-            db.commit()
-            qr_id = cursor.lastrowid
-        
-        # Obtenemos la información del paquete
+        # Buscar info del paquete para traer turnos y precio
         cursor.execute("SELECT turns, price FROM TurnPackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
-        
         if not paquete:
             return jsonify({'error': 'Paquete no encontrado'}), 404
         
         turns, price = paquete['turns'], paquete['price']
+
+        # Verificar si el QR ya existe
+        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (codigo_qr,))
+        qr_existente = cursor.fetchone()
         
-        # Insertar o actualizar en UserTurns
+        if not qr_existente:
+            # Si es un QR nuevo lo guardamos con los turnos reales
+            cursor.execute("""
+                INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
+                VALUES (%s, %s, 1, %s)
+            """, (codigo_qr, turns, paquete_id))
+            db.commit()
+            qr_id = cursor.lastrowid
+        else:
+            # Si ya existe, actualizamos remainingTurns sumándole los del nuevo paquete
+            qr_id = qr_existente['id']
+            cursor.execute("""
+                UPDATE QRCode
+                SET remainingTurns = remainingTurns + %s,
+                    turnPackageId = %s
+                WHERE id = %s
+            """, (turns, paquete_id, qr_id))
+            db.commit()
+        
+        # Guardar en UserTurns (control detallado de turnos por usuario)
         cursor.execute("""
             INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
             VALUES (%s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE 
-            turns_remaining = turns_remaining + %s,
-            total_turns = total_turns + %s,
-            package_id = %s
+                turns_remaining = turns_remaining + %s,
+                total_turns = total_turns + %s,
+                package_id = %s
         """, (qr_id, turns, turns, paquete_id, turns, turns, paquete_id))
         
         db.commit()
@@ -264,28 +220,23 @@ def asignar_paquete():
     except Exception as e:
         print(f"❌ Error asignando paquete: {e}")
         return jsonify({'error': str(e)}), 500
-
-# Endpoint para verificar estado de un código QR
+    
+# 📌 Verificar QR
 @app.route('/api/verificar-qr/<qr_code>', methods=['GET'])
 def verificar_qr(qr_code):
     try:
-        # Buscar el código QR
         cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
-        
         if not qr_data:
             return jsonify({'existe': False})
         
         qr_id = qr_data['id']
-        
-        # Verificar si tiene turnos asignados
         cursor.execute("""
             SELECT ut.*, tp.name as package_name, tp.turns, tp.price
             FROM UserTurns ut
             LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
             WHERE ut.qr_code_id = %s
         """, (qr_id,))
-        
         resultado = cursor.fetchone()
         
         if resultado:
@@ -305,7 +256,7 @@ def verificar_qr(qr_code):
         print(f"❌ Error verificando QR: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Endpoint para registrar uso de turno en máquina
+# 📌 Registrar uso turno
 @app.route('/api/registrar-uso', methods=['POST'])
 def registrar_uso():
     try:
@@ -316,35 +267,20 @@ def registrar_uso():
         if not qr_code or not machine_id:
             return jsonify({'error': 'Faltan datos requeridos'}), 400
         
-        # Verificar código QR y obtener ID
         cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
-        
         if not qr_data:
             return jsonify({'error': 'Código QR no encontrado'}), 404
         
         qr_id = qr_data['id']
-        
-        # Verificar si tiene turnos disponibles
         cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return jsonify({'error': 'No hay turnos disponibles'}), 400
         
-        # Registrar uso en TurnUsage
-        cursor.execute("""
-            INSERT INTO TurnUsage (qrCodeId, machineId) 
-            VALUES (%s, %s)
-        """, (qr_id, machine_id))
-        
-        # Reducir turnos disponibles
-        cursor.execute("""
-            UPDATE UserTurns 
-            SET turns_remaining = turns_remaining - 1 
-            WHERE qr_code_id = %s
-        """, (qr_id,))
-        
+        cursor.execute("INSERT INTO TurnUsage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
         db.commit()
         
         return jsonify({
@@ -357,7 +293,7 @@ def registrar_uso():
         print(f"❌ Error registrando uso: {e}")
         return jsonify({'error': str(e)}), 500
 
-# 🆕 Endpoint para reportar falla y devolver turnos
+# 📌 Reportar falla
 @app.route('/api/reportar-falla', methods=['POST'])
 def reportar_falla():
     try:
@@ -370,35 +306,24 @@ def reportar_falla():
         if not all([qr_code, machine_id, turnos_devueltos]):
             return jsonify({'error': 'Faltan datos requeridos'}), 400
         
-        # Verificar código QR y obtener ID
         cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
-        
         if not qr_data:
             return jsonify({'error': 'Código QR no encontrado'}), 404
         
         qr_id = qr_data['id']
-        
-        # Verificar si tiene turnos asignados
         cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
-        
         if not turnos_data:
             return jsonify({'error': 'No hay turnos asignados a este QR'}), 400
         
-        # Registrar la falla en la base de datos
         cursor.execute("""
             INSERT INTO MachineFailures (qr_code_id, machine_id, machine_name, turnos_devueltos)
             VALUES (%s, %s, %s, %s)
         """, (qr_id, machine_id, machine_name, turnos_devueltos))
         
-        # Devolver los turnos al usuario
-        cursor.execute("""
-            UPDATE UserTurns 
-            SET turns_remaining = turns_remaining + %s 
-            WHERE qr_code_id = %s
-        """, (turnos_devueltos, qr_id))
-        
+        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
+                       (turnos_devueltos, qr_id))
         db.commit()
         
         return jsonify({
@@ -411,7 +336,7 @@ def reportar_falla():
         print(f"❌ Error reportando falla: {e}")
         return jsonify({'error': str(e)}), 500
 
-# 🆕 Endpoint para obtener historial de fallas
+# 📌 Historial fallas
 @app.route('/api/historial-fallas', methods=['GET'])
 def obtener_historial_fallas():
     try:
@@ -423,13 +348,90 @@ def obtener_historial_fallas():
             ORDER BY mf.reported_at DESC
             LIMIT 50
         """)
-        fallas = cursor.fetchall()
-        
-        return jsonify(fallas)
+        return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo historial de fallas: {e}")
         return jsonify({'error': str(e)}), 500
 
+# 📌 Guardar QR en historial
+@app.route('/api/guardar-qr', methods=['POST'])
+def guardar_qr():
+    try:
+        data = request.get_json()
+        qr_code = data.get('qr_code')
+        user_id = session.get('user_id')
+        local = session.get('user_local', 'El Mekatiadero')
+
+        if not qr_code:
+            return jsonify({'error': 'QR vacío'}), 400
+
+        # Verificar si el QR existe en la tabla QRCode
+        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        qr = cursor.fetchone()
+        if not qr:
+            cursor.execute("""
+                INSERT INTO QRCode (code, remainingTurns, isActive)
+                VALUES (%s, 0, 1)
+            """, (qr_code,))
+            db.commit()
+
+        # Insertar en historial
+        cursor.execute("""
+            INSERT INTO QRHistory (qr_code, user_id, local, fecha_hora)
+            VALUES (%s, %s, %s, NOW())
+        """, (qr_code, user_id, local))
+        db.commit()
+
+        return jsonify({'success': True, 'message': 'QR guardado en historial'})
+    except Exception as e:
+        print(f"❌ Error guardando QR en historial: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+    
+
+
+
+# 📌 Consultar historial de un QR
+@app.route('/api/historial-qr/<qr_code>', methods=['GET'])
+def historial_qr(qr_code):
+    try:
+        cursor.execute("""
+            SELECT h.id, h.qr_code, h.fecha_hora, u.name as user_name, tp.name as package_name, ut.turns_remaining
+            FROM QRHistory h
+            LEFT JOIN Users u ON h.user_id = u.id
+            LEFT JOIN QRCode q ON q.code = h.qr_code
+            LEFT JOIN UserTurns ut ON ut.qr_code_id = q.id
+            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            WHERE h.qr_code = %s
+            ORDER BY h.fecha_hora DESC
+            LIMIT 10
+        """, (qr_code,))
+        return jsonify(cursor.fetchall())
+    except Exception as e:
+        print(f"❌ Error consultando historial: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+    # 📌 Consultar historial general de QR (últimos 20)
+@app.route('/api/historial-qr-todos', methods=['GET'])
+def historial_qr_todos():
+    try:
+        cursor.execute("""
+            SELECT h.id, h.qr_code, h.fecha_hora, u.name as user_name,
+                   tp.name as package_name, ut.turns_remaining
+            FROM QRHistory h
+            LEFT JOIN Users u ON h.user_id = u.id
+            LEFT JOIN QRCode q ON q.code = h.qr_code
+            LEFT JOIN UserTurns ut ON ut.qr_code_id = q.id
+            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            ORDER BY h.fecha_hora DESC
+            LIMIT 20
+        """)
+        return jsonify(cursor.fetchall())
+    except Exception as e:
+        print(f"❌ Error consultando historial general: {e}")
+        return jsonify({'error': str(e)}), 500
+    
+# 🚀 Iniciar servidor
 if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")
     app.run(debug=True, port=5000, host='0.0.0.0')
