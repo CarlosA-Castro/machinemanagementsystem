@@ -10,6 +10,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+  <!-- Librerías para generar QR y PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
   <style>
     html, body {
@@ -27,6 +30,18 @@
     }
     .history-row:hover {
       background-color: #f3f4f6;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -67,16 +82,16 @@
       <p class="mb-6 text-lg">📍 Local: <strong>{{ local_usuario }}</strong></p>
 
       <div id="modalQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-  <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
-    <h2 class="text-xl font-bold mb-4">Detalles del QR</h2>
-    <div id="modalContenido" class="text-sm text-gray-700 space-y-2">
-      Cargando información...
-    </div>
-    <div class="mt-4 text-right">
-      <button onclick="cerrarModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700">Cerrar</button>
-    </div>
-  </div>
-</div>
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+          <h2 class="text-xl font-bold mb-4">Detalles del QR</h2>
+          <div id="modalContenido" class="text-sm text-gray-700 space-y-2">
+            Cargando información...
+          </div>
+          <div class="mt-4 text-right">
+            <button onclick="LocalApp.cerrarModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700">Cerrar</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Sección para escanear QR -->
       <div class="bg-white rounded-xl p-6 shadow-md mb-6">
@@ -91,6 +106,15 @@
         <div id="contenedorQR" class="mt-4 hidden mx-auto w-full max-w-md">
           <div id="reader" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
         </div>
+      </div>
+
+      <!-- Generador de QR -->
+      <div class="bg-white rounded-xl p-6 shadow-md mb-6">
+        <h2 class="text-xl font-bold mb-4">🔄 Generar Códigos QR</h2>
+        <button onclick="LocalApp.mostrarModalGenerador()" 
+                class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-semibold">
+            📄 Generar QR en PDF
+        </button>
       </div>
 
       <!-- Tabla de registros -->
@@ -109,7 +133,7 @@
               </tr>
             </thead>
             <tbody id="tablaRegistros" class="text-gray-800">
-              <!-- Los nuevos registros se agregarán aquí -->
+              <!-- Los registros se cargarán dinámicamente -->
             </tbody>
           </table>
         </div>
@@ -117,295 +141,399 @@
     </main>
   </div>
 
+  <!-- Modal para generar QR -->
+  <div id="modalGeneradorQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+        <h2 class="text-xl font-bold mb-4">Generar Código QR</h2>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad de QR a generar:</label>
+            <input type="number" id="cantidadQR" min="1" max="100" value="1" 
+                  class="w-full border border-gray-300 rounded-lg p-2">
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Prefijo (opcional):</label>
+            <input type="text" id="prefijoQR" placeholder="Ej: MAQ-" 
+                  class="w-full border border-gray-300 rounded-lg p-2">
+        </div>
+        
+        <div id="vistaPreviaQR" class="mb-4 p-4 border border-gray-300 rounded-lg hidden">
+            <p class="text-sm text-gray-600 mb-2">Vista previa:</p>
+            <div id="qrPreview" class="mx-auto"></div>
+        </div>
+        
+        <div class="flex justify-between gap-4">
+            <button onclick="LocalApp.generarVistaPrevia()" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                👀 Vista Previa
+            </button>
+            <button onclick="LocalApp.generarPDF()" 
+                    class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                📄 Generar PDF
+            </button>
+            <button onclick="LocalApp.cerrarModalGenerador()" 
+                    class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                Cancelar
+            </button>
+        </div>
+    </div>
+  </div>
+
   <script>
-    // Configuración de partículas azules
-    document.addEventListener('DOMContentLoaded', function() {
-      particlesJS('particles-js', {
-        particles: {
-          number: {
-            value: 80,
-            density: {
-              enable: true,
-              value_area: 800
-            }
+    // Namespace para evitar conflictos
+    const LocalApp = {
+      init: function() {
+        // Configuración de partículas azules
+        particlesJS('particles-js', {
+          particles: {
+            number: { value: 80, density: { enable: true, value_area: 800 } },
+            color: { value: '#3b82f6' },
+            shape: { type: 'circle', stroke: { width: 0, color: '#000000' } },
+            opacity: { value: 0.5, random: true },
+            size: { value: 3, random: true },
+            line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
+            move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
           },
-          color: {
-            value: '#3b82f6'
-          },
-          shape: {
-            type: 'circle',
-            stroke: {
-              width: 0,
-              color: '#000000'
-            }
-          },
-          opacity: {
-            value: 0.5,
-            random: true,
-            anim: {
-              enable: true,
-              speed: 1,
-              opacity_min: 0.1,
-              sync: false
-            }
-          },
-          size: {
-            value: 3,
-            random: true,
-            anim: {
-              enable: true,
-              speed: 2,
-              size_min: 0.3,
-              sync: false
-            }
-          },
-          line_linked: {
-            enable: true,
-            distance: 150,
-            color: '#3b82f6',
-            opacity: 0.4,
-            width: 1
-          },
-          move: {
-            enable: true,
-            speed: 1,
-            direction: 'none',
-            random: true,
-            straight: false,
-            out_mode: 'out',
-            bounce: false,
-            attract: {
-              enable: false,
-              rotateX: 600,
-              rotateY: 1200
-            }
-          }
-        },
-        interactivity: {
-          detect_on: 'canvas',
-          events: {
-            onhover: {
-              enable: true,
-              mode: 'grab'
+          interactivity: {
+            detect_on: 'canvas',
+            events: {
+              onhover: { enable: true, mode: 'grab' },
+              onclick: { enable: true, mode: 'push' },
+              resize: true
             },
-            onclick: {
-              enable: true,
-              mode: 'push'
-            },
-            resize: true
-          },
-          modes: {
-            grab: {
-              distance: 140,
-              line_linked: {
-                opacity: 1
-              }
-            },
-            push: {
-              particles_nb: 4
+            modes: {
+              grab: { distance: 140, line_linked: { opacity: 1 } },
+              push: { particles_nb: 4 }
             }
-          }
-        },
-        retina_detect: true
-      });
-    });
+          },
+          retina_detect: true
+        });
 
-    // Función para ver detalles de un código QR
-  function verDetalles(codigo) {
-  document.getElementById("modalQR").classList.remove("hidden");
-  document.getElementById("modalQR").classList.add("flex");
-  document.getElementById("modalContenido").innerHTML = "Cargando información...";
+        // Cargar historial al iniciar
+        this.cargarHistorialQR();
+        
+        // Event listeners
+        document.getElementById('btnEscanearQR').addEventListener('click', () => this.toggleScanner());
+        
+        console.log("Local App inicializada correctamente");
+      },
 
-  fetch(`/api/historial-qr/${codigo}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">${data.error}</p>`;
-        return;
-      }
-      if (!data || data.length === 0) {
-        document.getElementById("modalContenido").innerHTML = `<p>No hay historial para este QR</p>`;
-        return;
-      }
+      // Función para cargar el historial de QR
+      cargarHistorialQR: function() {
+        fetch("/api/historial-completo")
+          .then(res => res.json())
+          .then(data => {
+            const tabla = document.getElementById("tablaRegistros");
+            if (!tabla) return;
+            
+            tabla.innerHTML = "";
 
-      let html = `<ul class="list-disc pl-5">`;
-      data.forEach((item) => {
-        html += `
-          <li>
-            <strong>Fecha:</strong> ${new Date(item.fecha_hora).toLocaleString()} <br/>
-            <strong>Usuario:</strong> ${item.user_name || 'N/A'} <br/>
-            <strong>Paquete:</strong> ${item.package_name || 'N/A'} <br/>
-            <strong>Turnos restantes:</strong> ${item.turns_remaining ?? 0}
-          </li>
-          <hr class="my-2"/>
-        `;
-      });
-      html += `</ul>`;
-      document.getElementById("modalContenido").innerHTML = html;
-    })
-    .catch(err => {
-      console.error("Error obteniendo historial:", err);
-      document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">Error cargando historial</p>`;
-    });
-}
+            if (data.error) {
+              tabla.innerHTML = `<tr><td colspan="5" class="p-3 text-center">Error cargando historial</td></tr>`;
+              return;
+            }
 
-  fetch(`/api/historial-qr/${codigo}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">${data.error}</p>`;
-        return;
-      }
-      if (data.length === 0) {
-        document.getElementById("modalContenido").innerHTML = `<p>No hay historial para este QR</p>`;
-        return;
-      }
+            if (data.length === 0) {
+              tabla.innerHTML = `<tr><td colspan="5" class="p-3 text-center">No hay QR escaneados aún</td></tr>`;
+              return;
+            }
 
-      let html = `<ul class="list-disc pl-5">`;
-      data.forEach((item, i) => {
-        html += `
-          <li>
-            <strong>Fecha:</strong> ${new Date(item.fecha_hora).toLocaleString()} <br/>
-            <strong>Usuario:</strong> ${item.user_name || 'N/A'} <br/>
-            <strong>Paquete:</strong> ${item.package_name || 'N/A'} <br/>
-            <strong>Turnos restantes:</strong> ${item.turns_remaining ?? 0}
-          </li>
-          <hr class="my-2"/>
-        `;
-      });
-      html += `</ul>`;
-      document.getElementById("modalContenido").innerHTML = html;
-    })
-    .catch(err => {
-      console.error("Error obteniendo historial:", err);
-      document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">Error cargando historial</p>`;
-    });
+            data.forEach((item, index) => {
+              const fecha = new Date(item.fecha_hora);
+              const fila = document.createElement('tr');
+              fila.className = 'history-row';
+              fila.innerHTML = `
+                <td class="p-3">${index + 1}</td>
+                <td class="p-3 font-mono">${item.qr_code}</td>
+                <td class="p-3">${fecha.toLocaleDateString()}</td>
+                <td class="p-3">${fecha.toLocaleTimeString()}</td>
+                <td class="p-3">
+                  <button onclick="LocalApp.verDetalles('${item.qr_code}')" class="text-blue-600 hover:text-blue-800 text-xs">
+                    Ver detalles
+                  </button>
+                </td>
+              `;
+              tabla.appendChild(fila);
+            });
+          })
+          .catch(err => {
+            console.error("Error cargando historial inicial:", err);
+            const tabla = document.getElementById("tablaRegistros");
+            if (tabla) {
+              tabla.innerHTML = `<tr><td colspan="5" class="p-3 text-center">Error al cargar historial</td></tr>`;
+            }
+          });
+      },
 
-function cerrarModal() {
-  document.getElementById("modalQR").classList.add("hidden");
-  document.getElementById("modalQR").classList.remove("flex");
-}
-    
-function agregarFilaQR(codigo) {
-  const tabla = document.getElementById("tablaRegistros");
-  const fila = tabla.insertRow(1);
-  fila.className = "history-row";
-  const index = tabla.rows.length - 1;
-  const fecha = new Date();
+      // Función para ver detalles de un código QR
+      verDetalles: function(codigo) {
+        document.getElementById("modalQR").classList.remove("hidden");
+        document.getElementById("modalQR").classList.add("flex");
+        document.getElementById("modalContenido").innerHTML = "Cargando información...";
 
-  fila.innerHTML = `
-    <td class="p-3">${index}</td>
-    <td class="p-3 font-mono">${codigo}</td>
-    <td class="p-3">${fecha.toLocaleDateString()}</td>
-    <td class="p-3">${fecha.toLocaleTimeString()}</td>
-    <td class="p-3">
-      <button onclick="verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs">
-        Ver detalles
-      </button>
-    </td>
-  `;
+        fetch(`/api/historial-qr/${codigo}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">${data.error}</p>`;
+              return;
+            }
+            if (!data || data.length === 0) {
+              document.getElementById("modalContenido").innerHTML = `<p>No hay historial para este QR</p>`;
+              return;
+            }
 
-  // Guardar en historial en la BD
-  fetch("/api/guardar-qr", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ qr_code: codigo })
-  })
-  .then(res => res.json())
-  .then(data => console.log("Historial guardado:", data))
-  .catch(err => console.error("Error guardando historial:", err));
-}
+            let html = `<ul class="list-disc pl-5">`;
+            data.forEach((item) => {
+              html += `
+                <li>
+                  <strong>Fecha:</strong> ${new Date(item.fecha_hora).toLocaleString()} <br/>
+                  <strong>Usuario:</strong> ${item.user_name || 'N/A'} <br/>
+                  <strong>Paquete:</strong> ${item.package_name || 'N/A'} <br/>
+                  <strong>Turnos restantes:</strong> ${item.turns_remaining ?? 0}
+                </li>
+                <hr class="my-2"/>
+              `;
+            });
+            html += `</ul>`;
+            document.getElementById("modalContenido").innerHTML = html;
+          })
+          .catch(err => {
+            console.error("Error obteniendo historial:", err);
+            document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">Error cargando historial</p>`;
+          });
+      },
 
-    // Funcionalidad del escáner QR
-    let html5QrcodeScanner = null;
-    let scannerActivo = false;
-
-    document.getElementById('btnEscanearQR').addEventListener('click', function() {
-      if (scannerActivo) {
-        detenerScanner();
-        document.getElementById('scannerText').textContent = "Escanear QR";
-        return;
-      }
+      cerrarModal: function() {
+        document.getElementById("modalQR").classList.add("hidden");
+        document.getElementById("modalQR").classList.remove("flex");
+      },
       
-      toggleScanner();
-    });
+      agregarFilaQR: function(codigo) {
+        const tabla = document.getElementById("tablaRegistros");
+        
+        // Crear nueva fila
+        const fila = tabla.insertRow(1);
+        fila.className = "history-row";
+        const fecha = new Date();
 
-    function toggleScanner() {
-      const contenedor = document.getElementById("contenedorQR");
-      const scannerText = document.getElementById("scannerText");
-      
-      if (contenedor.classList.contains("hidden")) {
-        iniciarScanner();
+        fila.innerHTML = `
+          <td class="p-3">1</td>
+          <td class="p-3 font-mono">${codigo}</td>
+          <td class="p-3">${fecha.toLocaleDateString()}</td>
+          <td class="p-3">${fecha.toLocaleTimeString()}</td>
+          <td class="p-3">
+            <button onclick="LocalApp.verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs">
+              Ver detalles
+            </button>
+          </td>
+        `;
+
+        // Renumerar las filas existentes
+        const rows = tabla.getElementsByTagName('tr');
+        for (let i = 2; i < rows.length; i++) {
+          rows[i].getElementsByTagName('td')[0].textContent = i;
+        }
+
+        // Guardar en historial en la BD
+        fetch("/api/guardar-qr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ qr_code: codigo })
+        })
+        .then(res => res.json())
+        .then(data => console.log("Historial guardado:", data))
+        .catch(err => console.error("Error guardando historial:", err));
+      },
+
+      // Funcionalidad del escáner QR
+      html5QrcodeScanner: null,
+      scannerActivo: false,
+
+      toggleScanner: function() {
+        if (this.scannerActivo) {
+          this.detenerScanner();
+          document.getElementById('scannerText').textContent = "Escanear QR";
+          return;
+        }
+        
+        this.iniciarScanner();
+      },
+
+      iniciarScanner: function() {
+        const contenedor = document.getElementById("contenedorQR");
+        const scannerText = document.getElementById("scannerText");
+        
+        if (!this.html5QrcodeScanner) {
+          this.html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            false
+          );
+
+          this.html5QrcodeScanner.render(
+            (decodedText) => {
+              document.getElementById("resultadoQR").value = decodedText;
+              this.agregarFilaQR(decodedText);
+              this.detenerScanner();
+              document.getElementById("contenedorQR").classList.add("hidden");
+              document.getElementById("scannerText").textContent = "Escanear QR";
+              this.scannerActivo = false;
+            },
+            (errorMessage) => {
+              console.log("Error escaneando:", errorMessage);
+            }
+          );
+        }
+        
         contenedor.classList.remove("hidden");
         scannerText.textContent = "Escaneando...";
-        scannerActivo = true;
-      } else {
-        detenerScanner();
-        contenedor.classList.add("hidden");
-        scannerText.textContent = "Escanear QR";
-        scannerActivo = false;
-      }
-    }
+        this.scannerActivo = true;
+      },
 
-    function iniciarScanner() {
-      if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5QrcodeScanner(
-          "reader",
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          false
-        );
+      detenerScanner: function() {
+        if (this.html5QrcodeScanner) {
+          this.html5QrcodeScanner.clear().catch(error => {
+            console.error("Error al detener el escáner:", error);
+          });
+        }
+        document.getElementById("contenedorQR").classList.add("hidden");
+        document.getElementById("scannerText").textContent = "Escanear QR";
+        this.scannerActivo = false;
+      },
 
-        html5QrcodeScanner.render(
-          (decodedText) => {
-            document.getElementById("resultadoQR").value = decodedText;
-            agregarFilaQR(decodedText);
-            detenerScanner();
-            document.getElementById("contenedorQR").classList.add("hidden");
-            document.getElementById("scannerText").textContent = "Escanear QR";
-            scannerActivo = false;
-          },
-          (errorMessage) => {
-            console.log("Error escaneando:", errorMessage);
-          }
-        );
-      }
-    }
+      // Funciones para generar QR en PDF
+      mostrarModalGenerador: function() {
+        document.getElementById('modalGeneradorQR').classList.remove('hidden');
+        document.getElementById('modalGeneradorQR').classList.add('flex');
+        document.getElementById('vistaPreviaQR').classList.add('hidden');
+      },
 
-    function detenerScanner() {
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(error => {
-          console.error("Error al detener el escáner:", error);
+      cerrarModalGenerador: function() {
+        document.getElementById('modalGeneradorQR').classList.add('hidden');
+        document.getElementById('modalGeneradorQR').classList.remove('flex');
+      },
+
+      generarVistaPrevia: function() {
+        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+        const prefijo = document.getElementById('prefijoQR').value || '';
+        
+        // Generar código de ejemplo para vista previa
+        const codigoEjemplo = prefijo + '001';
+        
+        // Limpiar vista previa anterior
+        document.getElementById('qrPreview').innerHTML = '';
+        
+        // Generar QR de vista previa
+        new QRCode(document.getElementById('qrPreview'), {
+            text: codigoEjemplo,
+            width: 120,
+            height: 120
         });
-        html5QrcodeScanner = null;
+        
+        document.getElementById('vistaPreviaQR').classList.remove('hidden');
+      },
+
+      generarPDF: function() {
+    const { jsPDF } = window.jspdf;
+    const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+    const prefijo = document.getElementById('prefijoQR').value || '';
+    
+    const doc = new jsPDF();
+    let yPosition = 20;
+    let xPosition = 20;
+    let pagina = 1;
+    const codigosGenerados = []; // Array para almacenar TODOS los códigos
+    
+    // Mostrar mensaje de carga
+    const loadingMessage = document.createElement('div');
+    loadingMessage.innerHTML = `
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 text-center">
+          <div class="loading mx-auto mb-4"></div>
+          <p>Generando PDF...</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(loadingMessage);
+    
+    const generarQRRecursivo = (i = 1) => {
+      if (i > cantidad) {
+        // ✅ LLAMAR A LA NUEVA FUNCIÓN con TODOS los códigos
+        this.guardarMultiplesQRS(codigosGenerados);
+        
+        doc.save(`codigos-qr-${prefijo || 'generados'}.pdf`);
+        this.cerrarModalGenerador();
+        document.body.removeChild(loadingMessage);
+        return;
       }
-      scannerActivo = false;
-    }
-    document.addEventListener("DOMContentLoaded", () => {
-  fetch("/api/historial-qr-todos")
+      
+      const numero = i.toString().padStart(3, '0');
+      const codigoQR = prefijo ? `${prefijo}${numero}` : `QR${numero}`;
+      codigosGenerados.push(codigoQR); // Agregar código al array
+      
+      const tempDiv = document.createElement('div');
+      new QRCode(tempDiv, {
+        text: codigoQR,
+        width: 60,
+        height: 60,
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      
+      setTimeout(() => {
+        const canvas = tempDiv.querySelector('canvas');
+        if (canvas) {
+          const imgData = canvas.toDataURL('image/png');
+          doc.addImage(imgData, 'PNG', xPosition, yPosition, 40, 40);
+          doc.setFontSize(8);
+          doc.text(codigoQR, xPosition + 20, yPosition + 45, { align: 'center' });
+          
+          xPosition += 50;
+          if (xPosition > 150) {
+            xPosition = 20;
+            yPosition += 60;
+          }
+          
+          if (yPosition > 250 && i < cantidad) {
+            doc.addPage();
+            yPosition = 20;
+            xPosition = 20;
+            pagina++;
+          }
+          
+          setTimeout(() => generarQRRecursivo(i + 1), 100);
+        }
+      }, 100);
+    };
+    
+    generarQRRecursivo(1);
+},
+guardarMultiplesQRS: function(codigos) {
+    fetch("/api/guardar-multiples-qr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            qr_codes: codigos
+        })
+    })
     .then(res => res.json())
     .then(data => {
-      const tabla = document.getElementById("tablaRegistros");
-      tabla.innerHTML = ""; // limpiar tabla
-
-      data.forEach((item, index) => {
-        const fecha = new Date(item.fecha_hora);
-        tabla.innerHTML += `
-          <tr class="history-row">
-            <td class="p-3">${index + 1}</td>
-            <td class="p-3 font-mono">${item.qr_code}</td>
-            <td class="p-3">${fecha.toLocaleDateString()}</td>
-            <td class="p-3">${fecha.toLocaleTimeString()}</td>
-            <td class="p-3">
-              <button onclick="verDetalles('${item.qr_code}')" class="text-blue-600 hover:text-blue-800 text-xs">
-                Ver detalles
-              </button>
-            </td>
-          </tr>
-        `;
-      });
+        console.log("QRs guardados:", data);
+        alert(`✅ ${data.message}`);
     })
-    .catch(err => console.error("Error cargando historial inicial:", err));
-});
+    .catch(err => {
+        console.error("Error guardando QRs:", err);
+        alert("❌ Error al guardar los QR en la base de datos");
+    });
+}
+
+    };
+
+    // Inicializar la aplicación cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+      LocalApp.init();
+    });
   </script>
 </body>
 </html>

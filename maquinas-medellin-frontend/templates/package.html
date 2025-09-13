@@ -88,7 +88,7 @@
 
       
       <div class="text-sm">
-        <a href="{{ url_for('mostrar_local') }}" class="text-blue-600 hover:underline">🔙 Volver</a>
+        <a href="{{ url_for('mostrar_local') }}" onclick="PackageApp.forceReload()" class="text-blue-600 hover:underline">🔙 Volver</a>
       </div>
     </div>
 
@@ -99,10 +99,10 @@
         <p class="text-gray-700">Paquete <span id="paqueteSeleccionado"></span> sobre el código QR</p>
         <p class="font-semibold" id="precioPaquete">Costo: $0</p>
         <div class="flex justify-center gap-4 mt-4">
-          <button onclick="cerrarModal()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+          <button onclick="PackageApp.cerrarModal()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
             Cancelar
           </button>
-          <button onclick="confirmarIngreso()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+          <button onclick="PackageApp.confirmarIngreso()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
             Confirmar
           </button>
         </div>
@@ -110,183 +110,206 @@
     </div>
 
     <script>
-      // Variables globales
-      let paquetesData = [];
-      let paqueteTemp = null;
-      let codigoQR = '';
-
-      // Configuración de partículas
-      document.addEventListener('DOMContentLoaded', function() {
-        particlesJS('particles-js', {
-          particles: {
-            number: { value: 80, density: { enable: true, value_area: 800 } },
-            color: { value: '#3b82f6' },
-            shape: { type: 'circle', stroke: { width: 0, color: '#000000' } },
-            opacity: { value: 0.5, random: true, anim: { enable: true, speed: 1, opacity_min: 0.1, sync: false } },
-            size: { value: 3, random: true, anim: { enable: true, speed: 2, size_min: 0.3, sync: false } },
-            line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
-            move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
-          },
-          interactivity: {
-            detect_on: 'canvas',
-            events: {
-              onhover: { enable: true, mode: 'grab' },
-              onclick: { enable: true, mode: 'push' },
-              resize: true
+      // Namespace para Package App
+      const PackageApp = {
+        init: function() {
+          // Configuración de partículas
+          particlesJS('particles-js', {
+            particles: {
+              number: { value: 80, density: { enable: true, value_area: 800 } },
+              color: { value: '#3b82f6' },
+              shape: { type: 'circle', stroke: { width: 0, color: '#000000' } },
+              opacity: { value: 0.5, random: true },
+              size: { value: 3, random: true },
+              line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
+              move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
             },
-            modes: {
-              grab: { distance: 140, line_linked: { opacity: 1 } },
-              push: { particles_nb: 4 }
-            }
-          },
-          retina_detect: true
-        });
-
-        // Cargar paquetes al iniciar
-        cargarPaquetes();
-      });
-
-      // Cargar paquetes desde la base de datos
-      async function cargarPaquetes() {
-        try {
-          const response = await fetch('/api/paquetes');
-          const paquetes = await response.json();
-          
-          if (response.ok) {
-            paquetesData = paquetes;
-            renderizarPaquetes(paquetes);
-          } else {
-            console.error('Error cargando paquetes:', paquetes.error);
-            alert('Error al cargar los paquetes');
-          }
-        } catch (error) {
-          console.error('Error:', error);
-          alert('Error de conexión al cargar paquetes');
-        }
-      }
-
-      // Renderizar botones de paquetes
-      function renderizarPaquetes(paquetes) {
-        const container = document.getElementById('paquetes-container');
-        container.innerHTML = '';
-        
-        paquetes.forEach(paquete => {
-          const button = document.createElement('button');
-          button.className = 'btnPaquete';
-          button.innerHTML = `
-            P${paquete.id}
-            <div class="paquete-info">
-              ${paquete.turns} turns<br>
-              $${paquete.price.toLocaleString()}
-            </div>
-          `;
-          button.onclick = () => abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
-          container.appendChild(button);
-        });
-      }
-
-      function abrirConfirmacion(id, turns, price) {
-        // Verificar si hay un código QR escaneado
-        codigoQR = document.getElementById('codigoQR').value;
-        
-        if (!codigoQR) {
-          alert('⚠️ Primero debe escanear un código QR');
-          return;
-        }
-        
-        paqueteTemp = { id, turns, price };
-        document.getElementById('paqueteSeleccionado').innerText = 'P' + id;
-        document.getElementById('precioPaquete').innerText = `Costo: $${price.toLocaleString()} - ${turns} turnos`;
-        document.getElementById('modalConfirmacion').classList.remove('hidden');
-      }
-
-      function cerrarModal() {
-        document.getElementById('modalConfirmacion').classList.add('hidden');
-      }
-
-      async function confirmarIngreso() {
-        if (!paqueteTemp || !codigoQR) {
-          alert('Error: Datos incompletos');
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/asignar-paquete', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
+            interactivity: {
+              detect_on: 'canvas',
+              events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: true, mode: 'push' },
+                resize: true
+              },
+              modes: {
+                grab: { distance: 140, line_linked: { opacity: 1 } },
+                push: { particles_nb: 4 }
+              }
             },
-            body: JSON.stringify({
-              codigo_qr: codigoQR,
-              paquete_id: paqueteTemp.id
-            })
+            retina_detect: true
           });
 
-          const result = await response.json();
+          // Cargar paquetes al iniciar
+          this.cargarPaquetes();
+          
+          // Event listeners
+          document.getElementById('btnEscanear').addEventListener('click', () => this.toggleScanner());
+          
+          console.log("Package App inicializada correctamente");
+        },
 
-          if (response.ok) {
-            alert('✅ ' + result.message);
-            // Limpiar campos
-            document.getElementById('codigoQR').value = '';
-            codigoQR = '';
-          } else {
-            alert('❌ Error: ' + result.error);
-          }
-        } catch (error) {
-          alert('❌ Error de conexión: ' + error.message);
-        }
-        
-        cerrarModal();
-      }
+        // Variables
+        paquetesData: [],
+        paqueteTemp: null,
+        codigoQR: '',
+        html5QrCode: null,
+        scannerActivo: false,
 
-      // Funcionalidad del escáner QR
-      const botonEscanear = document.getElementById('btnEscanear');
-      const qrInput = document.getElementById('codigoQR');
-      const qrDiv = document.getElementById('reader');
-      let scannerActivo = false;
-      let html5QrCode;
+        forceReload: function() {
+          window.location.reload(true);
+        },
 
-      botonEscanear.addEventListener('click', async () => {
-        if (scannerActivo) {
-          // Si ya está activo, detener el escáner
+        // Cargar paquetes desde la base de datos
+        cargarPaquetes: async function() {
           try {
-            await html5QrCode.stop();
-            scannerActivo = false;
-            qrDiv.classList.add('hidden');
-            botonEscanear.innerHTML = '📷 Escanear QR';
-            return;
+            const response = await fetch('/api/paquetes');
+            const paquetes = await response.json();
+            
+            if (response.ok) {
+              this.paquetesData = paquetes;
+              this.renderizarPaquetes(paquetes);
+            } else {
+              console.error('Error cargando paquetes:', paquetes.error);
+              alert('Error al cargar los paquetes');
+            }
           } catch (error) {
-            console.error("Error deteniendo escáner:", error);
+            console.error('Error:', error);
+            alert('Error de conexión al cargar paquetes');
+          }
+        },
+
+        // Renderizar botones de paquetes
+        renderizarPaquetes: function(paquetes) {
+          const container = document.getElementById('paquetes-container');
+          container.innerHTML = '';
+          
+          paquetes.forEach(paquete => {
+            const button = document.createElement('button');
+            button.className = 'btnPaquete';
+            button.innerHTML = `
+              P${paquete.id}
+              <div class="paquete-info">
+                ${paquete.turns} turns<br>
+                $${paquete.price.toLocaleString()}
+              </div>
+            `;
+            button.onclick = () => this.abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
+            container.appendChild(button);
+          });
+        },
+
+        abrirConfirmacion: function(id, turns, price) {
+          // Verificar si hay un código QR escaneado
+          this.codigoQR = document.getElementById('codigoQR').value;
+          
+          if (!this.codigoQR) {
+            alert('⚠️ Primero debe escanear un código QR');
+            return;
+          }
+          
+          this.paqueteTemp = { id, turns, price };
+          document.getElementById('paqueteSeleccionado').innerText = 'P' + id;
+          document.getElementById('precioPaquete').innerText = `Costo: $${price.toLocaleString()} - ${turns} turnos`;
+          document.getElementById('modalConfirmacion').classList.remove('hidden');
+        },
+
+        cerrarModal: function() {
+          document.getElementById('modalConfirmacion').classList.add('hidden');
+        },
+
+        confirmarIngreso: async function() {
+          if (!this.paqueteTemp || !this.codigoQR) {
+            alert('Error: Datos incompletos');
+            return;
+          }
+
+          try {
+            const response = await fetch('/api/asignar-paquete', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                codigo_qr: this.codigoQR,
+                paquete_id: this.paqueteTemp.id
+              })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+              // ✅ Guardar en historial después de asignar paquete
+              await fetch('/api/guardar-qr', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  qr_code: this.codigoQR
+                })
+              });
+              
+              alert('✅ ' + result.message);
+              document.getElementById('codigoQR').value = '';
+              this.codigoQR = '';
+            } else {
+              alert('❌ Error: ' + result.error);
+            }
+          } catch (error) {
+            alert('❌ Error de conexión: ' + error.message);
+          }
+          
+          this.cerrarModal();
+        },
+
+        // Funcionalidad del escáner QR
+        toggleScanner: async function() {
+          if (this.scannerActivo) {
+            // Si ya está activo, detener el escáner
+            try {
+              await this.html5QrCode.stop();
+              this.scannerActivo = false;
+              document.getElementById('reader').classList.add('hidden');
+              document.getElementById('btnEscanear').innerHTML = '📷 Escanear QR';
+              return;
+            } catch (error) {
+              console.error("Error deteniendo escáner:", error);
+            }
+          }
+
+          try {
+            // Mostrar contenedor
+            document.getElementById('reader').classList.remove('hidden');
+
+            this.html5QrCode = new Html5Qrcode("reader");
+            await this.html5QrCode.start(
+              { facingMode: "environment" },
+              {
+                fps: 10,
+                qrbox: 250
+              },
+              qrCodeMessage => {
+                document.getElementById('codigoQR').value = qrCodeMessage;
+                this.html5QrCode.stop();
+                this.scannerActivo = false;
+                document.getElementById('reader').classList.add('hidden');
+                document.getElementById('btnEscanear').innerHTML = '📷 Escanear QR';
+              },
+              errorMessage => {
+                console.log("Error escaneando:", errorMessage);
+              }
+            );
+            this.scannerActivo = true;
+            document.getElementById('btnEscanear').innerHTML = '⏹️ Detener Escaneo';
+          } catch (error) {
+            alert("Error accediendo a la cámara: " + error);
           }
         }
+      };
 
-        try {
-          // Mostrar contenedor
-          qrDiv.classList.remove('hidden');
-
-          html5QrCode = new Html5Qrcode("reader");
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            {
-              fps: 10,
-              qrbox: 250
-            },
-            qrCodeMessage => {
-              qrInput.value = qrCodeMessage;
-              html5QrCode.stop();
-              scannerActivo = false;
-              qrDiv.classList.add('hidden');
-              botonEscanear.innerHTML = '📷 Escanear QR';
-            },
-            errorMessage => {
-              
-            }
-          );
-          scannerActivo = true;
-          botonEscanear.innerHTML = '⏹️ Detener Escaneo';
-        } catch (error) {
-          alert("Error accediendo a la cámara: " + error);
-        }
+      // Inicializar la aplicación cuando el DOM esté listo
+      document.addEventListener('DOMContentLoaded', function() {
+        PackageApp.init();
       });
     </script>
   </body>

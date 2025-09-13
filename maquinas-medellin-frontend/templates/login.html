@@ -47,7 +47,7 @@
       placeholder="Ej: 12345"
     >
 
-   <button type="button" onclick="verificarCodigo()" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+   <button type="button" onclick="LoginApp.verificarCodigo()" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
   Aceptar
 </button>
   </div>
@@ -55,111 +55,115 @@
   <!-- Configuración de partículas -->
  <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
 
-  <!-- Script de verificación de login ACTUALIZADO -->
+  <!-- Script de verificación de login -->
 <script>
-function verificarCodigo() {
-  const codigo = document.getElementById("codigoEmpleado").value.trim();
+// Namespace para Login App
+const LoginApp = {
+  verificarCodigo: function() {
+    const codigo = document.getElementById("codigoEmpleado").value.trim();
 
-  if (!codigo) {
-    alert("Por favor ingrese su código.");
-    return;
-  }
-
-  fetch("/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ codigo })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.valido) {
-      // GUARDAR DATOS EN sessionStorage
-      sessionStorage.setItem("nombreUsuario", data.nombre);
-      sessionStorage.setItem("rolUsuario", data.role);
-      sessionStorage.setItem("localUsuario", data.local);
-      sessionStorage.setItem("userId", data.user_id);
-      
-      console.log("✅ Login exitoso. Rol:", data.role);
-      
-      // REDIRIGIR SEGÚN EL ROL
-      if (data.role === 'admin') {
-        // Admins ven el modal de selección
-        mostrarModalSeleccion(data.role);
-      } else if (data.role === 'cajero' || data.role === 'admin_restaurante') {
-        // Cajeros y admin_restaurante van directamente al local
-        window.location.href = "/local";
-      } else {
-        // Para cualquier otro rol, redirección por defecto
-        window.location.href = "/local";
-      }
-      
-    } else {
-      alert("Código inválido. Intenta de nuevo.");
+    if (!codigo) {
+      alert("Por favor ingrese su código.");
+      return;
     }
-  })
-  .catch(err => {
-    console.error("Error:", err);
-    alert("Error de conexión.");
-  });
-}
 
-// MODAL DE SELECCIÓN PARA ADMINS
-function mostrarModalSeleccion(rol) {
-  const esAdminRestaurante = rol === 'admin_restaurante';
-  const titulo = esAdminRestaurante ? 'Admin Restaurante' : 'Administrador';
-  
-  const modalHTML = `
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
-        <h2 class="text-2xl font-bold mb-2 text-center">${titulo}</h2>
-        <p class="text-gray-600 mb-6 text-center">Elige cómo quieres acceder al sistema</p>
+    fetch("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codigo })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.valido) {
+        // GUARDAR DATOS EN sessionStorage
+        sessionStorage.setItem("nombreUsuario", data.nombre);
+        sessionStorage.setItem("rolUsuario", data.role);
+        sessionStorage.setItem("localUsuario", data.local);
+        sessionStorage.setItem("userId", data.user_id);
         
-        <div class="space-y-4">
-          <button onclick="accederComoAdmin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg">
-            <i class="fas fa-cog mr-2"></i>Modo Administración
-          </button>
+        console.log("✅ Login exitoso. Rol:", data.role);
+        
+        // REDIRIGIR SEGÚN EL ROL
+        if (data.role === 'admin') {
+          // Admins ven el modal de selección
+          this.mostrarModalSeleccion(data.role);
+        } else if (data.role === 'cajero' || data.role === 'admin_restaurante') {
+          // Cajeros y admin_restaurante van directamente al local
+          window.location.href = "/local";
+        } else {
+          // Para cualquier otro rol, redirección por defecto
+          window.location.href = "/local";
+        }
+        
+      } else {
+        alert("Código inválido. Intenta de nuevo.");
+      }
+    })
+    .catch(err => {
+      console.error("Error:", err);
+      alert("Error de conexión.");
+    });
+  },
+
+  // MODAL DE SELECCIÓN PARA ADMINS
+  mostrarModalSeleccion: function(rol) {
+    const esAdminRestaurante = rol === 'admin_restaurante';
+    const titulo = esAdminRestaurante ? 'Admin Restaurante' : 'Administrador';
+    
+    const modalHTML = `
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-96">
+          <h2 class="text-2xl font-bold mb-2 text-center">${titulo}</h2>
+          <p class="text-gray-600 mb-6 text-center">Elige cómo quieres acceder al sistema</p>
           
-          <button onclick="accederComoCajero()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg">
-            <i class="fas fa-cash-register mr-2"></i>Modo Cajero/Local
+          <div class="space-y-4">
+            <button onclick="LoginApp.accederComoAdmin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg">
+              <i class="fas fa-cog mr-2"></i>Modo Administración
+            </button>
+            
+            <button onclick="LoginApp.accederComoCajero()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg">
+              <i class="fas fa-cash-register mr-2"></i>Modo Cajero/Local
+            </button>
+          </div>
+          
+          <button onclick="LoginApp.cerrarModal()" class="mt-4 text-gray-500 hover:text-gray-700 float-right">
+            <i class="fas fa-times mr-1"></i>Cerrar
           </button>
         </div>
-        
-        <button onclick="cerrarModal()" class="mt-4 text-gray-500 hover:text-gray-700 float-right">
-          <i class="fas fa-times mr-1"></i>Cerrar
-        </button>
       </div>
-    </div>
-  `;
-  
-  // Crear e injectar el modal
-  const modalDiv = document.createElement('div');
-  modalDiv.innerHTML = modalHTML;
-  modalDiv.id = 'modal-seleccion';
-  document.body.appendChild(modalDiv);
-  
-  // Prevenir cerrar haciendo clic fuera del modal
-  modalDiv.addEventListener('click', function(e) {
-    if (e.target.id === 'modal-seleccion') {
-      e.stopPropagation();
+    `;
+    
+    // Crear e injectar el modal
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHTML;
+    modalDiv.id = 'modal-seleccion';
+    document.body.appendChild(modalDiv);
+    
+    // Prevenir cerrar haciendo clic fuera del modal
+    modalDiv.addEventListener('click', function(e) {
+      if (e.target.id === 'modal-seleccion') {
+        e.stopPropagation();
+      }
+    });
+  },
+
+  accederComoAdmin: function() {
+    window.location.href = "/admin";
+  },
+
+  accederComoCajero: function() {
+    window.location.href = "/local";
+  },
+
+  cerrarModal: function() {
+    const modal = document.getElementById('modal-seleccion');
+    if (modal) {
+      modal.remove();
     }
-  });
-}
-
-function accederComoAdmin() {
-  window.location.href = "/admin";
-}
-
-function accederComoCajero() {
-  window.location.href = "/local";
-}
-
-function cerrarModal() {
-  const modal = document.getElementById('modal-seleccion');
-  if (modal) {
-    modal.remove();
   }
-}
+};
 
+// Asegurar que Font Awesome esté disponible
 if (!document.querySelector('link[href*="font-awesome"]')) {
   const faLink = document.createElement('link');
   faLink.rel = 'stylesheet';

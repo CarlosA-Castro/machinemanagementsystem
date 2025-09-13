@@ -8,6 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    
     <style>
         #particles-js {
             position: fixed;
@@ -71,17 +72,31 @@
             background-color: #4b5563;
             transform: translateY(-2px);
         }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="relative min-h-screen bg-gray-100">
+
     <!-- Fondo de partículas -->
     <div id="particles-js"></div>
 
     <!-- Contenido principal -->
     <div class="contenido max-w-4xl mx-auto p-6 space-y-8">
+
         <!-- Encabezado -->
         <div class="glass-card text-center">
-            <h1 class="text-4xl font-bold glass-title mb-4">🔄 Devolución de Paquetes</h1>
+            <h1 class="text-4xl font-bold glass-title mb-4">🔄 Devolución de Turnos</h1>
             <p class="text-gray-700 text-lg">
                 Sistema de devolución para paquetes con un solo uso registrado
             </p>
@@ -127,8 +142,18 @@
                 </div>
                 
                 <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="font-semibold text-gray-700">Usos registrados:</h3>
+                    <h3 class="font-semibold text-gray-700">Turnos usados:</h3>
                     <p id="package-usage" class="text-lg font-bold"></p>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700">Paquete:</h3>
+                    <p id="package-name" class="text-lg"></p>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700">Turnos totales:</h3>
+                    <p id="package-turns" class="text-lg"></p>
                 </div>
             </div>
 
@@ -142,15 +167,13 @@
                 <button 
                     id="btn-process-refund" 
                     class="btn-primary hidden"
-                    onclick="procesarDevolucion()"
                 >
-                    ✅ Procesar Devolución
+                    ✅ Devolver 1 Turno
                 </button>
                 
                 <button 
                     id="btn-cancel" 
                     class="btn-secondary"
-                    onclick="limpiarFormulario()"
                 >
                     🔄 Escanear otro código
                 </button>
@@ -172,232 +195,309 @@
     </div>
 
     <script>
-        // Configuración de partículas azules
-        document.addEventListener('DOMContentLoaded', function() {
-            particlesJS('particles-js', {
-                particles: {
-                    number: {
-                        value: 80,
-                        density: {
-                            enable: true,
-                            value_area: 800
-                        }
-                    },
-                    color: {
-                        value: '#3b82f6'
-                    },
-                    shape: {
-                        type: 'circle',
-                        stroke: {
-                            width: 0,
-                            color: '#000000'
-                        }
-                    },
-                    opacity: {
-                        value: 0.5,
-                        random: true,
-                        anim: {
-                            enable: true,
-                            speed: 1,
-                            opacity_min: 0.1,
-                            sync: false
-                        }
-                    },
-                    size: {
-                        value: 3,
-                        random: true,
-                        anim: {
-                            enable: true,
-                            speed: 2,
-                            size_min: 0.3,
-                            sync: false
-                        }
-                    },
-                    line_linked: {
-                        enable: true,
-                        distance: 150,
-                        color: '#3b82f6',
-                        opacity: 0.4,
-                        width: 1
-                    },
-                    move: {
-                        enable: true,
-                        speed: 1,
-                        direction: 'none',
-                        random: true,
-                        straight: false,
-                        out_mode: 'out',
-                        bounce: false,
-                        attract: {
-                            enable: false,
-                            rotateX: 600,
-                            rotateY: 1200
-                        }
-                    }
-                },
-                interactivity: {
-                    detect_on: 'canvas',
-                    events: {
-                        onhover: {
-                            enable: true,
-                            mode: 'grab'
-                        },
-                        onclick: {
-                            enable: true,
-                            mode: 'push'
-                        },
-                        resize: true
-                    },
-                    modes: {
-                        grab: {
-                            distance: 140,
-                            line_linked: {
-                                opacity: 1
+        // Namespace para evitar conflictos con otras páginas
+        const PackFailureApp = {
+            init: function() {
+                // Configuración de partículas azules
+                particlesJS('particles-js', {
+                    particles: {
+                        number: {
+                            value: 80,
+                            density: {
+                                enable: true,
+                                value_area: 800
                             }
                         },
-                        push: {
-                            particles_nb: 4
+                        color: {
+                            value: '#3b82f6'
+                        },
+                        shape: {
+                            type: 'circle',
+                            stroke: {
+                                width: 0,
+                                color: '#000000'
+                            }
+                        },
+                        opacity: {
+                            value: 0.5,
+                            random: true,
+                            anim: {
+                                enable: true,
+                                speed: 1,
+                                opacity_min: 0.1,
+                                sync: false
+                            }
+                        },
+                        size: {
+                            value: 3,
+                            random: true,
+                            anim: {
+                                enable: true,
+                                speed: 2,
+                                size_min: 0.3,
+                                sync: false
+                            }
+                        },
+                        line_linked: {
+                            enable: true,
+                            distance: 150,
+                            color: '#3b82f6',
+                            opacity: 0.4,
+                            width: 1
+                        },
+                        move: {
+                            enable: true,
+                            speed: 1,
+                            direction: 'none',
+                            random: true,
+                            straight: false,
+                            out_mode: 'out',
+                            bounce: false,
+                            attract: {
+                                enable: false,
+                                rotateX: 600,
+                                rotateY: 1200
+                            }
                         }
-                    }
-                },
-                retina_detect: true
-            });
-        });
-
-        // Variables para el escáner QR
-        let html5QrCodeScanner = null;
-        let scannerActivo = false;
-        let paqueteActual = null;
-        
-        // Elementos del DOM
-        const qrResult = document.getElementById('qr-result');
-        const btnScanQR = document.getElementById('btn-scan-qr');
-        const scannerText = document.getElementById('scanner-text');
-        const html5QrcodeContainer = document.getElementById('html5-qrcode-container');
-        const packageInfo = document.getElementById('package-info');
-        const resultMessage = document.getElementById('result-message');
-        const resultContent = document.getElementById('result-content');
-        const btnProcessRefund = document.getElementById('btn-process-refund');
-
-        // Inicialización del escáner
-        btnScanQR.addEventListener('click', toggleScanner);
-
-        function toggleScanner() {
-            if (scannerActivo) {
-                detenerScanner();
-                scannerText.textContent = "Escanear QR del Paquete";
-                return;
-            }
-            
-            iniciarScanner();
-            scannerText.textContent = "Escaneando...";
-        }
-
-        function iniciarScanner() {
-            if (!html5QrCodeScanner) {
-                html5QrCodeScanner = new Html5QrcodeScanner(
-                    "html5-qrcode-scanner",
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
-                    false
-                );
-
-                html5QrCodeScanner.render(
-                    (decodedText) => {
-                        qrResult.value = decodedText;
-                        detenerScanner();
-                        html5QrcodeContainer.classList.add("hidden");
-                        scannerText.textContent = "Escanear QR";
-                        scannerActivo = false;
-                        
-                       
-                        verificarPaquete(decodedText);
                     },
-                    (errorMessage) => {
-                        console.log("Error escaneando:", errorMessage);
-                    }
-                );
-            }
-            
-            html5QrcodeContainer.classList.remove("hidden");
-            scannerActivo = true;
-        }
-
-        function detenerScanner() {
-            if (html5QrCodeScanner) {
-                html5QrCodeScanner.clear().catch(error => {
-                    console.error("Error al detener el escáner:", error);
+                    interactivity: {
+                        detect_on: 'canvas',
+                        events: {
+                            onhover: {
+                                enable: true,
+                                mode: 'grab'
+                            },
+                            onclick: {
+                                enable: true,
+                                mode: 'push'
+                            },
+                            resize: true
+                        },
+                        modes: {
+                            grab: {
+                                distance: 140,
+                                line_linked: {
+                                    opacity: 1
+                                }
+                            },
+                            push: {
+                                particles_nb: 4
+                            }
+                        }
+                    },
+                    retina_detect: true
                 });
-            }
-            html5QrcodeContainer.classList.add("hidden");
-            scannerActivo = false;
-        }
 
-       
-        function verificarPaquete(codigoQR) {
-            
-            setTimeout(() => {
+                // Variables para el escáner QR
+                this.html5QrCodeScanner = null;
+                this.scannerActivo = false;
+                this.paqueteActual = null;
                 
-                const usos = Math.floor(Math.random() * 4); 
-                
-                paqueteActual = {
-                    codigo: codigoQR,
-                    usos: usos,
-                    validoParaDevolucion: usos === 1
-                };
-                
-                mostrarInformacionPaquete();
-            }, 1000);
-        }
+                // Elementos del DOM
+                this.qrResult = document.getElementById('qr-result');
+                this.btnScanQR = document.getElementById('btn-scan-qr');
+                this.scannerText = document.getElementById('scanner-text');
+                this.html5QrcodeContainer = document.getElementById('html5-qrcode-container');
+                this.packageInfo = document.getElementById('package-info');
+                this.resultMessage = document.getElementById('result-message');
+                this.resultContent = document.getElementById('result-content');
+                this.btnProcessRefund = document.getElementById('btn-process-refund');
+                this.btnCancel = document.getElementById('btn-cancel');
 
-        function mostrarInformacionPaquete() {
-            document.getElementById('package-code').textContent = paqueteActual.codigo;
-            document.getElementById('package-usage').textContent = `${paqueteActual.usos} uso(s)`;
-            
-            const statusElement = document.getElementById('package-status');
-            
-            if (paqueteActual.validoParaDevolucion) {
-                statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
-                statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete tiene exactamente 1 uso registrado.</p>';
-                btnProcessRefund.classList.remove('hidden');
-            } else {
-                if (paqueteActual.usos === 0) {
-                    statusElement.innerHTML = '<span class="status-invalid">❌ NO USADO</span>';
-                    statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete no ha sido usado aún.</p>';
-                } else {
-                    statusElement.innerHTML = '<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>';
-                    statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">Este paquete tiene ${paqueteActual.usos} usos registrados.</p>`;
+                // Event listeners
+                this.btnScanQR.addEventListener('click', () => this.toggleScanner());
+                this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion());
+                this.btnCancel.addEventListener('click', () => this.limpiarFormulario());
+
+                console.log("PackFailure App inicializada correctamente");
+            },
+
+            toggleScanner: function() {
+                if (this.scannerActivo) {
+                    this.detenerScanner();
+                    this.scannerText.textContent = "Escanear QR del Paquete";
+                    return;
                 }
-                btnProcessRefund.classList.add('hidden');
-            }
-            
-            packageInfo.classList.remove('hidden');
-            resultMessage.classList.add('hidden');
-        }
+                
+                this.iniciarScanner();
+                this.scannerText.textContent = "Escaneando...";
+            },
 
-        function procesarDevolucion() {
-            // Simular procesamiento de devolución
-            setTimeout(() => {
-                resultContent.innerHTML = `
+            iniciarScanner: function() {
+                if (!this.html5QrCodeScanner) {
+                    this.html5QrCodeScanner = new Html5QrcodeScanner(
+                        "html5-qrcode-scanner",
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
+                        false
+                    );
+
+                    this.html5QrCodeScanner.render(
+                        (decodedText) => {
+                            this.qrResult.value = decodedText;
+                            this.detenerScanner();
+                            this.html5QrcodeContainer.classList.add("hidden");
+                            this.scannerText.textContent = "Escanear QR";
+                            this.scannerActivo = false;
+                            
+                            // Verificar el paquete con la API real
+                            this.verificarPaquete(decodedText);
+                        },
+                        (errorMessage) => {
+                            console.log("Error escaneando:", errorMessage);
+                        }
+                    );
+                }
+                
+                this.html5QrcodeContainer.classList.remove("hidden");
+                this.scannerActivo = true;
+            },
+
+            detenerScanner: function() {
+                if (this.html5QrCodeScanner) {
+                    this.html5QrCodeScanner.clear().catch(error => {
+                        console.error("Error al detener el escáner:", error);
+                    });
+                }
+                this.html5QrcodeContainer.classList.add("hidden");
+                this.scannerActivo = false;
+            },
+
+            // Función para verificar el paquete con la API real
+            verificarPaquete: async function(codigoQR) {
+                try {
+                    this.mostrarCargando();
+                    
+                    const response = await fetch(`/api/verificar-qr/${codigoQR}`);
+                    const data = await response.json();
+                    
+                    if (data.existe) {
+                        const turnosUsados = data.total_turns - data.turns_remaining;
+                        
+                        this.paqueteActual = {
+                            codigo: codigoQR,
+                            turns_remaining: data.turns_remaining,
+                            total_turns: data.total_turns,
+                            turnos_usados: turnosUsados,
+                            package_name: data.package_name,
+                            validoParaDevolucion: turnosUsados === 1 // Solo válido si tiene exactamente 1 uso
+                        };
+                        
+                        this.mostrarInformacionPaquete();
+                    } else {
+                        this.mostrarError("❌ QR no encontrado", "El código QR escaneado no existe en el sistema.");
+                    }
+                } catch (error) {
+                    console.error("Error verificando paquete:", error);
+                    this.mostrarError("❌ Error de conexión", "No se pudo verificar el paquete. Intenta nuevamente.");
+                }
+            },
+
+            mostrarInformacionPaquete: function() {
+                document.getElementById('package-code').textContent = this.paqueteActual.codigo;
+                document.getElementById('package-usage').textContent = `${this.paqueteActual.turnos_usados} de ${this.paqueteActual.total_turns}`;
+                document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'N/A';
+                document.getElementById('package-turns').textContent = this.paqueteActual.total_turns;
+                
+                const statusElement = document.getElementById('package-status');
+                
+                if (this.paqueteActual.validoParaDevolucion) {
+                    statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
+                    statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete tiene exactamente 1 uso registrado.</p>';
+                    this.btnProcessRefund.classList.remove('hidden');
+                } else {
+                    if (this.paqueteActual.turnos_usados === 0) {
+                        statusElement.innerHTML = '<span class="status-invalid">❌ NO USADO</span>';
+                        statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete no ha sido usado aún.</p>';
+                    } else {
+                        statusElement.innerHTML = '<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>';
+                        statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">Este paquete tiene ${this.paqueteActual.turnos_usados} usos registrados.</p>`;
+                    }
+                    this.btnProcessRefund.classList.add('hidden');
+                }
+                
+                this.packageInfo.classList.remove('hidden');
+                this.resultMessage.classList.add('hidden');
+            },
+
+            procesarDevolucion: async function() {
+                try {
+                    this.mostrarCargandoProcesando();
+                    
+                    // 1. Guardar en el historial
+                    await fetch('/api/guardar-qr', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            qr_code: this.paqueteActual.codigo
+                        })
+                    });
+                    
+                    // 2. Simular la devolución de 1 turno
+                    // En producción, aquí conectarías con tu API real
+                    
+                    this.resultContent.innerHTML = `
+                        <div class="text-center">
+                            <div class="text-4xl mb-4">✅</div>
+                            <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
+                            <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
+                            <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
+                            <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
+                        </div>
+                    `;
+                    
+                    this.resultMessage.classList.remove('hidden');
+                    this.btnProcessRefund.classList.add('hidden');
+                } catch (error) {
+                    console.error("Error procesando devolución:", error);
+                    this.mostrarError("❌ Error en devolución", "No se pudo procesar la devolución.");
+                }
+            },
+
+            limpiarFormulario: function() {
+                this.qrResult.value = "";
+                this.packageInfo.classList.add('hidden');
+                this.resultMessage.classList.add('hidden');
+                this.paqueteActual = null;
+            },
+
+            mostrarCargando: function() {
+                this.resultContent.innerHTML = `
                     <div class="text-center">
-                        <div class="text-4xl mb-4">✅</div>
-                        <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
-                        <p class="text-gray-700">Se ha procesado la devolución del paquete:</p>
-                        <p class="font-mono text-blue-600 my-2">${paqueteActual.codigo}</p>
-                        <p class="text-gray-700">El cliente recibirá el reembolso correspondiente.</p>
+                        <div class="loading mx-auto mb-4"></div>
+                        <p class="text-gray-700">Verificando paquete...</p>
                     </div>
                 `;
-                
-                resultMessage.classList.remove('hidden');
-                btnProcessRefund.classList.add('hidden');
-            }, 1500);
-        }
+                this.resultMessage.classList.remove('hidden');
+            },
 
-        function limpiarFormulario() {
-            qrResult.value = "";
-            packageInfo.classList.add('hidden');
-            resultMessage.classList.add('hidden');
-            paqueteActual = null;
-        }
+            mostrarCargandoProcesando: function() {
+                this.resultContent.innerHTML = `
+                    <div class="text-center">
+                        <div class="loading mx-auto mb-4"></div>
+                        <p class="text-gray-700">Procesando devolución...</p>
+                    </div>
+                `;
+                this.resultMessage.classList.remove('hidden');
+            },
+
+            mostrarError: function(titulo, mensaje) {
+                this.resultContent.innerHTML = `
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">❌</div>
+                        <h3 class="text-xl font-semibold text-red-600 mb-2">${titulo}</h3>
+                        <p class="text-gray-700">${mensaje}</p>
+                    </div>
+                `;
+                this.resultMessage.classList.remove('hidden');
+            }
+        };
+
+        // Inicializar la aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            PackFailureApp.init();
+        });
     </script>
 </body>
 </html>
