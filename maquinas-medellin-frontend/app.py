@@ -458,7 +458,6 @@ def guardar_multiples_qr():
             cursor.execute("""
                 INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
                 VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE code = code
             """, (qr_code, 0, 1, 1))
 
         db.commit()
