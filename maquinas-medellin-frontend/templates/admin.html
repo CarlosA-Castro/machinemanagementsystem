@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Panel de Administración</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Panel de Administración - Máquinas Medellín</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,6 +13,8 @@
       margin: 0;
       padding: 0;
       height: 100%;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     #particles-js {
       position: fixed;
@@ -22,6 +24,13 @@
       top: 0;
       left: 0;
     }
+    .btn-touch {
+      min-height: 44px;
+      min-width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .card-hover {
       transition: all 0.3s ease;
     }
@@ -29,170 +38,247 @@
       transform: translateY(-5px);
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     }
+    
+    @media (max-width: 1024px) {
+      .container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      
+      .admin-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: 1fr !important;
+      }
+      
+      header {
+        flex-direction: column;
+        text-align: center;
+        padding: 1rem !important;
+      }
+      
+      header > div {
+        margin-bottom: 1rem;
+      }
+      
+      .header-buttons {
+        margin-top: 1rem;
+      }
+      
+      h1 {
+        font-size: 1.5rem !important;
+      }
+      
+      .text-2xl {
+        font-size: 1.25rem !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+      }
+      
+      main {
+        padding: 1rem !important;
+      }
+      
+      .glass-card {
+        padding: 1rem !important;
+      }
+      
+      .btn-touch {
+        width: 100%;
+        margin-bottom: 0.5rem;
+      }
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-  <!-- Fondo partículas -->
+  <!-- Fondo partículas optimizado -->
   <div id="particles-js"></div>
 
-  <!-- Header -->
+  <!-- Header responsive -->
   <header class="bg-gray-900 text-white shadow-lg">
-    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-      <div class="flex items-center">
-        <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Logo" class="h-10 w-10 mr-3">
-        <h1 class="text-2xl font-bold">Panel de Administración</h1>
+    <div class="container mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center">
+      <div class="flex items-center mb-3 md:mb-0">
+        <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Logo" class="h-8 w-8 mr-3">
+        <h1 class="text-xl font-bold">Panel de Administración</h1>
       </div>
-      <div class="flex items-center space-x-4">
-        <span class="text-sm">Admin User</span>
-        <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm">
-          <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
+      <div class="flex items-center space-x-3 header-buttons">
+        <span class="text-sm hidden md:block">Admin User</span>
+        <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm btn-touch">
+          <i class="fas fa-sign-out-alt mr-1"></i><span class="hidden md:inline">Cerrar Sesión</span>
         </button>
       </div>
     </div>
   </header>
 
   <!-- Main Content -->
-  <main class="container mx-auto px-6 py-8">
+  <main class="container mx-auto px-4 py-6">
     <!-- Estadísticas rápidas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
+    <div class="stats-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
         <div class="flex items-center">
-          <div class="p-3 bg-blue-100 rounded-full">
-            <i class="fas fa-users text-blue-600 text-xl"></i>
+          <div class="p-2 bg-blue-100 rounded-full">
+            <i class="fas fa-users text-blue-600 text-lg"></i>
           </div>
-          <div class="ml-4">
-            <h3 class="text-2xl font-bold text-gray-800">152</h3>
-            <p class="text-gray-600">Usuarios Totales</p>
+          <div class="ml-3">
+            <h3 class="text-xl font-bold text-gray-800" id="total-users">152</h3>
+            <p class="text-gray-600 text-sm">Usuarios Totales</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
         <div class="flex items-center">
-          <div class="p-3 bg-green-100 rounded-full">
-            <i class="fas fa-gamepad text-green-600 text-xl"></i>
+          <div class="p-2 bg-green-100 rounded-full">
+            <i class="fas fa-gamepad text-green-600 text-lg"></i>
           </div>
-          <div class="ml-4">
-            <h3 class="text-2xl font-bold text-gray-800">47</h3>
-            <p class="text-gray-600">Máquinas Activas</p>
+          <div class="ml-3">
+            <h3 class="text-xl font-bold text-gray-800" id="total-machines">47</h3>
+            <p class="text-gray-600 text-sm">Máquinas Activas</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
         <div class="flex items-center">
-          <div class="p-3 bg-orange-100 rounded-full">
-            <i class="fas fa-box text-orange-600 text-xl"></i>
+          <div class="p-2 bg-orange-100 rounded-full">
+            <i class="fas fa-box text-orange-600 text-lg"></i>
           </div>
-          <div class="ml-4">
-            <h3 class="text-2xl font-bold text-gray-800">89</h3>
-            <p class="text-gray-600">Paquetes Hoy</p>
+          <div class="ml-3">
+            <h3 class="text-xl font-bold text-gray-800" id="today-packages">89</h3>
+            <p class="text-gray-600 text-sm">Paquetes Hoy</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
         <div class="flex items-center">
-          <div class="p-3 bg-red-100 rounded-full">
-            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+          <div class="p-2 bg-red-100 rounded-full">
+            <i class="fas fa-exclamation-triangle text-red-600 text-lg"></i>
           </div>
-          <div class="ml-4">
-            <h3 class="text-2xl font-bold text-gray-800">12</h3>
-            <p class="text-gray-600">Incidencias</p>
+          <div class="ml-3">
+            <h3 class="text-xl font-bold text-gray-800" id="total-issues">12</h3>
+            <p class="text-gray-600 text-sm">Incidencias</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Secciones de administración -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="admin-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
       <!-- Gestión de Usuarios -->
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
+        <h2 class="text-lg font-bold mb-3 text-gray-800">
           <i class="fas fa-users mr-2 text-blue-600"></i>Gestión de Usuarios
         </h2>
-        <div class="space-y-3">
-          <button onclick="cargarSeccion('usuarios')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-left">
+        <div class="space-y-2">
+          <button onclick="cargarSeccion('usuarios')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-list mr-2"></i>Ver Todos los Usuarios
           </button>
-          <button onclick="cargarSeccion('nuevo-usuario')" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('nuevo-usuario')" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-plus mr-2"></i>Crear Nuevo Usuario
           </button>
-          <button onclick="cargarSeccion('roles')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('roles')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-key mr-2"></i>Gestionar Roles
           </button>
         </div>
       </div>
 
       <!-- Gestión de Máquinas -->
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
+        <h2 class="text-lg font-bold mb-3 text-gray-800">
           <i class="fas fa-gamepad mr-2 text-green-600"></i>Gestión de Máquinas
         </h2>
-        <div class="space-y-3">
-          <button onclick="cargarSeccion('maquinas')" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-left">
+        <div class="space-y-2">
+          <button onclick="cargarSeccion('maquinas')" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-list mr-2"></i>Inventario de Máquinas
           </button>
-          <button onclick="cargarSeccion('nueva-maquina')" class="w-full bg-green-700 hover:bg-green-800 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('nueva-maquina')" class="w-full bg-green-700 hover:bg-green-800 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-plus mr-2"></i>Agregar Máquina
           </button>
-          <button onclick="cargarSeccion('mantenimiento')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('mantenimiento')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-tools mr-2"></i>Programar Mantenimiento
           </button>
         </div>
       </div>
 
       <!-- Reportes y Analytics -->
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
+        <h2 class="text-lg font-bold mb-3 text-gray-800">
           <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Reportes y Analytics
         </h2>
-        <div class="space-y-3">
-          <button onclick="cargarSeccion('ventas')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg text-left">
+        <div class="space-y-2">
+          <button onclick="cargarSeccion('ventas')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-money-bill-wave mr-2"></i>Reporte de Ventas
           </button>
-          <button onclick="cargarSeccion('rendimiento')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('rendimiento')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-tachometer-alt mr-2"></i>Rendimiento por Local
           </button>
-          <button onclick="cargarSeccion('auditoria')" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('auditoria')" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-history mr-2"></i>Logs de Auditoría
           </button>
         </div>
       </div>
 
       <!-- Gestión de Locales -->
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
+        <h2 class="text-lg font-bold mb-3 text-gray-800">
           <i class="fas fa-store mr-2 text-orange-600"></i>Gestión de Locales
         </h2>
-        <div class="space-y-3">
-          <button onclick="cargarSeccion('locales')" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg text-left">
+        <div class="space-y-2">
+          <button onclick="cargarSeccion('locales')" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-list mr-2"></i>Todos los Locales
           </button>
-          <button onclick="cargarSeccion('nuevo-local')" class="w-full bg-orange-700 hover:bg-orange-800 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('nuevo-local')" class="w-full bg-orange-700 hover:bg-orange-800 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-plus mr-2"></i>Agregar Local
           </button>
-          <button onclick="cargarSeccion('asignaciones')" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('asignaciones')" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-user-friends mr-2"></i>Asignar Personal
           </button>
         </div>
       </div>
 
       <!-- Configuración del Sistema -->
-      <div class="bg-white rounded-xl p-6 shadow-md card-hover">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
+        <h2 class="text-lg font-bold mb-3 text-gray-800">
           <i class="fas fa-cog mr-2 text-gray-600"></i>Configuración del Sistema
         </h2>
-        <div class="space-y-3">
-          <button onclick="cargarSeccion('configuracion')" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg text-left">
+        <div class="space-y-2">
+          <button onclick="cargarSeccion('configuracion')" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-sliders-h mr-2"></i>Ajustes Generales
           </button>
-          <button onclick="cargarSeccion('backup')" class="w-full bg-gray-700 hover:bg-gray-800 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('backup')" class="w-full bg-gray-700 hover:bg-gray-800 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-database mr-2"></i>Backup y Restauración
           </button>
-          <button onclick="cargarSeccion('api')" class="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 px-4 rounded-lg text-left">
+          <button onclick="cargarSeccion('api')" class="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-code mr-2"></i>API y Integraciones
           </button>
         </div>
@@ -200,54 +286,160 @@
     </div>
 
     <!-- Área de contenido dinámico -->
-    <div id="contenido-dinamico" class="mt-8 bg-white rounded-xl p-6 shadow-md hidden">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800" id="titulo-seccion">Sección</h2>
+    <div id="contenido-dinamico" class="mt-6 bg-white rounded-xl p-4 shadow-md hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800" id="titulo-seccion">Sección</h2>
+        <button onclick="cerrarSeccion()" class="text-gray-500 hover:text-gray-700 btn-touch">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
       <div id="contenido-seccion">
         <!-- Contenido de cada sección -->
       </div>
     </div>
   </main>
 
-  <!-- Script de partículas -->
-  <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
-
+  <!-- Script de partículas optimizado -->
   <script>
-  // Configuración de partículas para el admin
-  particlesJS("particles-js", {
-    particles: {
-      number: { value: 80, density: { enable: true, value_area: 800 } },
-      color: { value: "#3B82F6" },
-      opacity: { value: 0.5, random: true },
-      size: { value: 3, random: true },
-      line_linked: {
-        enable: true,
-        distance: 150,
-        color: "#3B82F6",
-        opacity: 0.4,
-        width: 1
+    document.addEventListener('DOMContentLoaded', function() {
+      particlesJS("particles-js", {
+        particles: {
+          number: { value: 60, density: { enable: true, value_area: 600 } },
+          color: { value: "#3B82F6" },
+          opacity: { value: 0.3, random: true },
+          size: { value: 2, random: true },
+          line_linked: {
+            enable: true,
+            distance: 120,
+            color: "#3B82F6",
+            opacity: 0.2,
+            width: 1
+          },
+          move: {
+            enable: true,
+            speed: 0.6,
+            direction: 'none',
+            random: true
+          }
+        },
+        interactivity: {
+          detect_on: 'canvas',
+          events: {
+            onhover: { enable: true, mode: 'grab' },
+            onclick: { enable: true, mode: 'push' },
+            resize: true
+          },
+          modes: {
+            grab: { distance: 100, line_linked: { opacity: 0.6 } },
+            push: { particles_nb: 2 }
+          }
+        },
+        retina_detect: true
+      });
+
+      // Cargar estadísticas reales
+      cargarEstadisticas();
+    });
+
+    async function cargarEstadisticas() {
+      try {
+        const response = await fetch('/api/estadisticas-admin', {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('total-users').textContent = data.usuarios || '152';
+          document.getElementById('total-machines').textContent = data.maquinas || '47';
+          document.getElementById('today-packages').textContent = data.paquetes || '89';
+          document.getElementById('total-issues').textContent = data.incidencias || '12';
+        }
+      } catch (error) {
+        console.error('Error cargando estadísticas:', error);
       }
     }
-  });
 
-  function cargarSeccion(seccion) {
-    console.log(`Cargando sección: ${seccion}`);
-    // Lógica para cargar el contenido dinámico
-    document.getElementById('titulo-seccion').textContent = `Sección: ${seccion}`;
-    document.getElementById('contenido-seccion').innerHTML = `
-      <p class="text-gray-600">Contenido de ${seccion} se cargará aquí.</p>
-      <p class="text-sm text-gray-500 mt-2">Esta funcionalidad está en desarrollo.</p>
-    `;
-    document.getElementById('contenido-dinamico').classList.remove('hidden');
-  }
-
-  function cerrarSesion() {
-    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      console.log('Cerrando sesión de administración');
-      window.location.href = "/";
+    function cargarSeccion(seccion) {
+      console.log(`Cargando sección: ${seccion}`);
+      
+      // Mostrar loading
+      document.getElementById('contenido-seccion').innerHTML = `
+        <div class="text-center py-8">
+          <div class="loading mx-auto mb-4"></div>
+          <p class="text-gray-600">Cargando ${seccion}...</p>
+        </div>
+      `;
+      
+      document.getElementById('titulo-seccion').textContent = this.obtenerTituloSeccion(seccion);
+      document.getElementById('contenido-dinamico').classList.remove('hidden');
+      
+      // Simular carga de contenido (en producción sería una petición real)
+      setTimeout(() => {
+        document.getElementById('contenido-seccion').innerHTML = `
+          <div class="space-y-4">
+            <p class="text-gray-600">Contenido de ${this.obtenerTituloSeccion(seccion)} se cargará aquí.</p>
+            <p class="text-sm text-gray-500">Esta funcionalidad está en desarrollo.</p>
+            <div class="bg-gray-100 p-4 rounded-lg">
+              <h3 class="font-semibold mb-2">Características próximas:</h3>
+              <ul class="list-disc list-inside text-sm text-gray-600">
+                <li>Gestión completa de ${seccion}</li>
+                <li>Tablas responsivas</li>
+                <li>Formularios de administración</li>
+                <li>Reportes en tiempo real</li>
+              </ul>
+            </div>
+          </div>
+        `;
+      }, 1000);
     }
-  }
 
-  console.log("✅ Panel de administración cargado correctamente");
+    function obtenerTituloSeccion(seccion) {
+      const titulos = {
+        'usuarios': 'Gestión de Usuarios',
+        'nuevo-usuario': 'Crear Nuevo Usuario',
+        'roles': 'Gestión de Roles',
+        'maquinas': 'Inventario de Máquinas',
+        'nueva-maquina': 'Agregar Máquina',
+        'mantenimiento': 'Programar Mantenimiento',
+        'ventas': 'Reporte de Ventas',
+        'rendimiento': 'Rendimiento por Local',
+        'auditoria': 'Logs de Auditoría',
+        'locales': 'Gestión de Locales',
+        'nuevo-local': 'Agregar Local',
+        'asignaciones': 'Asignar Personal',
+        'configuracion': 'Configuración del Sistema',
+        'backup': 'Backup y Restauración',
+        'api': 'API y Integraciones'
+      };
+      return titulos[seccion] || seccion;
+    }
+
+    function cerrarSeccion() {
+      document.getElementById('contenido-dinamico').classList.add('hidden');
+    }
+
+    function cerrarSesion() {
+      if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+        // Mostrar loading
+        document.body.innerHTML += `
+          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 text-center">
+              <div class="loading mx-auto mb-4"></div>
+              <p class="text-gray-600">Cerrando sesión...</p>
+            </div>
+          </div>
+        `;
+        
+        // Redirigir después de un breve delay
+        setTimeout(() => {
+          window.location.href = "/logout";
+        }, 1000);
+      }
+    }
+
+    console.log("✅ Panel de administración cargado correctamente");
   </script>
 </body>
 </html>

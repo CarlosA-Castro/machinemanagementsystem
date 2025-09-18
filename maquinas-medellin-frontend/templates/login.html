@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Login - Máquinas Medellín</title>
 
   <!-- Icono del sitio -->
   <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
@@ -11,12 +11,15 @@
   <!-- Tailwind y librería de partículas -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     #particles-js {
       position: fixed;
@@ -26,150 +29,258 @@
       top: 0;
       left: 0;
     }
+    .btn-touch {
+      min-height: 44px;
+      min-width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (max-width: 768px) {
+      .login-container {
+        width: 90% !important;
+        margin: 1rem !important;
+        padding: 1.5rem !important;
+      }
+      input {
+        font-size: 16px !important; /* Previene zoom en iOS */
+      }
+    }
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 1rem !important;
+      }
+      h1 {
+        font-size: 1.5rem !important;
+      }
+    }
   </style>
 </head>
-<body class="bg-gray-900 flex items-center justify-center h-screen overflow-hidden">
+<body class="bg-gray-900 flex items-center justify-center min-h-screen p-4">
 
   <!-- Fondo partículas -->
   <div id="particles-js"></div>
 
   <!-- Contenedor del formulario -->
-  <div class="bg-[#f4f1eb] p-6 rounded-lg shadow-lg w-96 z-10 relative">
-   <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Máquinas Medellín" class="w-24 mx-auto mb-4">
+  <div class="bg-[#f4f1eb] p-6 rounded-xl shadow-lg w-96 max-w-full login-container">
+    <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Máquinas Medellín" class="w-20 mx-auto mb-4">
 
     <h1 class="text-2xl font-bold mb-4 text-center">Inicio de sesión</h1>
 
-    <label class="block mb-2 font-semibold">Ingrese su número de empleado</label>
+    <label class="block mb-2 font-semibold text-gray-700">Ingrese su número de empleado</label>
     <input
       type="text"
       id="codigoEmpleado"
-      class="w-full border border-gray-300 p-2 rounded mb-4"
+      class="w-full border border-gray-300 p-3 rounded-lg mb-4 text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
       placeholder="Ej: 12345"
+      inputmode="numeric"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
     >
 
-   <button type="button" onclick="LoginApp.verificarCodigo()" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
-  Aceptar
-</button>
+    <button type="button" onclick="LoginApp.verificarCodigo()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition btn-touch text-lg font-semibold">
+      <i class="fas fa-sign-in-alt mr-2"></i>Aceptar
+    </button>
+
+    <!-- Loading indicator (oculto inicialmente) -->
+    <div id="loading" class="hidden mt-4 text-center">
+      <div class="loading mx-auto mb-2"></div>
+      <p class="text-gray-600 text-sm">Verificando...</p>
+    </div>
+
+    <!-- Soporte táctil para teclado virtual -->
+    <div class="mt-4 text-center">
+      <a href="https://wa.me/573218001092" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
+        <i class="fas fa-phone-alt mr-1"></i>Soporte Técnico
+      </a>
+    </div>
   </div>
 
-  <!-- Configuración de partículas -->
- <script src="{{ url_for('static', filename='js/particles-config.js') }}"></script>
-
-  <!-- Script de verificación de login -->
-<script>
-// Namespace para Login App
-const LoginApp = {
-  verificarCodigo: function() {
-    const codigo = document.getElementById("codigoEmpleado").value.trim();
-
-    if (!codigo) {
-      alert("Por favor ingrese su código.");
-      return;
-    }
-
-    fetch("/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ codigo })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.valido) {
-        // GUARDAR DATOS EN sessionStorage
-        sessionStorage.setItem("nombreUsuario", data.nombre);
-        sessionStorage.setItem("rolUsuario", data.role);
-        sessionStorage.setItem("localUsuario", data.local);
-        sessionStorage.setItem("userId", data.user_id);
-        
-        console.log("✅ Login exitoso. Rol:", data.role);
-        
-        // REDIRIGIR SEGÚN EL ROL
-        if (data.role === 'admin') {
-          // Admins ven el modal de selección
-          this.mostrarModalSeleccion(data.role);
-        } else if (data.role === 'cajero' || data.role === 'admin_restaurante') {
-          // Cajeros y admin_restaurante van directamente al local
-          window.location.href = "/local";
-        } else {
-          // Para cualquier otro rol, redirección por defecto
-          window.location.href = "/local";
-        }
-        
-      } else {
-        alert("Código inválido. Intenta de nuevo.");
-      }
-    })
-    .catch(err => {
-      console.error("Error:", err);
-      alert("Error de conexión.");
+  <!-- Configuración de partículas optimizada -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      particlesJS('particles-js', {
+        particles: {
+          number: { value: 60, density: { enable: true, value_area: 600 } },
+          color: { value: '#3b82f6' },
+          shape: { type: 'circle' },
+          opacity: { value: 0.3, random: true },
+          size: { value: 2, random: true },
+          line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.2, width: 1 },
+          move: { enable: true, speed: 0.8, direction: 'none', random: true }
+        },
+        interactivity: {
+          detect_on: 'canvas',
+          events: {
+            onhover: { enable: true, mode: 'grab' },
+            onclick: { enable: true, mode: 'push' },
+            resize: true
+          },
+          modes: {
+            grab: { distance: 120, line_linked: { opacity: 0.8 } },
+            push: { particles_nb: 3 }
+          }
+        },
+        retina_detect: true
+      });
     });
-  },
+  </script>
 
-  // MODAL DE SELECCIÓN PARA ADMINS
-  mostrarModalSeleccion: function(rol) {
-    const esAdminRestaurante = rol === 'admin_restaurante';
-    const titulo = esAdminRestaurante ? 'Admin Restaurante' : 'Administrador';
-    
-    const modalHTML = `
-      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 w-96">
-          <h2 class="text-2xl font-bold mb-2 text-center">${titulo}</h2>
-          <p class="text-gray-600 mb-6 text-center">Elige cómo quieres acceder al sistema</p>
+  <!-- Script de verificación de login optimizado -->
+  <script>
+  // Namespace para Login App
+  const LoginApp = {
+    verificarCodigo: function() {
+      const codigo = document.getElementById("codigoEmpleado").value.trim();
+      const loadingElement = document.getElementById("loading");
+
+      if (!codigo) {
+        this.mostrarAlerta("Por favor ingrese su código.", "warning");
+        return;
+      }
+
+      // Mostrar loading
+      loadingElement.classList.remove('hidden');
+      document.querySelector('button').disabled = true;
+
+      fetch("/login", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({ codigo })
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Error en la respuesta del servidor');
+        }
+        return res.json();
+      })
+      .then(data => {
+        loadingElement.classList.add('hidden');
+        document.querySelector('button').disabled = false;
+        
+        if (data.valido) {
+          sessionStorage.setItem("nombreUsuario", data.nombre);
+          sessionStorage.setItem("rolUsuario", data.role);
+          sessionStorage.setItem("localUsuario", data.local);
+          sessionStorage.setItem("userId", data.user_id || '');
           
-          <div class="space-y-4">
-            <button onclick="LoginApp.accederComoAdmin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg">
-              <i class="fas fa-cog mr-2"></i>Modo Administración
-            </button>
+          console.log("✅ Login exitoso. Rol:", data.role);
+          
+          if (data.role === 'admin') {
+            this.mostrarModalSeleccion(data.role);
+          } else {
+            window.location.href = "/local";
+          }
+        } else {
+          this.mostrarAlerta("Código inválido. Intenta de nuevo.", "error");
+        }
+      })
+      .catch(err => {
+        loadingElement.classList.add('hidden');
+        document.querySelector('button').disabled = false;
+        console.error("Error:", err);
+        this.mostrarAlerta("Error de conexión. Intente nuevamente.", "error");
+      });
+    },
+
+    mostrarModalSeleccion: function(rol) {
+      const esAdminRestaurante = rol === 'admin_restaurante';
+      const titulo = esAdminRestaurante ? 'Admin Restaurante' : 'Administrador';
+      
+      const modalHTML = `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-2 text-center">${titulo}</h2>
+            <p class="text-gray-600 mb-6 text-center">Elige cómo quieres acceder al sistema</p>
             
-            <button onclick="LoginApp.accederComoCajero()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg">
-              <i class="fas fa-cash-register mr-2"></i>Modo Cajero/Local
+            <div class="space-y-3">
+              <button onclick="LoginApp.accederComoAdmin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-4 rounded-lg btn-touch text-lg">
+                <i class="fas fa-cog mr-2"></i>Modo Administración
+              </button>
+              
+              <button onclick="LoginApp.accederComoCajero()" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-4 rounded-lg btn-touch text-lg">
+                <i class="fas fa-cash-register mr-2"></i>Modo Cajero/Local
+              </button>
+            </div>
+            
+            <button onclick="LoginApp.cerrarModal()" class="mt-6 text-gray-500 hover:text-gray-700 w-full py-3 rounded-lg border btn-touch">
+              <i class="fas fa-times mr-1"></i>Cerrar
             </button>
           </div>
-          
-          <button onclick="LoginApp.cerrarModal()" class="mt-4 text-gray-500 hover:text-gray-700 float-right">
-            <i class="fas fa-times mr-1"></i>Cerrar
-          </button>
         </div>
-      </div>
-    `;
+      `;
+      
+      const modalDiv = document.createElement('div');
+      modalDiv.innerHTML = modalHTML;
+      modalDiv.id = 'modal-seleccion';
+      document.body.appendChild(modalDiv);
+    },
+
+    accederComoAdmin: function() {
+      window.location.href = "/admin";
+    },
+
+    accederComoCajero: function() {
+      window.location.href = "/local";
+    },
+
+    cerrarModal: function() {
+      const modal = document.getElementById('modal-seleccion');
+      if (modal) {
+        modal.remove();
+      }
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+      // Toast notification simple
+      const toast = document.createElement('div');
+      toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+        tipo === 'error' ? 'bg-red-500' : 'bg-yellow-500'
+      } text-white`;
+      toast.textContent = mensaje;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+  };
+
+  // Focus automático en el input y soporte para Enter key
+  document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('codigoEmpleado');
+    input.focus();
     
-    // Crear e injectar el modal
-    const modalDiv = document.createElement('div');
-    modalDiv.innerHTML = modalHTML;
-    modalDiv.id = 'modal-seleccion';
-    document.body.appendChild(modalDiv);
-    
-    // Prevenir cerrar haciendo clic fuera del modal
-    modalDiv.addEventListener('click', function(e) {
-      if (e.target.id === 'modal-seleccion') {
-        e.stopPropagation();
+    input.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        LoginApp.verificarCodigo();
       }
     });
-  },
-
-  accederComoAdmin: function() {
-    window.location.href = "/admin";
-  },
-
-  accederComoCajero: function() {
-    window.location.href = "/local";
-  },
-
-  cerrarModal: function() {
-    const modal = document.getElementById('modal-seleccion');
-    if (modal) {
-      modal.remove();
-    }
-  }
-};
-
-// Asegurar que Font Awesome esté disponible
-if (!document.querySelector('link[href*="font-awesome"]')) {
-  const faLink = document.createElement('link');
-  faLink.rel = 'stylesheet';
-  faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-  document.head.appendChild(faLink);
-}
-</script>
+    
+    // Prevenir zoom en iOS
+    document.addEventListener('touchstart', function() {
+      if (input) {
+        input.style.fontSize = '16px';
+      }
+    });
+  });
+  </script>
 </body>
 </html>

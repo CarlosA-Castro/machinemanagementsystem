@@ -3,6 +3,10 @@ import mysql.connector
 from flask_cors import CORS
 import os
 from datetime import datetime
+import pytz
+
+colombia = pytz.timezone("America/Bogota")
+fecha_hora = datetime.now(colombia).strftime("%Y-%m-%d %H:%M:%S")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -22,6 +26,8 @@ try:
         password="Dattebayo",
         database="maquinasmedellin"
     )
+    cursor = db.cursor()
+    cursor.execute("SET time_zone = '-05:00'")
     cursor = db.cursor(dictionary=True)
     print("✅ Conexión a BD exitosa")
 except Exception as e:
@@ -237,14 +243,21 @@ def asignar_paquete():
         print(f"❌ Error asignando paquete: {e}")
         return jsonify({'error': str(e)}), 500
     
-# Verificar QR
+# Verificar QR - SOLO UNA VEZ ESTA FUNCIÓN
 @app.route('/api/verificar-qr/<qr_code>', methods=['GET'])
 def verificar_qr(qr_code):
     try:
-        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        print(f"🔍 Verificando QR: {qr_code}")
+        
+        # Primero verificar si existe en QRCode
+        cursor.execute("SELECT id, code, remainingTurns, isActive FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
+        
         if not qr_data:
+            print(f"❌ QR no encontrado en tabla QRCode: {qr_code}")
             return jsonify({'existe': False})
+        
+        print(f"✅ QR encontrado en base de datos: {qr_data}")
         
         qr_id = qr_data['id']
         cursor.execute("""
@@ -266,7 +279,16 @@ def verificar_qr(qr_code):
                 'qr_code': qr_code
             })
         else:
-            return jsonify({'existe': False, 'qr_code': qr_code})
+            # Si existe en QRCode pero no en UserTurns, es un QR nuevo sin paquete asignado
+            return jsonify({
+                'existe': True,
+                'turns_remaining': 0,
+                'total_turns': 0,
+                'package_name': 'Sin paquete',
+                'package_turns': 0,
+                'package_price': 0,
+                'qr_code': qr_code
+            })
             
     except Exception as e:
         print(f"❌ Error verificando QR: {e}")
@@ -362,7 +384,7 @@ def obtener_historial_fallas():
             JOIN QRCode qr ON mf.qr_code_id = qr.id
             JOIN UserTurns ut ON mf.qr_code_id = ut.qr_code_id
             ORDER BY mf.reported_at DESC
-            LIMIT 50
+            LIMit 50
         """)
         return jsonify(cursor.fetchall())
     except Exception as e:
@@ -431,7 +453,7 @@ def historial_completo():
         print(f"❌ Error obteniendo historial completo: {e}")
         return jsonify({'error': str(e)}), 500
     
-    # Agregar QR generados en lote al historial
+# Agregar QR generados en lote al historial
 @app.route('/api/guardar-multiples-qr', methods=['POST'])
 def guardar_multiples_qr():
     try:
@@ -448,19 +470,28 @@ def guardar_multiples_qr():
 
         # Insertar todos los QR en AMBAS tablas
         for qr_code in qr_codes:
-            # 1. Guardar en QRHistory (historial)
+            # 1. Primero verificar si el QR ya existe en QRCode
+            cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+            qr_existente = cursor.fetchone()
+            
+            if not qr_existente:
+                print(f"➕ Insertando nuevo QR: {qr_code}")
+                # 2. Guardar en QRCode (para que funcionen los escáneres)
+                cursor.execute("""
+                    INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
+                    VALUES (%s, %s, %s, %s)
+                """, (qr_code, 0, 1, 1))
+            else:
+                print(f"✅ QR ya existe: {qr_code}")
+            
+            # 3. Guardar en QRHistory (historial)
             cursor.execute("""
                 INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora)
                 VALUES (%s, %s, %s, %s, NOW())
             """, (qr_code, user_id, user_name, local))
 
-            # 2. Guardar en QRCode (para que funcionen los escáneres)
-            cursor.execute("""
-                INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
-                VALUES (%s, %s, %s, %s)
-            """, (qr_code, 0, 1, 1))
-
         db.commit()
+        print(f"✅ {len(qr_codes)} QR guardados exitosamente")
 
         return jsonify({
             'success': True, 
@@ -471,6 +502,40 @@ def guardar_multiples_qr():
     except Exception as e:
         print(f"❌ Error guardando múltiples QR: {e}")
         db.rollback()
+        return jsonify({'error': str(e), 'message': 'Error al guardar los códigos QR'}), 500
+    
+@app.route('/api/debug-qr/<qr_code>', methods=['GET'])
+def debug_qr(qr_code):
+    """Ruta para diagnosticar problemas con QR"""
+    try:
+        print(f"🔧 Debug QR: {qr_code}")
+        
+        # Verificar en QRCode
+        cursor.execute("SELECT * FROM QRCode WHERE code = %s", (qr_code,))
+        qr_data = cursor.fetchone()
+        print(f"📊 QR en tabla QRCode: {qr_data}")
+        
+        # Verificar en QRHistory
+        cursor.execute("SELECT * FROM QRHistory WHERE qr_code = %s ORDER BY fecha_hora DESC", (qr_code,))
+        history_data = cursor.fetchall()
+        print(f"📊 QR en historial: {history_data}")
+        
+        # Verificar en UserTurns
+        if qr_data:
+            cursor.execute("SELECT * FROM UserTurns WHERE qr_code_id = %s", (qr_data['id'],))
+            turns_data = cursor.fetchone()
+            print(f"📊 QR en UserTurns: {turns_data}")
+        
+        return jsonify({
+            'qr_code': qr_code,
+            'en_qrcode': bool(qr_data),
+            'en_historial': len(history_data) > 0,
+            'datos_qrcode': qr_data,
+            'historial': history_data
+        })
+        
+    except Exception as e:
+        print(f"❌ Error en debug: {e}")
         return jsonify({'error': str(e)}), 500
 
 # Iniciar servidor

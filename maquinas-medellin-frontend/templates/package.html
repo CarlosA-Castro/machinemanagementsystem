@@ -2,12 +2,13 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ingreso de Paquete</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Ingreso de Paquete - Máquinas Medellín</title>
     <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}?v=2" type="image/jpg">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
       #particles-js {
@@ -22,88 +23,192 @@
         position: relative;
         z-index: 10;
       }
+      .btn-touch {
+        min-height: 44px;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
       .btnPaquete {
         background-color: #e5e7eb;
         color: #374151;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
+        padding: 1rem 0.5rem;
+        border-radius: 0.75rem;
         font-weight: 600;
         transition: all 0.2s;
+        min-height: 90px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid transparent;
       }
-      .btnPaquete:hover {
+      .btnPaquete:hover, .btnPaquete:active {
         background-color: #93c5fd;
         transform: translateY(-2px);
+        border-color: #3b82f6;
       }
       .paquete-info {
-        font-size: 0.8rem;
-        margin-top: 0.2rem;
+        font-size: 0.75rem;
+        margin-top: 0.4rem;
         color: #6b7280;
+        text-align: center;
+        line-height: 1.2;
+      }
+      
+      @media (max-width: 1024px) {
+        .contenido {
+          padding: 1.5rem !important;
+          margin: 1rem !important;
+        }
+        
+        #paquetes-container {
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 0.75rem !important;
+        }
+        
+        .btnPaquete {
+          padding: 0.75rem 0.25rem;
+          min-height: 80px;
+        }
+        
+        h1 {
+          font-size: 1.75rem !important;
+        }
+      }
+      
+      @media (max-width: 768px) {
+        #paquetes-container {
+          grid-template-columns: repeat(2, 1fr) !important;
+          gap: 0.5rem !important;
+        }
+        
+        .btnPaquete {
+          font-size: 0.9rem;
+          min-height: 75px;
+        }
+        
+        .paquete-info {
+          font-size: 0.7rem;
+        }
+        
+        h1 {
+          font-size: 1.5rem !important;
+        }
+        
+        h2 {
+          font-size: 1.25rem !important;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        #paquetes-container {
+          grid-template-columns: repeat(2, 1fr) !important;
+          gap: 0.5rem !important;
+        }
+        
+        .btnPaquete {
+          padding: 0.5rem 0.25rem;
+          min-height: 70px;
+          font-size: 0.85rem;
+        }
+        
+        .paquete-info {
+          font-size: 0.65rem;
+        }
+        
+        .contenido {
+          padding: 1rem !important;
+        }
+      }
+      
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
     </style>
   </head>
-  <body class="relative h-screen flex items-center justify-center bg-gray-100">
+  <body class="relative min-h-screen flex items-center justify-center bg-gray-100 p-4">
 
     <!-- Fondo partículas -->
     <div id="particles-js"></div>
 
     <!-- Contenido principal -->
-    <div class="contenido bg-white rounded-xl shadow-2xl p-10 w-full max-w-3xl space-y-10">
+    <div class="contenido bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl space-y-6">
       <div>
-        <h1 class="text-3xl font-bold flex items-center gap-2">
-          📦 Ingreso de Paquete
+        <h1 class="text-2xl font-bold flex items-center gap-2 justify-center">
+          <i class="fas fa-box text-blue-600"></i> Ingreso de Paquete
         </h1>
-        <p class="text-sm text-gray-600 mt-2">
+        <p class="text-sm text-gray-600 mt-2 text-center">
           Escanee un código QR para asignar turnos a un paquete
         </p>
       </div>
 
       <!-- Código QR -->
-      <div id="reader" class="mt-4 hidden"></div>
-      <div class="space-y-2">
-        <label class="block font-semibold">Código QR:</label>
+      <div id="reader" class="mt-4 hidden mx-auto w-full max-w-md"></div>
+      <div class="space-y-3">
+        <label class="block font-semibold text-gray-700">Código QR:</label>
         <input
           id="codigoQR"
           type="text"
           readonly
           placeholder="QR escaneado aparecerá aquí"
-          class="w-full p-2 border rounded bg-gray-100"
+          class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-center font-medium focus:outline-none focus:border-blue-500"
         />
         <button
           id="btnEscanear"
-          class="bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded-lg font-semibold flex items-center justify-center gap-2"
+          class="bg-blue-600 hover:bg-blue-700 text-white w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch transition-colors"
         >
-          📷 Escanear QR
+          <i class="fas fa-camera"></i>
+          <span id="scanner-text">Escanear QR</span>
         </button>
       </div>
 
       <!-- Selección de paquete -->
       <div>
-        <h2 class="text-xl font-bold mb-3 flex items-center gap-1">
-          🎯 Seleccione el paquete:
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2 justify-center">
+          <i class="fas fa-tags text-green-600"></i> Seleccione el paquete:
         </h2>
-        <div id="paquetes-container" class="grid grid-cols-5 gap-3">
-          
+        <div id="paquetes-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <!-- Paquetes se cargarán aquí -->
         </div>
       </div>
 
+      <!-- Loading indicator -->
+      <div id="loading" class="hidden text-center py-4">
+        <div class="loading mx-auto mb-2"></div>
+        <p class="text-gray-600 text-sm">Procesando...</p>
+      </div>
       
-      <div class="text-sm">
-        <a href="{{ url_for('mostrar_local') }}" onclick="PackageApp.forceReload()" class="text-blue-600 hover:underline">🔙 Volver</a>
+      <div class="text-center pt-4">
+        <a href="{{ url_for('mostrar_local') }}" onclick="PackageApp.forceReload()" class="text-blue-600 hover:text-blue-800 btn-touch inline-block">
+          <i class="fas fa-arrow-left mr-2"></i>Volver al Local
+        </a>
       </div>
     </div>
 
     <!-- Modal de confirmación -->
-    <div id="modalConfirmacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20 hidden">
-      <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl text-center space-y-4">
-        <h3 class="text-xl font-bold">¿Desea ingresar el producto?</h3>
-        <p class="text-gray-700">Paquete <span id="paqueteSeleccionado"></span> sobre el código QR</p>
-        <p class="font-semibold" id="precioPaquete">Costo: $0</p>
-        <div class="flex justify-center gap-4 mt-4">
-          <button onclick="PackageApp.cerrarModal()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-            Cancelar
+    <div id="modalConfirmacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+      <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl text-center space-y-4">
+        <h3 class="text-xl font-bold text-gray-800">¿Confirmar ingreso?</h3>
+        <p class="text-gray-700">Paquete <span id="paqueteSeleccionado" class="font-bold text-blue-600"></span></p>
+        <p class="font-semibold text-green-600" id="precioPaquete">Costo: $0 - 0 turnos</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+          <button onclick="PackageApp.cerrarModal()" class="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium btn-touch flex-1">
+            <i class="fas fa-times mr-2"></i>Cancelar
           </button>
-          <button onclick="PackageApp.confirmarIngreso()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-            Confirmar
+          <button onclick="PackageApp.confirmarIngreso()" class="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium btn-touch flex-1">
+            <i class="fas fa-check mr-2"></i>Confirmar
           </button>
         </div>
       </div>
@@ -113,16 +218,16 @@
       // Namespace para Package App
       const PackageApp = {
         init: function() {
-          // Configuración de partículas
+          // Configuración de partículas optimizada
           particlesJS('particles-js', {
             particles: {
-              number: { value: 80, density: { enable: true, value_area: 800 } },
+              number: { value: 50, density: { enable: true, value_area: 600 } },
               color: { value: '#3b82f6' },
-              shape: { type: 'circle', stroke: { width: 0, color: '#000000' } },
-              opacity: { value: 0.5, random: true },
-              size: { value: 3, random: true },
-              line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
-              move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
+              shape: { type: 'circle' },
+              opacity: { value: 0.3, random: true },
+              size: { value: 2, random: true },
+              line_linked: { enable: true, distance: 100, color: '#3b82f6', opacity: 0.2, width: 1 },
+              move: { enable: true, speed: 0.6, direction: 'none', random: true }
             },
             interactivity: {
               detect_on: 'canvas',
@@ -132,8 +237,8 @@
                 resize: true
               },
               modes: {
-                grab: { distance: 140, line_linked: { opacity: 1 } },
-                push: { particles_nb: 4 }
+                grab: { distance: 100, line_linked: { opacity: 0.6 } },
+                push: { particles_nb: 2 }
               }
             },
             retina_detect: true
@@ -162,19 +267,23 @@
         // Cargar paquetes desde la base de datos
         cargarPaquetes: async function() {
           try {
-            const response = await fetch('/api/paquetes');
+            const response = await fetch('/api/paquetes', {
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error('Error en la respuesta del servidor');
+            }
+            
             const paquetes = await response.json();
             
-            if (response.ok) {
-              this.paquetesData = paquetes;
-              this.renderizarPaquetes(paquetes);
-            } else {
-              console.error('Error cargando paquetes:', paquetes.error);
-              alert('Error al cargar los paquetes');
-            }
+            this.paquetesData = paquetes;
+            this.renderizarPaquetes(paquetes);
           } catch (error) {
-            console.error('Error:', error);
-            alert('Error de conexión al cargar paquetes');
+            console.error('Error cargando paquetes:', error);
+            this.mostrarAlerta('Error al cargar los paquetes', 'error');
           }
         },
 
@@ -185,11 +294,11 @@
           
           paquetes.forEach(paquete => {
             const button = document.createElement('button');
-            button.className = 'btnPaquete';
+            button.className = 'btnPaquete btn-touch';
             button.innerHTML = `
-              P${paquete.id}
+              <div class="font-bold">P${paquete.id}</div>
               <div class="paquete-info">
-                ${paquete.turns} turns<br>
+                ${paquete.turns} turnos<br>
                 $${paquete.price.toLocaleString()}
               </div>
             `;
@@ -203,7 +312,7 @@
           this.codigoQR = document.getElementById('codigoQR').value;
           
           if (!this.codigoQR) {
-            alert('⚠️ Primero debe escanear un código QR');
+            this.mostrarAlerta('⚠️ Primero debe escanear un código QR', 'warning');
             return;
           }
           
@@ -219,15 +328,20 @@
 
         confirmarIngreso: async function() {
           if (!this.paqueteTemp || !this.codigoQR) {
-            alert('Error: Datos incompletos');
+            this.mostrarAlerta('Error: Datos incompletos', 'error');
             return;
           }
+
+          // Mostrar loading
+          document.getElementById('loading').classList.remove('hidden');
+          this.cerrarModal();
 
           try {
             const response = await fetch('/api/asignar-paquete', {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
               },
               body: JSON.stringify({
                 codigo_qr: this.codigoQR,
@@ -235,31 +349,37 @@
               })
             });
 
+            if (!response.ok) {
+              throw new Error('Error en la respuesta del servidor');
+            }
+
             const result = await response.json();
 
-            if (response.ok) {
+            if (result.success) {
               // ✅ Guardar en historial después de asignar paquete
               await fetch('/api/guardar-qr', {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({
                   qr_code: this.codigoQR
                 })
               });
               
-              alert('✅ ' + result.message);
+              this.mostrarAlerta('✅ ' + result.message, 'success');
               document.getElementById('codigoQR').value = '';
               this.codigoQR = '';
             } else {
-              alert('❌ Error: ' + result.error);
+              this.mostrarAlerta('❌ Error: ' + result.error, 'error');
             }
           } catch (error) {
-            alert('❌ Error de conexión: ' + error.message);
+            console.error('Error:', error);
+            this.mostrarAlerta('❌ Error de conexión: ' + error.message, 'error');
+          } finally {
+            document.getElementById('loading').classList.add('hidden');
           }
-          
-          this.cerrarModal();
         },
 
         // Funcionalidad del escáner QR
@@ -270,7 +390,7 @@
               await this.html5QrCode.stop();
               this.scannerActivo = false;
               document.getElementById('reader').classList.add('hidden');
-              document.getElementById('btnEscanear').innerHTML = '📷 Escanear QR';
+              document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
               return;
             } catch (error) {
               console.error("Error deteniendo escáner:", error);
@@ -286,24 +406,44 @@
               { facingMode: "environment" },
               {
                 fps: 10,
-                qrbox: 250
+                qrbox: { width: 250, height: 250 }
               },
               qrCodeMessage => {
                 document.getElementById('codigoQR').value = qrCodeMessage;
                 this.html5QrCode.stop();
                 this.scannerActivo = false;
                 document.getElementById('reader').classList.add('hidden');
-                document.getElementById('btnEscanear').innerHTML = '📷 Escanear QR';
+                document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
               },
               errorMessage => {
                 console.log("Error escaneando:", errorMessage);
               }
             );
             this.scannerActivo = true;
-            document.getElementById('btnEscanear').innerHTML = '⏹️ Detener Escaneo';
+            document.getElementById('scanner-text').innerHTML = '<i class="fas fa-stop mr-2"></i>Detener Escaneo';
           } catch (error) {
-            alert("Error accediendo a la cámara: " + error);
+            console.error("Error accediendo a la cámara:", error);
+            this.mostrarAlerta("Error accediendo a la cámara: " + error, 'error');
           }
+        },
+
+        mostrarAlerta: function(mensaje, tipo) {
+          // Toast notification
+          const toast = document.createElement('div');
+          toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 
+            'bg-yellow-500'
+          } text-white`;
+          toast.innerHTML = `
+            <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+            ${mensaje}
+          `;
+          document.body.appendChild(toast);
+          
+          setTimeout(() => {
+            toast.remove();
+          }, 3000);
         }
       };
 
