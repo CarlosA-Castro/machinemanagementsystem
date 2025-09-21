@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 import mysql.connector
+from mysql.connector import pooling
 from flask_cors import CORS
 import os
 from datetime import datetime
@@ -18,36 +19,85 @@ app = Flask(
 app.secret_key = 'maquinasmedellin_secret_key_2024'
 CORS(app)
 
-# Conexión a la base de datos
-try:
-    db = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Dattebayo",
-        database="maquinasmedellin"
-    )
-    cursor = db.cursor()
-    cursor.execute("SET time_zone = '-05:00'")
-    cursor = db.cursor(dictionary=True)
-    print("✅ Conexión a BD exitosa")
-except Exception as e:
-    print(f"❌ Error conectando a BD: {e}")
+# Configuración del pool de conexiones
+db_config = {
+    "host": "localhost",
+    "user": "root",
+    "password": "Dattebayo",
+    "database": "maquinasmedellin",
+    "pool_name": "maquinas_pool",
+    "pool_size": 5
+}
 
-# Crear tabla QRHistory si no existe
+# Crear el pool de conexiones
 try:
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS QRHistory (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            qr_code VARCHAR(255) NOT NULL,
-            user_id INT NULL,
-            user_name VARCHAR(100) NULL,
-            local VARCHAR(100) NOT NULL,
-            fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    print("✅ Tabla QRHistory verificada/creada")
+    connection_pool = pooling.MySQLConnectionPool(**db_config)
+    print("✅ Pool de conexiones creado exitosamente")
 except Exception as e:
-    print(f"❌ Error creando tabla QRHistory: {e}")
+    print(f"❌ Error creando pool de conexiones: {e}")
+    connection_pool = None
+
+# Función para obtener conexión
+def get_db_connection():
+    try:
+        if connection_pool:
+            return connection_pool.get_connection()
+        else:
+            # Fallback a conexión directa si el pool falla
+            return mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="Dattebayo",
+                database="maquinasmedellin"
+            )
+    except Exception as e:
+        print(f"❌ Error obteniendo conexión: {e}")
+        return None
+
+# Función para obtener cursor
+def get_db_cursor(connection):
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SET time_zone = '-05:00'")
+        return cursor
+    except Exception as e:
+        print(f"❌ Error obteniendo cursor: {e}")
+        return None
+
+# Crear tablas si no existen (solo una vez al inicio)
+def create_tables():
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return False
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS QRHistory (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                qr_code VARCHAR(255) NOT NULL,
+                user_id INT NULL,
+                user_name VARCHAR(100) NULL,
+                local VARCHAR(100) NOT NULL,
+                fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        connection.commit()
+        print("✅ Tabla QRHistory verificada/creada")
+        return True
+    except Exception as e:
+        print(f"❌ Error creando tabla QRHistory: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# Crear tablas al iniciar
+create_tables()
 
 # Rutas
 @app.route('/')
@@ -58,6 +108,8 @@ def mostrar_login():
 # Procesa login
 @app.route('/login', methods=['POST'])
 def procesar_login():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         codigo = data.get('codigo')
@@ -66,6 +118,11 @@ def procesar_login():
         if not codigo:
             return jsonify({"valido": False, "error": "no_codigo"}), 400
 
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"valido": False, "error": "db_connection"}), 500
+            
+        cursor = get_db_cursor(connection)
         cursor.execute("SELECT * FROM Users WHERE password = %s", (codigo,))
         usuario = cursor.fetchone()
         print(f"👤 Usuario encontrado: {usuario}")
@@ -91,6 +148,11 @@ def procesar_login():
     except Exception as e:
         print(f"❌ Error en /login: {e}")
         return jsonify({"valido": False, "error": "server_error", "message": str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Interfaz principal
 @app.route('/local')
@@ -170,16 +232,30 @@ def health_check():
 # Obtener paquetes
 @app.route('/api/paquetes', methods=['GET'])
 def obtener_paquetes():
+    connection = None
+    cursor = None
     try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         cursor.execute("SELECT * FROM TurnPackage ORDER BY id")
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo paquetes: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Asignar paquete a QR 
 @app.route('/api/asignar-paquete', methods=['POST'])
 def asignar_paquete():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         codigo_qr = data.get('codigo_qr')
@@ -187,6 +263,12 @@ def asignar_paquete():
         
         if not codigo_qr or not paquete_id:
             return jsonify({'error': 'Faltan datos requeridos'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         
         # Buscar info del paquete para traer turnos y precio
         cursor.execute("SELECT turns, price FROM TurnPackage WHERE id = %s", (paquete_id,))
@@ -206,7 +288,7 @@ def asignar_paquete():
                 INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
                 VALUES (%s, %s, 1, %s)
             """, (codigo_qr, turns, paquete_id))
-            db.commit()
+            connection.commit()
             qr_id = cursor.lastrowid
         else:
             # Si ya existe, actualizamos remainingTurns sumándole los del nuevo paquete
@@ -217,7 +299,7 @@ def asignar_paquete():
                     turnPackageId = %s
                 WHERE id = %s
             """, (turns, paquete_id, qr_id))
-            db.commit()
+            connection.commit()
         
         # Guardar en UserTurns (control detallado de turnos por usuario)
         cursor.execute("""
@@ -229,7 +311,7 @@ def asignar_paquete():
                 package_id = %s
         """, (qr_id, turns, turns, paquete_id, turns, turns, paquete_id))
         
-        db.commit()
+        connection.commit()
         
         return jsonify({
             'success': True,
@@ -242,12 +324,25 @@ def asignar_paquete():
     except Exception as e:
         print(f"❌ Error asignando paquete: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
     
-# Verificar QR - SOLO UNA VEZ ESTA FUNCIÓN
+# Verificar QR
 @app.route('/api/verificar-qr/<qr_code>', methods=['GET'])
 def verificar_qr(qr_code):
+    connection = None
+    cursor = None
     try:
         print(f"🔍 Verificando QR: {qr_code}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         
         # Primero verificar si existe en QRCode
         cursor.execute("SELECT id, code, remainingTurns, isActive FROM QRCode WHERE code = %s", (qr_code,))
@@ -293,10 +388,17 @@ def verificar_qr(qr_code):
     except Exception as e:
         print(f"❌ Error verificando QR: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Registrar uso turno
 @app.route('/api/registrar-uso', methods=['POST'])
 def registrar_uso():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         qr_code = data.get('qr_code')
@@ -304,6 +406,12 @@ def registrar_uso():
         
         if not qr_code or not machine_id:
             return jsonify({'error': 'Faltan datos requeridos'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         
         cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
@@ -319,7 +427,7 @@ def registrar_uso():
         
         cursor.execute("INSERT INTO TurnUsage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
         cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
-        db.commit()
+        connection.commit()
         
         return jsonify({
             'success': True,
@@ -330,10 +438,17 @@ def registrar_uso():
     except Exception as e:
         print(f"❌ Error registrando uso: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Reportar falla
 @app.route('/api/reportar-falla', methods=['POST'])
 def reportar_falla():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         qr_code = data.get('qr_code')
@@ -343,6 +458,12 @@ def reportar_falla():
         
         if not all([qr_code, machine_id, turnos_devueltos]):
             return jsonify({'error': 'Faltan datos requeridos'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         
         cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
@@ -362,7 +483,7 @@ def reportar_falla():
         
         cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
                        (turnos_devueltos, qr_id))
-        db.commit()
+        connection.commit()
         
         return jsonify({
             'success': True,
@@ -373,27 +494,46 @@ def reportar_falla():
     except Exception as e:
         print(f"❌ Error reportando falla: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Historial fallas
 @app.route('/api/historial-fallas', methods=['GET'])
 def obtener_historial_fallas():
+    connection = None
+    cursor = None
     try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         cursor.execute("""
             SELECT mf.*, qr.code as qr_code, ut.turns_remaining, ut.total_turns
             FROM MachineFailures mf
             JOIN QRCode qr ON mf.qr_code_id = qr.id
             JOIN UserTurns ut ON mf.qr_code_id = ut.qr_code_id
             ORDER BY mf.reported_at DESC
-            LIMit 50
+            LIMIT 50
         """)
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo historial de fallas: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Guardar QR en historial
 @app.route('/api/guardar-qr', methods=['POST'])
 def guardar_qr():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         qr_code = data.get('qr_code')
@@ -406,22 +546,40 @@ def guardar_qr():
 
         print(f"💾 Guardando QR en historial: {qr_code} por usuario {user_name}")
 
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+
         # Asegúrate que los nombres de columnas coincidan exactamente
         cursor.execute("""
             INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora)
             VALUES (%s, %s, %s, %s, NOW())
         """, (qr_code, user_id, user_name, local))
-        db.commit()
+        connection.commit()
 
         return jsonify({'success': True, 'message': 'QR guardado en historial'})
     except Exception as e:
         print(f"❌ Error guardando QR en historial: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Consultar historial de un QR
 @app.route('/api/historial-qr/<qr_code>', methods=['GET'])
 def historial_qr(qr_code):
+    connection = None
+    cursor = None
     try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         cursor.execute("""
             SELECT h.id, h.qr_code, h.fecha_hora, h.user_name, tp.name as package_name, ut.turns_remaining
             FROM QRHistory h
@@ -436,11 +594,23 @@ def historial_qr(qr_code):
     except Exception as e:
         print(f"❌ Error consultando historial: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Consultar historial general de QR (últimos 20)
 @app.route('/api/historial-completo', methods=['GET'])
 def historial_completo():
+    connection = None
+    cursor = None
     try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         cursor.execute("""
             SELECT qr_code, user_id, user_name, local, fecha_hora
             FROM QRHistory 
@@ -452,10 +622,17 @@ def historial_completo():
     except Exception as e:
         print(f"❌ Error obteniendo historial completo: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
     
 # Agregar QR generados en lote al historial
 @app.route('/api/guardar-multiples-qr', methods=['POST'])
 def guardar_multiples_qr():
+    connection = None
+    cursor = None
     try:
         data = request.get_json()
         qr_codes = data.get('qr_codes', [])
@@ -467,6 +644,12 @@ def guardar_multiples_qr():
             return jsonify({'error': 'Lista de QR vacía'}), 400
 
         print(f"💾 Guardando {len(qr_codes)} QR en el sistema")
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
 
         # Insertar todos los QR en AMBAS tablas
         for qr_code in qr_codes:
@@ -490,7 +673,7 @@ def guardar_multiples_qr():
                 VALUES (%s, %s, %s, %s, NOW())
             """, (qr_code, user_id, user_name, local))
 
-        db.commit()
+        connection.commit()
         print(f"✅ {len(qr_codes)} QR guardados exitosamente")
 
         return jsonify({
@@ -501,14 +684,28 @@ def guardar_multiples_qr():
         
     except Exception as e:
         print(f"❌ Error guardando múltiples QR: {e}")
-        db.rollback()
+        if connection:
+            connection.rollback()
         return jsonify({'error': str(e), 'message': 'Error al guardar los códigos QR'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
     
 @app.route('/api/debug-qr/<qr_code>', methods=['GET'])
 def debug_qr(qr_code):
     """Ruta para diagnosticar problemas con QR"""
+    connection = None
+    cursor = None
     try:
         print(f"🔧 Debug QR: {qr_code}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
         
         # Verificar en QRCode
         cursor.execute("SELECT * FROM QRCode WHERE code = %s", (qr_code,))
@@ -537,7 +734,34 @@ def debug_qr(qr_code):
     except Exception as e:
         print(f"❌ Error en debug: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
+@app.route('/api/contador-global', methods=['GET'])
+def contador_global():
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT COUNT(*) as total_qr FROM QRCode")
+        resultado = cursor.fetchone()
+        return jsonify({'total_qr': resultado['total_qr']})
+    except Exception as e:
+        print(f"❌ Error obteniendo contador global: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+    
 # Iniciar servidor
 if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")

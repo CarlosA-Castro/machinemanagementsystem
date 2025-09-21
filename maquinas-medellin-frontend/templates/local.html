@@ -641,114 +641,130 @@
       },
 
       generarPDF: function() {
-        const { jsPDF } = window.jspdf;
-        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
-        const prefijo = document.getElementById('prefijoQR').value || '';
+    const { jsPDF } = window.jspdf;
+    const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+    const prefijo = document.getElementById('prefijoQR').value || '';
 
-        const doc = new jsPDF();
-        let yPosition = 20;
-        let xPosition = 20;
-        let pagina = 1;
-        const codigosGenerados = [];
+    const doc = new jsPDF();
+    let yPosition = 20;
+    let xPosition = 20;
+    let pagina = 1;
+    const codigosGenerados = [];
 
-        // Pantalla de carga
-        const loadingMessage = document.createElement('div');
-        loadingMessage.innerHTML = `
-          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 text-center">
-              <div class="loading mx-auto mb-4"></div>
-              <p>Generando PDF...</p>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(loadingMessage);
+    // Pantalla de carga
+    const loadingMessage = document.createElement('div');
+    loadingMessage.innerHTML = `
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 text-center">
+          <div class="loading mx-auto mb-4"></div>
+          <p>Generando PDF...</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(loadingMessage);
 
-        const generarQRRecursivo = (i = 1) => {
-          if (i > cantidad) {
+    // Obtener el último número utilizado desde localStorage
+    let ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
+    
+    const generarQRRecursivo = (i = 1) => {
+        if (i > cantidad) {
             this.guardarMultiplesQRS(codigosGenerados);
             doc.save(`codigos-qr-${prefijo || 'generados'}.pdf`);
             this.cerrarModalGenerador();
             document.body.removeChild(loadingMessage);
+            
+            // Guardar el último número utilizado para la próxima generación
+            localStorage.setItem('ultimoNumeroQR', ultimoNumero.toString());
             return;
-          }
+        }
 
-          const numero = i.toString().padStart(3, '0');
-          const codigoQR = prefijo ? `${prefijo}${numero}` : `QR${numero}`;
-          codigosGenerados.push(codigoQR);
+        // Generar número secuencial único
+        ultimoNumero++;
+        const numero = ultimoNumero.toString().padStart(3, '0');
+        const codigoQR = prefijo ? `${prefijo}${numero}` : `QR${numero}`;
+        codigosGenerados.push(codigoQR);
 
-          // Generar SVG temporal (más nítido que canvas)
-          const tempDiv = document.createElement('div');
-          new QRCode(tempDiv, {
+        // Generar SVG temporal (más nítido que canvas)
+        const tempDiv = document.createElement('div');
+        new QRCode(tempDiv, {
             text: codigoQR,
             width: 200,
             height: 200,
             correctLevel: QRCode.CorrectLevel.H
-          });
+        });
 
-          setTimeout(() => {
+        setTimeout(() => {
             const svg = tempDiv.querySelector('img');
             if (svg) {
-              const img = new Image();
-              img.src = svg.src;
-              img.onload = () => {
-                doc.addImage(img, 'PNG', xPosition, yPosition, 40, 40);
-                doc.setFontSize(8);
-                doc.text(codigoQR, xPosition + 20, yPosition + 45, { align: 'center' });
+                const img = new Image();
+                img.src = svg.src;
+                img.onload = () => {
+                    doc.addImage(img, 'PNG', xPosition, yPosition, 40, 40);
+                    doc.setFontSize(8);
+                    doc.text(codigoQR, xPosition + 20, yPosition + 45, { align: 'center' });
 
-                xPosition += 50;
-                if (xPosition > 150) {
-                  xPosition = 20;
-                  yPosition += 60;
-                }
+                    xPosition += 50;
+                    if (xPosition > 150) {
+                        xPosition = 20;
+                        yPosition += 60;
+                    }
 
-                if (yPosition > 250 && i < cantidad) {
-                  doc.addPage();
-                  yPosition = 20;
-                  xPosition = 20;
-                  pagina++;
-                }
+                    if (yPosition > 250 && i < cantidad) {
+                        doc.addPage();
+                        yPosition = 20;
+                        xPosition = 20;
+                        pagina++;
+                    }
 
-                setTimeout(() => generarQRRecursivo(i + 1), 100);
-              };
+                    setTimeout(() => generarQRRecursivo(i + 1), 100);
+                };
             }
-          }, 200);
-        };
+        }, 200);
+    };
 
-        generarQRRecursivo(1);
-      },
+    generarQRRecursivo(1);
+},
 
-      guardarMultiplesQRS: function(codigos) {
-        fetch("/api/guardar-multiples-qr", {
-          method: "POST",
-          headers: { 
+reiniciarContadorQR: function() {
+    if (confirm("¿Estás seguro de que deseas reiniciar el contador de QR a cero?")) {
+        localStorage.setItem('ultimoNumeroQR', '0');
+        this.mostrarAlerta("✅ Contador de QR reiniciado correctamente", "success");
+    }
+},
+
+   guardarMultiplesQRS: function(codigos) {
+    fetch("/api/guardar-multiples-qr", {
+        method: "POST",
+        headers: { 
             "Content-Type": "application/json",
             "X-Requested-With": "XMLHttpRequest"
-          },
-          body: JSON.stringify({ 
+        },
+        body: JSON.stringify({ 
             qr_codes: codigos
-          })
         })
-        .then(res => {
-          if (!res.ok) throw new Error('Error en la respuesta del servidor');
-          return res.json();
-        })
-        .then(data => {
-          console.log("QRs guardados:", data);
-          if (data.success) {
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Error en la respuesta del servidor');
+        return res.json();
+    })
+    .then(data => {
+        console.log("QRs guardados:", data);
+        if (data.success) {
             this.mostrarAlerta(`✅ ${data.message}`, "success");
             // Recargar el historial después de guardar
             this.cargarHistorialQR();
             // Actualizar contador global
             this.actualizarContadorGlobal();
-          } else {
+        } else {
             this.mostrarAlerta("❌ Error al guardar los QR: " + (data.error || 'Error desconocido'), "error");
-          }
-        })
-        .catch(err => {
-          console.error("Error guardando QRs:", err);
-          this.mostrarAlerta("❌ Error de conexión al guardar los QR", "error");
-        });
-      },
+        }
+    })
+    .catch(err => {
+        console.error("Error guardando QRs:", err);
+        this.mostrarAlerta("❌ Error de conexión al guardar los QR", "error");
+    });
+},
+
 
       mostrarAlerta: function(mensaje, tipo) {
         // Toast notification simple
