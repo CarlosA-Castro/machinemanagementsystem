@@ -5,7 +5,27 @@ from flask_cors import CORS
 import os
 from datetime import datetime
 import pytz
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration  # ← NUEVO
+import logging
+from logging.handlers import RotatingFileHandler
 
+# ==================== CONFIGURACIÓN SENTRY ====================
+sentry_sdk.init(
+    dsn="https://5fc281c2ace4860969f2f1f6fa10039d@o4510071013310464.ingest.us.sentry.io/4510071047454720",
+    integrations=[FlaskIntegration()],  # ← IMPORTANTE: agregar esta línea
+    traces_sample_rate=1.0,
+    send_default_pii=True,  # ← Esto permite capturar info de usuarios
+    environment="development"
+)
+
+sentry_sdk.logger.info('This is an info log message')
+sentry_sdk.logger.warning('This is a warning message')
+sentry_sdk.logger.error('This is an error message')
+
+
+# ============================================================
+# Configuración del logger
 colombia = pytz.timezone("America/Bogota")
 fecha_hora = datetime.now(colombia).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -244,12 +264,14 @@ def obtener_paquetes():
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo paquetes: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+            
 
 # Asignar paquete a QR 
 @app.route('/api/asignar-paquete', methods=['POST'])
@@ -323,12 +345,14 @@ def asignar_paquete():
         
     except Exception as e:
         print(f"❌ Error asignando paquete: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+           
     
 # Verificar QR
 @app.route('/api/verificar-qr/<qr_code>', methods=['GET'])
@@ -387,12 +411,14 @@ def verificar_qr(qr_code):
             
     except Exception as e:
         print(f"❌ Error verificando QR: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+           
 
 # Registrar uso turno
 @app.route('/api/registrar-uso', methods=['POST'])
@@ -437,12 +463,14 @@ def registrar_uso():
         
     except Exception as e:
         print(f"❌ Error registrando uso: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+            
 
 # Reportar falla
 @app.route('/api/reportar-falla', methods=['POST'])
@@ -493,12 +521,14 @@ def reportar_falla():
         
     except Exception as e:
         print(f"❌ Error reportando falla: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+           
 
 # Historial fallas
 @app.route('/api/historial-fallas', methods=['GET'])
@@ -522,12 +552,14 @@ def obtener_historial_fallas():
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo historial de fallas: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+            
 
 # Guardar QR en historial
 @app.route('/api/guardar-qr', methods=['POST'])
@@ -562,12 +594,14 @@ def guardar_qr():
         return jsonify({'success': True, 'message': 'QR guardado en historial'})
     except Exception as e:
         print(f"❌ Error guardando QR en historial: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+            
 
 # Consultar historial de un QR
 @app.route('/api/historial-qr/<qr_code>', methods=['GET'])
@@ -593,12 +627,14 @@ def historial_qr(qr_code):
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error consultando historial: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+           
 
 # Consultar historial general de QR (últimos 20)
 @app.route('/api/historial-completo', methods=['GET'])
@@ -621,13 +657,15 @@ def historial_completo():
         return jsonify(historial)
     except Exception as e:
         print(f"❌ Error obteniendo historial completo: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-    
+            
+
 # Agregar QR generados en lote al historial
 @app.route('/api/guardar-multiples-qr', methods=['POST'])
 def guardar_multiples_qr():
@@ -684,6 +722,7 @@ def guardar_multiples_qr():
         
     except Exception as e:
         print(f"❌ Error guardando múltiples QR: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         if connection:
             connection.rollback()
         return jsonify({'error': str(e), 'message': 'Error al guardar los códigos QR'}), 500
@@ -692,6 +731,7 @@ def guardar_multiples_qr():
             cursor.close()
         if connection:
             connection.close()
+               
     
 @app.route('/api/debug-qr/<qr_code>', methods=['GET'])
 def debug_qr(qr_code):
@@ -733,13 +773,16 @@ def debug_qr(qr_code):
         
     except Exception as e:
         print(f"❌ Error en debug: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+            
 
+# Contador global de QR
 @app.route('/api/contador-global', methods=['GET'])
 def contador_global():
     connection = None
@@ -755,13 +798,26 @@ def contador_global():
         return jsonify({'total_qr': resultado['total_qr']})
     except Exception as e:
         print(f"❌ Error obteniendo contador global: {e}")
+        sentry_sdk.capture_exception(e)  # ← AGREGADO
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-    
+            
+@app.route('/test-sentry-activo')
+def test_sentry_activo():
+    """Ruta para verificar que Sentry está funcionando"""
+    try:
+        # Generar un error deliberadamente
+        resultado = 10 / 0  # División por cero
+        return "Esto no debería mostrarse"
+    except Exception as e:
+        # Reportar MANUALMENTE a Sentry
+        sentry_sdk.capture_exception(e)
+        return f"✅ Error capturado y enviado a Sentry: {str(e)}"
+
 # Iniciar servidor
 if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")
