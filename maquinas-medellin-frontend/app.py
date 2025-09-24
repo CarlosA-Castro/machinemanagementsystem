@@ -6,23 +6,22 @@ import os
 from datetime import datetime
 import pytz
 import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration  # ← NUEVO
+from sentry_sdk.integrations.flask import FlaskIntegration
 import logging
 from logging.handlers import RotatingFileHandler
 
 # ==================== CONFIGURACIÓN SENTRY ====================
 sentry_sdk.init(
     dsn="https://5fc281c2ace4860969f2f1f6fa10039d@o4510071013310464.ingest.us.sentry.io/4510071047454720",
-    integrations=[FlaskIntegration()],  # ← IMPORTANTE: agregar esta línea
+    integrations=[FlaskIntegration()],
     traces_sample_rate=1.0,
-    send_default_pii=True,  # ← Esto permite capturar info de usuarios
+    send_default_pii=True,
     environment="development"
 )
 
 sentry_sdk.logger.info('This is an info log message')
 sentry_sdk.logger.warning('This is a warning message')
 sentry_sdk.logger.error('This is an error message')
-
 
 # ============================================================
 # Configuración del logger
@@ -63,7 +62,6 @@ def get_db_connection():
         if connection_pool:
             return connection_pool.get_connection()
         else:
-            # Fallback a conexión directa si el pool falla
             return mysql.connector.connect(
                 host="localhost",
                 user="root",
@@ -264,14 +262,13 @@ def obtener_paquetes():
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo paquetes: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-            
 
 # Asignar paquete a QR 
 @app.route('/api/asignar-paquete', methods=['POST'])
@@ -292,7 +289,6 @@ def asignar_paquete():
             
         cursor = get_db_cursor(connection)
         
-        # Buscar info del paquete para traer turnos y precio
         cursor.execute("SELECT turns, price FROM TurnPackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
         if not paquete:
@@ -300,12 +296,10 @@ def asignar_paquete():
         
         turns, price = paquete['turns'], paquete['price']
 
-        # Verificar si el QR ya existe
         cursor.execute("SELECT id FROM QRCode WHERE code = %s", (codigo_qr,))
         qr_existente = cursor.fetchone()
         
         if not qr_existente:
-            # Si es un QR nuevo lo guardamos con los turnos reales
             cursor.execute("""
                 INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
                 VALUES (%s, %s, 1, %s)
@@ -313,7 +307,6 @@ def asignar_paquete():
             connection.commit()
             qr_id = cursor.lastrowid
         else:
-            # Si ya existe, actualizamos remainingTurns sumándole los del nuevo paquete
             qr_id = qr_existente['id']
             cursor.execute("""
                 UPDATE QRCode
@@ -323,7 +316,6 @@ def asignar_paquete():
             """, (turns, paquete_id, qr_id))
             connection.commit()
         
-        # Guardar en UserTurns (control detallado de turnos por usuario)
         cursor.execute("""
             INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
             VALUES (%s, %s, %s, %s)
@@ -345,15 +337,14 @@ def asignar_paquete():
         
     except Exception as e:
         print(f"❌ Error asignando paquete: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-           
-    
+
 # Verificar QR
 @app.route('/api/verificar-qr/<qr_code>', methods=['GET'])
 def verificar_qr(qr_code):
@@ -368,7 +359,6 @@ def verificar_qr(qr_code):
             
         cursor = get_db_cursor(connection)
         
-        # Primero verificar si existe en QRCode
         cursor.execute("SELECT id, code, remainingTurns, isActive FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         
@@ -398,7 +388,6 @@ def verificar_qr(qr_code):
                 'qr_code': qr_code
             })
         else:
-            # Si existe en QRCode pero no en UserTurns, es un QR nuevo sin paquete asignado
             return jsonify({
                 'existe': True,
                 'turns_remaining': 0,
@@ -411,14 +400,13 @@ def verificar_qr(qr_code):
             
     except Exception as e:
         print(f"❌ Error verificando QR: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-           
 
 # Registrar uso turno
 @app.route('/api/registrar-uso', methods=['POST'])
@@ -463,14 +451,13 @@ def registrar_uso():
         
     except Exception as e:
         print(f"❌ Error registrando uso: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-            
 
 # Reportar falla
 @app.route('/api/reportar-falla', methods=['POST'])
@@ -521,14 +508,13 @@ def reportar_falla():
         
     except Exception as e:
         print(f"❌ Error reportando falla: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-           
 
 # Historial fallas
 @app.route('/api/historial-fallas', methods=['GET'])
@@ -552,14 +538,13 @@ def obtener_historial_fallas():
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error obteniendo historial de fallas: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-            
 
 # Guardar QR en historial
 @app.route('/api/guardar-qr', methods=['POST'])
@@ -584,7 +569,6 @@ def guardar_qr():
             
         cursor = get_db_cursor(connection)
 
-        # Asegúrate que los nombres de columnas coincidan exactamente
         cursor.execute("""
             INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora)
             VALUES (%s, %s, %s, %s, NOW())
@@ -594,14 +578,13 @@ def guardar_qr():
         return jsonify({'success': True, 'message': 'QR guardado en historial'})
     except Exception as e:
         print(f"❌ Error guardando QR en historial: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-            
 
 # Consultar historial de un QR
 @app.route('/api/historial-qr/<qr_code>', methods=['GET'])
@@ -627,14 +610,13 @@ def historial_qr(qr_code):
         return jsonify(cursor.fetchall())
     except Exception as e:
         print(f"❌ Error consultando historial: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-           
 
 # Consultar historial general de QR (últimos 20)
 @app.route('/api/historial-completo', methods=['GET'])
@@ -657,14 +639,13 @@ def historial_completo():
         return jsonify(historial)
     except Exception as e:
         print(f"❌ Error obteniendo historial completo: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-            
 
 # Agregar QR generados en lote al historial
 @app.route('/api/guardar-multiples-qr', methods=['POST'])
@@ -689,15 +670,12 @@ def guardar_multiples_qr():
             
         cursor = get_db_cursor(connection)
 
-        # Insertar todos los QR en AMBAS tablas
         for qr_code in qr_codes:
-            # 1. Primero verificar si el QR ya existe en QRCode
             cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
             qr_existente = cursor.fetchone()
             
             if not qr_existente:
                 print(f"➕ Insertando nuevo QR: {qr_code}")
-                # 2. Guardar en QRCode (para que funcionen los escáneres)
                 cursor.execute("""
                     INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
                     VALUES (%s, %s, %s, %s)
@@ -705,7 +683,6 @@ def guardar_multiples_qr():
             else:
                 print(f"✅ QR ya existe: {qr_code}")
             
-            # 3. Guardar en QRHistory (historial)
             cursor.execute("""
                 INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora)
                 VALUES (%s, %s, %s, %s, NOW())
@@ -722,7 +699,7 @@ def guardar_multiples_qr():
         
     except Exception as e:
         print(f"❌ Error guardando múltiples QR: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         if connection:
             connection.rollback()
         return jsonify({'error': str(e), 'message': 'Error al guardar los códigos QR'}), 500
@@ -731,11 +708,9 @@ def guardar_multiples_qr():
             cursor.close()
         if connection:
             connection.close()
-               
     
 @app.route('/api/debug-qr/<qr_code>', methods=['GET'])
 def debug_qr(qr_code):
-    """Ruta para diagnosticar problemas con QR"""
     connection = None
     cursor = None
     try:
@@ -747,17 +722,14 @@ def debug_qr(qr_code):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar en QRCode
         cursor.execute("SELECT * FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         print(f"📊 QR en tabla QRCode: {qr_data}")
         
-        # Verificar en QRHistory
         cursor.execute("SELECT * FROM QRHistory WHERE qr_code = %s ORDER BY fecha_hora DESC", (qr_code,))
         history_data = cursor.fetchall()
         print(f"📊 QR en historial: {history_data}")
         
-        # Verificar en UserTurns
         if qr_data:
             cursor.execute("SELECT * FROM UserTurns WHERE qr_code_id = %s", (qr_data['id'],))
             turns_data = cursor.fetchone()
@@ -773,14 +745,13 @@ def debug_qr(qr_code):
         
     except Exception as e:
         print(f"❌ Error en debug: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-            
 
 # Contador global de QR
 @app.route('/api/contador-global', methods=['GET'])
@@ -798,7 +769,7 @@ def contador_global():
         return jsonify({'total_qr': resultado['total_qr']})
     except Exception as e:
         print(f"❌ Error obteniendo contador global: {e}")
-        sentry_sdk.capture_exception(e)  # ← AGREGADO
+        sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
@@ -808,15 +779,150 @@ def contador_global():
             
 @app.route('/test-sentry-activo')
 def test_sentry_activo():
-    """Ruta para verificar que Sentry está funcionando"""
     try:
-        # Generar un error deliberadamente
-        resultado = 10 / 0  # División por cero
+        resultado = 10 / 0
         return "Esto no debería mostrarse"
     except Exception as e:
-        # Reportar MANUALMENTE a Sentry
         sentry_sdk.capture_exception(e)
         return f"✅ Error capturado y enviado a Sentry: {str(e)}"
+    
+# ==================== RUTAS PARA EL PANEL DE ADMINISTRACIÓN ====================
+
+@app.route('/api/estadisticas-admin', methods=['GET'])
+def obtener_estadisticas_admin():
+    """Obtiene estadísticas reales para el panel de administración"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. Total de usuarios
+        cursor.execute("SELECT COUNT(*) as total FROM Users")
+        total_usuarios = cursor.fetchone()['total']
+        
+        # 2. Total de máquinas - CORREGIDO: usar status = 'activa' en lugar de isActive
+        cursor.execute("SELECT COUNT(*) as total FROM machine WHERE status = 'activa'")
+        total_maquinas = cursor.fetchone()['total']
+        
+        # 3. Paquetes vendidos hoy
+        cursor.execute("""
+            SELECT COUNT(*) as total 
+            FROM QRHistory 
+            WHERE DATE(fecha_hora) = CURDATE()
+        """)
+        paquetes_hoy = cursor.fetchone()['total']
+        
+        # 4. Incidencias activas
+        cursor.execute("""
+            SELECT COUNT(*) as total 
+            FROM MachineFailures 
+            WHERE resolved = 0
+        """)
+        incidencias_activas = cursor.fetchone()['total']
+        
+        return jsonify({
+            'usuarios': total_usuarios,
+            'maquinas': total_maquinas,
+            'paquetes': paquetes_hoy,
+            'incidencias': incidencias_activas
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas admin: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios', methods=['GET'])
+def obtener_usuarios():
+    """Obtiene lista completa de usuarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT id, name, role, local, created_at FROM Users ORDER BY name")
+        usuarios = cursor.fetchall()
+        return jsonify(usuarios)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo usuarios: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas', methods=['GET'])
+def obtener_maquinas():
+    """Obtiene lista de máquinas"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        # CORREGIDO: usar el nombre correcto de la tabla (machine)
+        cursor.execute("SELECT * FROM machine ORDER BY name")
+        maquinas = cursor.fetchall()
+        return jsonify(maquinas)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo máquinas: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/incidencias', methods=['GET'])
+def obtener_incidencias():
+    """Obtiene incidencias recientes"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("""
+            SELECT mf.*, qr.code as qr_code, m.name as machine_name
+            FROM MachineFailures mf
+            JOIN QRCode qr ON mf.qr_code_id = qr.id
+            JOIN machine m ON mf.machine_id = m.id
+            ORDER BY mf.reported_at DESC
+            LIMIT 50
+        """)
+        incidencias = cursor.fetchall()
+        return jsonify(incidencias)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo incidencias: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Iniciar servidor
 if __name__ == '__main__':

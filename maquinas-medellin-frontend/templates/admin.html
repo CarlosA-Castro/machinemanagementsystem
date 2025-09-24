@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Panel de Administración - Máquinas Medellín</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -124,19 +125,22 @@
 
   <!-- Header responsive -->
   <header class="bg-gray-900 text-white shadow-lg">
-    <div class="container mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center">
-      <div class="flex items-center mb-3 md:mb-0">
-        <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Logo" class="h-8 w-8 mr-3">
-        <h1 class="text-xl font-bold">Panel de Administración</h1>
-      </div>
-      <div class="flex items-center space-x-3 header-buttons">
-        <span class="text-sm hidden md:block">Admin User</span>
-        <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm btn-touch">
-          <i class="fas fa-sign-out-alt mr-1"></i><span class="hidden md:inline">Cerrar Sesión</span>
-        </button>
-      </div>
+  <div class="container mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center">
+    <div class="flex items-center mb-3 md:mb-0">
+      <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" alt="Logo" class="h-8 w-8 mr-3">
+      <h1 class="text-xl font-bold">Panel de Administración</h1>
     </div>
-  </header>
+    <div class="flex items-center space-x-3 header-buttons">
+      <a href="/local" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm btn-touch">
+        <i class="fas fa-home mr-1"></i><span class="hidden md:inline">Ir a Local</span>
+      </a>
+      <span class="text-sm hidden md:block">{{ nombre_usuario }}</span>
+      <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm btn-touch">
+        <i class="fas fa-sign-out-alt mr-1"></i><span class="hidden md:inline">Cerrar Sesión</span>
+      </button>
+    </div>
+  </div>
+</header>
 
   <!-- Main Content -->
   <main class="container mx-auto px-4 py-6">
@@ -230,10 +234,10 @@
         </div>
       </div>
 
-      <!-- Reportes y Analytics -->
+      <!-- Reportes y Analiticas -->
       <div class="bg-white rounded-xl p-4 shadow-md card-hover">
         <h2 class="text-lg font-bold mb-3 text-gray-800">
-          <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Reportes y Analytics
+          <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Reportes y Analiticas
         </h2>
         <div class="space-y-2">
           <button onclick="cargarSeccion('ventas')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
@@ -342,58 +346,186 @@
     });
 
     async function cargarEstadisticas() {
-      try {
+    try {
         const response = await fetch('/api/estadisticas-admin', {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         });
         
         if (response.ok) {
-          const data = await response.json();
-          document.getElementById('total-users').textContent = data.usuarios || '152';
-          document.getElementById('total-machines').textContent = data.maquinas || '47';
-          document.getElementById('today-packages').textContent = data.paquetes || '89';
-          document.getElementById('total-issues').textContent = data.incidencias || '12';
+            const data = await response.json();
+            document.getElementById('total-users').textContent = data.usuarios || '0';
+            document.getElementById('total-machines').textContent = data.maquinas || '0';
+            document.getElementById('today-packages').textContent = data.paquetes || '0';
+            document.getElementById('total-issues').textContent = data.incidencias || '0';
+        } else {
+            // Si hay error, mostrar ceros
+            document.getElementById('total-users').textContent = '0';
+            document.getElementById('total-machines').textContent = '0';
+            document.getElementById('today-packages').textContent = '0';
+            document.getElementById('total-issues').textContent = '0';
         }
-      } catch (error) {
+    } catch (error) {
         console.error('Error cargando estadísticas:', error);
-      }
+        // Mostrar ceros en caso de error
+        document.getElementById('total-users').textContent = '0';
+        document.getElementById('total-machines').textContent = '0';
+        document.getElementById('today-packages').textContent = '0';
+        document.getElementById('total-issues').textContent = '0';
     }
+}
 
-    function cargarSeccion(seccion) {
-      console.log(`Cargando sección: ${seccion}`);
-      
-      // Mostrar loading
-      document.getElementById('contenido-seccion').innerHTML = `
-        <div class="text-center py-8">
-          <div class="loading mx-auto mb-4"></div>
-          <p class="text-gray-600">Cargando ${seccion}...</p>
+// Función para cargar usuarios reales
+async function cargarUsuarios() {
+    const response = await fetch('/api/usuarios');
+    const usuarios = await response.json();
+    
+    let html = `
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">Total de usuarios: ${usuarios.length}</h3>
         </div>
-      `;
-      
-      document.getElementById('titulo-seccion').textContent = this.obtenerTituloSeccion(seccion);
-      document.getElementById('contenido-dinamico').classList.remove('hidden');
-      
-      // Simular carga de contenido (en producción sería una petición real)
-      setTimeout(() => {
-        document.getElementById('contenido-seccion').innerHTML = `
-          <div class="space-y-4">
-            <p class="text-gray-600">Contenido de ${this.obtenerTituloSeccion(seccion)} se cargará aquí.</p>
-            <p class="text-sm text-gray-500">Esta funcionalidad está en desarrollo.</p>
-            <div class="bg-gray-100 p-4 rounded-lg">
-              <h3 class="font-semibold mb-2">Características próximas:</h3>
-              <ul class="list-disc list-inside text-sm text-gray-600">
-                <li>Gestión completa de ${seccion}</li>
-                <li>Tablas responsivas</li>
-                <li>Formularios de administración</li>
-                <li>Reportes en tiempo real</li>
-              </ul>
-            </div>
-          </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-2 text-left">ID</th>
+                        <th class="p-2 text-left">Nombre</th>
+                        <th class="p-2 text-left">Rol</th>
+                        <th class="p-2 text-left">Local</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    usuarios.forEach(usuario => {
+        html += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2">${usuario.id}</td>
+                <td class="p-2 font-medium">${usuario.name}</td>
+                <td class="p-2">
+                    <span class="px-2 py-1 rounded-full text-xs ${
+                        usuario.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                        usuario.role === 'supervisor' ? 'bg-blue-100 text-blue-800' :
+                        'bg-green-100 text-green-800'
+                    }">
+                        ${usuario.role}
+                    </span>
+                </td>
+                <td class="p-2">${usuario.local || 'No asignado'}</td>
+            </tr>
         `;
-      }, 1000);
-    }
+    });
+    
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+// Función para cargar máquinas 
+async function cargarMaquinas() {
+    const response = await fetch('/api/maquinas');
+    const maquinas = await response.json();
+    
+    let html = `
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">Total de máquinas: ${maquinas.length}</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-2 text-left">ID</th>
+                        <th class="p-2 text-left">Nombre</th>
+                        <th class="p-2 text-left">Estado</th>
+                        <th class="p-2 text-left">Ubicación</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    maquinas.forEach(maquina => {
+        html += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2">${maquina.id}</td>
+                <td class="p-2 font-medium">${maquina.name}</td>
+                <td class="p-2">
+                    <span class="px-2 py-1 rounded-full text-xs ${
+                        maquina.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }">
+                        ${maquina.isActive ? 'Activa' : 'Inactiva'}
+                    </span>
+                </td>
+                <td class="p-2">${maquina.location || 'No especificada'}</td>
+            </tr>
+        `;
+    });
+    
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+// Función para cargar incidencias
+async function cargarIncidencias() {
+    const response = await fetch('/api/incidencias');
+    const incidencias = await response.json();
+    
+    let html = `
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">Incidencias recientes: ${incidencias.length}</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-2 text-left">Fecha</th>
+                        <th class="p-2 text-left">Máquina</th>
+                        <th class="p-2 text-left">QR</th>
+                        <th class="p-2 text-left">Turnos devueltos</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    incidencias.forEach(incidencia => {
+        const fecha = new Date(incidencia.reported_at).toLocaleString();
+        html += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2">${fecha}</td>
+                <td class="p-2 font-medium">${incidencia.machine_name}</td>
+                <td class="p-2 font-mono text-xs">${incidencia.qr_code}</td>
+                <td class="p-2">${incidencia.turnos_devueltos}</td>
+            </tr>
+        `;
+    });
+    
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+// Función para cargar reporte de ventas
+async function cargarReporteVentas() {
+    // Esta sería una función más compleja que agrupa datos de ventas
+    let html = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-blue-800">Ventas Hoy</h4>
+                <p class="text-2xl font-bold">$<span id="ventas-hoy">0</span></p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-green-800">Ventas Semana</h4>
+                <p class="text-2xl font-bold">$<span id="ventas-semana">0</span></p>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-purple-800">Ventas Mes</h4>
+                <p class="text-2xl font-bold">$<span id="ventas-mes">0</span></p>
+            </div>
+        </div>
+        <div class="text-center py-8">
+            <p class="text-gray-600">Reporte de ventas detallado en desarrollo</p>
+        </div>
+    `;
+    return html;
+}
 
     function obtenerTituloSeccion(seccion) {
       const titulos = {
