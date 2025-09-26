@@ -1061,40 +1061,11 @@ async function cargarSeccion(seccion) {
             contenido = await cargarIncidencias();
             break;
         default:
-            contenido = `<p class="text-gray-600">Sección "${seccion}" en desarrollo</p>`;
-    }
-    
-    document.getElementById('contenido-seccion').innerHTML = contenido;
-}
-
-// Función principal para cargar secciones
-async function cargarSeccion(seccion) {
-    document.getElementById('contenido-dinamico').classList.remove('hidden');
-    document.getElementById('titulo-seccion').textContent = obtenerTituloSeccion(seccion);
-    
-    let contenido = '';
-    
-    switch(seccion) {
-        case 'usuarios':
-            contenido = await cargarUsuarios();
-            break;
-        case 'maquinas':
-            contenido = await cargarMaquinas();
-            break;
-        case 'paquetes':
-            contenido = await cargarPaquetes();
-            break;
-        case 'nuevo-paquete':
-            contenido = await cargarFormularioNuevoPaquete();
-            break;
-        case 'ventas':
-            contenido = await cargarReporteVentas();
-            break;
-        case 'incidencias':
-            contenido = await cargarIncidencias();
-            break;
-        default:
-            contenido = `<p class="text-gray-600">Sección "${seccion}" en desarrollo</p>`;
+            contenido = `<div class="text-center py-8">
+                <i class="fas fa-tools text-4xl text-gray-400 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600">Sección en desarrollo</h3>
+                <p class="text-gray-500">La funcionalidad para "${obtenerTituloSeccion(seccion)}" estará disponible pronto.</p>
+            </div>`;
     }
     
     document.getElementById('contenido-seccion').innerHTML = contenido;
@@ -1130,6 +1101,28 @@ async function crearPaquete(event) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error al crear el paquete');
+    }
+}
+
+// Función para cargar locales en un select
+async function cargarLocalesEnSelect(selectId) {
+    try {
+        const response = await fetch('/api/locales');
+        const locales = await response.json();
+        
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="">Seleccionar local</option>';
+        
+        locales.forEach(local => {
+            if (local.status === 'activo') {
+                const option = document.createElement('option');
+                option.value = local.name;
+                option.textContent = local.name;
+                select.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('Error cargando locales:', error);
     }
 }
 

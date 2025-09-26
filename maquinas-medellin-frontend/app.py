@@ -841,6 +841,31 @@ def obtener_estadisticas_admin():
         if connection:
             connection.close()
 
+@app.route('/api/locales', methods=['GET'])
+def obtener_locales():
+    """Obtiene lista de locales"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT * FROM Location ORDER BY name")
+        locales = cursor.fetchall()
+        return jsonify(locales)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo locales: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 @app.route('/api/usuarios', methods=['GET'])
 def obtener_usuarios():
     """Obtiene lista completa de usuarios"""
@@ -1171,6 +1196,7 @@ def crear_usuario():
         password = data.get('password')
         role = data.get('role')
         local = data.get('local', 'El Mekatiadero')
+        notes = data.get('notes', '')
         
         if not all([nombre, password, role]):
             return jsonify({'error': 'Nombre, contraseña y rol son requeridos'}), 400
@@ -1184,12 +1210,12 @@ def crear_usuario():
             return jsonify({'error': 'Ya existe un usuario con ese nombre'}), 400
         
         # Obtener el ID del usuario que crea (desde la sesión)
-        creado_por = session.get('user_id', 1)  # Default a 1 si no hay sesión
+        creado_por = session.get('user_id', 1)  
         
         cursor.execute("""
-            INSERT INTO Users (name, password, role, local, createdBy)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (nombre, password, role, local, creado_por))
+            INSERT INTO Users (name, password, role, local, createdBy, notes)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (nombre, password, role, local, creado_por, notes))
         connection.commit()
         
         return jsonify({
