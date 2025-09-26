@@ -234,6 +234,24 @@
         </div>
       </div>
 
+      <!-- Gestión de Paquetes -->
+      <div class="bg-white rounded-xl p-4 shadow-md card-hover">
+        <h2 class="text-lg font-bold mb-3 text-gray-800">
+          <i class="fas fa-cube mr-2 text-indigo-600"></i>Gestión de Paquetes
+        </h2>
+        <div class="space-y-2">
+          <button onclick="cargarSeccion('paquetes')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
+            <i class="fas fa-list mr-2"></i>Ver Todos los Paquetes
+          </button>
+          <button onclick="cargarSeccion('nuevo-paquete')" class="w-full bg-indigo-700 hover:bg-indigo-800 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
+            <i class="fas fa-plus mr-2"></i>Crear Nuevo Paquete
+          </button>
+          <button onclick="cargarSeccion('gestionar-paquetes')" class="w-full bg-indigo-800 hover:bg-indigo-900 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
+            <i class="fas fa-edit mr-2"></i>Gestionar Paquetes
+          </button>
+        </div>
+      </div>
+
       <!-- Reportes y Analiticas -->
       <div class="bg-white rounded-xl p-4 shadow-md card-hover">
         <h2 class="text-lg font-bold mb-3 text-gray-800">
@@ -393,6 +411,7 @@ async function cargarUsuarios() {
                         <th class="p-2 text-left">Nombre</th>
                         <th class="p-2 text-left">Rol</th>
                         <th class="p-2 text-left">Local</th>
+                        <th class="p-2 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -413,6 +432,14 @@ async function cargarUsuarios() {
                     </span>
                 </td>
                 <td class="p-2">${usuario.local || 'No asignado'}</td>
+                <td class="p-2">
+                    <button onclick="editarUsuario(${usuario.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="eliminarUsuario(${usuario.id})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -436,8 +463,10 @@ async function cargarMaquinas() {
                     <tr>
                         <th class="p-2 text-left">ID</th>
                         <th class="p-2 text-left">Nombre</th>
+                        <th class="p-2 text-left">Tipo</th>
                         <th class="p-2 text-left">Estado</th>
                         <th class="p-2 text-left">Ubicación</th>
+                        <th class="p-2 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -448,14 +477,81 @@ async function cargarMaquinas() {
             <tr class="border-b hover:bg-gray-50">
                 <td class="p-2">${maquina.id}</td>
                 <td class="p-2 font-medium">${maquina.name}</td>
+                <td class="p-2">${maquina.type || 'No especificado'}</td>
                 <td class="p-2">
                     <span class="px-2 py-1 rounded-full text-xs ${
-                        maquina.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        maquina.status === 'activa' ? 'bg-green-100 text-green-800' : 
+                        maquina.status === 'mantenimiento' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
                     }">
-                        ${maquina.isActive ? 'Activa' : 'Inactiva'}
+                        ${maquina.status}
                     </span>
                 </td>
-                <td class="p-2">${maquina.location || 'No especificada'}</td>
+                <td class="p-2">${maquina.location_id || 'No especificada'}</td>
+                <td class="p-2">
+                    <button onclick="editarMaquina(${maquina.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="eliminarMaquina(${maquina.id})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+// Función para cargar paquetes
+async function cargarPaquetes() {
+    const response = await fetch('/api/paquetes');
+    const paquetes = await response.json();
+    
+    let html = `
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold mb-2">Total de paquetes: ${paquetes.length}</h3>
+            <button onclick="cargarSeccion('nuevo-paquete')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                <i class="fas fa-plus mr-2"></i>Nuevo Paquete
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-2 text-left">ID</th>
+                        <th class="p-2 text-left">Nombre</th>
+                        <th class="p-2 text-left">Turnos</th>
+                        <th class="p-2 text-left">Precio</th>
+                        <th class="p-2 text-left">Estado</th>
+                        <th class="p-2 text-left">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    paquetes.forEach(paquete => {
+        html += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2">${paquete.id}</td>
+                <td class="p-2 font-medium">${paquete.name}</td>
+                <td class="p-2">${paquete.turns}</td>
+                <td class="p-2">$${paquete.price.toLocaleString()}</td>
+                <td class="p-2">
+                    <span class="px-2 py-1 rounded-full text-xs ${
+                        paquete.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }">
+                        ${paquete.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                </td>
+                <td class="p-2">
+                    <button onclick="editarPaquete(${paquete.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="eliminarPaquete(${paquete.id})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -479,21 +575,29 @@ async function cargarIncidencias() {
                     <tr>
                         <th class="p-2 text-left">Fecha</th>
                         <th class="p-2 text-left">Máquina</th>
-                        <th class="p-2 text-left">QR</th>
-                        <th class="p-2 text-left">Turnos devueltos</th>
+                        <th class="p-2 text-left">Usuario</th>
+                        <th class="p-2 text-left">Descripción</th>
+                        <th class="p-2 text-left">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
     
     incidencias.forEach(incidencia => {
-        const fecha = new Date(incidencia.reported_at).toLocaleString();
+        const fecha = new Date(incidencia.reportedAt).toLocaleString();
         html += `
             <tr class="border-b hover:bg-gray-50">
                 <td class="p-2">${fecha}</td>
                 <td class="p-2 font-medium">${incidencia.machine_name}</td>
-                <td class="p-2 font-mono text-xs">${incidencia.qr_code}</td>
-                <td class="p-2">${incidencia.turnos_devueltos}</td>
+                <td class="p-2">${incidencia.user_name}</td>
+                <td class="p-2">${incidencia.description}</td>
+                <td class="p-2">
+                    <span class="px-2 py-1 rounded-full text-xs ${
+                        incidencia.isResolved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }">
+                        ${incidencia.isResolved ? 'Resuelta' : 'Pendiente'}
+                    </span>
+                </td>
             </tr>
         `;
     });
@@ -504,7 +608,6 @@ async function cargarIncidencias() {
 
 // Función para cargar reporte de ventas
 async function cargarReporteVentas() {
-    // Esta sería una función más compleja que agrupa datos de ventas
     let html = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-blue-50 p-4 rounded-lg">
@@ -527,14 +630,520 @@ async function cargarReporteVentas() {
     return html;
 }
 
-    function obtenerTituloSeccion(seccion) {
-      const titulos = {
+// Función para mostrar formulario de nuevo paquete
+async function cargarFormularioNuevoPaquete() {
+    let html = `
+        <div class="max-w-md mx-auto">
+            <h3 class="text-lg font-semibold mb-4">Crear Nuevo Paquete</h3>
+            <form id="form-nuevo-paquete" onsubmit="crearPaquete(event)">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="nombre">
+                        Nombre del Paquete
+                    </label>
+                    <input type="text" id="nombre" name="nombre" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="turnos">
+                        Número de Turnos
+                    </label>
+                    <input type="number" id="turnos" name="turnos" min="1" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="precio">
+                        Precio ($)
+                    </label>
+                    <input type="number" id="precio" name="precio" min="0" step="100" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="activo" name="activo" checked class="mr-2">
+                        <span class="text-gray-700">Paquete activo</span>
+                    </label>
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md">
+                        <i class="fas fa-save mr-2"></i>Guardar
+                    </button>
+                    <button type="button" onclick="cargarSeccion('paquetes')" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    return html;
+}
+
+// Función para mostrar formulario de nuevo usuario
+async function cargarFormularioNuevoUsuario() {
+    let html = `
+        <div class="max-w-md mx-auto">
+            <h3 class="text-lg font-semibold mb-4">Crear Nuevo Usuario</h3>
+            <form id="form-nuevo-usuario" onsubmit="crearUsuario(event)">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="nombre">
+                        Nombre Completo
+                    </label>
+                    <input type="text" id="nombre" name="nombre" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+                        Contraseña
+                    </label>
+                    <input type="password" id="password" name="password" required minlength="6"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p class="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="confirmar_password">
+                        Confirmar Contraseña
+                    </label>
+                    <input type="password" id="confirmar_password" name="confirmar_password" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="role">
+                        Rol del Usuario
+                    </label>
+                    <select id="role" name="role" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Seleccionar rol</option>
+                        <option value="admin">Administrador</option>
+                        <option value="cajero">Cajero</option>
+                        <option value="admin_restaurante">Admin Restaurante</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="local">
+                        Local Asignado
+                    </label>
+                    <input type="text" id="local" name="local" 
+                           placeholder="Ej: El Mekatiadero"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex space-x-4">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                        <i class="fas fa-save mr-2"></i>Crear Usuario
+                    </button>
+                    <button type="button" onclick="cargarSeccion('usuarios')" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    return html;
+}
+
+// Función para mostrar gestión de roles
+async function cargarGestionRoles() {
+    const response = await fetch('/api/usuarios');
+    const usuarios = await response.json();
+    
+    // Agrupar usuarios por rol
+    const usuariosPorRol = {
+        'admin': usuarios.filter(u => u.role === 'admin'),
+        'cajero': usuarios.filter(u => u.role === 'cajero'),
+        'admin_restaurante': usuarios.filter(u => u.role === 'admin_restaurante')
+    };
+    
+    let html = `
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-4">Distribución de Roles</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-purple-800">Administradores</h4>
+                    <p class="text-2xl font-bold">${usuariosPorRol.admin.length}</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-green-800">Cajeros</h4>
+                    <p class="text-2xl font-bold">${usuariosPorRol.cajero.length}</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-blue-800">Admin Restaurante</h4>
+                    <p class="text-2xl font-bold">${usuariosPorRol.admin_restaurante.length}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-2 text-left">Usuario</th>
+                        <th class="p-2 text-left">Rol Actual</th>
+                        <th class="p-2 text-left">Nuevo Rol</th>
+                        <th class="p-2 text-left">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    usuarios.forEach(usuario => {
+        html += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2 font-medium">${usuario.name}</td>
+                <td class="p-2">
+                    <span class="px-2 py-1 rounded-full text-xs ${
+                        usuario.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                        usuario.role === 'cajero' ? 'bg-green-100 text-green-800' :
+                        'bg-blue-100 text-blue-800'
+                    }">
+                        ${usuario.role}
+                    </span>
+                </td>
+                <td class="p-2">
+                    <select id="nuevo-rol-${usuario.id}" class="w-full px-2 py-1 border border-gray-300 rounded text-xs">
+                        <option value="">Seleccionar</option>
+                        <option value="admin">Administrador</option>
+                        <option value="cajero">Cajero</option>
+                        <option value="admin_restaurante">Admin Restaurante</option>
+                    </select>
+                </td>
+                <td class="p-2">
+                    <button onclick="cambiarRol(${usuario.id})" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs">
+                        <i class="fas fa-sync-alt mr-1"></i>Cambiar
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+// Función para crear nuevo usuario
+async function crearUsuario(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const password = formData.get('password');
+    const confirmarPassword = formData.get('confirmar_password');
+    
+    if (password !== confirmarPassword) {
+        alert('Las contraseñas no coinciden');
+        return;
+    }
+    
+    if (password.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return;
+    }
+    
+    const usuario = {
+        nombre: formData.get('nombre'),
+        password: password,
+        role: formData.get('role'),
+        local: formData.get('local') || 'El Mekatiadero'
+    };
+    
+    try {
+        const response = await fetch('/api/usuarios', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(usuario)
+        });
+        
+        if (response.ok) {
+            alert('Usuario creado exitosamente');
+            cargarSeccion('usuarios');
+        } else {
+            const error = await response.json();
+            alert('Error al crear el usuario: ' + (error.error || 'Error desconocido'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al crear el usuario');
+    }
+}
+
+// Función para cambiar rol de usuario
+async function cambiarRol(usuarioId) {
+    const nuevoRol = document.getElementById(`nuevo-rol-${usuarioId}`).value;
+    
+    if (!nuevoRol) {
+        alert('Por favor selecciona un nuevo rol');
+        return;
+    }
+    
+    if (!confirm(`¿Estás seguro de cambiar el rol de este usuario a ${nuevoRol}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/usuarios/${usuarioId}/rol`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ role: nuevoRol })
+        });
+        
+        if (response.ok) {
+            alert('Rol cambiado exitosamente');
+            cargarSeccion('roles');
+        } else {
+            alert('Error al cambiar el rol');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cambiar el rol');
+    }
+}
+
+// Función para editar usuario
+async function editarUsuario(usuarioId) {
+    try {
+        const response = await fetch(`/api/usuarios/${usuarioId}`);
+        const usuario = await response.json();
+        
+        let html = `
+            <div class="max-w-md mx-auto">
+                <h3 class="text-lg font-semibold mb-4">Editar Usuario: ${usuario.name}</h3>
+                <form id="form-editar-usuario" onsubmit="actualizarUsuario(event, ${usuarioId})">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="nombre">
+                            Nombre Completo
+                        </label>
+                        <input type="text" id="nombre" name="nombre" value="${usuario.name}" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="role">
+                            Rol del Usuario
+                        </label>
+                        <select id="role" name="role" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="admin" ${usuario.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                            <option value="cajero" ${usuario.role === 'cajero' ? 'selected' : ''}>Cajero</option>
+                            <option value="admin_restaurante" ${usuario.role === 'admin_restaurante' ? 'selected' : ''}>Admin Restaurante</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="local">
+                            Local Asignado
+                        </label>
+                        <input type="text" id="local" name="local" value="${usuario.local || ''}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="nueva_password">
+                            Nueva Contraseña (opcional)
+                        </label>
+                        <input type="password" id="nueva_password" name="nueva_password" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Dejar en blanco para mantener la actual</p>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                            <i class="fas fa-save mr-2"></i>Actualizar
+                        </button>
+                        <button type="button" onclick="cargarSeccion('usuarios')" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md">
+                            <i class="fas fa-times mr-2"></i>Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.getElementById('contenido-dinamico').classList.remove('hidden');
+        document.getElementById('titulo-seccion').textContent = 'Editar Usuario';
+        document.getElementById('contenido-seccion').innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar datos del usuario');
+    }
+}
+
+// Función para actualizar usuario
+async function actualizarUsuario(event, usuarioId) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const nuevaPassword = formData.get('nueva_password');
+    
+    const usuario = {
+        nombre: formData.get('nombre'),
+        role: formData.get('role'),
+        local: formData.get('local') || 'El Mekatiadero'
+    };
+    
+    if (nuevaPassword) {
+        if (nuevaPassword.length < 6) {
+            alert('La nueva contraseña debe tener al menos 6 caracteres');
+            return;
+        }
+        usuario.nueva_password = nuevaPassword;
+    }
+    
+    try {
+        const response = await fetch(`/api/usuarios/${usuarioId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(usuario)
+        });
+        
+        if (response.ok) {
+            alert('Usuario actualizado exitosamente');
+            cargarSeccion('usuarios');
+        } else {
+            alert('Error al actualizar el usuario');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al actualizar el usuario');
+    }
+}
+
+// Función para eliminar usuario
+async function eliminarUsuario(usuarioId) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/usuarios/${usuarioId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            alert('Usuario eliminado exitosamente');
+            cargarSeccion('usuarios');
+        } else {
+            alert('Error al eliminar el usuario');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar el usuario');
+    }
+}
+
+// Actualizar la función cargarSeccion para incluir las nuevas secciones de usuarios
+async function cargarSeccion(seccion) {
+    document.getElementById('contenido-dinamico').classList.remove('hidden');
+    document.getElementById('titulo-seccion').textContent = obtenerTituloSeccion(seccion);
+    
+    let contenido = '';
+    
+    switch(seccion) {
+        case 'usuarios':
+            contenido = await cargarUsuarios();
+            break;
+        case 'nuevo-usuario':
+            contenido = await cargarFormularioNuevoUsuario();
+            break;
+        case 'roles':
+            contenido = await cargarGestionRoles();
+            break;
+        case 'maquinas':
+            contenido = await cargarMaquinas();
+            break;
+        case 'paquetes':
+            contenido = await cargarPaquetes();
+            break;
+        case 'nuevo-paquete':
+            contenido = await cargarFormularioNuevoPaquete();
+            break;
+        case 'ventas':
+            contenido = await cargarReporteVentas();
+            break;
+        case 'incidencias':
+            contenido = await cargarIncidencias();
+            break;
+        default:
+            contenido = `<p class="text-gray-600">Sección "${seccion}" en desarrollo</p>`;
+    }
+    
+    document.getElementById('contenido-seccion').innerHTML = contenido;
+}
+
+// Función principal para cargar secciones
+async function cargarSeccion(seccion) {
+    document.getElementById('contenido-dinamico').classList.remove('hidden');
+    document.getElementById('titulo-seccion').textContent = obtenerTituloSeccion(seccion);
+    
+    let contenido = '';
+    
+    switch(seccion) {
+        case 'usuarios':
+            contenido = await cargarUsuarios();
+            break;
+        case 'maquinas':
+            contenido = await cargarMaquinas();
+            break;
+        case 'paquetes':
+            contenido = await cargarPaquetes();
+            break;
+        case 'nuevo-paquete':
+            contenido = await cargarFormularioNuevoPaquete();
+            break;
+        case 'ventas':
+            contenido = await cargarReporteVentas();
+            break;
+        case 'incidencias':
+            contenido = await cargarIncidencias();
+            break;
+        default:
+            contenido = `<p class="text-gray-600">Sección "${seccion}" en desarrollo</p>`;
+    }
+    
+    document.getElementById('contenido-seccion').innerHTML = contenido;
+}
+
+// Función para crear nuevo paquete
+async function crearPaquete(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const paquete = {
+        nombre: formData.get('nombre'),
+        turnos: parseInt(formData.get('turnos')),
+        precio: parseInt(formData.get('precio')),
+        activo: formData.get('activo') === 'on'
+    };
+    
+    try {
+        const response = await fetch('/api/paquetes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paquete)
+        });
+        
+        if (response.ok) {
+            alert('Paquete creado exitosamente');
+            cargarSeccion('paquetes');
+        } else {
+            alert('Error al crear el paquete');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al crear el paquete');
+    }
+}
+
+function obtenerTituloSeccion(seccion) {
+    const titulos = {
         'usuarios': 'Gestión de Usuarios',
         'nuevo-usuario': 'Crear Nuevo Usuario',
         'roles': 'Gestión de Roles',
         'maquinas': 'Inventario de Máquinas',
         'nueva-maquina': 'Agregar Máquina',
         'mantenimiento': 'Programar Mantenimiento',
+        'paquetes': 'Gestión de Paquetes',
+        'nuevo-paquete': 'Crear Nuevo Paquete',
+        'gestionar-paquetes': 'Gestionar Paquetes',
         'ventas': 'Reporte de Ventas',
         'rendimiento': 'Rendimiento por Local',
         'auditoria': 'Logs de Auditoría',
@@ -543,35 +1152,34 @@ async function cargarReporteVentas() {
         'asignaciones': 'Asignar Personal',
         'configuracion': 'Configuración del Sistema',
         'backup': 'Backup y Restauración',
-        'api': 'API y Integraciones'
-      };
-      return titulos[seccion] || seccion;
-    }
+        'api': 'API y Integraciones',
+        'incidencias': 'Incidencias del Sistema'
+    };
+    return titulos[seccion] || seccion;
+}
 
-    function cerrarSeccion() {
-      document.getElementById('contenido-dinamico').classList.add('hidden');
-    }
+function cerrarSeccion() {
+    document.getElementById('contenido-dinamico').classList.add('hidden');
+}
 
-    function cerrarSesion() {
-      if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-        // Mostrar loading
+function cerrarSesion() {
+    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
         document.body.innerHTML += `
-          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg p-6 text-center">
-              <div class="loading mx-auto mb-4"></div>
-              <p class="text-gray-600">Cerrando sesión...</p>
+            <div class="loading mx-auto mb-4"></div>
+            <p class="text-gray-600">Cerrando sesión...</p>
             </div>
-          </div>
+        </div>
         `;
         
-        // Redirigir después de un breve delay
         setTimeout(() => {
-          window.location.href = "/logout";
+        window.location.href = "/logout";
         }, 1000);
-      }
     }
+}
 
-    console.log("✅ Panel de administración cargado correctamente");
+console.log("✅ Panel de administración cargado correctamente");
   </script>
 </body>
 </html>

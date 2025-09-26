@@ -816,11 +816,11 @@ def obtener_estadisticas_admin():
         """)
         paquetes_hoy = cursor.fetchone()['total']
         
-        # 4. Incidencias activas
+        # 4. CORREGIDO: Usar ErrorReport en lugar de MachineFailures, y isResolved en lugar de resolved
         cursor.execute("""
             SELECT COUNT(*) as total 
-            FROM MachineFailures 
-            WHERE resolved = 0
+            FROM ErrorReport 
+            WHERE isResolved = 0
         """)
         incidencias_activas = cursor.fetchone()['total']
         
@@ -852,7 +852,7 @@ def obtener_usuarios():
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT id, name, role, local, created_at FROM Users ORDER BY name")
+        cursor.execute("SELECT id, name, role, local, createdAt FROM Users ORDER BY name")
         usuarios = cursor.fetchall()
         return jsonify(usuarios)
         
@@ -924,7 +924,292 @@ def obtener_incidencias():
         if connection:
             connection.close()
 
+@app.route('/api/paquetes', methods=['GET', 'POST'])
+def gestionar_paquetes():
+    """Obtiene lista de paquetes o crea nuevo paquete"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        if request.method == 'GET':
+            # Obtener todos los paquetes
+            cursor.execute("SELECT * FROM TurnPackage ORDER BY id")
+            paquetes = cursor.fetchall()
+            return jsonify(paquetes)
+            
+        elif request.method == 'POST':
+            # Crear nuevo paquete
+            data = request.get_json()
+            nombre = data.get('nombre')
+            turnos = data.get('turnos')
+            precio = data.get('precio')
+            activo = data.get('activo', True)
+            
+            if not all([nombre, turnos, precio]):
+                return jsonify({'error': 'Faltan datos requeridos'}), 400
+            
+            cursor.execute("""
+                INSERT INTO TurnPackage (name, turns, price, isActive)
+                VALUES (%s, %s, %s, %s)
+            """, (nombre, turnos, precio, activo))
+            connection.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Paquete creado exitosamente',
+                'id': cursor.lastrowid
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error gestionando paquetes: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/paquetes/<int:paquete_id>', methods=['PUT', 'DELETE'])
+def gestionar_paquete_individual(paquete_id):
+    """Actualizar o eliminar un paquete específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        if request.method == 'PUT':
+            # Actualizar paquete
+            data = request.get_json()
+            nombre = data.get('nombre')
+            turnos = data.get('turnos')
+            precio = data.get('precio')
+            activo = data.get('activo')
+            
+            cursor.execute("""
+                UPDATE TurnPackage 
+                SET name = %s, turns = %s, price = %s, isActive = %s
+                WHERE id = %s
+            """, (nombre, turnos, precio, activo, paquete_id))
+            connection.commit()
+            
+            return jsonify({'success': True, 'message': 'Paquete actualizado exitosamente'})
+            
+        elif request.method == 'DELETE':
+            # Eliminar paquete (solo lógico, cambiando isActive a False)
+            cursor.execute("UPDATE TurnPackage SET isActive = FALSE WHERE id = %s", (paquete_id,))
+            connection.commit()
+            
+            return jsonify({'success': True, 'message': 'Paquete desactivado exitosamente'})
+            
+    except Exception as e:
+        app.logger.error(f"Error gestionando paquete individual: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios/<int:usuario_id>', methods=['GET', 'PUT', 'DELETE'])
+def gestionar_usuario_individual(usuario_id):
+    """Obtener, actualizar o eliminar un usuario específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        if request.method == 'GET':
+            # Obtener usuario específico
+            cursor.execute("SELECT id, name, role, local, createdAt FROM Users WHERE id = %s", (usuario_id,))
+            usuario = cursor.fetchone()
+            if not usuario:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            return jsonify(usuario)
+            
+        elif request.method == 'PUT':
+            # Actualizar usuario
+            data = request.get_json()
+            nombre = data.get('nombre')
+            role = data.get('role')
+            local = data.get('local')
+            nueva_password = data.get('nueva_password')
+            
+            if not nombre or not role:
+                return jsonify({'error': 'Nombre y rol son requeridos'}), 400
+            
+            # Construir query dinámicamente
+            update_fields = []
+            params = []
+            
+            update_fields.append("name = %s")
+            params.append(nombre)
+            
+            update_fields.append("role = %s")
+            params.append(role)
+            
+            if local:
+                update_fields.append("local = %s")
+                params.append(local)
+            
+            if nueva_password:
+                update_fields.append("password = %s")
+                params.append(nueva_password)
+            
+            params.append(usuario_id)
+            
+            query = f"UPDATE Users SET {', '.join(update_fields)} WHERE id = %s"
+            cursor.execute(query, params)
+            connection.commit()
+            
+            return jsonify({'success': True, 'message': 'Usuario actualizado exitosamente'})
+            
+        elif request.method == 'DELETE':
+            # Eliminar usuario
+            # Primero verificar que no sea el último admin
+            cursor.execute("SELECT COUNT(*) as admin_count FROM Users WHERE role = 'admin'")
+            admin_count = cursor.fetchone()['admin_count']
+            
+            cursor.execute("SELECT role FROM Users WHERE id = %s", (usuario_id,))
+            usuario = cursor.fetchone()
+            
+            if usuario and usuario['role'] == 'admin' and admin_count <= 1:
+                return jsonify({'error': 'No se puede eliminar el último administrador'}), 400
+            
+            cursor.execute("DELETE FROM Users WHERE id = %s", (usuario_id,))
+            connection.commit()
+            
+            return jsonify({'success': True, 'message': 'Usuario eliminado exitosamente'})
+            
+    except Exception as e:
+        app.logger.error(f"Error gestionando usuario individual: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios/<int:usuario_id>/rol', methods=['PUT'])
+def cambiar_rol_usuario(usuario_id):
+    """Cambiar el rol de un usuario específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        data = request.get_json()
+        nuevo_rol = data.get('role')
+        
+        if not nuevo_rol:
+            return jsonify({'error': 'El nuevo rol es requerido'}), 400
+        
+        # Validar que el rol sea válido
+        roles_validos = ['admin', 'cajero', 'admin_restaurante']
+        if nuevo_rol not in roles_validos:
+            return jsonify({'error': 'Rol no válido'}), 400
+        
+        # Verificar que no sea el último admin
+        if nuevo_rol != 'admin':
+            cursor.execute("SELECT COUNT(*) as admin_count FROM Users WHERE role = 'admin' AND id != %s", (usuario_id,))
+            admin_count = cursor.fetchone()['admin_count']
+            
+            cursor.execute("SELECT role FROM Users WHERE id = %s", (usuario_id,))
+            usuario_actual = cursor.fetchone()
+            
+            if usuario_actual and usuario_actual['role'] == 'admin' and admin_count == 0:
+                return jsonify({'error': 'No se puede quitar el rol de admin al último administrador'}), 400
+        
+        cursor.execute("UPDATE Users SET role = %s WHERE id = %s", (nuevo_rol, usuario_id))
+        connection.commit()
+        
+        return jsonify({'success': True, 'message': 'Rol actualizado exitosamente'})
+        
+    except Exception as e:
+        app.logger.error(f"Error cambiando rol de usuario: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios', methods=['POST'])
+def crear_usuario():
+    """Crear un nuevo usuario"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        data = request.get_json()
+        nombre = data.get('nombre')
+        password = data.get('password')
+        role = data.get('role')
+        local = data.get('local', 'El Mekatiadero')
+        
+        if not all([nombre, password, role]):
+            return jsonify({'error': 'Nombre, contraseña y rol son requeridos'}), 400
+        
+        if len(password) < 6:
+            return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
+        
+        # Verificar si el usuario ya existe
+        cursor.execute("SELECT id FROM Users WHERE name = %s", (nombre,))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe un usuario con ese nombre'}), 400
+        
+        # Obtener el ID del usuario que crea (desde la sesión)
+        creado_por = session.get('user_id', 1)  # Default a 1 si no hay sesión
+        
+        cursor.execute("""
+            INSERT INTO Users (name, password, role, local, createdBy)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (nombre, password, role, local, creado_por))
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario creado exitosamente',
+            'id': cursor.lastrowid
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error creando usuario: {str(e)}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
 # Iniciar servidor
 if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=True, port=5000, host='0.0.0.0')  
