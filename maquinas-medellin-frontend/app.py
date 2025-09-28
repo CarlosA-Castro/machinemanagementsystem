@@ -3,7 +3,7 @@ import mysql.connector
 from mysql.connector import pooling
 from flask_cors import CORS
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -785,6 +785,313 @@ def test_sentry_activo():
     except Exception as e:
         sentry_sdk.capture_exception(e)
         return f"✅ Error capturado y enviado a Sentry: {str(e)}"
+    
+    # Falla maquina
+@app.route('/api/reportar-falla-maquina', methods=['POST'])
+def reportar_falla_maquina():
+    """Reportar falla de máquina sin devolver turnos"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        machine_id = data.get('machine_id')
+        machine_name = data.get('machine_name')
+        description = data.get('description', 'Falla reportada sin descripción adicional')
+        user_id = session.get('user_id')
+
+        if not machine_id or not machine_name:
+            return jsonify({'error': 'Faltan datos requeridos'}), 400
+
+        if not user_id:
+            return jsonify({'error': 'Usuario no autenticado'}), 401
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+
+        # Insertar en tabla ErrorReport que ya existe
+        cursor.execute("""
+            INSERT INTO ErrorReport 
+            (machineId, userId, description, reportedAt, isResolved)
+            VALUES (%s, %s, %s, NOW(), FALSE)
+        """, (machine_id, user_id, description))
+        
+        connection.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Falla reportada en {machine_name}. El equipo de mantenimiento ha sido notificado.'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error reportando falla de máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/sales')
+def mostrar_ventas():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    return render_template('sales.html',
+                           nombre_usuario=session.get('user_name', 'Usuario'),
+                           local_usuario=session.get('user_local', 'El Mekatiadero'))
+
+@app.route('/api/ventas')
+def obtener_ventas():
+    """Obtiene datos de ventas para el panel"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', datetime.now().strftime('%Y-%m-%d'))
+        
+        print(f"📊 Solicitando ventas desde {fecha_inicio} hasta {fecha_fin}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener ventas del rango de fechas
+        cursor.execute("""
+            SELECT 
+                tp.name as paquete,
+                tp.price as precio,
+                tp.turns as turnos,
+                u.name as vendedor,
+                qh.fecha_hora,
+                DATE(qh.fecha_hora) as fecha,
+                DATE_FORMAT(qh.fecha_hora, '%%H:%%i') as hora
+            FROM QRHistory qh
+            JOIN Users u ON qh.user_id = u.id
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            ORDER BY qh.fecha_hora DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas = cursor.fetchall()
+        print(f"✅ Encontradas {len(ventas)} ventas")
+        
+        # Calcular estadísticas
+        total_ventas = 0
+        total_paquetes = len(ventas)
+        
+        for venta in ventas:
+            if venta['precio']:
+                total_ventas += venta['precio']
+        
+        ticket_promedio = total_ventas / total_paquetes if total_paquetes > 0 else 0
+        
+        # Ventas por paquete para el gráfico
+        cursor.execute("""
+            SELECT 
+                COALESCE(tp.name, 'Sin paquete') as paquete,
+                COUNT(*) as cantidad,
+                COALESCE(SUM(tp.price), 0) as total
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY tp.name
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas_por_paquete = cursor.fetchall()
+        
+        # DETERMINAR TIPO DE GRÁFICA SEGÚN EL RANGO
+        fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        dias_rango = (fecha_fin_dt - fecha_inicio_dt).days
+        
+        graficos_horas = {'labels': [], 'data': [], 'tipo': 'horas'}
+        graficos_dias = {'labels': [], 'data': [], 'tipo': 'dias'}
+        
+        if dias_rango == 0:
+            # UN DÍA: Gráfica por horas
+            cursor.execute("""
+                SELECT 
+                    HOUR(qh.fecha_hora) as hora,
+                    COUNT(*) as cantidad
+                FROM QRHistory qh
+                WHERE DATE(qh.fecha_hora) = %s
+                GROUP BY HOUR(qh.fecha_hora)
+                ORDER BY hora
+            """, (fecha_inicio,))
+            
+            ventas_por_hora = cursor.fetchall()
+            
+            # Crear array completo de horas (0-23)
+            horas_completas = []
+            for hora in range(0, 24):
+                venta_hora = next((v for v in ventas_por_hora if v['hora'] == hora), None)
+                horas_completas.append({
+                    'hora': hora,
+                    'cantidad': venta_hora['cantidad'] if venta_hora else 0
+                })
+            
+            graficos_horas = {
+                'labels': [f"{v['hora']:02d}:00" for v in horas_completas],
+                'data': [v['cantidad'] for v in horas_completas],
+                'tipo': 'horas'
+            }
+            
+        elif dias_rango <= 31:
+            # HASTA 31 DÍAS: Gráfica por días
+            cursor.execute("""
+                SELECT 
+                    DATE(qh.fecha_hora) as fecha,
+                    COUNT(*) as cantidad,
+                    SUM(tp.price) as total
+                FROM QRHistory qh
+                JOIN QRCode qr ON qr.code = qh.qr_code
+                LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                GROUP BY DATE(qh.fecha_hora)
+                ORDER BY fecha
+            """, (fecha_inicio, fecha_fin))
+            
+            ventas_por_dia = cursor.fetchall()
+            
+            # Crear array completo de días en el rango
+            from datetime import timedelta
+            fechas_completas = []
+            current_date = fecha_inicio_dt
+            
+            while current_date <= fecha_fin_dt:
+                venta_dia = next((v for v in ventas_por_dia 
+                                if v['fecha'] and v['fecha'].strftime('%Y-%m-%d') == current_date.strftime('%Y-%m-%d')), None)
+                fechas_completas.append({
+                    'fecha': current_date.strftime('%Y-%m-%d'),
+                    'cantidad': venta_dia['cantidad'] if venta_dia else 0,
+                    'total': venta_dia['total'] if venta_dia else 0
+                })
+                current_date += timedelta(days=1)
+            
+            graficos_dias = {
+                'labels': [fecha['fecha'] for fecha in fechas_completas],
+                'data': [fecha['cantidad'] for fecha in fechas_completas],
+                'tipo': 'dias'
+            }
+            
+        else:
+            # MÁS DE 31 DÍAS: Gráfica por semanas
+            cursor.execute("""
+                SELECT 
+                    YEARWEEK(qh.fecha_hora) as semana,
+                    COUNT(*) as cantidad,
+                    SUM(tp.price) as total
+                FROM QRHistory qh
+                JOIN QRCode qr ON qr.code = qh.qr_code
+                LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                GROUP BY YEARWEEK(qh.fecha_hora)
+                ORDER BY semana
+            """, (fecha_inicio, fecha_fin))
+            
+            ventas_por_semana = cursor.fetchall()
+            
+            graficos_dias = {
+                'labels': [f"Semana {v['semana']}" for v in ventas_por_semana],
+                'data': [v['cantidad'] for v in ventas_por_semana],
+                'tipo': 'semanas'
+            }
+        
+        # Preparar datos para gráficos
+        graficos = {
+            'paquetes': {
+                'labels': [v['paquete'] for v in ventas_por_paquete],
+                'data': [v['cantidad'] for v in ventas_por_paquete]
+            },
+            'evolucion': graficos_horas if dias_rango == 0 else graficos_dias
+        }
+        
+        # ... el resto del código se mantiene igual ...
+        # Preparar datos para tabla
+        ventas_detalle = []
+        for venta in ventas:
+            fecha_str = ""
+            if venta['fecha']:
+                if isinstance(venta['fecha'], str):
+                    fecha_str = venta['fecha']
+                else:
+                    fecha_str = venta['fecha'].strftime('%d/%m/%Y')
+            
+            ventas_detalle.append({
+                'fecha': fecha_str,
+                'hora': venta['hora'] or '',
+                'paquete': venta['paquete'] or 'Sin paquete',
+                'precio': venta['precio'] or 0,
+                'turnos': venta['turnos'] or 0,
+                'vendedor': venta['vendedor'] or 'Desconocido',
+                'estado': 'completada'
+            })
+        
+        # Calcular tendencias (ejemplo simple)
+        tendencia_ventas = 0
+        tendencia_paquetes = 0
+        
+        # Intentar calcular tendencia comparando con período anterior
+        try:
+            # Período anterior (misma duración)
+            dias_duracion = (fecha_fin_dt - fecha_inicio_dt).days
+            fecha_inicio_anterior = (fecha_inicio_dt - timedelta(days=dias_duracion + 1)).strftime('%Y-%m-%d')
+            fecha_fin_anterior = (fecha_inicio_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            cursor.execute("""
+                SELECT COUNT(*) as total
+                FROM QRHistory 
+                WHERE fecha_hora BETWEEN %s AND %s
+            """, (fecha_inicio_anterior, fecha_fin_anterior))
+            
+            ventas_anterior = cursor.fetchone()
+            if ventas_anterior and ventas_anterior['total'] > 0:
+                crecimiento = ((total_paquetes - ventas_anterior['total']) / ventas_anterior['total']) * 100
+                tendencia_paquetes = round(crecimiento, 1)
+                tendencia_ventas = round(crecimiento, 1)
+        except Exception as e:
+            print(f"⚠️ Error calculando tendencia: {e}")
+        
+        return jsonify({
+            'estadisticas': {
+                'total_ventas': total_ventas,
+                'total_paquetes': total_paquetes,
+                'ticket_promedio': round(ticket_promedio, 2),
+                'eficiencia': min(100, total_paquetes * 10),
+                'tendencia_ventas': tendencia_ventas,
+                'tendencia_paquetes': tendencia_paquetes,
+                'dias_rango': dias_rango
+            },
+            'graficos': graficos,
+            'ventas': ventas_detalle
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo ventas: {e}")
+        import traceback
+        traceback.print_exc()
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/exportar-ventas')
+def exportar_ventas():
+    """Exporta reporte de ventas en CSV"""
+    # Esta función generaría un CSV con los datos de ventas
+    # Por simplicidad, aquí solo redirige a los datos JSON
+    fecha = request.args.get('fecha', datetime.now().strftime('%Y-%m-%d'))
+    return redirect(f'/api/ventas?fecha={fecha}')
     
 # ==================== RUTAS PARA EL PANEL DE ADMINISTRACIÓN ====================
 

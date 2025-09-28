@@ -7,7 +7,6 @@
     <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -51,12 +50,6 @@
             background: rgba(255, 255, 255, 0.2);
             transform: translateY(-2px);
             border-color: rgba(59, 130, 246, 0.3);
-        }
-        .info-card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 1rem;
-            margin: 1rem 0;
         }
         
         @media (max-width: 1024px) {
@@ -152,53 +145,14 @@
             <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>Reporte de Falla
         </h1>
         <p class="text-gray-700">
-          Escanee el QR en el que se presentó la falla y seleccione la máquina para reportar el error
+          Seleccione la máquina que presenta fallas para reportar el problema
+        </p>
+        <p class="text-sm text-blue-600 mt-2">
+          <i class="fas fa-info-circle mr-1"></i>
+          Para devolver turnos, use la opción "Devolución" en el menú principal
         </p>
       </div>
       
-      <!-- Sección QR -->
-      <div class="glass-card">
-        <h2 class="text-xl font-semibold mb-3">
-            <i class="fas fa-qrcode text-blue-600 mr-2"></i>Código QR
-        </h2>
-        <input id="qr-result" type="text" readonly 
-               class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 mb-3 text-center font-medium focus:outline-none focus:border-blue-500" 
-               placeholder="QR escaneado aparecerá aquí">
-        
-        <!-- Información del QR -->
-        <div id="qr-info" class="info-card hidden">
-          <h3 class="font-semibold text-green-600">
-            <i class="fas fa-check-circle mr-2"></i>QR Válido
-          </h3>
-          <div class="grid grid-cols-2 gap-2 text-sm mt-2">
-            <span class="font-semibold">Turnos disponibles:</span>
-            <span id="turnos-disponibles" class="font-bold">0</span>
-            <span class="font-semibold">Turnos totales:</span>
-            <span id="turnos-totales" class="font-bold">0</span>
-            <span class="font-semibold">Paquete:</span>
-            <span id="paquete-info" class="font-bold">-</span>
-          </div>
-        </div>
-
-        <div id="qr-error" class="info-card bg-red-100 hidden">
-          <h3 class="font-semibold text-red-600">
-            <i class="fas fa-times-circle mr-2"></i>QR No Válido
-          </h3>
-          <p class="text-sm">El código QR no tiene turnos asignados o no existe.</p>
-        </div>
-
-        <button id="btn-scan-qr" 
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch transition-colors">
-            <i class="fas fa-camera"></i>
-            <span id="scanner-text">Escanear QR</span>
-        </button>
-        
-        <!-- Contenedor para el escáner HTML5 QR -->
-        <div id="html5-qrcode-container" class="mt-4 hidden mx-auto w-full max-w-md">
-          <div id="html5-qrcode-scanner" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
-        </div>
-      </div>
-            
       <!-- Sección Máquinas -->
       <div class="glass-card space-y-4">
         <h2 class="text-xl font-semibold">
@@ -207,17 +161,17 @@
         <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 
           <!-- Máquinas -->
-          <div onclick="abrirModal('Máquina De Basket', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+          <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
             <img src="{{ url_for('static', filename='img/Basket.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
             <p class="font-semibold text-center text-sm">Máquina De Basket</p>
           </div>
           
-          <div onclick="abrirModal('Máquina De Disco Hockey', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+          <div onclick="abrirModal('Máquina De Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
             <img src="{{ url_for('static', filename='img/DiscoHockey.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
             <p class="font-semibold text-center text-sm">Máquina De Disco Hockey</p>
           </div>
           
-          <div onclick="abrirModal('Máquina De Pelea', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+          <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
             <img src="{{ url_for('static', filename='img/Pelea.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
             <p class="font-semibold text-center text-sm">Máquina De Pelea</p>
           </div>
@@ -232,19 +186,40 @@
             <p class="font-semibold text-center text-sm">Máquina De Peluches 2</p>
           </div>
           
-          <div onclick="abrirModal('Máquina De Simulador 1', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+          <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
             <img src="{{ url_for('static', filename='img/Simulador1.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
             <p class="font-semibold text-center text-sm">Máquina De Simulador 1</p>
           </div>
           
-          <div onclick="abrirModal('Máquina De Simulador 2', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+          <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
             <img src="{{ url_for('static', filename='img/Simulador2.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
             <p class="font-semibold text-center text-sm">Máquina De Simulador 2</p>
           </div>
           
-          <div onclick="abrirModal('Máquina De Simulador Connection', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+          <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
             <img src="{{ url_for('static', filename='img/SimuladorConnection.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
             <p class="font-semibold text-center text-sm">Máquina De Simulador Connection</p>
+          </div>
+
+          <!-- Máquinas adicionales de tu base de datos -->
+          <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+            <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+            <p class="font-semibold text-center text-sm">Sillas Masajes</p>
+          </div>
+          
+          <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+            <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+            <p class="font-semibold text-center text-sm">McQueen</p>
+          </div>
+          
+          <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+            <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+            <p class="font-semibold text-center text-sm">Caballito</p>
+          </div>
+          
+          <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+            <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+            <p class="font-semibold text-center text-sm">Trencito</p>
           </div>
         </div>
       </div>
@@ -261,36 +236,43 @@
     <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
       <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
         <h3 class="text-xl font-bold text-center text-blue-900 mb-4">
-            <i class="fas fa-clipboard-check mr-2"></i>Confirmar Reporte
+            <i class="fas fa-clipboard-check mr-2"></i>Confirmar Reporte de Falla
         </h3>
 
-        <div id="modal-info" class="space-y-3">
+        <div id="modal-info" class="space-y-3 mb-4">
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p class="text-sm text-yellow-700 text-center">
+              <i class="fas fa-exclamation-triangle mr-1"></i>
+              <strong>¿Está seguro de reportar falla en esta máquina?</strong>
+            </p>
+          </div>
+          
           <div class="grid grid-cols-2 gap-2 text-sm">
-            <span class="font-semibold">Turnos a devolver:</span>
-            <span id="turnosDevolverPreview" class="font-bold text-blue-600">X</span>
             <span class="font-semibold">Máquina:</span>
-            <span id="maquinaSeleccionada" class="font-semibold"></span>
-            <span class="font-semibold">Turnos después:</span>
-            <span id="turnos-despues" class="font-bold text-green-600">0</span>
+            <span id="maquinaSeleccionada" class="font-semibold text-blue-600"></span>
+            <span class="font-semibold">Tipo de reporte:</span>
+            <span class="font-bold text-red-600">Reporte de Falla</span>
           </div>
 
-          <input
-            id="turnosDevolver"
-            type="number"
-            min="1"
-            max="1"
-            placeholder="Cantidad de turnos a devolver"
-            class="w-full p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            oninput="actualizarPreview()"
-          />
+          <div class="mt-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-comment mr-2"></i>Descripción de la falla (opcional):
+            </label>
+            <textarea
+              id="descripcionFalla"
+              placeholder="Describa brevemente el problema..."
+              class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows="3"
+            ></textarea>
+          </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-3 justify-center mt-6">
-          <button onclick="cerrarModal()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium btn-touch flex-1">
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium btn-touch flex-1">
             <i class="fas fa-times mr-2"></i>Cancelar
           </button>
-          <button onclick="confirmarFalla()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium btn-touch flex-1">
-            <i class="fas fa-check mr-2"></i>Confirmar
+          <button onclick="confirmarFalla()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium btn-touch flex-1">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Reportar Falla
           </button>
         </div>
       </div>
@@ -298,21 +280,9 @@
 
     <script>
       // Variables globales
-      let html5QrCodeScanner = null;
-      let scannerActivo = false;
       let maquinaActual = '';
       let maquinaIdActual = 0;
-      let qrCodeActual = '';
-      let turnosDisponibles = 0;
       
-      // Elementos del DOM
-      const qrResult = document.getElementById('qr-result');
-      const btnScanQR = document.getElementById('btn-scan-qr');
-      const scannerText = document.getElementById('scanner-text');
-      const html5QrcodeContainer = document.getElementById('html5-qrcode-container');
-      const qrInfo = document.getElementById('qr-info');
-      const qrError = document.getElementById('qr-error');
-
       // Configuración de partículas optimizada
       document.addEventListener('DOMContentLoaded', function() {
         particlesJS('particles-js', {
@@ -339,124 +309,14 @@
           },
           retina_detect: true
         });
-
-        // Inicialización del escáner
-        btnScanQR.addEventListener('click', toggleScanner);
       });
-
-      async function toggleScanner() {
-        if (scannerActivo) {
-          detenerScanner();
-          scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-          return;
-        }
-        
-        iniciarScanner();
-        scannerText.innerHTML = '<div class="loading mr-2"></div> Escaneando...';
-      }
-
-      function iniciarScanner() {
-        if (!html5QrCodeScanner) {
-          html5QrCodeScanner = new Html5QrcodeScanner(
-            "html5-qrcode-scanner",
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            false
-          );
-
-          html5QrCodeScanner.render(
-            async (decodedText) => {
-              qrResult.value = decodedText;
-              qrCodeActual = decodedText;
-              detenerScanner();
-              html5QrcodeContainer.classList.add("hidden");
-              scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-              scannerActivo = false;
-              
-              // Verificar el QR en la base de datos
-              await verificarQR(decodedText);
-              
-              // Si hay una máquina seleccionada, mostrar el modal
-              if (maquinaActual) {
-                abrirModal(maquinaActual, maquinaIdActual);
-              }
-            },
-            (errorMessage) => {
-              console.log("Error escaneando:", errorMessage);
-            }
-          );
-        }
-        
-        html5QrcodeContainer.classList.remove("hidden");
-        scannerActivo = true;
-      }
-
-      function detenerScanner() {
-        if (html5QrCodeScanner) {
-          html5QrCodeScanner.clear().catch(error => {
-            console.error("Error al detener el escáner:", error);
-          });
-        }
-        html5QrcodeContainer.classList.add("hidden");
-        scannerActivo = false;
-      }
-
-      // Verificar QR en la base de datos
-      async function verificarQR(qrCode) {
-        try {
-          const response = await fetch(`/api/verificar-qr/${qrCode}`, {
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error('Error en la respuesta del servidor');
-          }
-          
-          const data = await response.json();
-          
-          if (data.existe) {
-            turnosDisponibles = data.turns_remaining;
-            document.getElementById('turnos-disponibles').textContent = data.turns_remaining;
-            document.getElementById('turnos-totales').textContent = data.total_turns;
-            document.getElementById('paquete-info').textContent = data.package_name || 'Sin paquete';
-            
-            qrInfo.classList.remove('hidden');
-            qrError.classList.add('hidden');
-            
-            // Mostrar toast de éxito
-            mostrarAlerta('✅ QR válido encontrado', 'success');
-          } else {
-            qrInfo.classList.add('hidden');
-            qrError.classList.remove('hidden');
-            turnosDisponibles = 0;
-            mostrarAlerta('❌ QR no encontrado en el sistema', 'error');
-          }
-        } catch (error) {
-          console.error('Error verificando QR:', error);
-          mostrarAlerta('❌ Error al verificar el código QR', 'error');
-        }
-      }
 
       function abrirModal(nombre, id) {
         maquinaActual = nombre;
         maquinaIdActual = id;
         
-        if (!qrCodeActual) {
-          mostrarAlerta('⚠️ Primero debe escanear un código QR', 'warning');
-          return;
-        }
-        
-        if (turnosDisponibles <= 0) {
-          mostrarAlerta('⚠️ Este código QR no tiene turnos disponibles', 'warning');
-          return;
-        }
-
         document.getElementById("maquinaSeleccionada").innerText = nombre;
-        document.getElementById("turnosDevolver").value = "1";
-        document.getElementById("turnosDevolver").max = turnosDisponibles;
-        document.getElementById("turnosDevolverPreview").innerText = "1";
-        document.getElementById("turnos-despues").innerText = turnosDisponibles - 1;
+        document.getElementById("descripcionFalla").value = "";
         document.getElementById("modal").classList.remove("hidden");
       }
 
@@ -464,44 +324,23 @@
         document.getElementById("modal").classList.add("hidden");
       }
 
-      function actualizarPreview() {
-        const valor = document.getElementById("turnosDevolver").value;
-        const turnos = parseInt(valor) || 0;
-        
-        if (turnos > turnosDisponibles) {
-          document.getElementById("turnosDevolver").value = turnosDisponibles;
-          document.getElementById("turnosDevolverPreview").innerText = turnosDisponibles;
-          document.getElementById("turnos-despues").innerText = 0;
-        } else if (turnos < 1) {
-          document.getElementById("turnosDevolver").value = "1";
-          document.getElementById("turnosDevolverPreview").innerText = "1";
-          document.getElementById("turnos-despues").innerText = turnosDisponibles - 1;
-        } else {
-          document.getElementById("turnosDevolverPreview").innerText = valor;
-          document.getElementById("turnos-despues").innerText = turnosDisponibles - turnos;
-        }
-      }
-
       async function confirmarFalla() {
-        const cantidad = parseInt(document.getElementById("turnosDevolver").value);
-        
-        if (!cantidad || cantidad <= 0 || cantidad > turnosDisponibles) {
-          mostrarAlerta("⚠ Ingresa una cantidad válida de turnos", "warning");
-          return;
-        }
+        const descripcion = document.getElementById("descripcionFalla").value.trim();
 
         try {
-          const response = await fetch('/api/reportar-falla', {
+          // Mostrar loading
+          mostrarAlerta('<div class="loading mr-2"></div> Reportando falla...', 'info');
+          
+          const response = await fetch('/api/reportar-falla-maquina', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
-              qr_code: qrCodeActual,
               machine_id: maquinaIdActual,
               machine_name: maquinaActual,
-              turnos_devueltos: cantidad
+              description: descripcion || 'Falla reportada sin descripción adicional'
             })
           });
 
@@ -512,15 +351,13 @@
           const result = await response.json();
 
           if (result.success) {
-            mostrarAlerta(`✅ ${result.message}\nSe devolvieron ${cantidad} turnos`, 'success');
-            // Actualizar la información del QR
-            await verificarQR(qrCodeActual);
+            mostrarAlerta(`✅ ${result.message}`, 'success');
           } else {
             throw new Error(result.error || 'Error desconocido');
           }
         } catch (error) {
           console.error('Error:', error);
-          mostrarAlerta('❌ Error de conexión: ' + error.message, 'error');
+          mostrarAlerta('❌ Error al reportar la falla: ' + error.message, 'error');
         }
         
         cerrarModal();
@@ -532,11 +369,13 @@
         toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
           tipo === 'error' ? 'bg-red-500' : 
           tipo === 'success' ? 'bg-green-500' : 
-          'bg-yellow-500'
+          'bg-blue-500'
         } text-white max-w-md`;
         toast.innerHTML = `
           <div class="flex items-center">
-            <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'warning' ? 'exclamation-triangle' : 'times-circle'} mr-2"></i>
+            ${tipo === 'success' ? '<i class="fas fa-check-circle mr-2"></i>' : 
+              tipo === 'error' ? '<i class="fas fa-times-circle mr-2"></i>' : 
+              ''}
             <span>${mensaje}</span>
           </div>
         `;

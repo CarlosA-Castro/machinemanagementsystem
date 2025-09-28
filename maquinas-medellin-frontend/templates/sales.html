@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ventas - Máquinas Medellín</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .stat-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 1024px) {
+            .contenido {
+                padding: 1rem !important;
+            }
+            .glass-card {
+                padding: 1.25rem;
+            }
+            .grid-cols-1 {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.75rem !important;
+            }
+            .stat-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .chart-container {
+                height: 300px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-chart-line mr-2"></i>Ventas
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-home mr-2"></i>Home
+                    </a>
+                    <a href="/package" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-box mr-2"></i>Paquete
+                    </a>
+                    <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-exchange-alt mr-2"></i>Devolución
+                    </a>
+                    <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Falla Máq.
+                    </a>
+                    <a href="/ventas" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-chart-line mr-2"></i>Ventas
+                    </a>
+                    {% if session.get('user_role') == 'admin' %}
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-user-cog mr-2"></i>Admin
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
+                <div class="mb-2 text-xs text-gray-400">Rol: {{ session.get('user_role', 'Usuario') }}</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-chart-bar mr-3 text-blue-600"></i>Panel de Ventas
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-store mr-2"></i>Local: <strong>{{ local_usuario }}</strong> | 
+                            <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span>
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="VentasApp.actualizarDatos()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                        </button>
+                        <div class="relative">
+                            <button onclick="VentasApp.exportarReporte()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                                <i class="fas fa-file-export mr-2"></i>Exportar
+                            </button>
+                            <div class="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden" id="exportMenu">
+                                <a href="#" onclick="VentasApp.exportarReporte('pdf')" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
+                                    <i class="fas fa-file-pdf mr-2 text-red-600"></i>Exportar como PDF
+                                </a>
+                                <a href="#" onclick="VentasApp.exportarReporte('excel')" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
+                                    <i class="fas fa-file-excel mr-2 text-green-600"></i>Exportar como Excel
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="glass-card mb-6">
+    <h2 class="text-xl font-semibold mb-4 text-gray-800">
+        <i class="fas fa-filter mr-2 text-purple-600"></i>Filtros
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Rango:</label>
+            <select id="filtroRango" class="w-full border border-gray-300 rounded-lg p-3" onchange="VentasApp.cambiarRango()">
+                <option value="hoy">Hoy</option>
+                <option value="ayer">Ayer</option>
+                <option value="semana">Esta semana</option>
+                <option value="mes">Este mes</option>
+                <option value="quincena">Quincena actual</option>
+                <option value="personalizado">Personalizado</option>
+            </select>
+        </div>
+        <div id="fechaInicioContainer">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha inicio:</label>
+            <input type="date" id="filtroFechaInicio" class="w-full border border-gray-300 rounded-lg p-3">
+        </div>
+        <div id="fechaFinContainer" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha fin:</label>
+            <input type="date" id="filtroFechaFin" class="w-full border border-gray-300 rounded-lg p-3">
+        </div>
+        <div class="flex items-end">
+            <button onclick="VentasApp.aplicarFiltros()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
+                <i class="fas fa-search mr-2"></i>Aplicar Filtros
+            </button>
+        </div>
+    </div>
+</div>
+
+            <!-- Estadísticas principales -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6 stat-grid">
+                <div class="stat-card glass-card border-l-blue-500">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total Ventas</p>
+                            <p id="totalVentas" class="text-2xl font-bold text-gray-800">$0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-green-600">
+                        <i class="fas fa-arrow-up mr-1"></i>
+                        <span id="tendenciaVentas">0%</span> vs ayer
+                    </div>
+                </div>
+
+                <div class="stat-card glass-card border-l-green-500">
+                    <div class="flex items-center">
+                        <div class="bg-green-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-boxes text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Paquetes Vendidos</p>
+                            <p id="totalPaquetes" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-green-600">
+                        <i class="fas fa-arrow-up mr-1"></i>
+                        <span id="tendenciaPaquetes">0%</span> vs ayer
+                    </div>
+                </div>
+
+                <div class="stat-card glass-card border-l-purple-500">
+                    <div class="flex items-center">
+                        <div class="bg-purple-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-money-bill-wave text-purple-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Ticket Promedio</p>
+                            <p id="ticketPromedio" class="text-2xl font-bold text-gray-800">$0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">
+                        Por transacción
+                    </div>
+                </div>
+
+                <div class="stat-card glass-card border-l-orange-500">
+                    <div class="flex items-center">
+                        <div class="bg-orange-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-chart-line text-orange-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Eficiencia</p>
+                            <p id="eficiencia" class="text-2xl font-bold text-gray-800">0%</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">
+                        Conversión de ventas
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficas y tablas -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Gráfica de ventas por paquete -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-chart-pie mr-2 text-blue-600"></i>Ventas por Paquete
+                    </h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartPaquetes"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfica de ventas por hora -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-chart-line mr-2 text-green-600"></i>Ventas por Hora
+                    </h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartHoras"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla detallada de ventas -->
+            <div class="glass-card">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Ventas
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 text-left">
+                            <tr>
+                                <th class="p-3 font-semibold">Hora</th>
+                                <th class="p-3 font-semibold">Paquete</th>
+                                <th class="p-3 font-semibold">Precio</th>
+                                <th class="p-3 font-semibold">Turnos</th>
+                                <th class="p-3 font-semibold">Vendedor</th>
+                                <th class="p-3 font-semibold">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVentas" class="text-gray-700">
+                            <!-- Los datos se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="cargandoVentas" class="text-center py-8">
+                    <div class="loading mx-auto mb-2"></div>
+                    <p class="text-gray-600">Cargando datos de ventas...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const VentasApp = {
+    charts: {},
+
+    init: function() {
+        // Configurar partículas
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 40, density: { enable: true, value_area: 600 } },
+                color: { value: '#3b82f6' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.2, random: true },
+                size: { value: 2, random: true },
+                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                move: { enable: true, speed: 0.5, direction: 'none', random: true }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                }
+            }
+        });
+
+        // Configurar fechas iniciales
+        this.configurarFechasIniciales();
+        
+        // Configurar gráficos
+        this.inicializarGraficos();
+        
+        // Cargar datos iniciales
+        this.cargarDatosVentas();
+        
+        console.log("Ventas App inicializada");
+    },
+
+    inicializarGraficos: function() {
+        // Destruir gráficos existentes si los hay
+        if (this.charts.paquetes) {
+            this.charts.paquetes.destroy();
+        }
+        if (this.charts.horas) {
+            this.charts.horas.destroy();
+        }
+
+        // Gráfico de paquetes (Doughnut)
+        const ctxPaquetes = document.getElementById('chartPaquetes').getContext('2d');
+        this.charts.paquetes = new Chart(ctxPaquetes, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cargando...'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#e5e7eb']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribución por Paquete'
+                    }
+                }
+            }
+        });
+
+        // Gráfico de horas (Line)
+        const ctxHoras = document.getElementById('chartHoras').getContext('2d');
+ this.charts.horas = new Chart(ctxHoras, {
+    type: 'line',
+    data: {
+        labels: ['Cargando...'],
+        datasets: [{
+            label: 'Ventas',
+            data: [0],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Evolución de Ventas'
+            }
+        },
+        scales: {
+            x: {
+                title: {
+                    display: true,
+                    text: 'Período'
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                },
+                title: {
+                    display: true,
+                    text: 'Cantidad de Ventas'
+                }
+            }
+        }
+    }
+});
+    },
+
+    configurarFechasIniciales: function() {
+        const ahora = new Date();
+        
+        // Fecha actual en formato legible
+        const opciones = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        document.getElementById('fechaActual').textContent = 
+            ahora.toLocaleDateString('es-ES', opciones);
+        
+        // Configurar rango "hoy" por defecto
+        this.configurarRango('hoy');
+    },
+
+    configurarRango: function(rango) {
+        const ahora = new Date();
+        let fechaInicio, fechaFin;
+
+        switch(rango) {
+            case 'hoy':
+                fechaInicio = ahora.toISOString().split('T')[0];
+                fechaFin = fechaInicio;
+                break;
+                
+            case 'ayer':
+                const ayer = new Date(ahora);
+                ayer.setDate(ahora.getDate() - 1);
+                fechaInicio = ayer.toISOString().split('T')[0];
+                fechaFin = fechaInicio;
+                break;
+                
+            case 'semana':
+                const inicioSemana = new Date(ahora);
+                inicioSemana.setDate(ahora.getDate() - ahora.getDay());
+                fechaInicio = inicioSemana.toISOString().split('T')[0];
+                fechaFin = ahora.toISOString().split('T')[0];
+                break;
+                
+            case 'mes':
+                const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+                fechaInicio = inicioMes.toISOString().split('T')[0];
+                fechaFin = ahora.toISOString().split('T')[0];
+                break;
+                
+            case 'quincena':
+                const dia = ahora.getDate();
+                const inicioQuincena = new Date(ahora.getFullYear(), ahora.getMonth(), dia <= 15 ? 1 : 16);
+                fechaInicio = inicioQuincena.toISOString().split('T')[0];
+                fechaFin = ahora.toISOString().split('T')[0];
+                break;
+                
+            case 'personalizado':
+                // Mostrar ambos campos de fecha
+                document.getElementById('fechaInicioContainer').classList.remove('hidden');
+                document.getElementById('fechaFinContainer').classList.remove('hidden');
+                return;
+        }
+
+        // Ocultar campos de fecha para rangos predefinidos
+        document.getElementById('fechaInicioContainer').classList.add('hidden');
+        document.getElementById('fechaFinContainer').classList.add('hidden');
+        
+        // Establecer fechas en los campos ocultos
+        document.getElementById('filtroFechaInicio').value = fechaInicio;
+        document.getElementById('filtroFechaFin').value = fechaFin;
+        
+        // Actualizar la fecha actual mostrada
+        this.actualizarFechaMostrada(fechaInicio, fechaFin);
+    },
+
+    cambiarRango: function() {
+        const rango = document.getElementById('filtroRango').value;
+        this.configurarRango(rango);
+    },
+
+    actualizarFechaMostrada: function(fechaInicio, fechaFin) {
+        const fechaActualElement = document.getElementById('fechaActual');
+        
+        if (fechaInicio === fechaFin) {
+            // Mismo día
+            const fecha = new Date(fechaInicio);
+            const opciones = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            fechaActualElement.textContent = fecha.toLocaleDateString('es-ES', opciones);
+        } else {
+            // Rango de fechas
+            const inicio = new Date(fechaInicio);
+            const fin = new Date(fechaFin);
+            const opciones = { day: 'numeric', month: 'long', year: 'numeric' };
+            
+            fechaActualElement.textContent = 
+                `${inicio.toLocaleDateString('es-ES', opciones)} - ${fin.toLocaleDateString('es-ES', opciones)}`;
+        }
+    },
+
+    aplicarFiltros: function() {
+        const rango = document.getElementById('filtroRango').value;
+        
+        if (rango === 'personalizado') {
+            const fechaInicio = document.getElementById('filtroFechaInicio').value;
+            const fechaFin = document.getElementById('filtroFechaFin').value;
+            
+            if (!fechaInicio || !fechaFin) {
+                this.mostrarAlerta('Por favor seleccione ambas fechas para el rango personalizado', 'error');
+                return;
+            }
+            
+            if (fechaInicio > fechaFin) {
+                this.mostrarAlerta('La fecha de inicio no puede ser mayor a la fecha fin', 'error');
+                return;
+            }
+            
+            this.actualizarFechaMostrada(fechaInicio, fechaFin);
+        }
+        
+        this.cargarDatosVentas();
+    },
+
+    cargarDatosVentas: function() {
+        const rango = document.getElementById('filtroRango').value;
+        let fechaInicio, fechaFin;
+
+        if (rango === 'personalizado') {
+            fechaInicio = document.getElementById('filtroFechaInicio').value;
+            fechaFin = document.getElementById('filtroFechaFin').value;
+        } else {
+            fechaInicio = document.getElementById('filtroFechaInicio').value;
+            fechaFin = document.getElementById('filtroFechaFin').value;
+        }
+
+        console.log(`📊 Cargando ventas desde ${fechaInicio} hasta ${fechaFin}`);
+
+        // Mostrar loading
+        document.getElementById('cargandoVentas').classList.remove('hidden');
+        document.getElementById('tablaVentas').innerHTML = '';
+
+        fetch(`/api/ventas?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            this.mostrarDatos(data);
+        })
+        .catch(error => {
+            console.error('Error cargando ventas:', error);
+            this.mostrarError('Error al cargar los datos de ventas: ' + error.message);
+            document.getElementById('cargandoVentas').classList.add('hidden');
+        });
+    },
+
+    mostrarDatos: function(data) {
+        console.log('📈 Datos recibidos:', data);
+        
+        // Ocultar loading
+        document.getElementById('cargandoVentas').classList.add('hidden');
+        
+        // Actualizar estadísticas
+        this.actualizarEstadisticas(data.estadisticas);
+        
+        // Actualizar gráficos
+        this.actualizarGraficos(data.graficos);
+        
+        // Actualizar tabla
+        this.actualizarTabla(data.ventas);
+    },
+
+    actualizarEstadisticas: function(estadisticas) {
+        document.getElementById('totalVentas').textContent = 
+            this.formatearMoneda(estadisticas.total_ventas);
+        document.getElementById('totalPaquetes').textContent = 
+            estadisticas.total_paquetes;
+        document.getElementById('ticketPromedio').textContent = 
+            this.formatearMoneda(estadisticas.ticket_promedio);
+        document.getElementById('eficiencia').textContent = 
+            estadisticas.eficiencia + '%';
+        
+        // Actualizar tendencias con colores
+        const tendenciaVentasElem = document.getElementById('tendenciaVentas');
+        const tendenciaPaquetesElem = document.getElementById('tendenciaPaquetes');
+        
+        tendenciaVentasElem.textContent = estadisticas.tendencia_ventas + '%';
+        tendenciaPaquetesElem.textContent = estadisticas.tendencia_paquetes + '%';
+        
+        // Colores según la tendencia
+        const colorVentas = estadisticas.tendencia_ventas >= 0 ? 'text-green-600' : 'text-red-600';
+        const colorPaquetes = estadisticas.tendencia_paquetes >= 0 ? 'text-green-600' : 'text-red-600';
+        const iconoVentas = estadisticas.tendencia_ventas >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+        const iconoPaquetes = estadisticas.tendencia_paquetes >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+        
+        tendenciaVentasElem.className = `text-sm ${colorVentas}`;
+        tendenciaPaquetesElem.className = `text-sm ${colorPaquetes}`;
+        
+        tendenciaVentasElem.innerHTML = `<i class="fas ${iconoVentas} mr-1"></i> ${estadisticas.tendencia_ventas}%`;
+        tendenciaPaquetesElem.innerHTML = `<i class="fas ${iconoPaquetes} mr-1"></i> ${estadisticas.tendencia_paquetes}%`;
+    },
+
+    actualizarGraficos: function(graficos) {
+    console.log('🎨 Actualizando gráficos:', graficos);
+    
+    // Gráfico de paquetes (siempre visible)
+    if (graficos.paquetes && graficos.paquetes.labels && graficos.paquetes.labels.length > 0) {
+        this.charts.paquetes.data.labels = graficos.paquetes.labels;
+        this.charts.paquetes.data.datasets[0].data = graficos.paquetes.data;
+        this.charts.paquetes.data.datasets[0].backgroundColor = [
+            '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+            '#8b5cf6', '#06b6d4', '#84cc16', '#f97316',
+            '#6366f1', '#ec4899', '#14b8a6', '#f43f5e'
+        ];
+    } else {
+        this.charts.paquetes.data.labels = ['Sin datos'];
+        this.charts.paquetes.data.datasets[0].data = [1];
+        this.charts.paquetes.data.datasets[0].backgroundColor = ['#e5e7eb'];
+    }
+    this.charts.paquetes.update();
+
+    // Gráfico de evolución (horas/días/semanas)
+    const evolucion = graficos.evolucion;
+    
+    if (evolucion && evolucion.labels && evolucion.labels.length > 0) {
+        this.charts.horas.data.labels = evolucion.labels;
+        this.charts.horas.data.datasets[0].data = evolucion.data;
+        
+        // Configurar título y estilo según el tipo
+        let titulo = 'Evolución de Ventas';
+        let tipoGrafica = 'line';
+        
+        switch(evolucion.tipo) {
+            case 'horas':
+                titulo = 'Ventas por Hora del Día';
+                this.charts.horas.data.datasets[0].label = 'Ventas por hora';
+                this.charts.horas.data.datasets[0].borderColor = '#10b981';
+                this.charts.horas.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                this.charts.horas.options.scales.x.title = { display: true, text: 'Hora del día' };
+                break;
+                
+            case 'dias':
+                titulo = 'Ventas por Día';
+                this.charts.horas.data.datasets[0].label = 'Ventas por día';
+                this.charts.horas.data.datasets[0].borderColor = '#3b82f6';
+                this.charts.horas.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                this.charts.horas.options.scales.x.title = { display: true, text: 'Fecha' };
+                break;
+                
+            case 'semanas':
+                titulo = 'Ventas por Semana';
+                this.charts.horas.data.datasets[0].label = 'Ventas por semana';
+                this.charts.horas.data.datasets[0].borderColor = '#8b5cf6';
+                this.charts.horas.data.datasets[0].backgroundColor = 'rgba(139, 92, 246, 0.1)';
+                this.charts.horas.options.scales.x.title = { display: true, text: 'Semana' };
+                break;
+        }
+        
+        this.charts.horas.options.plugins.title.text = titulo;
+    } else {
+        this.charts.horas.data.labels = ['No hay datos disponibles'];
+        this.charts.horas.data.datasets[0].data = [0];
+        this.charts.horas.options.plugins.title.text = 'Evolución de Ventas';
+    }
+    
+    this.charts.horas.update();
+},
+
+    actualizarTabla: function(ventas) {
+        const tbody = document.getElementById('tablaVentas');
+        tbody.innerHTML = '';
+
+        if (!ventas || ventas.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-500">
+                        No hay ventas registradas para este período
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        ventas.forEach(venta => {
+            const fila = document.createElement('tr');
+            fila.className = 'border-b border-gray-200 hover:bg-gray-50';
+            fila.innerHTML = `
+                <td class="p-3 text-sm">${venta.fecha} ${venta.hora}</td>
+                <td class="p-3 font-medium text-sm">${venta.paquete}</td>
+                <td class="p-3 text-sm">${this.formatearMoneda(venta.precio)}</td>
+                <td class="p-3 text-center text-sm">${venta.turnos}</td>
+                <td class="p-3 text-sm">${venta.vendedor}</td>
+                <td class="p-3">
+                    <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                        ${venta.estado}
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(fila);
+        });
+    },
+
+    formatearMoneda: function(valor) {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+        }).format(valor);
+    },
+
+    actualizarDatos: function() {
+        this.cargarDatosVentas();
+        this.mostrarAlerta('Datos actualizados correctamente', 'success');
+    },
+
+   exportarReporte: function() {
+    const rango = document.getElementById('filtroRango').value;
+    let fechaInicio, fechaFin;
+
+    if (rango === 'personalizado') {
+        fechaInicio = document.getElementById('filtroFechaInicio').value;
+        fechaFin = document.getElementById('filtroFechaFin').value;
+    } else {
+        fechaInicio = document.getElementById('filtroFechaInicio').value;
+        fechaFin = document.getElementById('filtroFechaFin').value;
+    }
+
+    // Mostrar loading
+    this.mostrarAlerta('<div class="loading mr-2"></div> Generando PDF...', 'info');
+
+    // Crear enlace de descarga
+    const link = document.createElement('a');
+    link.href = `/api/exportar-ventas-pdf?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+    link.target = '_blank';
+    link.download = `ventas_${fechaInicio}_${fechaFin}.pdf`;
+    
+    // Simular clic en el enlace
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Actualizar mensaje después de un breve delay
+    setTimeout(() => {
+        this.mostrarAlerta('✅ PDF generado y descargado correctamente', 'success');
+    }, 1000);
+},
+
+    mostrarError: function(mensaje) {
+        this.mostrarAlerta(mensaje, 'error');
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    tipo === 'success' ? 'check-circle' : 
+                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 4000);
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    VentasApp.init();
+});
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            VentasApp.init();
+        });
+    </script>
+</body>
+</html>
