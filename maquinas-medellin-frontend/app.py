@@ -1541,6 +1541,160 @@ def crear_usuario():
         if connection:
             connection.close()
 
+@app.route('/api/maquinas-con-propiedades')
+def obtener_maquinas_con_propiedades():
+    """Obtiene máquinas con información de propiedad"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                m.id,
+                m.name as nombre_maquina,
+                m.type as tipo,
+                m.status as estado,
+                GROUP_CONCAT(
+                    CONCAT(p.nombre, ' (', mp.porcentaje_propiedad, '%)')
+                    SEPARATOR ', '
+                ) as propietarios,
+                SUM(mp.porcentaje_propiedad) as porcentaje_total,
+                p.porcentaje_restaurante
+            FROM machine m
+            LEFT JOIN MaquinaPropietario mp ON m.id = mp.maquina_id
+            LEFT JOIN Propietarios p ON mp.propietario_id = p.id
+            GROUP BY m.id, m.name, m.type, m.status, p.porcentaje_restaurante
+            ORDER BY m.id
+        """)
+        
+        maquinas = cursor.fetchall()
+        
+        # Procesar los datos para mejor formato
+        maquinas_procesadas = []
+        for maquina in maquinas:
+            maquina_data = {
+                'id': maquina['id'],
+                'nombre': maquina['nombre_maquina'],
+                'tipo': maquina['tipo'],
+                'estado': maquina['estado'],
+                'propietarios': maquina['propietarios'] or 'No asignado',
+                'porcentaje_total': maquina['porcentaje_total'] or 0,
+                'porcentaje_restaurante': maquina['porcentaje_restaurante'] or 35.00
+            }
+            maquinas_procesadas.append(maquina_data)
+        
+        return jsonify(maquinas_procesadas)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo máquinas con propiedades: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/propietarios')
+def obtener_propietarios():
+    """Obtiene lista de propietarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT * FROM Propietarios ORDER BY nombre")
+        propietarios = cursor.fetchall()
+        return jsonify(propietarios)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo propietarios: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+            
+
+@app.route('/api/maquina-detalle/<int:maquina_id>')
+def obtener_detalle_maquina(maquina_id):
+    """Obtiene detalle completo de una máquina con sus propietarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Información básica de la máquina
+        cursor.execute("SELECT * FROM machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        
+        if not maquina:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        # Propietarios de la máquina
+        cursor.execute("""
+            SELECT 
+                p.id,
+                p.nombre,
+                mp.porcentaje_propiedad,
+                p.porcentaje_restaurante
+            FROM MaquinaPropietario mp
+            JOIN Propietarios p ON mp.propietario_id = p.id
+            WHERE mp.maquina_id = %s
+            ORDER BY mp.porcentaje_propiedad DESC
+        """, (maquina_id,))
+        
+        propietarios = cursor.fetchall()
+        
+        # Calcular ganancias estimadas (ejemplo)
+        cursor.execute("""
+            SELECT COUNT(*) as usos_totales
+            FROM TurnUsage 
+            WHERE machineId = %s 
+            AND usedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        """, (maquina_id,))
+        
+        usos_recientes = cursor.fetchone()
+        
+        return jsonify({
+            'maquina': maquina,
+            'propietarios': propietarios,
+            'estadisticas': {
+                'usos_30_dias': usos_recientes['usos_totales'] if usos_recientes else 0,
+                'total_propietarios': len(propietarios),
+                'porcentaje_total': sum(p['porcentaje_propiedad'] for p in propietarios)
+            }
+        })
+    
+    
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo detalle de máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+            
+
 
 # Iniciar servidor
 if __name__ == '__main__':

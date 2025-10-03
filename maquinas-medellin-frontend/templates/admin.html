@@ -231,6 +231,9 @@
           <button onclick="cargarSeccion('mantenimiento')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-tools mr-2"></i>Programar Mantenimiento
           </button>
+          <button onclick="cargarSeccion('distribucion-ganancias')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
+    <i class="fas fa-chart-pie mr-2"></i>Distribución de Ganancias
+</button>
         </div>
       </div>
 
@@ -450,49 +453,107 @@ async function cargarUsuarios() {
 
 // Función para cargar máquinas 
 async function cargarMaquinas() {
-    const response = await fetch('/api/maquinas');
+    const response = await fetch('/api/maquinas-con-propiedades');
     const maquinas = await response.json();
     
     let html = `
-        <div class="mb-4">
-            <h3 class="text-lg font-semibold mb-2">Total de máquinas: ${maquinas.length}</h3>
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-4">Inventario de Máquinas - Distribución de Propiedad</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-blue-800">Total Máquinas</h4>
+                    <p class="text-2xl font-bold">${maquinas.length}</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-green-800">% Restaurante</h4>
+                    <p class="text-2xl font-bold">35%</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-purple-800">Propietarios</h4>
+                    <p class="text-2xl font-bold">3</p>
+                </div>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-100">
                     <tr>
-                        <th class="p-2 text-left">ID</th>
-                        <th class="p-2 text-left">Nombre</th>
-                        <th class="p-2 text-left">Tipo</th>
-                        <th class="p-2 text-left">Estado</th>
-                        <th class="p-2 text-left">Ubicación</th>
-                        <th class="p-2 text-left">Acciones</th>
+                        <th class="p-3 text-left">ID</th>
+                        <th class="p-3 text-left">Máquina</th>
+                        <th class="p-3 text-left">Tipo</th>
+                        <th class="p-3 text-left">Estado</th>
+                        <th class="p-3 text-left">Propietarios</th>
+                        <th class="p-3 text-left">% Total</th>
+                        <th class="p-3 text-left">% Rest.</th>
+                        <th class="p-3 text-left">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
     
     maquinas.forEach(maquina => {
+        // Determinar color del estado
+        let estadoColor = 'bg-gray-100 text-gray-800';
+        let estadoIcon = 'fa-question';
+        
+        if (maquina.estado === 'activa') {
+            estadoColor = 'bg-green-100 text-green-800';
+            estadoIcon = 'fa-check-circle';
+        } else if (maquina.estado === 'mantenimiento') {
+            estadoColor = 'bg-yellow-100 text-yellow-800';
+            estadoIcon = 'fa-tools';
+        } else if (maquina.estado === 'inactiva') {
+            estadoColor = 'bg-red-100 text-red-800';
+            estadoIcon = 'fa-times-circle';
+        }
+        
+        // Determinar color del porcentaje total
+        let porcentajeColor = 'text-green-600';
+        if (maquina.porcentaje_total < 100) {
+            porcentajeColor = 'text-red-600';
+        } else if (maquina.porcentaje_total > 100) {
+            porcentajeColor = 'text-orange-600';
+        }
+        
         html += `
             <tr class="border-b hover:bg-gray-50">
-                <td class="p-2">${maquina.id}</td>
-                <td class="p-2 font-medium">${maquina.name}</td>
-                <td class="p-2">${maquina.type || 'No especificado'}</td>
-                <td class="p-2">
-                    <span class="px-2 py-1 rounded-full text-xs ${
-                        maquina.status === 'activa' ? 'bg-green-100 text-green-800' : 
-                        maquina.status === 'mantenimiento' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                    }">
-                        ${maquina.status}
+                <td class="p-3 font-mono">${maquina.id}</td>
+                <td class="p-3 font-medium">${maquina.nombre}</td>
+                <td class="p-3">
+                    <span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                        ${maquina.tipo || 'No especificado'}
                     </span>
                 </td>
-                <td class="p-2">${maquina.location_id || 'No especificada'}</td>
-                <td class="p-2">
-                    <button onclick="editarMaquina(${maquina.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1">
+                <td class="p-3">
+                    <span class="px-2 py-1 rounded-full text-xs ${estadoColor}">
+                        <i class="fas ${estadoIcon} mr-1"></i>${maquina.estado}
+                    </span>
+                </td>
+                <td class="p-3 text-xs">
+                    <div class="max-w-xs truncate" title="${maquina.propietarios}">
+                        ${maquina.propietarios}
+                    </div>
+                </td>
+                <td class="p-3 font-bold ${porcentajeColor}">
+                    ${maquina.porcentaje_total}%
+                </td>
+                <td class="p-3 text-orange-600 font-semibold">
+                    ${maquina.porcentaje_restaurante}%
+                </td>
+                <td class="p-3">
+                    <button onclick="verDetalleMaquina(${maquina.id})" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1"
+                            title="Ver detalles y distribución">
+                        <i class="fas fa-chart-pie"></i>
+                    </button>
+                    <button onclick="editarMaquina(${maquina.id})" 
+                            class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button onclick="eliminarMaquina(${maquina.id})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
-                        <i class="fas fa-trash"></i>
+                    <button onclick="gestionarPropiedad(${maquina.id})" 
+                            class="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs mr-1"
+                            title="Gestionar propiedad">
+                        <i class="fas fa-handshake"></i>
                     </button>
                 </td>
             </tr>
@@ -501,6 +562,143 @@ async function cargarMaquinas() {
     
     html += `</tbody></table></div>`;
     return html;
+}
+
+// Función para ver detalle de máquina
+async function verDetalleMaquina(maquinaId) {
+    try {
+        const response = await fetch(`/api/maquina-detalle/${maquinaId}`);
+        const data = await response.json();
+        
+        let html = `
+            <div class="max-w-4xl mx-auto">
+                <h3 class="text-xl font-bold mb-4">Detalle de Máquina: ${data.maquina.name}</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h4 class="font-semibold mb-3">Información General</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Tipo:</span>
+                                <span class="font-medium">${data.maquina.type || 'No especificado'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Estado:</span>
+                                <span class="font-medium ${data.maquina.status === 'activa' ? 'text-green-600' : 'text-red-600'}">
+                                    ${data.maquina.status}
+                                </span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Usos (30 días):</span>
+                                <span class="font-medium">${data.estadisticas.usos_30_dias}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h4 class="font-semibold mb-3">Distribución de Ganancias</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Restaurante:</span>
+                                <span class="font-medium text-orange-600">35%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Propietarios:</span>
+                                <span class="font-medium text-green-600">65%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total distribuido:</span>
+                                <span class="font-medium ${data.estadisticas.porcentaje_total === 100 ? 'text-green-600' : 'text-red-600'}">
+                                    ${data.estadisticas.porcentaje_total}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-lg border">
+                    <h4 class="font-semibold mb-3">Propietarios y Porcentajes</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-2 text-left">Propietario</th>
+                                    <th class="p-2 text-left">% Propiedad</th>
+                                    <th class="p-2 text-left">% Ganancia Final</th>
+                                    <th class="p-2 text-left">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        data.propietarios.forEach(propietario => {
+            const gananciaFinal = (propietario.porcentaje_propiedad * 0.65).toFixed(1);
+            html += `
+                <tr class="border-b">
+                    <td class="p-2 font-medium">${propietario.nombre}</td>
+                    <td class="p-2">
+                        <span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            ${propietario.porcentaje_propiedad}%
+                        </span>
+                    </td>
+                    <td class="p-2 font-bold text-green-600">${gananciaFinal}%</td>
+                    <td class="p-2">
+                        <button onclick="editarPorcentaje(${data.maquina.id}, ${propietario.id})" 
+                                class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${data.estadisticas.porcentaje_total !== 100 ? `
+                    <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-700 text-sm">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Advertencia:</strong> La distribución de propiedad no suma 100% (actual: ${data.estadisticas.porcentaje_total}%)
+                        </p>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="mt-4 flex space-x-3">
+                        <button onclick="gestionarPropiedad(${data.maquina.id})" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">
+                            <i class="fas fa-handshake mr-2"></i>Gestionar Propiedad
+                        </button>
+                        <button onclick="cargarSeccion('maquinas')" 
+                                class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">
+                            <i class="fas fa-arrow-left mr-2"></i>Volver al Listado
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('contenido-dinamico').classList.remove('hidden');
+        document.getElementById('titulo-seccion').textContent = 'Detalle de Máquina';
+        document.getElementById('contenido-seccion').innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar detalle de la máquina');
+    }
+}
+
+// Función para gestionar propiedad (placeholder)
+async function gestionarPropiedad(maquinaId) {
+    alert(`Funcionalidad de gestión de propiedad para máquina ${maquinaId} en desarrollo`);
+    // Aquí podrías implementar un modal para editar los porcentajes de propiedad
+}
+
+// Función para editar porcentaje (placeholder)
+async function editarPorcentaje(maquinaId, propietarioId) {
+    alert(`Editar porcentaje para máquina ${maquinaId}, propietario ${propietarioId} - En desarrollo`);
 }
 
 // Función para cargar paquetes
@@ -1028,7 +1226,7 @@ async function eliminarUsuario(usuarioId) {
     }
 }
 
-// Actualizar la función cargarSeccion para incluir las nuevas secciones de usuarios
+// Función DE SECCIONES GENERALES
 async function cargarSeccion(seccion) {
     document.getElementById('contenido-dinamico').classList.remove('hidden');
     document.getElementById('titulo-seccion').textContent = obtenerTituloSeccion(seccion);
@@ -1060,6 +1258,9 @@ async function cargarSeccion(seccion) {
         case 'incidencias':
             contenido = await cargarIncidencias();
             break;
+            case 'distribucion-ganancias':
+             contenido = await cargarDistribucionGanancias();
+            break;
         default:
             contenido = `<div class="text-center py-8">
                 <i class="fas fa-tools text-4xl text-gray-400 mb-4"></i>
@@ -1069,6 +1270,115 @@ async function cargarSeccion(seccion) {
     }
     
     document.getElementById('contenido-seccion').innerHTML = contenido;
+}
+
+// Función auxiliar para calcular distribución
+function calcularDistribucionMaquina(maquina) {
+    const distribucion = { edison: 0, andres: 0, beliza: 0, total: 0 };
+    
+    if (maquina.propietarios.includes('Edison')) {
+        const match = maquina.propietarios.match(/Edison \((\d+)%\)/);
+        if (match) distribucion.edison = parseInt(match[1]);
+    }
+    
+    if (maquina.propietarios.includes('Andrés')) {
+        const match = maquina.propietarios.match(/Andrés \((\d+)%\)/);
+        if (match) distribucion.andres = parseInt(match[1]);
+    }
+    
+    if (maquina.propietarios.includes('Beliza')) {
+        const match = maquina.propietarios.match(/Beliza \((\d+)%\)/);
+        if (match) distribucion.beliza = parseInt(match[1]);
+    }
+    
+    distribucion.total = distribucion.edison + distribucion.andres + distribucion.beliza;
+    return distribucion;
+}
+
+async function cargarDistribucionGanancias() {
+    const response = await fetch('/api/maquinas-con-propiedades');
+    const maquinas = await response.json();
+    
+    let html = `
+        <div class="mb-6">
+            <h3 class="text-xl font-bold mb-4">Distribución de Ganancias - Resumen General</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                    <h4 class="font-semibold text-orange-800">Restaurante</h4>
+                    <p class="text-2xl font-bold text-orange-600">35%</p>
+                    <p class="text-xs text-orange-600 mt-1">En todas las máquinas</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 class="font-semibold text-blue-800">Edison</h4>
+                    <p class="text-2xl font-bold text-blue-600">42.5%</p>
+                    <p class="text-xs text-blue-600 mt-1">Promedio de ganancia</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <h4 class="font-semibold text-green-800">Andrés</h4>
+                    <p class="text-2xl font-bold text-green-600">40.8%</p>
+                    <p class="text-xs text-green-600 mt-1">Promedio de ganancia</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <h4 class="font-semibold text-purple-800">Beliza</h4>
+                    <p class="text-2xl font-bold text-purple-600">32.5%</p>
+                    <p class="text-xs text-purple-600 mt-1">Promedio de ganancia</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg border p-4">
+            <h4 class="font-semibold mb-4">Resumen por Propietario</h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-3 text-left">Máquina</th>
+                            <th class="p-3 text-left">Restaurante</th>
+                            <th class="p-3 text-left">Edison</th>
+                            <th class="p-3 text-left">Andrés</th>
+                            <th class="p-3 text-left">Beliza</th>
+                            <th class="p-3 text-left">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    maquinas.forEach(maquina => {
+        // Calcular distribución para esta máquina
+        const distribucion = calcularDistribucionMaquina(maquina);
+        
+        html += `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-medium">${maquina.nombre}</td>
+                <td class="p-3 text-orange-600 font-semibold">35%</td>
+                <td class="p-3">${distribucion.edison}%</td>
+                <td class="p-3">${distribucion.andres}%</td>
+                <td class="p-3">${distribucion.beliza}%</td>
+                <td class="p-3 font-bold ${distribucion.total === 100 ? 'text-green-600' : 'text-red-600'}">
+                    ${distribucion.total}%
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h5 class="font-semibold mb-2">Notas:</h5>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• El restaurante recibe 35% de todas las máquinas</li>
+                    <li>• Las máquinas de peluches: restaurante 30%, propietarios 70%</li>
+                    <li>• Los porcentajes mostrados son de ganancia final después del restaurante</li>
+                    <li>• La suma debe ser 100% para cada máquina</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    return html;
 }
 
 // Función para crear nuevo paquete
