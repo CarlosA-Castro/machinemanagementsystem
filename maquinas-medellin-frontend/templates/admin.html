@@ -228,6 +228,9 @@
           <button onclick="cargarSeccion('nueva-maquina')" class="w-full bg-green-700 hover:bg-green-800 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-plus mr-2"></i>Agregar Máquina
           </button>
+          <button onclick="cargarSeccion('gestionar-propietarios')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
+            <i class="fas fa-users mr-2"></i>Gestionar Propietarios
+        </button>
           <button onclick="cargarSeccion('mantenimiento')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-3 rounded-lg text-left btn-touch text-sm">
             <i class="fas fa-tools mr-2"></i>Programar Mantenimiento
           </button>
@@ -570,6 +573,9 @@ async function verDetalleMaquina(maquinaId) {
         const response = await fetch(`/api/maquina-detalle/${maquinaId}`);
         const data = await response.json();
         
+        const porcentajeRestaurante = data.maquina.porcentaje_restaurante;
+        const porcentajePropietarios = 100 - porcentajeRestaurante;
+        
         let html = `
             <div class="max-w-4xl mx-auto">
                 <h3 class="text-xl font-bold mb-4">Detalle de Máquina: ${data.maquina.name}</h3>
@@ -592,6 +598,12 @@ async function verDetalleMaquina(maquinaId) {
                                 <span class="text-gray-600">Usos (30 días):</span>
                                 <span class="font-medium">${data.estadisticas.usos_30_dias}</span>
                             </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">% Restaurante:</span>
+                                <span class="font-medium ${porcentajeRestaurante === 30 ? 'text-red-600' : 'text-orange-600'}">
+                                    ${porcentajeRestaurante}%
+                                </span>
+                            </div>
                         </div>
                     </div>
                     
@@ -600,11 +612,11 @@ async function verDetalleMaquina(maquinaId) {
                         <div class="space-y-2 text-sm">
                             <div class="flex justify-between">
                                 <span class="text-gray-600">Restaurante:</span>
-                                <span class="font-medium text-orange-600">35%</span>
+                                <span class="font-medium ${porcentajeRestaurante === 30 ? 'text-red-600' : 'text-orange-600'}">${porcentajeRestaurante}%</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-gray-600">Propietarios:</span>
-                                <span class="font-medium text-green-600">65%</span>
+                                <span class="font-medium text-green-600">${porcentajePropietarios}%</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-gray-600">Total distribuido:</span>
@@ -632,7 +644,7 @@ async function verDetalleMaquina(maquinaId) {
         `;
         
         data.propietarios.forEach(propietario => {
-            const gananciaFinal = (propietario.porcentaje_propiedad * 0.65).toFixed(1);
+            const gananciaFinal = ((propietario.porcentaje_propiedad * porcentajePropietarios) / 100).toFixed(1);
             html += `
                 <tr class="border-b">
                     <td class="p-2 font-medium">${propietario.nombre}</td>
@@ -643,7 +655,7 @@ async function verDetalleMaquina(maquinaId) {
                     </td>
                     <td class="p-2 font-bold text-green-600">${gananciaFinal}%</td>
                     <td class="p-2">
-                        <button onclick="editarPorcentaje(${data.maquina.id}, ${propietario.id})" 
+                        <button onclick="editarPorcentajePropiedad(${data.maquina.id}, ${propietario.id})" 
                                 class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -671,6 +683,10 @@ async function verDetalleMaquina(maquinaId) {
                                 class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">
                             <i class="fas fa-handshake mr-2"></i>Gestionar Propiedad
                         </button>
+                        <button onclick="editarMaquina(${data.maquina.id})" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                            <i class="fas fa-edit mr-2"></i>Editar Máquina
+                        </button>
                         <button onclick="cargarSeccion('maquinas')" 
                                 class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">
                             <i class="fas fa-arrow-left mr-2"></i>Volver al Listado
@@ -690,72 +706,121 @@ async function verDetalleMaquina(maquinaId) {
     }
 }
 
+// Función placeholder para editar porcentaje individual
+async function editarPorcentajePropiedad(maquinaId, propietarioId) {
+    alert(`Editar porcentaje individual - Máquina: ${maquinaId}, Propietario: ${propietarioId}\n\nEsta funcionalidad estará disponible en la siguiente versión.`);
+}
+
 // Función para gestionar propiedad (placeholder)
 async function gestionarPropiedad(maquinaId) {
-    alert(`Funcionalidad de gestión de propiedad para máquina ${maquinaId} en desarrollo`);
-    // Aquí podrías implementar un modal para editar los porcentajes de propiedad
-}
-
-// Función para editar porcentaje (placeholder)
-async function editarPorcentaje(maquinaId, propietarioId) {
-    alert(`Editar porcentaje para máquina ${maquinaId}, propietario ${propietarioId} - En desarrollo`);
-}
-
-// Función para cargar paquetes
-async function cargarPaquetes() {
-    const response = await fetch('/api/paquetes');
-    const paquetes = await response.json();
-    
-    let html = `
-        <div class="mb-4">
-            <h3 class="text-lg font-semibold mb-2">Total de paquetes: ${paquetes.length}</h3>
-            <button onclick="cargarSeccion('nuevo-paquete')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
-                <i class="fas fa-plus mr-2"></i>Nuevo Paquete
-            </button>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="p-2 text-left">ID</th>
-                        <th class="p-2 text-left">Nombre</th>
-                        <th class="p-2 text-left">Turnos</th>
-                        <th class="p-2 text-left">Precio</th>
-                        <th class="p-2 text-left">Estado</th>
-                        <th class="p-2 text-left">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    paquetes.forEach(paquete => {
-        html += `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2">${paquete.id}</td>
-                <td class="p-2 font-medium">${paquete.name}</td>
-                <td class="p-2">${paquete.turns}</td>
-                <td class="p-2">$${paquete.price.toLocaleString()}</td>
-                <td class="p-2">
-                    <span class="px-2 py-1 rounded-full text-xs ${
-                        paquete.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }">
-                        ${paquete.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                </td>
-                <td class="p-2">
-                    <button onclick="editarPaquete(${paquete.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="eliminarPaquete(${paquete.id})" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
+    try {
+        const response = await fetch(`/api/maquina-detalle/${maquinaId}`);
+        const data = await response.json();
+        
+        let html = `
+            <div class="max-w-4xl mx-auto">
+                <h3 class="text-xl font-bold mb-4">Gestionar Propiedad: ${data.maquina.name}</h3>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <h4 class="font-semibold text-yellow-800 mb-2">⚠️ Información Importante</h4>
+                    <p class="text-sm text-yellow-700">
+                        • <strong>Porcentaje Restaurante:</strong> ${data.maquina.name.includes('Peluches') ? '30%' : '35%'}<br>
+                        • Los porcentajes de propiedad deben sumar exactamente 100%<br>
+                        • Los cambios afectarán la distribución de ganancias automáticamente
+                    </p>
+                </div>
+                
+                <form id="form-gestion-propiedad" onsubmit="actualizarPropiedad(event, ${maquinaId})">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         `;
-    });
+        
+        // Campos para cada propietario
+        const propietarios = [
+            { id: 1, nombre: 'Edison', valor: 0 },
+            { id: 2, nombre: 'Andrés', valor: 0 },
+            { id: 3, nombre: 'Beliza', valor: 0 }
+        ];
+        
+        // Llenar valores actuales
+        data.propietarios.forEach(prop => {
+            if (prop.nombre === 'Edison') propietarios[0].valor = prop.porcentaje_propiedad;
+            if (prop.nombre === 'Andrés') propietarios[1].valor = prop.porcentaje_propiedad;
+            if (prop.nombre === 'Beliza') propietarios[2].valor = prop.porcentaje_propiedad;
+        });
+        
+        propietarios.forEach(prop => {
+            html += `
+                <div class="bg-white p-4 rounded-lg border">
+                    <h4 class="font-semibold mb-3 text-gray-800">${prop.nombre}</h4>
+                    <div class="flex items-center">
+                        <input type="number" 
+                               id="propietario-${prop.id}" 
+                               name="propietario_${prop.id}" 
+                               value="${prop.valor}"
+                               min="0" max="100" step="1"
+                               class="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
+                               onchange="calcularTotalPropiedad()">
+                        <span class="ml-2 text-gray-600">%</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold">Total Propiedad:</span>
+                            <span id="total-propiedad" class="text-xl font-bold ${data.estadisticas.porcentaje_total === 100 ? 'text-green-600' : 'text-red-600'}">
+                                ${data.estadisticas.porcentaje_total}%
+                            </span>
+                        </div>
+                        ${data.estadisticas.porcentaje_total !== 100 ? `
+                        <p class="text-red-600 text-sm mt-2">
+                            ⚠️ La distribución actual no suma 100%. Por favor ajuste los porcentajes.
+                        </p>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="flex space-x-4">
+                        <button type="submit" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-semibold">
+                            <i class="fas fa-save mr-2"></i>Guardar Cambios
+                        </button>
+                        <button type="button" 
+                                onclick="cargarSeccion('maquinas')" 
+                                class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md">
+                            <i class="fas fa-times mr-2"></i>Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.getElementById('contenido-dinamico').classList.remove('hidden');
+        document.getElementById('titulo-seccion').textContent = 'Gestionar Propiedad';
+        document.getElementById('contenido-seccion').innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar datos de la máquina');
+    }
+}
+
+// Función para calcular total de propiedad en tiempo real
+function calcularTotalPropiedad() {
+    let total = 0;
+    for (let i = 1; i <= 3; i++) {
+        const input = document.getElementById(`propietario-${i}`);
+        if (input) {
+            total += parseInt(input.value) || 0;
+        }
+    }
     
-    html += `</tbody></table></div>`;
-    return html;
+    const totalElement = document.getElementById('total-propiedad');
+    totalElement.textContent = total + '%';
+    totalElement.className = `text-xl font-bold ${total === 100 ? 'text-green-600' : 'text-red-600'}`;
 }
 
 // Función para cargar incidencias
@@ -802,6 +867,848 @@ async function cargarIncidencias() {
     
     html += `</tbody></table></div>`;
     return html;
+}
+
+function restaurarFormularioMaquina() {
+    if (sessionStorage.getItem('formularioMaquinaPendiente') === 'true') {
+        // Volver al formulario de máquina
+        cargarSeccion('nueva-maquina');
+        
+        // Restaurar valores
+        setTimeout(() => {
+            if (document.getElementById('nombre')) {
+                document.getElementById('nombre').value = sessionStorage.getItem('nombreMaquinaTemporal') || '';
+            }
+            if (document.getElementById('tipo')) {
+                document.getElementById('tipo').value = sessionStorage.getItem('tipoMaquinaTemporal') || '';
+            }
+            
+            // Limpiar storage
+            sessionStorage.removeItem('formularioMaquinaPendiente');
+            sessionStorage.removeItem('nombreMaquinaTemporal');
+            sessionStorage.removeItem('tipoMaquinaTemporal');
+            
+            // Recargar propietarios
+            (async () => {
+                inicializarPropietarios(await obtenerPropietarios());
+                alert('¡Propietario creado! Puede asignarlo a la máquina.');
+            })();
+        }, 500);
+    }
+}
+
+async function cargarFormularioNuevaMaquina() {
+    restaurarFormularioMaquina();
+    // Cargar propietarios disponibles
+    const propietarios = await obtenerPropietarios();
+    
+    let html = `
+        <div class="max-w-4xl mx-auto">
+            <h3 class="text-xl font-bold mb-6">Agregar Nueva Máquina</h3>
+            
+            <form id="form-nueva-maquina" onsubmit="crearMaquina(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Información Básica -->
+                    <div class="bg-white p-6 rounded-lg border">
+                        <h4 class="font-semibold mb-4 text-gray-800">Información Básica</h4>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="nombre">
+                                Nombre de la Máquina *
+                            </label>
+                            <input type="text" id="nombre" name="nombre" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                   placeholder="Ej: Simulador de Carreras">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="tipo">
+                                Tipo de Máquina *
+                            </label>
+                            <select id="tipo" name="tipo" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="">Seleccionar tipo</option>
+                                <option value="simulador">Simulador</option>
+                                <option value="arcade">Arcade</option>
+                                <option value="peluchera">Peluchera</option>
+                                <option value="redemption">Redención</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="local">
+                                Local Asignado *
+                            </label>
+                            <select id="local" name="local" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="1">El Mekatiadero</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Distribución de Propiedad -->
+                    <div class="bg-white p-6 rounded-lg border">
+                        <h4 class="font-semibold mb-4 text-gray-800">Distribución de Propiedad</h4>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="porcentaje_restaurante">
+                                % Restaurante *
+                            </label>
+                            <div class="flex items-center">
+                                <input type="number" id="porcentaje_restaurante" name="porcentaje_restaurante" 
+                                       value="35" min="0" max="100" step="1" required
+                                       class="w-24 px-3 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <span class="ml-2 text-gray-600">%</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">35% general, 30% para pelucheras</p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">
+                                Propietarios y Porcentajes
+                            </label>
+                            <div id="propietarios-container" class="space-y-3">
+                                <!-- Los propietarios se agregarán aquí dinámicamente -->
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" onclick="agregarPropietario()" 
+                                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-plus mr-1"></i>Agregar Propietario
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold">Total Propiedad:</span>
+                                <span id="total-propiedad-nueva" class="text-lg font-bold text-red-600">0%</span>
+                            </div>
+                            <p class="text-red-600 text-xs mt-1" id="mensaje-error-total">
+                                Los porcentajes deben sumar 100%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botones de acción -->
+                <div class="flex space-x-4 pt-6 border-t">
+                    <button type="submit" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-semibold">
+                        <i class="fas fa-save mr-2"></i>Crear Máquina
+                    </button>
+                    <button type="button" 
+                            onclick="cargarSeccion('maquinas')" 
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.getElementById('contenido-dinamico').classList.remove('hidden');
+    document.getElementById('titulo-seccion').textContent = 'Agregar Nueva Máquina';
+    document.getElementById('contenido-seccion').innerHTML = html;
+    
+    // Inicializar propietarios
+    inicializarPropietarios(propietarios);
+}
+
+// Función para obtener propietarios
+async function obtenerPropietarios() {
+    try {
+        const response = await fetch('/api/propietarios');
+        return await response.json();
+    } catch (error) {
+        console.error('Error obteniendo propietarios:', error);
+        return [];
+    }
+}
+
+// Función para inicializar propietarios en el formulario
+function inicializarPropietarios(propietarios) {
+    const container = document.getElementById('propietarios-container');
+    container.innerHTML = '';
+    
+    propietarios.forEach(propietario => {
+        agregarFilaPropietario(propietario.id, propietario.nombre, 0);
+    });
+    
+    calcularTotalPropiedadNueva();
+}
+
+// Función para agregar fila de propietario
+function agregarFilaPropietario(id, nombre, valor) {
+    const container = document.getElementById('propietarios-container');
+    
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between bg-gray-50 p-3 rounded';
+    div.innerHTML = `
+        <span class="font-medium text-sm">${nombre}</span>
+        <div class="flex items-center">
+            <input type="number" 
+                   value="${valor}"
+                   min="0" max="100" step="1"
+                   class="w-20 px-2 py-1 border border-gray-300 rounded text-center propietario-input"
+                   data-propietario-id="${id}"
+                   onchange="calcularTotalPropiedadNueva()">
+            <span class="ml-2 text-gray-600 text-sm">%</span>
+            <button type="button" 
+                    onclick="eliminarPropietario(this)"
+                    class="ml-2 text-red-500 hover:text-red-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    container.appendChild(div);
+}
+
+// Función para agregar nuevo propietario
+function agregarPropietario() {
+    if (confirm('¿Desea crear un nuevo propietario? Será redirigido al formulario de creación.')) {
+        // Guardar el estado actual del formulario
+        sessionStorage.setItem('formularioMaquinaPendiente', 'true');
+        sessionStorage.setItem('nombreMaquinaTemporal', document.getElementById('nombre').value);
+        sessionStorage.setItem('tipoMaquinaTemporal', document.getElementById('tipo').value);
+        
+        // Ir a crear propietario
+        cargarSeccion('nuevo-propietario');
+    }
+}
+
+
+// Función para eliminar propietario del formulario
+function eliminarPropietario(button) {
+    const div = button.closest('div.flex.items-center');
+    div.remove();
+    calcularTotalPropiedadNueva();
+}
+
+// Función para calcular total de propiedad en nueva máquina
+function calcularTotalPropiedadNueva() {
+    let total = 0;
+    const inputs = document.querySelectorAll('.propietario-input');
+    
+    inputs.forEach(input => {
+        total += parseInt(input.value) || 0;
+    });
+    
+    const totalElement = document.getElementById('total-propiedad-nueva');
+    const mensajeError = document.getElementById('mensaje-error-total');
+    
+    totalElement.textContent = total + '%';
+    
+    if (total === 100) {
+        totalElement.className = 'text-lg font-bold text-green-600';
+        mensajeError.className = 'text-green-600 text-xs mt-1';
+        mensajeError.textContent = '✓ Porcentajes correctos';
+    } else {
+        totalElement.className = 'text-lg font-bold text-red-600';
+        mensajeError.className = 'text-red-600 text-xs mt-1';
+        mensajeError.textContent = 'Los porcentajes deben sumar 100%';
+    }
+    
+    return total;
+}
+
+// Función para crear nueva máquina
+async function crearMaquina(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const totalPropiedad = calcularTotalPropiedadNueva();
+    
+    if (totalPropiedad !== 100) {
+        alert('Error: Los porcentajes de propiedad deben sumar exactamente 100%');
+        return;
+    }
+    
+    // Recopilar datos de propietarios
+    const propietarios = [];
+    const inputs = document.querySelectorAll('.propietario-input');
+    
+    inputs.forEach(input => {
+        const porcentaje = parseInt(input.value);
+        if (porcentaje > 0) {
+            propietarios.push({
+                propietario_id: parseInt(input.dataset.propietarioId),
+                porcentaje_propiedad: porcentaje
+            });
+        }
+    });
+    
+    const maquinaData = {
+        nombre: formData.get('nombre'),
+        tipo: formData.get('tipo'),
+        local_id: parseInt(formData.get('local')),
+        porcentaje_restaurante: parseFloat(formData.get('porcentaje_restaurante')),
+        propietarios: propietarios
+    };
+    
+    try {
+        const response = await fetch('/api/maquinas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(maquinaData)
+        });
+        
+        if (response.ok) {
+            alert('Máquina creada exitosamente');
+            cargarSeccion('maquinas');
+        } else {
+            const error = await response.json();
+            alert('Error al crear la máquina: ' + (error.error || 'Error desconocido'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al crear la máquina');
+    }
+}
+
+// Función para editar máquina existente
+async function editarMaquina(maquinaId) {
+    try {
+        // Cargar datos de la máquina
+        const response = await fetch(`/api/maquina-detalle/${maquinaId}`);
+        const data = await response.json();
+        
+        // Cargar propietarios disponibles
+        const propietarios = await obtenerPropietarios();
+        
+        let html = `
+            <div class="max-w-4xl mx-auto">
+                <h3 class="text-xl font-bold mb-6">Editar Máquina: ${data.maquina.name}</h3>
+                
+                <form id="form-editar-maquina" onsubmit="actualizarMaquina(event, ${maquinaId})">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <!-- Información Básica -->
+                        <div class="bg-white p-6 rounded-lg border">
+                            <h4 class="font-semibold mb-4 text-gray-800">Información Básica</h4>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="nombre">
+                                    Nombre de la Máquina *
+                                </label>
+                                <input type="text" id="nombre" name="nombre" 
+                                       value="${data.maquina.name}" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="tipo">
+                                    Tipo de Máquina *
+                                </label>
+                                <select id="tipo" name="tipo" required
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <option value="simulador" ${data.maquina.type === 'simulador' ? 'selected' : ''}>Simulador</option>
+                                    <option value="arcade" ${data.maquina.type === 'arcade' ? 'selected' : ''}>Arcade</option>
+                                    <option value="peluchera" ${data.maquina.type === 'peluchera' ? 'selected' : ''}>Peluchera</option>
+                                    <option value="redemption" ${data.maquina.type === 'redemption' ? 'selected' : ''}>Redención</option>
+                                    <option value="otros" ${!['simulador','arcade','peluchera','redemption'].includes(data.maquina.type) ? 'selected' : ''}>Otros</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="estado">
+                                    Estado *
+                                </label>
+                                <select id="estado" name="estado" required
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <option value="activa" ${data.maquina.status === 'activa' ? 'selected' : ''}>Activa</option>
+                                    <option value="inactiva" ${data.maquina.status === 'inactiva' ? 'selected' : ''}>Inactiva</option>
+                                    <option value="mantenimiento" ${data.maquina.status === 'mantenimiento' ? 'selected' : ''}>En Mantenimiento</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Distribución de Propiedad -->
+                        <div class="bg-white p-6 rounded-lg border">
+                            <h4 class="font-semibold mb-4 text-gray-800">Distribución de Propiedad</h4>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="porcentaje_restaurante">
+                                    % Restaurante *
+                                </label>
+                                <div class="flex items-center">
+                                    <input type="number" id="porcentaje_restaurante" name="porcentaje_restaurante" 
+                                           value="${data.maquina.porcentaje_restaurante || 35}" 
+                                           min="0" max="100" step="1" required
+                                           class="w-24 px-3 py-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <span class="ml-2 text-gray-600">%</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">35% general, 30% para pelucheras</p>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-bold mb-2">
+                                    Propietarios y Porcentajes
+                                </label>
+                                <div id="propietarios-container" class="space-y-3">
+                                    <!-- Los propietarios se agregarán aquí dinámicamente -->
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold">Total Propiedad:</span>
+                                    <span id="total-propiedad-editar" class="text-lg font-bold">${data.estadisticas.porcentaje_total}%</span>
+                                </div>
+                                <p class="text-red-600 text-xs mt-1" id="mensaje-error-total-editar">
+                                    ${data.estadisticas.porcentaje_total === 100 ? '✓ Porcentajes correctos' : 'Los porcentajes deben sumar 100%'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="flex space-x-4 pt-6 border-t">
+                        <button type="submit" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-semibold">
+                            <i class="fas fa-save mr-2"></i>Actualizar Máquina
+                        </button>
+                        <button type="button" 
+                                onclick="cargarSeccion('maquinas')" 
+                                class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md">
+                            <i class="fas fa-times mr-2"></i>Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.getElementById('contenido-dinamico').classList.remove('hidden');
+        document.getElementById('titulo-seccion').textContent = 'Editar Máquina';
+        document.getElementById('contenido-seccion').innerHTML = html;
+        
+        // Inicializar propietarios con valores actuales
+        inicializarPropietariosEdicion(propietarios, data.propietarios);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al cargar datos de la máquina');
+    }
+}
+
+// Función para inicializar propietarios en edición
+function inicializarPropietariosEdicion(propietarios, propietariosActuales) {
+    const container = document.getElementById('propietarios-container');
+    container.innerHTML = '';
+    
+    // Crear mapa de porcentajes actuales
+    const porcentajesActuales = {};
+    propietariosActuales.forEach(prop => {
+        porcentajesActuales[prop.id] = prop.porcentaje_propiedad;
+    });
+    
+    // Agregar propietarios al formulario
+    propietarios.forEach(propietario => {
+        const porcentajeActual = porcentajesActuales[propietario.id] || 0;
+        agregarFilaPropietarioEdicion(propietario.id, propietario.nombre, porcentajeActual);
+    });
+    
+    calcularTotalPropiedadEdicion();
+}
+
+// Función para agregar fila de propietario en edición
+function agregarFilaPropietarioEdicion(id, nombre, valor) {
+    const container = document.getElementById('propietarios-container');
+    
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between bg-gray-50 p-3 rounded';
+    div.innerHTML = `
+        <span class="font-medium text-sm">${nombre}</span>
+        <div class="flex items-center">
+            <input type="number" 
+                   value="${valor}"
+                   min="0" max="100" step="1"
+                   class="w-20 px-2 py-1 border border-gray-300 rounded text-center propietario-input-editar"
+                   data-propietario-id="${id}"
+                   onchange="calcularTotalPropiedadEdicion()">
+            <span class="ml-2 text-gray-600 text-sm">%</span>
+        </div>
+    `;
+    
+    container.appendChild(div);
+}
+
+// Función para calcular total de propiedad en edición
+function calcularTotalPropiedadEdicion() {
+    let total = 0;
+    const inputs = document.querySelectorAll('.propietario-input-editar');
+    
+    inputs.forEach(input => {
+        total += parseInt(input.value) || 0;
+    });
+    
+    const totalElement = document.getElementById('total-propiedad-editar');
+    const mensajeError = document.getElementById('mensaje-error-total-editar');
+    
+    totalElement.textContent = total + '%';
+    
+    if (total === 100) {
+        totalElement.className = 'text-lg font-bold text-green-600';
+        mensajeError.className = 'text-green-600 text-xs mt-1';
+        mensajeError.textContent = '✓ Porcentajes correctos';
+    } else {
+        totalElement.className = 'text-lg font-bold text-red-600';
+        mensajeError.className = 'text-red-600 text-xs mt-1';
+        mensajeError.textContent = 'Los porcentajes deben sumar 100%';
+    }
+    
+    return total;
+}
+
+// Función para actualizar máquina
+async function actualizarMaquina(event, maquinaId) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const totalPropiedad = calcularTotalPropiedadEdicion();
+    
+    if (totalPropiedad !== 100) {
+        alert('Error: Los porcentajes de propiedad deben sumar exactamente 100%');
+        return;
+    }
+    
+    // Recopilar datos de propietarios
+    const propietarios = [];
+    const inputs = document.querySelectorAll('.propietario-input-editar');
+    
+    inputs.forEach(input => {
+        const porcentaje = parseInt(input.value);
+        if (porcentaje > 0) {
+            propietarios.push({
+                propietario_id: parseInt(input.dataset.propietarioId),
+                porcentaje_propiedad: porcentaje
+            });
+        }
+    });
+    
+    const maquinaData = {
+        nombre: formData.get('nombre'),
+        tipo: formData.get('tipo'),
+        estado: formData.get('estado'),
+        porcentaje_restaurante: parseFloat(formData.get('porcentaje_restaurante')),
+        propietarios: propietarios
+    };
+    
+    try {
+        const response = await fetch(`/api/maquinas/${maquinaId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(maquinaData)
+        });
+        
+        if (response.ok) {
+            alert('Máquina actualizada exitosamente');
+            cargarSeccion('maquinas');
+        } else {
+            const error = await response.json();
+            alert('Error al actualizar la máquina: ' + (error.error || 'Error desconocido'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al actualizar la máquina');
+    }
+}
+
+async function cargarGestionPropietarios() {
+    const propietarios = await obtenerPropietarios();
+    
+    let html = `
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">Gestión de Propietarios</h3>
+                <button onclick="cargarSeccion('nuevo-propietario')" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                    <i class="fas fa-plus mr-2"></i>Nuevo Propietario
+                </button>
+            </div>
+            
+            <div class="bg-white rounded-lg border overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-3 text-left">ID</th>
+                            <th class="p-3 text-left">Nombre</th>
+                            <th class="p-3 text-left">Email</th>
+                            <th class="p-3 text-left">Teléfono</th>
+                            <th class="p-3 text-left">Máquinas</th>
+                            <th class="p-3 text-left">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    if (propietarios.length === 0) {
+        html += `
+            <tr>
+                <td colspan="6" class="p-4 text-center text-gray-500">
+                    No hay propietarios registrados. 
+                    <button onclick="cargarSeccion('nuevo-propietario')" class="text-blue-600 hover:text-blue-800 ml-1">
+                        Crear el primero
+                    </button>
+                </td>
+            </tr>
+        `;
+    } else {
+        // Para cada propietario, contar cuántas máquinas tiene
+        for (const propietario of propietarios) {
+            const maquinasCount = await contarMaquinasPorPropietario(propietario.id);
+            
+            html += `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-mono">${propietario.id}</td>
+                    <td class="p-3 font-medium">${propietario.nombre}</td>
+                    <td class="p-3">${propietario.email || '-'}</td>
+                    <td class="p-3">${propietario.telefono || '-'}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                            ${maquinasCount} máquina(s)
+                        </span>
+                    </td>
+                    <td class="p-3">
+                        <button onclick="editarPropietario(${propietario.id})" 
+                                class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs mr-2">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="eliminarPropietario(${propietario.id})" 
+                                class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+                                ${maquinasCount > 0 ? 'disabled title="No se puede eliminar, tiene máquinas asignadas"' : ''}>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 bg-blue-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-blue-800 mb-2">💡 Información Importante</h4>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>• Los propietarios se utilizan para asignar porcentajes de propiedad en las máquinas</li>
+                    <li>• No se puede eliminar un propietario que tenga máquinas asignadas</li>
+                    <li>• Los porcentajes de propiedad deben sumar 100% en cada máquina</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+// Función auxiliar para contar máquinas por propietario
+async function contarMaquinasPorPropietario(propietarioId) {
+    try {
+        const response = await fetch(`/api/propietarios/${propietarioId}/maquinas`);
+        const data = await response.json();
+        return data.count || 0;
+    } catch (error) {
+        console.error('Error contando máquinas:', error);
+        return 0;
+    }
+}
+
+// Función para programar mantenimiento
+async function cargarProgramarMantenimiento() {
+    // Cargar máquinas disponibles
+    const maquinas = await obtenerMaquinas();
+    
+    let html = `
+        <div class="max-w-4xl mx-auto">
+            <h3 class="text-xl font-bold mb-6">Programar Mantenimiento</h3>
+            
+            <form id="form-mantenimiento" onsubmit="programarMantenimiento(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Selección de Máquina -->
+                    <div class="bg-white p-6 rounded-lg border">
+                        <h4 class="font-semibold mb-4 text-gray-800">Máquina a Mantener</h4>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="maquina_id">
+                                Seleccionar Máquina *
+                            </label>
+                            <select id="maquina_id" name="maquina_id" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <option value="">Seleccionar máquina</option>
+                                ${maquinas.map(maquina => `
+                                    <option value="${maquina.id}" 
+                                            ${maquina.status === 'mantenimiento' ? 'selected' : ''}>
+                                        ${maquina.name} - ${maquina.status}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="tipo_mantenimiento">
+                                Tipo de Mantenimiento *
+                            </label>
+                            <select id="tipo_mantenimiento" name="tipo_mantenimiento" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <option value="">Seleccionar tipo</option>
+                                <option value="preventivo">Preventivo</option>
+                                <option value="correctivo">Correctivo</option>
+                                <option value="limpieza">Limpieza General</option>
+                                <option value="actualizacion">Actualización de Software</option>
+                                <option value="reparacion">Reparación Mayor</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Programación -->
+                    <div class="bg-white p-6 rounded-lg border">
+                        <h4 class="font-semibold mb-4 text-gray-800">Programación</h4>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="fecha_inicio">
+                                Fecha de Inicio *
+                            </label>
+                            <input type="datetime-local" id="fecha_inicio" name="fecha_inicio" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="fecha_fin_estimada">
+                                Fecha Fin Estimada *
+                            </label>
+                            <input type="datetime-local" id="fecha_fin_estimada" name="fecha_fin_estimada" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2" for="prioridad">
+                                Prioridad *
+                            </label>
+                            <select id="prioridad" name="prioridad" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <option value="baja">Baja</option>
+                                <option value="media">Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Descripción y Notas -->
+                <div class="bg-white p-6 rounded-lg border mb-6">
+                    <h4 class="font-semibold mb-4 text-gray-800">Descripción del Mantenimiento</h4>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="descripcion">
+                            Descripción Detallada *
+                        </label>
+                        <textarea id="descripcion" name="descripcion" required rows="4"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                  placeholder="Describa los trabajos de mantenimiento a realizar..."></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="notas_tecnicas">
+                            Notas Técnicas
+                        </label>
+                        <textarea id="notas_tecnicas" name="notas_tecnicas" rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                  placeholder="Incluya información técnica relevante..."></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="requiere_repuestos" name="requiere_repuestos" class="mr-2">
+                            <span class="text-gray-700">Requiere repuestos o componentes</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Botones de acción -->
+                <div class="flex space-x-4 pt-6 border-t">
+                    <button type="submit" 
+                            class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-md font-semibold">
+                        <i class="fas fa-calendar-check mr-2"></i>Programar Mantenimiento
+                    </button>
+                    <button type="button" 
+                            onclick="cargarSeccion('maquinas')" 
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.getElementById('contenido-dinamico').classList.remove('hidden');
+    document.getElementById('titulo-seccion').textContent = 'Programar Mantenimiento';
+    document.getElementById('contenido-seccion').innerHTML = html;
+    
+    // Establecer fechas por defecto
+    const ahora = new Date();
+    const fechaInicio = new Date(ahora.getTime() + 60 * 60 * 1000); // 1 hora desde ahora
+    const fechaFin = new Date(fechaInicio.getTime() + 2 * 60 * 60 * 1000); // 2 horas después
+    
+    document.getElementById('fecha_inicio').value = fechaInicio.toISOString().slice(0, 16);
+    document.getElementById('fecha_fin_estimada').value = fechaFin.toISOString().slice(0, 16);
+}
+
+// Función para obtener máquinas
+async function obtenerMaquinas() {
+    try {
+        const response = await fetch('/api/maquinas');
+        return await response.json();
+    } catch (error) {
+        console.error('Error obteniendo máquinas:', error);
+        return [];
+    }
+}
+
+// Función para programar mantenimiento
+async function programarMantenimiento(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    
+    const mantenimientoData = {
+        maquina_id: parseInt(formData.get('maquina_id')),
+        tipo_mantenimiento: formData.get('tipo_mantenimiento'),
+        fecha_inicio: formData.get('fecha_inicio'),
+        fecha_fin_estimada: formData.get('fecha_fin_estimada'),
+        prioridad: formData.get('prioridad'),
+        descripcion: formData.get('descripcion'),
+        notas_tecnicas: formData.get('notas_tecnicas'),
+        requiere_repuestos: formData.get('requiere_repuestos') === 'on'
+    };
+    
+    try {
+        const response = await fetch('/api/mantenimiento', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(mantenimientoData)
+        });
+        
+        if (response.ok) {
+            alert('Mantenimiento programado exitosamente');
+            cargarSeccion('maquinas');
+        } else {
+            const error = await response.json();
+            alert('Error al programar mantenimiento: ' + (error.error || 'Error desconocido'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al programar mantenimiento');
+    }
 }
 
 // Función para cargar reporte de ventas
@@ -1226,78 +2133,57 @@ async function eliminarUsuario(usuarioId) {
     }
 }
 
-// Función DE SECCIONES GENERALES
-async function cargarSeccion(seccion) {
-    document.getElementById('contenido-dinamico').classList.remove('hidden');
-    document.getElementById('titulo-seccion').textContent = obtenerTituloSeccion(seccion);
-    
-    let contenido = '';
-    
-    switch(seccion) {
-        case 'usuarios':
-            contenido = await cargarUsuarios();
-            break;
-        case 'nuevo-usuario':
-            contenido = await cargarFormularioNuevoUsuario();
-            break;
-        case 'roles':
-            contenido = await cargarGestionRoles();
-            break;
-        case 'maquinas':
-            contenido = await cargarMaquinas();
-            break;
-        case 'paquetes':
-            contenido = await cargarPaquetes();
-            break;
-        case 'nuevo-paquete':
-            contenido = await cargarFormularioNuevoPaquete();
-            break;
-        case 'ventas':
-            contenido = await cargarReporteVentas();
-            break;
-        case 'incidencias':
-            contenido = await cargarIncidencias();
-            break;
-            case 'distribucion-ganancias':
-             contenido = await cargarDistribucionGanancias();
-            break;
-        default:
-            contenido = `<div class="text-center py-8">
-                <i class="fas fa-tools text-4xl text-gray-400 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-600">Sección en desarrollo</h3>
-                <p class="text-gray-500">La funcionalidad para "${obtenerTituloSeccion(seccion)}" estará disponible pronto.</p>
-            </div>`;
-    }
-    
-    document.getElementById('contenido-seccion').innerHTML = contenido;
-}
-
 // Función auxiliar para calcular distribución
 function calcularDistribucionMaquina(maquina) {
     const distribucion = { edison: 0, andres: 0, beliza: 0, total: 0 };
     
-    if (maquina.propietarios.includes('Edison')) {
-        const match = maquina.propietarios.match(/Edison \((\d+)%\)/);
-        if (match) distribucion.edison = parseInt(match[1]);
-    }
-    
-    if (maquina.propietarios.includes('Andrés')) {
-        const match = maquina.propietarios.match(/Andrés \((\d+)%\)/);
-        if (match) distribucion.andres = parseInt(match[1]);
-    }
-    
-    if (maquina.propietarios.includes('Beliza')) {
-        const match = maquina.propietarios.match(/Beliza \((\d+)%\)/);
-        if (match) distribucion.beliza = parseInt(match[1]);
+    // Parsear los propietarios del string
+    if (maquina.propietarios && maquina.propietarios !== 'No asignado') {
+        const propietariosArray = maquina.propietarios.split(', ');
+        
+        propietariosArray.forEach(prop => {
+            if (prop.includes('Edison')) {
+                const match = prop.match(/Edison\s*\((\d+)%\)/);
+                if (match) distribucion.edison = parseInt(match[1]);
+            }
+            if (prop.includes('Andrés')) {
+                const match = prop.match(/Andrés\s*\((\d+)%\)/);
+                if (match) distribucion.andres = parseInt(match[1]);
+            }
+            if (prop.includes('Beliza')) {
+                const match = prop.match(/Beliza\s*\((\d+)%\)/);
+                if (match) distribucion.beliza = parseInt(match[1]);
+            }
+        });
     }
     
     distribucion.total = distribucion.edison + distribucion.andres + distribucion.beliza;
     return distribucion;
 }
-
+// Función para cargar distribución de ganancias
 async function cargarDistribucionGanancias() {
     const response = await fetch('/api/maquinas-con-propiedades');
     const maquinas = await response.json();
+    
+    // Calcular totales por propietario
+    let totalEdison = 0, totalAndres = 0, totalBeliza = 0;
+    let maquinasCount = 0;
+    
+    maquinas.forEach(maquina => {
+        const distribucion = calcularDistribucionMaquina(maquina);
+        const porcentajeRestaurante = maquina.nombre.includes('Peluches') ? 30 : 35;
+        const porcentajePropietarios = 100 - porcentajeRestaurante;
+        
+        totalEdison += (distribucion.edison * porcentajePropietarios) / 100;
+        totalAndres += (distribucion.andres * porcentajePropietarios) / 100;
+        totalBeliza += (distribucion.beliza * porcentajePropietarios) / 100;
+        maquinasCount++;
+    });
+    
+    // Calcular promedios
+    const promedioEdison = maquinasCount > 0 ? (totalEdison / maquinasCount).toFixed(1) : 0;
+    const promedioAndres = maquinasCount > 0 ? (totalAndres / maquinasCount).toFixed(1) : 0;
+    const promedioBeliza = maquinasCount > 0 ? (totalBeliza / maquinasCount).toFixed(1) : 0;
     
     let html = `
         <div class="mb-6">
@@ -1305,57 +2191,71 @@ async function cargarDistribucionGanancias() {
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
                     <h4 class="font-semibold text-orange-800">Restaurante</h4>
-                    <p class="text-2xl font-bold text-orange-600">35%</p>
-                    <p class="text-xs text-orange-600 mt-1">En todas las máquinas</p>
+                    <p class="text-2xl font-bold text-orange-600">35% / 30%</p>
+                    <p class="text-xs text-orange-600 mt-1">35% general, 30% peluches</p>
                 </div>
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h4 class="font-semibold text-blue-800">Edison</h4>
-                    <p class="text-2xl font-bold text-blue-600">42.5%</p>
-                    <p class="text-xs text-blue-600 mt-1">Promedio de ganancia</p>
+                    <p class="text-2xl font-bold text-blue-600">${promedioEdison}%</p>
+                    <p class="text-xs text-blue-600 mt-1">Promedio de ganancia final</p>
                 </div>
                 <div class="bg-green-50 p-4 rounded-lg border border-green-200">
                     <h4 class="font-semibold text-green-800">Andrés</h4>
-                    <p class="text-2xl font-bold text-green-600">40.8%</p>
-                    <p class="text-xs text-green-600 mt-1">Promedio de ganancia</p>
+                    <p class="text-2xl font-bold text-green-600">${promedioAndres}%</p>
+                    <p class="text-xs text-green-600 mt-1">Promedio de ganancia final</p>
                 </div>
                 <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
                     <h4 class="font-semibold text-purple-800">Beliza</h4>
-                    <p class="text-2xl font-bold text-purple-600">32.5%</p>
-                    <p class="text-xs text-purple-600 mt-1">Promedio de ganancia</p>
+                    <p class="text-2xl font-bold text-purple-600">${promedioBeliza}%</p>
+                    <p class="text-xs text-purple-600 mt-1">Promedio de ganancia final</p>
                 </div>
             </div>
         </div>
         
         <div class="bg-white rounded-lg border p-4">
-            <h4 class="font-semibold mb-4">Resumen por Propietario</h4>
+            <h4 class="font-semibold mb-4">Detalle por Máquina</h4>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="p-3 text-left">Máquina</th>
-                            <th class="p-3 text-left">Restaurante</th>
-                            <th class="p-3 text-left">Edison</th>
-                            <th class="p-3 text-left">Andrés</th>
-                            <th class="p-3 text-left">Beliza</th>
-                            <th class="p-3 text-left">Total</th>
+                            <th class="p-3 text-left">% Rest.</th>
+                            <th class="p-3 text-left">Propietarios</th>
+                            <th class="p-3 text-left">% Edison</th>
+                            <th class="p-3 text-left">% Andrés</th>
+                            <th class="p-3 text-left">% Beliza</th>
+                            <th class="p-3 text-left">Ganancia Final</th>
                         </tr>
                     </thead>
                     <tbody>
     `;
     
     maquinas.forEach(maquina => {
-        // Calcular distribución para esta máquina
         const distribucion = calcularDistribucionMaquina(maquina);
+        const porcentajeRestaurante = maquina.nombre.includes('Peluches') ? 30 : 35;
+        const porcentajePropietarios = 100 - porcentajeRestaurante;
+        
+        // Calcular ganancia final para cada propietario
+        const gananciaEdison = ((distribucion.edison * porcentajePropietarios) / 100).toFixed(1);
+        const gananciaAndres = ((distribucion.andres * porcentajePropietarios) / 100).toFixed(1);
+        const gananciaBeliza = ((distribucion.beliza * porcentajePropietarios) / 100).toFixed(1);
         
         html += `
             <tr class="border-b hover:bg-gray-50">
                 <td class="p-3 font-medium">${maquina.nombre}</td>
-                <td class="p-3 text-orange-600 font-semibold">35%</td>
-                <td class="p-3">${distribucion.edison}%</td>
-                <td class="p-3">${distribucion.andres}%</td>
-                <td class="p-3">${distribucion.beliza}%</td>
-                <td class="p-3 font-bold ${distribucion.total === 100 ? 'text-green-600' : 'text-red-600'}">
-                    ${distribucion.total}%
+                <td class="p-3 ${porcentajeRestaurante === 30 ? 'text-red-600' : 'text-orange-600'} font-semibold">
+                    ${porcentajeRestaurante}%
+                </td>
+                <td class="p-3 text-xs">
+                    <div class="max-w-xs" title="${maquina.propietarios}">
+                        ${maquina.propietarios}
+                    </div>
+                </td>
+                <td class="p-3">${distribucion.edison > 0 ? gananciaEdison + '%' : '-'}</td>
+                <td class="p-3">${distribucion.andres > 0 ? gananciaAndres + '%' : '-'}</td>
+                <td class="p-3">${distribucion.beliza > 0 ? gananciaBeliza + '%' : '-'}</td>
+                <td class="p-3 font-bold text-green-600">
+                    ${parseFloat(gananciaEdison) + parseFloat(gananciaAndres) + parseFloat(gananciaBeliza)}%
                 </td>
             </tr>
         `;
@@ -1367,13 +2267,27 @@ async function cargarDistribucionGanancias() {
             </div>
             
             <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h5 class="font-semibold mb-2">Notas:</h5>
+                <h5 class="font-semibold mb-2">Resumen de Distribución:</h5>
                 <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• El restaurante recibe 35% de todas las máquinas</li>
-                    <li>• Las máquinas de peluches: restaurante 30%, propietarios 70%</li>
-                    <li>• Los porcentajes mostrados son de ganancia final después del restaurante</li>
-                    <li>• La suma debe ser 100% para cada máquina</li>
+                    <li>• <strong>Restaurante:</strong> 35% en todas las máquinas, excepto peluches (30%)</li>
+                    <li>• <strong>Propietarios:</strong> Reciben el porcentaje restante (65% o 70%) según su propiedad</li>
+                    <li>• <strong>Ganancia Final:</strong> Porcentaje que recibe cada propietario después del restaurante</li>
                 </ul>
+                
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-blue-50 p-3 rounded">
+                        <h6 class="font-semibold text-blue-800">Máquinas 50/50 Edison-Beliza:</h6>
+                        <p>Sillas masajes, Basketball</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded">
+                        <h6 class="font-semibold text-green-800">Máquinas 50/50 Edison-Andrés:</h6>
+                        <p>Pelea, Disco hockey, Peluches 1 y 2</p>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded">
+                        <h6 class="font-semibold text-purple-800">Máquinas 100%:</h6>
+                        <p>Simuladores (Andrés), McQueen/Caballito/Trencito (Edison)</p>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -1456,7 +2370,9 @@ function obtenerTituloSeccion(seccion) {
         'configuracion': 'Configuración del Sistema',
         'backup': 'Backup y Restauración',
         'api': 'API y Integraciones',
-        'incidencias': 'Incidencias del Sistema'
+        'incidencias': 'Incidencias del Sistema',
+        'gestionar-propietarios': 'Gestión de Propietarios',
+        'nuevo-propietario': 'Crear Nuevo Propietario'
     };
     return titulos[seccion] || seccion;
 }
@@ -1480,6 +2396,63 @@ function cerrarSesion() {
         window.location.href = "/logout";
         }, 1000);
     }
+}
+// Función DE SECCIONES GENERALES
+async function cargarSeccion(seccion) {
+    document.getElementById('contenido-dinamico').classList.remove('hidden');
+    document.getElementById('titulo-seccion').textContent = obtenerTituloSeccion(seccion);
+    
+    let contenido = '';
+    
+    switch(seccion) {
+        case 'usuarios':
+            contenido = await cargarUsuarios();
+            break;
+        case 'nuevo-usuario':
+            contenido = await cargarFormularioNuevoUsuario();
+            break;
+        case 'roles':
+            contenido = await cargarGestionRoles();
+            break;
+        case 'maquinas':
+            contenido = await cargarMaquinas();
+            break;
+        case 'paquetes':
+            contenido = await cargarPaquetes();
+            break;
+        case 'nuevo-paquete':
+            contenido = await cargarFormularioNuevoPaquete();
+            break;
+        case 'ventas':
+            contenido = await cargarReporteVentas();
+            break;
+        case 'incidencias':
+            contenido = await cargarIncidencias();
+            break;
+        case 'distribucion-ganancias':
+            contenido = await cargarDistribucionGanancias();
+            break;
+        case 'nueva-maquina':
+            await cargarFormularioNuevaMaquina();
+            return;
+            case 'gestionar-propietarios':
+             contenido = await cargarGestionPropietarios();
+            break;
+        case 'nuevo-propietario':
+            contenido = await cargarFormularioNuevoPropietario();
+            break;
+        case 'mantenimiento':
+            await cargarProgramarMantenimiento();
+            return;
+        default:
+            contenido = `<div class="text-center py-8">
+                <i class="fas fa-tools text-4xl text-gray-400 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600">Sección en desarrollo</h3>
+                <p class="text-gray-500">La funcionalidad para "${obtenerTituloSeccion(seccion)}" estará disponible pronto.</p>
+            </div>`;
+    }
+    
+    document.getElementById('contenido-seccion').innerHTML = contenido;
 }
 
 console.log("✅ Panel de administración cargado correctamente");
