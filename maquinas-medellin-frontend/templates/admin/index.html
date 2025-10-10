@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Dashboard - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+        --primary-color: #3B82F6;
+        --secondary-color: #1E40AF;
+        --accent-color: #10B981;
+        --dark-color: #1F2937;
+        --light-color: #F9FAFB;
+        --bg-color: #f4f1eb;
+        --sidebar-bg: #1f2937;
+        --card-bg: rgba(255, 255, 255, 0.95);
+    }
+    
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-color);
+    }
+    
+    #particles-js {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        top: 0;
+        left: 0;
+    }
+    
+    .glass-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .metric-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-left: 4px solid var(--primary-color);
+        background: white;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .metric-card.primary { border-left-color: #3B82F6; }
+    .metric-card.success { border-left-color: #10B981; }
+    .metric-card.warning { border-left-color: #F59E0B; }
+    .metric-card.danger { border-left-color: #EF4444; }
+    
+    .nav-card {
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border: none;
+    }
+    
+    .nav-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-modern {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        transition: all 0.3s ease;
+        border: none;
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+    }
+    
+    .stat-trend.up { color: #10B981; }
+    .stat-trend.down { color: #EF4444; }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    .loading-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* Responsive para móviles */
+    @media (max-width: 768px) {
+        .container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        header .flex.items-center.justify-between {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
+        }
+        
+        .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .grid.grid-cols-1.lg\\:grid-cols-2 {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3.xl\\:grid-cols-4 {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .flex.items-center.space-x-4 {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .text-2xl {
+            font-size: 1.5rem;
+        }
+        
+        .text-xl {
+            font-size: 1.25rem;
+        }
+        
+        .p-6 {
+            padding: 1rem;
+        }
+        
+        .metric-card {
+            padding: 1rem;
+        }
+        
+        .nav-card {
+            padding: 1rem;
+        }
+        
+        .h-64 {
+            height: 200px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .px-6 {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        .py-8 {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        
+        .text-3xl {
+            font-size: 1.25rem;
+        }
+        
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+
+    /* Mejoras de botones para móvil */
+    .btn-touch {
+        min-height: 44px;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    /* Scroll suave */
+    .overflow-y-auto {
+        scroll-behavior: smooth;
+    }
+
+    /* Mejoras de tarjetas para móvil */
+    @media (max-width: 768px) {
+        .glass-card {
+            margin-bottom: 1rem;
+        }
+        
+        .space-y-3 > * {
+            margin-bottom: 0.75rem;
+        }
+    }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Fondo partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Header -->
+    <header class="glass-card shadow-lg sticky top-0 z-40 bg-white">
+    <div class="container mx-auto px-4 lg:px-6 py-4">
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <!-- Logo y título -->
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-3">
+                    <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" 
+                         alt="Logo" class="h-10 w-10 rounded-lg shadow-md">
+                    <div class="text-center lg:text-left">
+                        <h1 class="text-xl font-bold text-gray-800">Panel de Administración</h1>
+                        <p class="text-sm text-gray-600 hidden lg:block">Sistema de Gestión de Máquinas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información de usuario y acciones -->
+            <div class="flex items-center space-x-4 flex-wrap justify-center gap-2">
+                <!-- Botón Ir a Local -->
+                <a href="/local" class="btn-modern text-white px-4 py-3 rounded-lg flex items-center space-x-2 shadow-lg btn-touch">
+                    <i class="fas fa-store text-sm"></i>
+                    <span class="font-medium">Ir al Local</span>
+                </a>
+                
+                <!-- Información del usuario -->
+                <div class="flex items-center space-x-3 bg-white rounded-lg px-4 py-2 shadow-sm border">
+                    <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm font-bold">{{ nombre_usuario[0] if nombre_usuario else 'A' }}</span>
+                    </div>
+                    <div class="hidden md:block">
+                        <p class="text-sm font-medium text-gray-800">{{ nombre_usuario }}</p>
+                        <p class="text-xs text-gray-500">Administrador</p>
+                    </div>
+                </div>
+                
+                <!-- Botón cerrar sesión -->
+                <button onclick="cerrarSesion()" 
+                        class="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg transition-colors shadow-lg btn-touch">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="ml-2 hidden sm:inline">Salir</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Sección de Bienvenida -->
+        <div class="fade-in mb-8">
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                            ¡Bienvenido, {{ nombre_usuario }}!
+                        </h2>
+                        <p class="text-gray-600">
+                            Resumen general del sistema - {{ now.strftime('%d de %B, %Y') if now else 'Hoy' }}
+                        </p>
+                    </div>
+                    <div class="hidden md:flex items-center space-x-4">
+                        <div class="text-right">
+                            <p class="text-sm text-gray-500">Última actualización</p>
+                            <p class="text-sm font-medium text-gray-700" id="last-update">Justo ahora</p>
+                        </div>
+                        <button onclick="actualizarDashboard()" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full transition-colors">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid de Métricas Principales -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
+            <!-- Total Usuarios -->
+            <div class="metric-card primary glass-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-blue-100 rounded-lg">
+                        <i class="fas fa-users text-blue-600 text-xl"></i>
+                    </div>
+                    <div class="text-right">
+                        <span class="stat-trend up text-sm font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>5.2%
+                        </span>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="total-users">--</h3>
+                <p class="text-gray-600 text-sm">Usuarios Registrados</p>
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-clock mr-1"></i>Actualizado recientemente
+                    </p>
+                </div>
+            </div>
+
+            <!-- Máquinas Activas -->
+            <div class="metric-card success glass-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-green-100 rounded-lg">
+                        <i class="fas fa-gamepad text-green-600 text-xl"></i>
+                    </div>
+                    <div class="text-right">
+                        <span class="stat-trend up text-sm font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>2.1%
+                        </span>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="total-machines">--</h3>
+                <p class="text-gray-600 text-sm">Máquinas Activas</p>
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-check-circle mr-1"></i>Operativas
+                    </p>
+                </div>
+            </div>
+
+            <!-- Paquetes Hoy -->
+            <div class="metric-card warning glass-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-orange-100 rounded-lg">
+                        <i class="fas fa-cube text-orange-600 text-xl"></i>
+                    </div>
+                    <div class="text-right">
+                        <span class="stat-trend up text-sm font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>15.7%
+                        </span>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="today-packages">--</h3>
+                <p class="text-gray-600 text-sm">Paquetes Vendidos Hoy</p>
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-chart-line mr-1"></i>Tendencia positiva
+                    </p>
+                </div>
+            </div>
+
+            <!-- Incidencias -->
+            <div class="metric-card danger glass-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-red-100 rounded-lg">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <div class="text-right">
+                        <span class="stat-trend down text-sm font-medium">
+                            <i class="fas fa-arrow-down mr-1"></i>3.4%
+                        </span>
+                    </div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="total-issues">--</h3>
+                <p class="text-gray-600 text-sm">Incidencias Activas</p>
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-500">
+                        <i class="fas fa-clock mr-1"></i>Requieren atención
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Actividad Reciente -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
+            <!-- Gráfico de Ventas -->
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">Ventas de los Últimos 7 Días</h3>
+                    <select class="text-sm border border-gray-300 rounded-lg px-3 py-1">
+                        <option>Última semana</option>
+                        <option>Último mes</option>
+                        <option>Último trimestre</option>
+                    </select>
+                </div>
+                <div class="h-64">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Distribución de Máquinas -->
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">Estado de Máquinas</h3>
+                    <span class="text-sm text-gray-500">Total: <span id="total-machines-badge">--</span></span>
+                </div>
+                <div class="h-64">
+                    <canvas id="machinesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navegación Rápida -->
+        <div class="fade-in">
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    
+                    <!-- Gestión de Usuarios -->
+                    <a href="/admin/usuarios/lista" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-users text-xl"></i>
+                            <span class="font-semibold">Usuarios</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Gestionar usuarios y permisos del sistema</p>
+                    </a>
+
+                    <!-- Inventario de Máquinas -->
+                    <a href="/admin/maquinas/inventario" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-gamepad text-xl"></i>
+                            <span class="font-semibold">Máquinas</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Ver y gestionar inventario de máquinas</p>
+                    </a>
+
+                    <!-- Gestión de Paquetes -->
+                    <a href="/admin/paquetes/lista" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-cube text-xl"></i>
+                            <span class="font-semibold">Paquetes</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Configurar paquetes de turnos</p>
+                    </a>
+
+                    <!-- Reportes -->
+                    <a href="/admin/ventas/reporteventas" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-chart-bar text-xl"></i>
+                            <span class="font-semibold">Reportes</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Ver reportes y analíticas</p>
+                    </a>
+
+                    <!-- Locales -->
+                    <a href="/admin/locales/listalocales" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-store text-xl"></i>
+                            <span class="font-semibold">Locales</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Gestionar sucursales</p>
+                    </a>
+
+                    <!-- Configuración -->
+                    <a href="/admin/configuracion" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-cog text-xl"></i>
+                            <span class="font-semibold">Configuración</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Ajustes del sistema</p>
+                    </a>
+
+                    <!-- Distribución Ganancias -->
+                    <a href="/admin/maquinas/distribucionganancias" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-chart-pie text-xl"></i>
+                            <span class="font-semibold">Ganancias</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Distribución de ganancias</p>
+                    </a>
+
+                    <!-- Mantenimiento -->
+                    <a href="/admin/maquinas/mantenimiento" class="nav-card rounded-xl p-5 text-white transition-all">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <i class="fas fa-tools text-xl"></i>
+                            <span class="font-semibold">Mantenimiento</span>
+                        </div>
+                        <p class="text-blue-100 text-sm">Programar mantenimiento</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actividad Reciente -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 fade-in">
+            <!-- Últimas Incidencias -->
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Incidencias Recientes</h3>
+                <div class="space-y-3" id="recent-issues">
+                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
+                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
+                </div>
+            </div>
+
+            <!-- Actividad del Sistema -->
+            <div class="glass-card rounded-2xl p-6 shadow-lg">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Actividad del Sistema</h3>
+                <div class="space-y-3" id="system-activity">
+                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
+                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-8 lg:mt-12">
+    <div class="container mx-auto px-4 lg:px-6 py-4">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-2">
+            <div class="flex items-center space-x-2 text-gray-600">
+                <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" 
+                     alt="Logo" class="h-6 w-6 rounded">
+                <span class="text-sm">Máquinas Medellín © 2025</span>
+            </div>
+            <div class="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-4 text-center sm:text-left">
+                <span class="text-xs text-gray-500" id="server-status">Conectado al servidor</span>
+                <span class="text-xs text-gray-500" id="current-time"></span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+    <script>
+        // Configuración de partículas
+        document.addEventListener('DOMContentLoaded', function() {
+            particlesJS("particles-js", {
+    particles: {
+        number: { value: 30, density: { enable: true, value_area: 600 } },
+        color: { value: "#3B82F6" },
+        opacity: { value: 0.1, random: true },
+        size: { value: 2, random: true },
+        line_linked: {
+            enable: true,
+            distance: 120,
+            color: "#3B82F6",
+            opacity: 0.1,
+            width: 1
+        },
+        move: {
+            enable: true,
+            speed: 0.5,
+            direction: 'none',
+            random: true
+        }
+    },
+    interactivity: {
+        detect_on: 'canvas',
+        events: {
+            onhover: { enable: true, mode: 'grab' },
+            onclick: { enable: true, mode: 'push' },
+            resize: true
+        },
+        modes: {
+            grab: { distance: 120, line_linked: { opacity: 0.2 } },
+            push: { particles_nb: 3 }
+        }
+    },
+    retina_detect: true
+});
+
+            // Inicializar dashboard
+            inicializarDashboard();
+            inicializarGraficos();
+            actualizarHora();
+            setInterval(actualizarHora, 60000);
+        });
+
+        // Función para inicializar el dashboard
+        async function inicializarDashboard() {
+            await cargarEstadisticas();
+            await cargarIncidenciasRecientes();
+            await cargarActividadSistema();
+        }
+
+        // Función para cargar estadísticas
+        async function cargarEstadisticas() {
+            try {
+                const response = await fetch('/api/estadisticas-admin');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById('total-users').textContent = data.usuarios || '0';
+                    document.getElementById('total-machines').textContent = data.maquinas || '0';
+                    document.getElementById('today-packages').textContent = data.paquetes || '0';
+                    document.getElementById('total-issues').textContent = data.incidencias || '0';
+                    document.getElementById('total-machines-badge').textContent = data.maquinas || '0';
+                    
+                    // Actualizar timestamp
+                    document.getElementById('last-update').textContent = 'Justo ahora';
+                }
+            } catch (error) {
+                console.error('Error cargando estadísticas:', error);
+            }
+        }
+
+        // Función para cargar incidencias recientes
+        async function cargarIncidenciasRecientes() {
+            try {
+                const response = await fetch('/api/incidencias-recientes');
+                const container = document.getElementById('recent-issues');
+                
+                if (response.ok) {
+                    const incidencias = await response.json();
+                    
+                    if (incidencias.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-4 text-gray-500">
+                                <i class="fas fa-check-circle text-green-500 text-xl mb-2"></i>
+                                <p>No hay incidencias activas</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    incidencias.slice(0, 3).forEach(incidencia => {
+                        html += `
+                            <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-exclamation-triangle text-red-500"></i>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">${incidencia.machine_name}</p>
+                                        <p class="text-xs text-gray-600">${incidencia.description}</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs text-red-600 font-medium">Pendiente</span>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error cargando incidencias:', error);
+            }
+        }
+
+        // Función para cargar actividad del sistema
+        async function cargarActividadSistema() {
+            try {
+                const response = await fetch('/api/actividad-reciente');
+                const container = document.getElementById('system-activity');
+                
+                if (response.ok) {
+                    const actividades = await response.json();
+                    
+                    let html = '';
+                    actividades.slice(0, 3).forEach(actividad => {
+                        const icon = actividad.tipo === 'venta' ? 'fa-shopping-cart' : 
+                                    actividad.tipo === 'usuario' ? 'fa-user' : 'fa-cog';
+                        const color = actividad.tipo === 'venta' ? 'text-green-500' : 
+                                     actividad.tipo === 'usuario' ? 'text-blue-500' : 'text-purple-500';
+                        
+                        html += `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas ${icon} ${color}"></i>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">${actividad.descripcion}</p>
+                                        <p class="text-xs text-gray-600">${actividad.tiempo}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error cargando actividad:', error);
+            }
+        }
+
+        // Función para inicializar gráficos
+        function inicializarGraficos() {
+            // Gráfico de ventas
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                    datasets: [{
+                        label: 'Ventas',
+                        data: [120, 150, 180, 90, 200, 170, 210],
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de estado de máquinas
+            const machinesCtx = document.getElementById('machinesChart').getContext('2d');
+            new Chart(machinesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Activas', 'Mantenimiento', 'Inactivas'],
+                    datasets: [{
+                        data: [35, 5, 7],
+                        backgroundColor: [
+                            '#10B981',
+                            '#F59E0B',
+                            '#EF4444'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Función para actualizar dashboard
+        function actualizarDashboard() {
+            const btn = event.target;
+            const originalHTML = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                inicializarDashboard();
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                
+                // Mostrar notificación de actualización
+                mostrarNotificacion('Dashboard actualizado correctamente', 'success');
+            }, 1000);
+        }
+
+        // Función para actualizar hora
+        function actualizarHora() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Función para mostrar notificaciones
+        function mostrarNotificacion(mensaje, tipo) {
+            // Implementar sistema de notificaciones
+            console.log(`[${tipo.toUpperCase()}] ${mensaje}`);
+        }
+
+        // Función para cerrar sesión
+        function cerrarSesion() {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                window.location.href = "/logout";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -208,17 +208,6 @@ def mostrar_machine_report():
                            nombre_usuario=session.get('user_name', 'Usuario'),
                            local_usuario=session.get('user_local', 'El Mekatiadero'))
 
-# Admin
-@app.route('/admin')
-def mostrar_admin():
-    if not session.get('logged_in'):
-        return redirect(url_for('mostrar_login'))
-    if session.get('user_role') != 'admin':
-        return redirect(url_for('mostrar_local'))
-    return render_template('admin.html',
-                           nombre_usuario=session.get('user_name', 'Administrador'),
-                           local_usuario=session.get('user_local', 'Sistema'))
-
 # Logout
 @app.route('/logout')
 def logout():
@@ -1095,9 +1084,27 @@ def exportar_ventas():
     
 # ==================== RUTAS PARA EL PANEL DE ADMINISTRACIÓN ====================
 
-@app.route('/api/estadisticas-admin', methods=['GET'])
-def obtener_estadisticas_admin():
-    """Obtiene estadísticas reales para el panel de administración"""
+# RUTAS DE INTERFAZ ADMINISTRADOR
+# Dashboard del administrador
+# @app.route('/admin')
+@app.route('/admin')
+def mostrar_admin():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    # Verificar que el usuario sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    return render_template('admin/index.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
+            
+
+#LLAMADAS DE APIS ADMINISTRADOR
+@app.route('/api/estadisticas-admin')
+def estadisticas_admin():
+    """Obtener estadísticas para el dashboard del admin"""
     connection = None
     cursor = None
     try:
@@ -1107,15 +1114,15 @@ def obtener_estadisticas_admin():
             
         cursor = get_db_cursor(connection)
         
-        # 1. Total de usuarios
+        # Total de usuarios
         cursor.execute("SELECT COUNT(*) as total FROM Users")
         total_usuarios = cursor.fetchone()['total']
         
-        # 2. Total de máquinas - CORREGIDO: usar status = 'activa' en lugar de isActive
-        cursor.execute("SELECT COUNT(*) as total FROM machine WHERE status = 'activa'")
+        # Total de máquinas (asumiendo que tienes una tabla Machines)
+        cursor.execute("SELECT COUNT(*) as total FROM Machines")
         total_maquinas = cursor.fetchone()['total']
         
-        # 3. Paquetes vendidos hoy
+        # Paquetes vendidos hoy
         cursor.execute("""
             SELECT COUNT(*) as total 
             FROM QRHistory 
@@ -1123,12 +1130,8 @@ def obtener_estadisticas_admin():
         """)
         paquetes_hoy = cursor.fetchone()['total']
         
-        # 4. CORREGIDO: Usar ErrorReport en lugar de MachineFailures, y isResolved en lugar de resolved
-        cursor.execute("""
-            SELECT COUNT(*) as total 
-            FROM ErrorReport 
-            WHERE isResolved = 0
-        """)
+        # Incidencias activas
+        cursor.execute("SELECT COUNT(*) as total FROM ErrorReport WHERE isResolved = FALSE")
         incidencias_activas = cursor.fetchone()['total']
         
         return jsonify({
@@ -1139,18 +1142,23 @@ def obtener_estadisticas_admin():
         })
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo estadísticas admin: {str(e)}")
+        print(f"❌ Error obteniendo estadísticas admin: {e}")
         sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'usuarios': 0,
+            'maquinas': 0,
+            'paquetes': 0,
+            'incidencias': 0
+        }), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
 
-@app.route('/api/locales', methods=['GET'])
-def obtener_locales():
-    """Obtiene lista de locales"""
+@app.route('/api/incidencias-recientes')
+def incidencias_recientes():
+    """Obtener incidencias recientes para el dashboard"""
     connection = None
     cursor = None
     try:
@@ -1159,106 +1167,33 @@ def obtener_locales():
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT * FROM Location ORDER BY name")
-        locales = cursor.fetchall()
-        return jsonify(locales)
         
-    except Exception as e:
-        app.logger.error(f"Error obteniendo locales: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/usuarios', methods=['GET'])
-def obtener_usuarios():
-    """Obtiene lista completa de usuarios"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        cursor.execute("SELECT id, name, role, local, createdAt FROM Users ORDER BY name")
-        usuarios = cursor.fetchall()
-        return jsonify(usuarios)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo usuarios: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/maquinas', methods=['GET'])
-def obtener_maquinas():
-    """Obtiene lista de máquinas"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        # CORREGIDO: usar el nombre correcto de la tabla (machine)
-        cursor.execute("SELECT * FROM machine ORDER BY name")
-        maquinas = cursor.fetchall()
-        return jsonify(maquinas)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo máquinas: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/incidencias', methods=['GET'])
-def obtener_incidencias():
-    """Obtiene incidencias recientes"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
         cursor.execute("""
-            SELECT mf.*, qr.code as qr_code, m.name as machine_name
-            FROM MachineFailures mf
-            JOIN QRCode qr ON mf.qr_code_id = qr.id
-            JOIN machine m ON mf.machine_id = m.id
-            ORDER BY mf.reported_at DESC
-            LIMIT 50
+            SELECT er.*, m.name as machine_name, u.name as user_name
+            FROM ErrorReport er
+            LEFT JOIN Machines m ON er.machineId = m.id
+            LEFT JOIN Users u ON er.userId = u.id
+            WHERE er.isResolved = FALSE
+            ORDER BY er.reportedAt DESC
+            LIMIT 5
         """)
+        
         incidencias = cursor.fetchall()
         return jsonify(incidencias)
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo incidencias: {str(e)}")
+        print(f"❌ Error obteniendo incidencias recientes: {e}")
         sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
+        return jsonify([]), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
 
-@app.route('/api/paquetes', methods=['GET', 'POST'])
-def gestionar_paquetes():
-    """Obtiene lista de paquetes o crea nuevo paquete"""
+@app.route('/api/actividad-reciente')
+def actividad_reciente():
+    """Obtener actividad reciente del sistema"""
     connection = None
     cursor = None
     try:
@@ -1268,727 +1203,48 @@ def gestionar_paquetes():
             
         cursor = get_db_cursor(connection)
         
-        if request.method == 'GET':
-            # Obtener todos los paquetes
-            cursor.execute("SELECT * FROM TurnPackage ORDER BY id")
-            paquetes = cursor.fetchall()
-            return jsonify(paquetes)
-            
-        elif request.method == 'POST':
-            # Crear nuevo paquete
-            data = request.get_json()
-            nombre = data.get('nombre')
-            turnos = data.get('turnos')
-            precio = data.get('precio')
-            activo = data.get('activo', True)
-            
-            if not all([nombre, turnos, precio]):
-                return jsonify({'error': 'Faltan datos requeridos'}), 400
-            
-            cursor.execute("""
-                INSERT INTO TurnPackage (name, turns, price, isActive)
-                VALUES (%s, %s, %s, %s)
-            """, (nombre, turnos, precio, activo))
-            connection.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Paquete creado exitosamente',
-                'id': cursor.lastrowid
-            })
-            
-    except Exception as e:
-        app.logger.error(f"Error gestionando paquetes: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/paquetes/<int:paquete_id>', methods=['PUT', 'DELETE'])
-def gestionar_paquete_individual(paquete_id):
-    """Actualizar o eliminar un paquete específico"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        if request.method == 'PUT':
-            # Actualizar paquete
-            data = request.get_json()
-            nombre = data.get('nombre')
-            turnos = data.get('turnos')
-            precio = data.get('precio')
-            activo = data.get('activo')
-            
-            cursor.execute("""
-                UPDATE TurnPackage 
-                SET name = %s, turns = %s, price = %s, isActive = %s
-                WHERE id = %s
-            """, (nombre, turnos, precio, activo, paquete_id))
-            connection.commit()
-            
-            return jsonify({'success': True, 'message': 'Paquete actualizado exitosamente'})
-            
-        elif request.method == 'DELETE':
-            # Eliminar paquete (solo lógico, cambiando isActive a False)
-            cursor.execute("UPDATE TurnPackage SET isActive = FALSE WHERE id = %s", (paquete_id,))
-            connection.commit()
-            
-            return jsonify({'success': True, 'message': 'Paquete desactivado exitosamente'})
-            
-    except Exception as e:
-        app.logger.error(f"Error gestionando paquete individual: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/usuarios/<int:usuario_id>', methods=['GET', 'PUT', 'DELETE'])
-def gestionar_usuario_individual(usuario_id):
-    """Obtener, actualizar o eliminar un usuario específico"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        if request.method == 'GET':
-            # Obtener usuario específico
-            cursor.execute("SELECT id, name, role, local, createdAt FROM Users WHERE id = %s", (usuario_id,))
-            usuario = cursor.fetchone()
-            if not usuario:
-                return jsonify({'error': 'Usuario no encontrado'}), 404
-            return jsonify(usuario)
-            
-        elif request.method == 'PUT':
-            # Actualizar usuario
-            data = request.get_json()
-            nombre = data.get('nombre')
-            role = data.get('role')
-            local = data.get('local')
-            nueva_password = data.get('nueva_password')
-            
-            if not nombre or not role:
-                return jsonify({'error': 'Nombre y rol son requeridos'}), 400
-            
-            # Construir query dinámicamente
-            update_fields = []
-            params = []
-            
-            update_fields.append("name = %s")
-            params.append(nombre)
-            
-            update_fields.append("role = %s")
-            params.append(role)
-            
-            if local:
-                update_fields.append("local = %s")
-                params.append(local)
-            
-            if nueva_password:
-                update_fields.append("password = %s")
-                params.append(nueva_password)
-            
-            params.append(usuario_id)
-            
-            query = f"UPDATE Users SET {', '.join(update_fields)} WHERE id = %s"
-            cursor.execute(query, params)
-            connection.commit()
-            
-            return jsonify({'success': True, 'message': 'Usuario actualizado exitosamente'})
-            
-        elif request.method == 'DELETE':
-            # Eliminar usuario
-            # Primero verificar que no sea el último admin
-            cursor.execute("SELECT COUNT(*) as admin_count FROM Users WHERE role = 'admin'")
-            admin_count = cursor.fetchone()['admin_count']
-            
-            cursor.execute("SELECT role FROM Users WHERE id = %s", (usuario_id,))
-            usuario = cursor.fetchone()
-            
-            if usuario and usuario['role'] == 'admin' and admin_count <= 1:
-                return jsonify({'error': 'No se puede eliminar el último administrador'}), 400
-            
-            cursor.execute("DELETE FROM Users WHERE id = %s", (usuario_id,))
-            connection.commit()
-            
-            return jsonify({'success': True, 'message': 'Usuario eliminado exitosamente'})
-            
-    except Exception as e:
-        app.logger.error(f"Error gestionando usuario individual: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/usuarios/<int:usuario_id>/rol', methods=['PUT'])
-def cambiar_rol_usuario(usuario_id):
-    """Cambiar el rol de un usuario específico"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        data = request.get_json()
-        nuevo_rol = data.get('role')
-        
-        if not nuevo_rol:
-            return jsonify({'error': 'El nuevo rol es requerido'}), 400
-        
-        # Validar que el rol sea válido
-        roles_validos = ['admin', 'cajero', 'admin_restaurante']
-        if nuevo_rol not in roles_validos:
-            return jsonify({'error': 'Rol no válido'}), 400
-        
-        # Verificar que no sea el último admin
-        if nuevo_rol != 'admin':
-            cursor.execute("SELECT COUNT(*) as admin_count FROM Users WHERE role = 'admin' AND id != %s", (usuario_id,))
-            admin_count = cursor.fetchone()['admin_count']
-            
-            cursor.execute("SELECT role FROM Users WHERE id = %s", (usuario_id,))
-            usuario_actual = cursor.fetchone()
-            
-            if usuario_actual and usuario_actual['role'] == 'admin' and admin_count == 0:
-                return jsonify({'error': 'No se puede quitar el rol de admin al último administrador'}), 400
-        
-        cursor.execute("UPDATE Users SET role = %s WHERE id = %s", (nuevo_rol, usuario_id))
-        connection.commit()
-        
-        return jsonify({'success': True, 'message': 'Rol actualizado exitosamente'})
-        
-    except Exception as e:
-        app.logger.error(f"Error cambiando rol de usuario: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/usuarios', methods=['POST'])
-def crear_usuario():
-    """Crear un nuevo usuario"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        data = request.get_json()
-        nombre = data.get('nombre')
-        password = data.get('password')
-        role = data.get('role')
-        local = data.get('local', 'El Mekatiadero')
-        notes = data.get('notes', '')
-        
-        if not all([nombre, password, role]):
-            return jsonify({'error': 'Nombre, contraseña y rol son requeridos'}), 400
-        
-        if len(password) < 6:
-            return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
-        
-        # Verificar si el usuario ya existe
-        cursor.execute("SELECT id FROM Users WHERE name = %s", (nombre,))
-        if cursor.fetchone():
-            return jsonify({'error': 'Ya existe un usuario con ese nombre'}), 400
-        
-        # Obtener el ID del usuario que crea (desde la sesión)
-        creado_por = session.get('user_id', 1)  
-        
+        # Combinar actividad de diferentes fuentes
         cursor.execute("""
-            INSERT INTO Users (name, password, role, local, createdBy, notes)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (nombre, password, role, local, creado_por, notes))
-        connection.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Usuario creado exitosamente',
-            'id': cursor.lastrowid
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error creando usuario: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/maquinas-con-propiedades')
-def obtener_maquinas_con_propiedades():
-    """Obtiene máquinas con información de propiedad CORREGIDA"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            (SELECT 
+                'venta' as tipo,
+                CONCAT('Venta de paquete - ', u.name) as descripcion,
+                DATE_FORMAT(qh.fecha_hora, '%%H:%%i') as tiempo,
+                qh.fecha_hora
+            FROM QRHistory qh
+            JOIN Users u ON qh.user_id = u.id
+            ORDER BY qh.fecha_hora DESC
+            LIMIT 3)
             
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                m.id,
-                m.name as nombre_maquina,
-                m.type as tipo,
-                m.status as estado,
-                GROUP_CONCAT(
-                    CONCAT(p.nombre, ' (', mp.porcentaje_propiedad, '%)')
-                    SEPARATOR ', '
-                ) as propietarios,
-                SUM(mp.porcentaje_propiedad) as porcentaje_total,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM machine m
-            LEFT JOIN MaquinaPropietario mp ON m.id = mp.maquina_id
-            LEFT JOIN Propietarios p ON mp.propietario_id = p.id
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            GROUP BY m.id, m.name, m.type, m.status, mpr.porcentaje_restaurante
-            ORDER BY m.id
+            UNION ALL
+            
+            (SELECT 
+                'incidencia' as tipo,
+                CONCAT('Incidencia reportada - ', m.name) as descripcion,
+                DATE_FORMAT(er.reportedAt, '%%H:%%i') as tiempo,
+                er.reportedAt as fecha_hora
+            FROM ErrorReport er
+            LEFT JOIN Machines m ON er.machineId = m.id
+            ORDER BY er.reportedAt DESC
+            LIMIT 2)
+            
+            ORDER BY fecha_hora DESC
+            LIMIT 5
         """)
         
-        maquinas = cursor.fetchall()
-        
-        # Procesar los datos para mejor formato
-        maquinas_procesadas = []
-        for maquina in maquinas:
-            maquina_data = {
-                'id': maquina['id'],
-                'nombre': maquina['nombre_maquina'],
-                'tipo': maquina['tipo'],
-                'estado': maquina['estado'],
-                'propietarios': maquina['propietarios'] or 'No asignado',
-                'porcentaje_total': maquina['porcentaje_total'] or 0,
-                'porcentaje_restaurante': float(maquina['porcentaje_restaurante'])
-            }
-            maquinas_procesadas.append(maquina_data)
-        
-        return jsonify(maquinas_procesadas)
+        actividades = cursor.fetchall()
+        return jsonify(actividades)
         
     except Exception as e:
-        print(f"❌ Error obteniendo máquinas con propiedades: {e}")
+        print(f"❌ Error obteniendo actividad reciente: {e}")
         sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
+        return jsonify([]), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
 
-@app.route('/api/maquina-detalle/<int:maquina_id>')
-def obtener_detalle_maquina(maquina_id):
-    """Obtiene detalle completo de una máquina con sus propietarios"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Información básica de la máquina
-        cursor.execute("SELECT * FROM machine WHERE id = %s", (maquina_id,))
-        maquina = cursor.fetchone()
-        
-        if not maquina:
-            return jsonify({'error': 'Máquina no encontrada'}), 404
-        
-        # Obtener porcentaje restaurante específico de la máquina
-        cursor.execute("""
-            SELECT COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM machine m
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE m.id = %s
-        """, (maquina_id,))
-        
-        porcentaje_data = cursor.fetchone()
-        porcentaje_restaurante = float(porcentaje_data['porcentaje_restaurante']) if porcentaje_data else 35.00
-        
-        # Propietarios de la máquina
-        cursor.execute("""
-            SELECT 
-                p.id,
-                p.nombre,
-                mp.porcentaje_propiedad
-            FROM MaquinaPropietario mp
-            JOIN Propietarios p ON mp.propietario_id = p.id
-            WHERE mp.maquina_id = %s
-            ORDER BY mp.porcentaje_propiedad DESC
-        """, (maquina_id,))
-        
-        propietarios = cursor.fetchall()
-        
-        # Calcular ganancias estimadas
-        cursor.execute("""
-            SELECT COUNT(*) as usos_totales
-            FROM TurnUsage 
-            WHERE machineId = %s 
-            AND usedAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        """, (maquina_id,))
-        
-        usos_recientes = cursor.fetchone()
-        
-        return jsonify({
-            'maquina': {
-                **maquina,
-                'porcentaje_restaurante': porcentaje_restaurante
-            },
-            'propietarios': propietarios,
-            'estadisticas': {
-                'usos_30_dias': usos_recientes['usos_totales'] if usos_recientes else 0,
-                'total_propietarios': len(propietarios),
-                'porcentaje_total': sum(p['porcentaje_propiedad'] for p in propietarios)
-            }
-        })
-        
-    except Exception as e:
-        print(f"❌ Error obteniendo detalle de máquina: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
 
-@app.route('/api/propietarios')
-def obtener_propietarios():
-    """Obtiene lista de propietarios"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        cursor.execute("SELECT * FROM Propietarios ORDER BY nombre")
-        propietarios = cursor.fetchall()
-        return jsonify(propietarios)
-        
-    except Exception as e:
-        print(f"❌ Error obteniendo propietarios: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/distribucion-ganancias-detalle')
-def obtener_distribucion_ganancias_detalle():
-    """Obtiene distribución detallada de ganancias por máquina"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                m.id,
-                m.name as nombre_maquina,
-                m.type as tipo,
-                GROUP_CONCAT(
-                    CONCAT(p.nombre, ' (', mp.porcentaje_propiedad, '%)')
-                    SEPARATOR ', '
-                ) as propietarios,
-                SUM(mp.porcentaje_propiedad) as porcentaje_total,
-                CASE 
-                    WHEN m.name LIKE '%Peluches%' THEN 30.00
-                    ELSE 35.00
-                END as porcentaje_restaurante
-            FROM machine m
-            LEFT JOIN MaquinaPropietario mp ON m.id = mp.maquina_id
-            LEFT JOIN Propietarios p ON mp.propietario_id = p.id
-            GROUP BY m.id, m.name, m.type
-            ORDER BY m.id
-        """)
-        
-        maquinas = cursor.fetchall()
-        
-        # Calcular ganancias finales
-        for maquina in maquinas:
-            porcentaje_propietarios = 100 - maquina['porcentaje_restaurante']
-            maquina['porcentaje_propietarios'] = porcentaje_propietarios
-            maquina['ganancia_total_propietarios'] = (maquina['porcentaje_total'] * porcentaje_propietarios) / 100
-        
-        return jsonify(maquinas)
-        
-    except Exception as e:
-        print(f"❌ Error obteniendo distribución detallada: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()  
-
-            # Endpoint para crear nueva máquina
-@app.route('/api/maquinas', methods=['POST'])
-def crear_maquina():
-    """Crear nueva máquina con sus propietarios"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        nombre = data.get('nombre')
-        tipo = data.get('tipo')
-        local_id = data.get('local_id', 1)  # Por defecto El Mekatiadero
-        porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
-        propietarios = data.get('propietarios', [])
-        
-        if not nombre or not tipo:
-            return jsonify({'error': 'Nombre y tipo son requeridos'}), 400
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Insertar máquina
-        cursor.execute("""
-            INSERT INTO machine (name, type, location_id, status)
-            VALUES (%s, %s, %s, 'activa')
-        """, (nombre, tipo, local_id))
-        
-        maquina_id = cursor.lastrowid
-        
-        # Insertar porcentaje restaurante si es diferente al default
-        if porcentaje_restaurante != 35.00:
-            cursor.execute("""
-                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
-                VALUES (%s, %s)
-            """, (maquina_id, porcentaje_restaurante))
-        
-        # Insertar propietarios
-        for prop in propietarios:
-            cursor.execute("""
-                INSERT INTO MaquinaPropietario (maquina_id, propietario_id, porcentaje_propiedad)
-                VALUES (%s, %s, %s)
-            """, (maquina_id, prop['propietario_id'], prop['porcentaje_propiedad']))
-        
-        connection.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Máquina creada exitosamente',
-            'maquina_id': maquina_id
-        })
-        
-    except Exception as e:
-        print(f"❌ Error creando máquina: {e}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# Endpoint para actualizar máquina
-@app.route('/api/maquinas/<int:maquina_id>', methods=['PUT'])
-def actualizar_maquina(maquina_id):
-    """Actualizar máquina y sus propietarios"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        nombre = data.get('nombre')
-        tipo = data.get('tipo')
-        estado = data.get('estado')
-        porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
-        propietarios = data.get('propietarios', [])
-        
-        if not all([nombre, tipo, estado]):
-            return jsonify({'error': 'Nombre, tipo y estado son requeridos'}), 400
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Actualizar máquina
-        cursor.execute("""
-            UPDATE machine 
-            SET name = %s, type = %s, status = %s
-            WHERE id = %s
-        """, (nombre, tipo, estado, maquina_id))
-        
-        # Actualizar porcentaje restaurante
-        cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
-        if porcentaje_restaurante != 35.00:
-            cursor.execute("""
-                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
-                VALUES (%s, %s)
-            """, (maquina_id, porcentaje_restaurante))
-        
-        # Actualizar propietarios
-        cursor.execute("DELETE FROM MaquinaPropietario WHERE maquina_id = %s", (maquina_id,))
-        for prop in propietarios:
-            cursor.execute("""
-                INSERT INTO MaquinaPropietario (maquina_id, propietario_id, porcentaje_propiedad)
-                VALUES (%s, %s, %s)
-            """, (maquina_id, prop['propietario_id'], prop['porcentaje_propiedad']))
-        
-        connection.commit()
-        
-        return jsonify({'success': True, 'message': 'Máquina actualizada exitosamente'})
-        
-    except Exception as e:
-        print(f"❌ Error actualizando máquina: {e}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# Endpoint para programar mantenimiento
-@app.route('/api/mantenimiento', methods=['POST'])
-def programar_mantenimiento():
-    """Programar mantenimiento para una máquina"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        maquina_id = data.get('maquina_id')
-        tipo_mantenimiento = data.get('tipo_mantenimiento')
-        fecha_inicio = data.get('fecha_inicio')
-        fecha_fin_estimada = data.get('fecha_fin_estimada')
-        prioridad = data.get('prioridad')
-        descripcion = data.get('descripcion')
-        notas_tecnicas = data.get('notas_tecnicas', '')
-        requiere_repuestos = data.get('requiere_repuestos', False)
-        
-        if not all([maquina_id, tipo_mantenimiento, fecha_inicio, fecha_fin_estimada, prioridad, descripcion]):
-            return jsonify({'error': 'Todos los campos son requeridos'}), 400
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Crear tabla de mantenimiento si no existe
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS MantenimientoProgramado (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                maquina_id INT NOT NULL,
-                tipo_mantenimiento VARCHAR(50) NOT NULL,
-                fecha_inicio DATETIME NOT NULL,
-                fecha_fin_estimada DATETIME NOT NULL,
-                prioridad ENUM('baja', 'media', 'alta', 'urgente') NOT NULL,
-                descripcion TEXT NOT NULL,
-                notas_tecnicas TEXT,
-                requiere_repuestos BOOLEAN DEFAULT FALSE,
-                estado ENUM('programado', 'en_proceso', 'completado', 'cancelado') DEFAULT 'programado',
-                creado_por INT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (maquina_id) REFERENCES machine(id)
-            )
-        """)
-        
-        # Insertar mantenimiento
-        cursor.execute("""
-            INSERT INTO MantenimientoProgramado 
-            (maquina_id, tipo_mantenimiento, fecha_inicio, fecha_fin_estimada, prioridad, 
-             descripcion, notas_tecnicas, requiere_repuestos, creado_por)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (maquina_id, tipo_mantenimiento, fecha_inicio, fecha_fin_estimada, 
-              prioridad, descripcion, notas_tecnicas, requiere_repuestos, session.get('user_id')))
-        
-        # Actualizar estado de la máquina a mantenimiento
-        cursor.execute("UPDATE machine SET status = 'mantenimiento' WHERE id = %s", (maquina_id,))
-        
-        connection.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Mantenimiento programado exitosamente'
-        })
-        
-    except Exception as e:
-        print(f"❌ Error programando mantenimiento: {e}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/propietarios/<int:propietario_id>/maquinas')
-def contar_maquinas_propietario(propietario_id):
-    """Contar máquinas asignadas a un propietario"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        cursor.execute("""
-            SELECT COUNT(*) as count 
-            FROM MaquinaPropietario 
-            WHERE propietario_id = %s
-        """, (propietario_id,))
-        
-        resultado = cursor.fetchone()
-        return jsonify({'count': resultado['count']})
-        
-    except Exception as e:
-        print(f"❌ Error contando máquinas del propietario: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-            
 # Iniciar servidor
 if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")

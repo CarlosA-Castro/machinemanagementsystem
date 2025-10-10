@@ -163,11 +163,11 @@
               <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
         <i class="fas fa-chart-line mr-2"></i>Ventas
     </a>
-          {% if session.get('user_role') == 'admin' %}
-          <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
-            <i class="fas fa-user-cog mr-2"></i>Admin
-          </a>
-          {% endif %}
+       {% if session.get('user_role') == 'admin' %}
+<a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+    <i class="fas fa-user-cog mr-2"></i>Admin
+</a>
+{% endif %}
         </nav>
         <div class="mt-4 px-4 text-sm text-center lg:text-left hidden lg:block">
           <a href="https://wa.me/573218001092" target="_blank" class="text-blue-400 hover:underline">
