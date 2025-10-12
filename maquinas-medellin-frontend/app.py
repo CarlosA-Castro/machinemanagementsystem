@@ -1102,9 +1102,225 @@ def mostrar_admin():
             
 
 #LLAMADAS DE APIS ADMINISTRADOR
-@app.route('/api/estadisticas-admin')
-def estadisticas_admin():
-    """Obtener estadísticas para el dashboard del admin"""
+@app.route('/api/dashboard/estadisticas')
+def dashboard_estadisticas():
+    """Estadísticas principales para el dashboard"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', datetime.now().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Ingresos totales del período
+        cursor.execute("""
+            SELECT COALESCE(SUM(tp.price), 0) as ingresos_totales
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        ingresos_totales = cursor.fetchone()['ingresos_totales']
+        
+        # Paquetes vendidos
+        cursor.execute("""
+            SELECT COUNT(*) as paquetes_vendidos
+            FROM QRHistory 
+            WHERE DATE(fecha_hora) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        paquetes_vendidos = cursor.fetchone()['paquetes_vendidos']
+        
+        # Estado de máquinas
+        cursor.execute("SELECT COUNT(*) as maquinas_totales FROM Machine")
+        maquinas_totales = cursor.fetchone()['maquinas_totales']
+        
+        cursor.execute("SELECT COUNT(*) as maquinas_activas FROM Machine WHERE status = 'activa'")
+        maquinas_activas = cursor.fetchone()['maquinas_activas']
+        
+        # Ticket promedio
+        ticket_promedio = ingresos_totales / paquetes_vendidos if paquetes_vendidos > 0 else 0
+        
+        # Calcular tendencias vs período anterior
+        fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        dias_rango = (fecha_fin_dt - fecha_inicio_dt).days
+        
+        tendencia_ingresos = 0
+        tendencia_paquetes = 0
+        
+        # Calcular período anterior para comparación
+        if dias_rango > 0:
+            fecha_inicio_anterior = (fecha_inicio_dt - timedelta(days=dias_rango + 1)).strftime('%Y-%m-%d')
+            fecha_fin_anterior = (fecha_inicio_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            # Ingresos período anterior
+            cursor.execute("""
+                SELECT COALESCE(SUM(tp.price), 0) as ingresos_anterior
+                FROM QRHistory qh
+                JOIN QRCode qr ON qr.code = qh.qr_code
+                LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            """, (fecha_inicio_anterior, fecha_fin_anterior))
+            ingresos_anterior = cursor.fetchone()['ingresos_anterior']
+            
+            # Paquetes período anterior
+            cursor.execute("""
+                SELECT COUNT(*) as paquetes_anterior
+                FROM QRHistory 
+                WHERE DATE(fecha_hora) BETWEEN %s AND %s
+            """, (fecha_inicio_anterior, fecha_fin_anterior))
+            paquetes_anterior = cursor.fetchone()['paquetes_anterior']
+            
+            # Calcular tendencias
+            if ingresos_anterior > 0:
+                tendencia_ingresos = round(((ingresos_totales - ingresos_anterior) / ingresos_anterior) * 100, 1)
+            if paquetes_anterior > 0:
+                tendencia_paquetes = round(((paquetes_vendidos - paquetes_anterior) / paquetes_anterior) * 100, 1)
+        
+        return jsonify({
+            'ingresos_totales': ingresos_totales,
+            'paquetes_vendidos': paquetes_vendidos,
+            'maquinas_totales': maquinas_totales,
+            'maquinas_activas': maquinas_activas,
+            'ticket_promedio': round(ticket_promedio, 2),
+            'tendencias': {
+                'ingresos': tendencia_ingresos,
+                'paquetes': tendencia_paquetes
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo estadísticas dashboard: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/graficas')
+def dashboard_graficas():
+    """Datos para todas las gráficas del dashboard"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', datetime.now().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. EVOLUCIÓN DE VENTAS (por día)
+        cursor.execute("""
+            SELECT 
+                DATE(fecha_hora) as fecha,
+                COUNT(*) as cantidad_ventas,
+                COALESCE(SUM(tp.price), 0) as ingresos
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY DATE(fecha_hora)
+            ORDER BY fecha
+        """, (fecha_inicio, fecha_fin))
+        
+        evolucion_data = cursor.fetchall()
+        evolucion_ventas = {
+            'labels': [item['fecha'].strftime('%d/%m') for item in evolucion_data],
+            'data': [item['cantidad_ventas'] for item in evolucion_data]
+        }
+        
+        # 2. VENTAS POR PAQUETE
+        cursor.execute("""
+            SELECT 
+                COALESCE(tp.name, 'Sin paquete') as paquete,
+                COUNT(*) as cantidad,
+                COALESCE(SUM(tp.price), 0) as total
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY tp.name
+            ORDER BY cantidad DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        paquetes_data = cursor.fetchall()
+        ventas_paquetes = {
+            'labels': [item['paquete'] for item in paquetes_data],
+            'data': [item['cantidad'] for item in paquetes_data]
+        }
+        
+        # 3. RENDIMIENTO POR MÁQUINA (top 10)
+        cursor.execute("""
+            SELECT 
+                m.name as maquina,
+                COUNT(tu.id) as usos,
+                COALESCE(SUM(tp.price), 0) as ingresos
+            FROM Machine m
+            LEFT JOIN TurnUsage tu ON tu.machineId = m.id
+            LEFT JOIN QRCode qr ON qr.id = tu.qrCodeId
+            LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            WHERE DATE(tu.usedAt) BETWEEN %s AND %s OR tu.id IS NULL
+            GROUP BY m.id, m.name
+            ORDER BY usos DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin))
+        
+        maquinas_data = cursor.fetchall()
+        rendimiento_maquinas = {
+            'labels': [item['maquina'] for item in maquinas_data],
+            'data': [item['usos'] for item in maquinas_data]
+        }
+        
+        # 4. ESTADO DE MÁQUINAS
+        cursor.execute("""
+            SELECT 
+                status,
+                COUNT(*) as cantidad
+            FROM Machine
+            GROUP BY status
+        """)
+        
+        estado_data = cursor.fetchall()
+        estado_maquinas = [0, 0, 0]  # [activas, mantenimiento, inactivas]
+        
+        for item in estado_data:
+            if item['status'] == 'activa':
+                estado_maquinas[0] = item['cantidad']
+            elif item['status'] == 'mantenimiento':
+                estado_maquinas[1] = item['cantidad']
+            else:
+                estado_maquinas[2] = item['cantidad']
+        
+        return jsonify({
+            'evolucion_ventas': evolucion_ventas,
+            'ventas_paquetes': ventas_paquetes,
+            'rendimiento_maquinas': rendimiento_maquinas,
+            'estado_maquinas': estado_maquinas
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo datos para gráficas: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/top-maquinas')
+def dashboard_top_maquinas():
+    """Top 5 máquinas más rentables"""
     connection = None
     cursor = None
     try:
@@ -1114,136 +1330,194 @@ def estadisticas_admin():
             
         cursor = get_db_cursor(connection)
         
-        # Total de usuarios
-        cursor.execute("SELECT COUNT(*) as total FROM Users")
-        total_usuarios = cursor.fetchone()['total']
-        
-        # Total de máquinas (asumiendo que tienes una tabla Machines)
-        cursor.execute("SELECT COUNT(*) as total FROM Machines")
-        total_maquinas = cursor.fetchone()['total']
-        
-        # Paquetes vendidos hoy
         cursor.execute("""
-            SELECT COUNT(*) as total 
+            SELECT 
+                m.name,
+                COUNT(tu.id) as ventas,
+                COALESCE(SUM(tp.price), 0) as ingresos
+            FROM Machine m
+            LEFT JOIN TurnUsage tu ON tu.machineId = m.id
+            LEFT JOIN QRCode qr ON qr.id = tu.qrCodeId
+            LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            WHERE tu.usedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            GROUP BY m.id, m.name
+            ORDER BY ingresos DESC
+            LIMIT 5
+        """)
+        
+        top_maquinas = cursor.fetchall()
+        return jsonify(top_maquinas)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo top máquinas: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify([]), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/ventas-recientes')
+def dashboard_ventas_recientes():
+    """Ventas más recientes"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                qh.qr_code,
+                COALESCE(tp.name, 'Sin paquete') as paquete,
+                COALESCE(tp.price, 0) as precio,
+                DATE_FORMAT(qh.fecha_hora, '%%H:%%i') as hora,
+                u.name as vendedor
+            FROM QRHistory qh
+            LEFT JOIN Users u ON qh.user_id = u.id
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            ORDER BY qh.fecha_hora DESC
+            LIMIT 10
+        """)
+        
+        ventas_recientes = cursor.fetchall()
+        return jsonify(ventas_recientes)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo ventas recientes: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify([]), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/alertas')
+def dashboard_alertas():
+    """Alertas del sistema"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Máquinas con fallos recientes
+        cursor.execute("""
+            SELECT 
+                m.name as titulo,
+                CONCAT('Reportada por: ', u.name) as descripcion,
+                'error' as tipo,
+                'Pendiente' as estado
+            FROM ErrorReport er
+            JOIN Machine m ON er.machineId = m.id
+            JOIN Users u ON er.userId = u.id
+            WHERE er.isResolved = FALSE
+            ORDER BY er.reportedAt DESC
+            LIMIT 5
+        """)
+        
+        alertas = cursor.fetchall()
+        
+        # Si no hay alertas, agregar una de ejemplo
+        if not alertas:
+            alertas = [{
+                'titulo': 'Sistema funcionando correctamente',
+                'descripcion': 'No hay alertas activas en este momento',
+                'tipo': 'info',
+                'estado': 'Resuelto'
+            }]
+        
+        return jsonify(alertas)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo alertas: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify([]), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/metricas')
+def dashboard_metricas():
+    """Métricas de rendimiento del sistema"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Ocupación (porcentaje de máquinas usadas hoy)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT machineId) as maquinas_usadas
+            FROM TurnUsage 
+            WHERE DATE(usedAt) = CURDATE()
+        """)
+        maquinas_usadas = cursor.fetchone()['maquinas_usadas']
+        
+        cursor.execute("SELECT COUNT(*) as total_maquinas FROM Machine WHERE status = 'activa'")
+        total_maquinas = cursor.fetchone()['total_maquinas']
+        
+        ocupacion = round((maquinas_usadas / total_maquinas * 100) if total_maquinas > 0 else 0, 1)
+        
+        # Eficiencia (ventas por hora)
+        cursor.execute("""
+            SELECT COUNT(*) as ventas_hoy
             FROM QRHistory 
             WHERE DATE(fecha_hora) = CURDATE()
         """)
-        paquetes_hoy = cursor.fetchone()['total']
+        ventas_hoy = cursor.fetchone()['ventas_hoy']
         
-        # Incidencias activas
-        cursor.execute("SELECT COUNT(*) as total FROM ErrorReport WHERE isResolved = FALSE")
-        incidencias_activas = cursor.fetchone()['total']
+        hora_actual = datetime.now().hour
+        eficiencia = round((ventas_hoy / max(1, hora_actual)) * 10, 1) if hora_actual > 0 else 0
+        
+        # Conversión (estimada)
+        conversion = min(100, round(ventas_hoy * 2.5, 1))
+        
+        # Satisfacción (estimada basada en fallos)
+        cursor.execute("""
+            SELECT COUNT(*) as fallos_hoy
+            FROM ErrorReport 
+            WHERE DATE(reportedAt) = CURDATE()
+        """)
+        fallos_hoy = cursor.fetchone()['fallos_hoy']
+        
+        satisfaccion = max(0, 100 - (fallos_hoy * 5))
         
         return jsonify({
-            'usuarios': total_usuarios,
-            'maquinas': total_maquinas,
-            'paquetes': paquetes_hoy,
-            'incidencias': incidencias_activas
+            'ocupacion': ocupacion,
+            'eficiencia': eficiencia,
+            'conversion': conversion,
+            'satisfaccion': round(satisfaccion, 1)
         })
         
     except Exception as e:
-        print(f"❌ Error obteniendo estadísticas admin: {e}")
+        print(f"❌ Error obteniendo métricas: {e}")
         sentry_sdk.capture_exception(e)
         return jsonify({
-            'usuarios': 0,
-            'maquinas': 0,
-            'paquetes': 0,
-            'incidencias': 0
+            'ocupacion': 0,
+            'eficiencia': 0,
+            'conversion': 0,
+            'satisfaccion': 0
         }), 500
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
-
-@app.route('/api/incidencias-recientes')
-def incidencias_recientes():
-    """Obtener incidencias recientes para el dashboard"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT er.*, m.name as machine_name, u.name as user_name
-            FROM ErrorReport er
-            LEFT JOIN Machines m ON er.machineId = m.id
-            LEFT JOIN Users u ON er.userId = u.id
-            WHERE er.isResolved = FALSE
-            ORDER BY er.reportedAt DESC
-            LIMIT 5
-        """)
-        
-        incidencias = cursor.fetchall()
-        return jsonify(incidencias)
-        
-    except Exception as e:
-        print(f"❌ Error obteniendo incidencias recientes: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify([]), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/actividad-reciente')
-def actividad_reciente():
-    """Obtener actividad reciente del sistema"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Combinar actividad de diferentes fuentes
-        cursor.execute("""
-            (SELECT 
-                'venta' as tipo,
-                CONCAT('Venta de paquete - ', u.name) as descripcion,
-                DATE_FORMAT(qh.fecha_hora, '%%H:%%i') as tiempo,
-                qh.fecha_hora
-            FROM QRHistory qh
-            JOIN Users u ON qh.user_id = u.id
-            ORDER BY qh.fecha_hora DESC
-            LIMIT 3)
-            
-            UNION ALL
-            
-            (SELECT 
-                'incidencia' as tipo,
-                CONCAT('Incidencia reportada - ', m.name) as descripcion,
-                DATE_FORMAT(er.reportedAt, '%%H:%%i') as tiempo,
-                er.reportedAt as fecha_hora
-            FROM ErrorReport er
-            LEFT JOIN Machines m ON er.machineId = m.id
-            ORDER BY er.reportedAt DESC
-            LIMIT 2)
-            
-            ORDER BY fecha_hora DESC
-            LIMIT 5
-        """)
-        
-        actividades = cursor.fetchall()
-        return jsonify(actividades)
-        
-    except Exception as e:
-        print(f"❌ Error obteniendo actividad reciente: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify([]), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
 
 # Iniciar servidor
 if __name__ == '__main__':

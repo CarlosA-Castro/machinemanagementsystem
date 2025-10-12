@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dashboard - Panel de Administración</title>
     <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,175 +11,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        :root {
-        --primary-color: #3B82F6;
-        --secondary-color: #1E40AF;
-        --accent-color: #10B981;
-        --dark-color: #1F2937;
-        --light-color: #F9FAFB;
-        --bg-color: #f4f1eb;
-        --sidebar-bg: #1f2937;
-        --card-bg: rgba(255, 255, 255, 0.95);
-    }
-    
-    html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        font-family: 'Inter', sans-serif;
-        background-color: var(--bg-color);
-    }
-    
-    #particles-js {
-        position: fixed;
-        width: 100%;
-        height: 100%;
-        z-index: -1;
-        top: 0;
-        left: 0;
-    }
-    
-    .glass-card {
-        background: var(--card-bg);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .metric-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border-left: 4px solid var(--primary-color);
-        background: white;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    }
-    
-    .metric-card.primary { border-left-color: #3B82F6; }
-    .metric-card.success { border-left-color: #10B981; }
-    .metric-card.warning { border-left-color: #F59E0B; }
-    .metric-card.danger { border-left-color: #EF4444; }
-    
-    .nav-card {
-        transition: all 0.3s ease;
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        color: white;
-        border: none;
-    }
-    
-    .nav-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
-    }
-    
-    .btn-modern {
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        transition: all 0.3s ease;
-        border: none;
-    }
-    
-    .btn-modern:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
-    }
-    
-    .stat-trend.up { color: #10B981; }
-    .stat-trend.down { color: #EF4444; }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .fade-in {
-        animation: fadeIn 0.6s ease-out;
-    }
-    
-    .loading-pulse {
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-
-    /* Responsive para móviles */
-    @media (max-width: 768px) {
-        .container {
-            padding-left: 1rem;
-            padding-right: 1rem;
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
         }
-        
-        header .flex.items-center.justify-between {
-            flex-direction: column;
-            gap: 1rem;
-            text-align: center;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
         }
-        
-        .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        
-        .grid.grid-cols-1.lg\\:grid-cols-2 {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        
-        .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3.xl\\:grid-cols-4 {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        
-        .flex.items-center.space-x-4 {
-            flex-direction: column;
-            gap: 1rem;
-        }
-        
-        .text-2xl {
-            font-size: 1.5rem;
-        }
-        
-        .text-xl {
-            font-size: 1.25rem;
-        }
-        
-        .p-6 {
-            padding: 1rem;
-        }
-        
-        .metric-card {
-            padding: 1rem;
-        }
-        
-        .nav-card {
-            padding: 1rem;
-        }
-        
-        .h-64 {
-            height: 200px;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .px-6 {
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-        
-        .py-8 {
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        }
-        
-        .text-3xl {
-            font-size: 1.25rem;
-        }
-        
         .btn-touch {
             min-height: 44px;
             min-width: 44px;
@@ -187,593 +35,813 @@
             align-items: center;
             justify-content: center;
         }
-    }
-
-    /* Mejoras de botones para móvil */
-    .btn-touch {
-        min-height: 44px;
-        min-width: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-
-    /* Scroll suave */
-    .overflow-y-auto {
-        scroll-behavior: smooth;
-    }
-
-    /* Mejoras de tarjetas para móvil */
-    @media (max-width: 768px) {
-        .glass-card {
-            margin-bottom: 1rem;
+        .stat-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .machine-status {
+            transition: all 0.3s ease;
+        }
+        .machine-status:hover {
+            transform: scale(1.02);
         }
         
-        .space-y-3 > * {
-            margin-bottom: 0.75rem;
+        @media (max-width: 1024px) {
+            .contenido {
+                padding: 1rem !important;
+            }
+            .glass-card {
+                padding: 1.25rem;
+            }
         }
-    }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.75rem !important;
+            }
+            .stat-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .chart-container {
+                height: 300px !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <!-- Fondo partículas -->
+
+    <!-- Fondo de partículas -->
     <div id="particles-js"></div>
 
-    <!-- Header -->
-    <header class="glass-card shadow-lg sticky top-0 z-40 bg-white">
-    <div class="container mx-auto px-4 lg:px-6 py-4">
-        <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
-            <!-- Logo y título -->
-            <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-3">
-                    <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" 
-                         alt="Logo" class="h-10 w-10 rounded-lg shadow-md">
-                    <div class="text-center lg:text-left">
-                        <h1 class="text-xl font-bold text-gray-800">Panel de Administración</h1>
-                        <p class="text-sm text-gray-600 hidden lg:block">Sistema de Gestión de Máquinas</p>
-                    </div>
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-user-cog mr-2"></i>Admin
                 </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/ventas/reporteventas" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-bar mr-2"></i>Reportes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                    <a href="/admin/maquinas/distribucionganancias" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Ganancias
+                    </a>
+                </nav>
             </div>
-
-            <!-- Información de usuario y acciones -->
-            <div class="flex items-center space-x-4 flex-wrap justify-center gap-2">
-                <!-- Botón Ir a Local -->
-                <a href="/local" class="btn-modern text-white px-4 py-3 rounded-lg flex items-center space-x-2 shadow-lg btn-touch">
-                    <i class="fas fa-store text-sm"></i>
-                    <span class="font-medium">Ir al Local</span>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">Sistema de Gestión</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
                 </a>
-                
-                <!-- Información del usuario -->
-                <div class="flex items-center space-x-3 bg-white rounded-lg px-4 py-2 shadow-sm border">
-                    <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                        <span class="text-white text-sm font-bold">{{ nombre_usuario[0] if nombre_usuario else 'A' }}</span>
-                    </div>
-                    <div class="hidden md:block">
-                        <p class="text-sm font-medium text-gray-800">{{ nombre_usuario }}</p>
-                        <p class="text-xs text-gray-500">Administrador</p>
-                    </div>
-                </div>
-                
-                <!-- Botón cerrar sesión -->
-                <button onclick="cerrarSesion()" 
-                        class="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg transition-colors shadow-lg btn-touch">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span class="ml-2 hidden sm:inline">Salir</span>
-                </button>
             </div>
-        </div>
-    </div>
-</header>
+        </aside>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-8">
-        <!-- Sección de Bienvenida -->
-        <div class="fade-in mb-8">
-            <div class="glass-card rounded-2xl p-6 shadow-lg">
-                <div class="flex items-center justify-between">
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800 mb-2">
-                            ¡Bienvenido, {{ nombre_usuario }}!
-                        </h2>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-tachometer-alt mr-3 text-blue-600"></i>Dashboard General
+                        </h1>
                         <p class="text-gray-600">
-                            Resumen general del sistema - {{ now.strftime('%d de %B, %Y') if now else 'Hoy' }}
+                            <i class="fas fa-user mr-2"></i>Bienvenido, <strong>{{ nombre_usuario }}</strong> | 
+                            <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span>
                         </p>
                     </div>
-                    <div class="hidden md:flex items-center space-x-4">
-                        <div class="text-right">
-                            <p class="text-sm text-gray-500">Última actualización</p>
-                            <p class="text-sm font-medium text-gray-700" id="last-update">Justo ahora</p>
-                        </div>
-                        <button onclick="actualizarDashboard()" 
-                                class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full transition-colors">
-                            <i class="fas fa-sync-alt"></i>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="AdminDashboard.actualizarTodo()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-sync-alt mr-2"></i>Actualizar Todo
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Grid de Métricas Principales -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
-            <!-- Total Usuarios -->
-            <div class="metric-card primary glass-card rounded-xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-blue-100 rounded-lg">
-                        <i class="fas fa-users text-blue-600 text-xl"></i>
+            <!-- Filtros -->
+            <div class="glass-card mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-filter mr-2 text-purple-600"></i>Filtros de Fecha
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Rango:</label>
+                        <select id="filtroRango" class="w-full border border-gray-300 rounded-lg p-3" onchange="AdminDashboard.cambiarRango()">
+                            <option value="hoy">Hoy</option>
+                            <option value="ayer">Ayer</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="mes" selected>Este mes</option>
+                            <option value="personalizado">Personalizado</option>
+                        </select>
                     </div>
-                    <div class="text-right">
-                        <span class="stat-trend up text-sm font-medium">
-                            <i class="fas fa-arrow-up mr-1"></i>5.2%
-                        </span>
+                    <div id="fechaInicioContainer" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fecha inicio:</label>
+                        <input type="date" id="filtroFechaInicio" class="w-full border border-gray-300 rounded-lg p-3">
                     </div>
-                </div>
-                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="total-users">--</h3>
-                <p class="text-gray-600 text-sm">Usuarios Registrados</p>
-                <div class="mt-3 pt-3 border-t border-gray-200">
-                    <p class="text-xs text-gray-500">
-                        <i class="fas fa-clock mr-1"></i>Actualizado recientemente
-                    </p>
-                </div>
-            </div>
-
-            <!-- Máquinas Activas -->
-            <div class="metric-card success glass-card rounded-xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-green-100 rounded-lg">
-                        <i class="fas fa-gamepad text-green-600 text-xl"></i>
+                    <div id="fechaFinContainer" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fecha fin:</label>
+                        <input type="date" id="filtroFechaFin" class="w-full border border-gray-300 rounded-lg p-3">
                     </div>
-                    <div class="text-right">
-                        <span class="stat-trend up text-sm font-medium">
-                            <i class="fas fa-arrow-up mr-1"></i>2.1%
-                        </span>
+                    <div class="flex items-end">
+                        <button onclick="AdminDashboard.aplicarFiltros()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
+                            <i class="fas fa-search mr-2"></i>Aplicar Filtros
+                        </button>
                     </div>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="total-machines">--</h3>
-                <p class="text-gray-600 text-sm">Máquinas Activas</p>
-                <div class="mt-3 pt-3 border-t border-gray-200">
-                    <p class="text-xs text-gray-500">
-                        <i class="fas fa-check-circle mr-1"></i>Operativas
-                    </p>
-                </div>
             </div>
 
-            <!-- Paquetes Hoy -->
-            <div class="metric-card warning glass-card rounded-xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-orange-100 rounded-lg">
-                        <i class="fas fa-cube text-orange-600 text-xl"></i>
+            <!-- Estadísticas principales -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6 stat-grid">
+                <!-- Ingresos Totales -->
+                <div class="stat-card glass-card border-l-green-500">
+                    <div class="flex items-center">
+                        <div class="bg-green-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Ingresos Totales</p>
+                            <p id="ingresos-totales" class="text-2xl font-bold text-gray-800">$0</p>
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <span class="stat-trend up text-sm font-medium">
-                            <i class="fas fa-arrow-up mr-1"></i>15.7%
-                        </span>
-                    </div>
-                </div>
-                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="today-packages">--</h3>
-                <p class="text-gray-600 text-sm">Paquetes Vendidos Hoy</p>
-                <div class="mt-3 pt-3 border-t border-gray-200">
-                    <p class="text-xs text-gray-500">
-                        <i class="fas fa-chart-line mr-1"></i>Tendencia positiva
-                    </p>
-                </div>
-            </div>
-
-            <!-- Incidencias -->
-            <div class="metric-card danger glass-card rounded-xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="p-3 bg-red-100 rounded-lg">
-                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
-                    </div>
-                    <div class="text-right">
-                        <span class="stat-trend down text-sm font-medium">
-                            <i class="fas fa-arrow-down mr-1"></i>3.4%
-                        </span>
+                    <div class="mt-2 text-sm text-green-600" id="tendencia-ingresos">
+                        <i class="fas fa-arrow-up mr-1"></i>
+                        <span>0%</span> vs período anterior
                     </div>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-800 mb-2" id="total-issues">--</h3>
-                <p class="text-gray-600 text-sm">Incidencias Activas</p>
-                <div class="mt-3 pt-3 border-t border-gray-200">
-                    <p class="text-xs text-gray-500">
-                        <i class="fas fa-clock mr-1"></i>Requieren atención
-                    </p>
+
+                <!-- Paquetes Vendidos -->
+                <div class="stat-card glass-card border-l-blue-500">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-cube text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Paquetes Vendidos</p>
+                            <p id="paquetes-vendidos" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-green-600" id="tendencia-paquetes">
+                        <i class="fas fa-arrow-up mr-1"></i>
+                        <span>0%</span> vs período anterior
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Gráfico de Actividad Reciente -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
-            <!-- Gráfico de Ventas -->
-            <div class="glass-card rounded-2xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-lg font-bold text-gray-800">Ventas de los Últimos 7 Días</h3>
-                    <select class="text-sm border border-gray-300 rounded-lg px-3 py-1">
-                        <option>Última semana</option>
-                        <option>Último mes</option>
-                        <option>Último trimestre</option>
-                    </select>
+                <!-- Máquinas Activas -->
+                <div class="stat-card glass-card border-l-purple-500">
+                    <div class="flex items-center">
+                        <div class="bg-purple-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-gamepad text-purple-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Máquinas Activas</p>
+                            <p id="maquinas-activas" class="text-2xl font-bold text-gray-800">0/0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">
+                        <span id="porcentaje-activas">0%</span> en operación
+                    </div>
                 </div>
-                <div class="h-64">
-                    <canvas id="salesChart"></canvas>
-                </div>
-            </div>
 
-            <!-- Distribución de Máquinas -->
-            <div class="glass-card rounded-2xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-lg font-bold text-gray-800">Estado de Máquinas</h3>
-                    <span class="text-sm text-gray-500">Total: <span id="total-machines-badge">--</span></span>
-                </div>
-                <div class="h-64">
-                    <canvas id="machinesChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Navegación Rápida -->
-        <div class="fade-in">
-            <div class="glass-card rounded-2xl p-6 shadow-lg">
-                <h3 class="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    
-                    <!-- Gestión de Usuarios -->
-                    <a href="/admin/usuarios/lista" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-users text-xl"></i>
-                            <span class="font-semibold">Usuarios</span>
+                <!-- Ticket Promedio -->
+                <div class="stat-card glass-card border-l-orange-500">
+                    <div class="flex items-center">
+                        <div class="bg-orange-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-receipt text-orange-600 text-xl"></i>
                         </div>
-                        <p class="text-blue-100 text-sm">Gestionar usuarios y permisos del sistema</p>
-                    </a>
-
-                    <!-- Inventario de Máquinas -->
-                    <a href="/admin/maquinas/inventario" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-gamepad text-xl"></i>
-                            <span class="font-semibold">Máquinas</span>
+                        <div>
+                            <p class="text-sm text-gray-600">Ticket Promedio</p>
+                            <p id="ticket-promedio" class="text-2xl font-bold text-gray-800">$0</p>
                         </div>
-                        <p class="text-blue-100 text-sm">Ver y gestionar inventario de máquinas</p>
-                    </a>
-
-                    <!-- Gestión de Paquetes -->
-                    <a href="/admin/paquetes/lista" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-cube text-xl"></i>
-                            <span class="font-semibold">Paquetes</span>
-                        </div>
-                        <p class="text-blue-100 text-sm">Configurar paquetes de turnos</p>
-                    </a>
-
-                    <!-- Reportes -->
-                    <a href="/admin/ventas/reporteventas" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-chart-bar text-xl"></i>
-                            <span class="font-semibold">Reportes</span>
-                        </div>
-                        <p class="text-blue-100 text-sm">Ver reportes y analíticas</p>
-                    </a>
-
-                    <!-- Locales -->
-                    <a href="/admin/locales/listalocales" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-store text-xl"></i>
-                            <span class="font-semibold">Locales</span>
-                        </div>
-                        <p class="text-blue-100 text-sm">Gestionar sucursales</p>
-                    </a>
-
-                    <!-- Configuración -->
-                    <a href="/admin/configuracion" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-cog text-xl"></i>
-                            <span class="font-semibold">Configuración</span>
-                        </div>
-                        <p class="text-blue-100 text-sm">Ajustes del sistema</p>
-                    </a>
-
-                    <!-- Distribución Ganancias -->
-                    <a href="/admin/maquinas/distribucionganancias" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-chart-pie text-xl"></i>
-                            <span class="font-semibold">Ganancias</span>
-                        </div>
-                        <p class="text-blue-100 text-sm">Distribución de ganancias</p>
-                    </a>
-
-                    <!-- Mantenimiento -->
-                    <a href="/admin/maquinas/mantenimiento" class="nav-card rounded-xl p-5 text-white transition-all">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <i class="fas fa-tools text-xl"></i>
-                            <span class="font-semibold">Mantenimiento</span>
-                        </div>
-                        <p class="text-blue-100 text-sm">Programar mantenimiento</p>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Actividad Reciente -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 fade-in">
-            <!-- Últimas Incidencias -->
-            <div class="glass-card rounded-2xl p-6 shadow-lg">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Incidencias Recientes</h3>
-                <div class="space-y-3" id="recent-issues">
-                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
-                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">
+                        Por transacción
+                    </div>
                 </div>
             </div>
 
-            <!-- Actividad del Sistema -->
-            <div class="glass-card rounded-2xl p-6 shadow-lg">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Actividad del Sistema</h3>
-                <div class="space-y-3" id="system-activity">
-                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
-                    <div class="loading-pulse bg-gray-200 rounded-lg h-16"></div>
+            <!-- Primera fila de gráficas -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Evolución de Ventas -->
+                <div class="glass-card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-chart-line mr-2 text-blue-600"></i>Evolución de Ventas
+                        </h3>
+                        <select id="tipoGraficaVentas" class="text-sm border border-gray-300 rounded-lg px-3 py-1" onchange="AdminDashboard.actualizarGraficaVentas()">
+                            <option value="diario">Diario</option>
+                            <option value="semanal">Semanal</option>
+                            <option value="mensual">Mensual</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartVentas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Ventas por Paquete -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-chart-pie mr-2 text-green-600"></i>Ventas por Paquete
+                    </h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartPaquetes"></canvas>
+                    </div>
                 </div>
             </div>
-        </div>
-    </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t mt-8 lg:mt-12">
-    <div class="container mx-auto px-4 lg:px-6 py-4">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-2">
-            <div class="flex items-center space-x-2 text-gray-600">
-                <img src="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" 
-                     alt="Logo" class="h-6 w-6 rounded">
-                <span class="text-sm">Máquinas Medellín © 2025</span>
+            <!-- Segunda fila de gráficas -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Rendimiento por Máquina -->
+                <div class="glass-card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Rendimiento por Máquina
+                        </h3>
+                        <select id="tipoMetricaMaquinas" class="text-sm border border-gray-300 rounded-lg px-3 py-1" onchange="AdminDashboard.actualizarMetricaMaquinas()">
+                            <option value="ventas">Ventas</option>
+                            <option value="uso">Uso</option>
+                            <option value="ganancias">Ganancias</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartMaquinas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Estado de Máquinas -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-gamepad mr-2 text-orange-600"></i>Estado de Máquinas
+                    </h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartEstadoMaquinas"></canvas>
+                    </div>
+                </div>
             </div>
-            <div class="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-4 text-center sm:text-left">
-                <span class="text-xs text-gray-500" id="server-status">Conectado al servidor</span>
-                <span class="text-xs text-gray-500" id="current-time"></span>
+
+            <!-- Tercera fila: Información detallada -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Top Máquinas -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas
+                    </h3>
+                    <div class="space-y-3" id="top-maquinas">
+                        <div class="text-center py-8">
+                            <div class="loading mx-auto mb-2"></div>
+                            <p class="text-gray-600">Cargando top máquinas...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Últimas Ventas -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-clock mr-2 text-blue-600"></i>Ventas Recientes
+                    </h3>
+                    <div class="space-y-3" id="ventas-recientes">
+                        <div class="text-center py-8">
+                            <div class="loading mx-auto mb-2"></div>
+                            <p class="text-gray-600">Cargando ventas recientes...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        </main>
     </div>
-</footer>
 
     <script>
-        // Configuración de partículas
-        document.addEventListener('DOMContentLoaded', function() {
-            particlesJS("particles-js", {
-    particles: {
-        number: { value: 30, density: { enable: true, value_area: 600 } },
-        color: { value: "#3B82F6" },
-        opacity: { value: 0.1, random: true },
-        size: { value: 2, random: true },
-        line_linked: {
-            enable: true,
-            distance: 120,
-            color: "#3B82F6",
-            opacity: 0.1,
-            width: 1
-        },
-        move: {
-            enable: true,
-            speed: 0.5,
-            direction: 'none',
-            random: true
-        }
-    },
-    interactivity: {
-        detect_on: 'canvas',
-        events: {
-            onhover: { enable: true, mode: 'grab' },
-            onclick: { enable: true, mode: 'push' },
-            resize: true
-        },
-        modes: {
-            grab: { distance: 120, line_linked: { opacity: 0.2 } },
-            push: { particles_nb: 3 }
-        }
-    },
-    retina_detect: true
-});
+        const AdminDashboard = {
+    charts: {},
+    fechaInicio: null,
+    fechaFin: null,
 
-            // Inicializar dashboard
-            inicializarDashboard();
-            inicializarGraficos();
-            actualizarHora();
-            setInterval(actualizarHora, 60000);
+    init: function() {
+        // Configurar partículas
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 40, density: { enable: true, value_area: 600 } },
+                color: { value: '#3b82f6' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.2, random: true },
+                size: { value: 2, random: true },
+                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                move: { enable: true, speed: 0.5, direction: 'none', random: true }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                }
+            }
         });
 
-        // Función para inicializar el dashboard
-        async function inicializarDashboard() {
-            await cargarEstadisticas();
-            await cargarIncidenciasRecientes();
-            await cargarActividadSistema();
-        }
+        // Configurar fechas iniciales
+        this.configurarFechasIniciales();
+        
+        // Inicializar gráficos
+        this.inicializarGraficos();
+        
+        // Cargar datos iniciales
+        this.cargarDatosDashboard();
+        
+        console.log("Admin Dashboard inicializado");
+    },
 
-        // Función para cargar estadísticas
-        async function cargarEstadisticas() {
-            try {
-                const response = await fetch('/api/estadisticas-admin');
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    document.getElementById('total-users').textContent = data.usuarios || '0';
-                    document.getElementById('total-machines').textContent = data.maquinas || '0';
-                    document.getElementById('today-packages').textContent = data.paquetes || '0';
-                    document.getElementById('total-issues').textContent = data.incidencias || '0';
-                    document.getElementById('total-machines-badge').textContent = data.maquinas || '0';
-                    
-                    // Actualizar timestamp
-                    document.getElementById('last-update').textContent = 'Justo ahora';
-                }
-            } catch (error) {
-                console.error('Error cargando estadísticas:', error);
-            }
-        }
+    configurarFechasIniciales: function() {
+        const ahora = new Date();
+        
+        // Fecha actual en formato legible
+        const opciones = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        document.getElementById('fechaActual').textContent = 
+            ahora.toLocaleDateString('es-ES', opciones);
+        
+        // Configurar rango "este mes" por defecto
+        this.configurarRango('mes');
+    },
 
-        // Función para cargar incidencias recientes
-        async function cargarIncidenciasRecientes() {
-            try {
-                const response = await fetch('/api/incidencias-recientes');
-                const container = document.getElementById('recent-issues');
+    configurarRango: function(rango) {
+        const ahora = new Date();
+        let fechaInicio, fechaFin;
+
+        switch(rango) {
+            case 'hoy':
+                fechaInicio = ahora.toISOString().split('T')[0];
+                fechaFin = fechaInicio;
+                break;
                 
-                if (response.ok) {
-                    const incidencias = await response.json();
-                    
-                    if (incidencias.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center py-4 text-gray-500">
-                                <i class="fas fa-check-circle text-green-500 text-xl mb-2"></i>
-                                <p>No hay incidencias activas</p>
-                            </div>
-                        `;
-                        return;
-                    }
-                    
-                    let html = '';
-                    incidencias.slice(0, 3).forEach(incidencia => {
-                        html += `
-                            <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
-                                <div class="flex items-center space-x-3">
-                                    <i class="fas fa-exclamation-triangle text-red-500"></i>
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-800">${incidencia.machine_name}</p>
-                                        <p class="text-xs text-gray-600">${incidencia.description}</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs text-red-600 font-medium">Pendiente</span>
-                            </div>
-                        `;
-                    });
-                    
-                    container.innerHTML = html;
-                }
-            } catch (error) {
-                console.error('Error cargando incidencias:', error);
-            }
-        }
-
-        // Función para cargar actividad del sistema
-        async function cargarActividadSistema() {
-            try {
-                const response = await fetch('/api/actividad-reciente');
-                const container = document.getElementById('system-activity');
+            case 'ayer':
+                const ayer = new Date(ahora);
+                ayer.setDate(ahora.getDate() - 1);
+                fechaInicio = ayer.toISOString().split('T')[0];
+                fechaFin = fechaInicio;
+                break;
                 
-                if (response.ok) {
-                    const actividades = await response.json();
-                    
-                    let html = '';
-                    actividades.slice(0, 3).forEach(actividad => {
-                        const icon = actividad.tipo === 'venta' ? 'fa-shopping-cart' : 
-                                    actividad.tipo === 'usuario' ? 'fa-user' : 'fa-cog';
-                        const color = actividad.tipo === 'venta' ? 'text-green-500' : 
-                                     actividad.tipo === 'usuario' ? 'text-blue-500' : 'text-purple-500';
-                        
-                        html += `
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center space-x-3">
-                                    <i class="fas ${icon} ${color}"></i>
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-800">${actividad.descripcion}</p>
-                                        <p class="text-xs text-gray-600">${actividad.tiempo}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    container.innerHTML = html;
-                }
-            } catch (error) {
-                console.error('Error cargando actividad:', error);
-            }
+            case 'semana':
+                const inicioSemana = new Date(ahora);
+                inicioSemana.setDate(ahora.getDate() - ahora.getDay());
+                fechaInicio = inicioSemana.toISOString().split('T')[0];
+                fechaFin = ahora.toISOString().split('T')[0];
+                break;
+                
+            case 'mes':
+                const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+                fechaInicio = inicioMes.toISOString().split('T')[0];
+                fechaFin = ahora.toISOString().split('T')[0];
+                break;
+                
+            case 'personalizado':
+                // Mostrar ambos campos de fecha
+                document.getElementById('fechaInicioContainer').classList.remove('hidden');
+                document.getElementById('fechaFinContainer').classList.remove('hidden');
+                return;
         }
 
-        // Función para inicializar gráficos
-        function inicializarGraficos() {
-            // Gráfico de ventas
-            const salesCtx = document.getElementById('salesChart').getContext('2d');
-            new Chart(salesCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                    datasets: [{
-                        label: 'Ventas',
-                        data: [120, 150, 180, 90, 200, 170, 210],
-                        borderColor: '#3B82F6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
+        // Ocultar campos de fecha para rangos predefinidos
+        document.getElementById('fechaInicioContainer').classList.add('hidden');
+        document.getElementById('fechaFinContainer').classList.add('hidden');
+        
+        // Establecer fechas
+        this.fechaInicio = fechaInicio;
+        this.fechaFin = fechaFin;
+        
+        document.getElementById('filtroFechaInicio').value = fechaInicio;
+        document.getElementById('filtroFechaFin').value = fechaFin;
+    },
 
-            // Gráfico de estado de máquinas
-            const machinesCtx = document.getElementById('machinesChart').getContext('2d');
-            new Chart(machinesCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Activas', 'Mantenimiento', 'Inactivas'],
-                    datasets: [{
-                        data: [35, 5, 7],
-                        backgroundColor: [
-                            '#10B981',
-                            '#F59E0B',
-                            '#EF4444'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-        }
+    cambiarRango: function() {
+        const rango = document.getElementById('filtroRango').value;
+        this.configurarRango(rango);
+    },
 
-        // Función para actualizar dashboard
-        function actualizarDashboard() {
-            const btn = event.target;
-            const originalHTML = btn.innerHTML;
+    aplicarFiltros: function() {
+        const rango = document.getElementById('filtroRango').value;
+        
+        if (rango === 'personalizado') {
+            const fechaInicio = document.getElementById('filtroFechaInicio').value;
+            const fechaFin = document.getElementById('filtroFechaFin').value;
             
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            btn.disabled = true;
-            
-            setTimeout(() => {
-                inicializarDashboard();
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
-                
-                // Mostrar notificación de actualización
-                mostrarNotificacion('Dashboard actualizado correctamente', 'success');
-            }, 1000);
-        }
-
-        // Función para actualizar hora
-        function actualizarHora() {
-            const now = new Date();
-            document.getElementById('current-time').textContent = 
-                now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-        }
-
-        // Función para mostrar notificaciones
-        function mostrarNotificacion(mensaje, tipo) {
-            // Implementar sistema de notificaciones
-            console.log(`[${tipo.toUpperCase()}] ${mensaje}`);
-        }
-
-        // Función para cerrar sesión
-        function cerrarSesion() {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                window.location.href = "/logout";
+            if (!fechaInicio || !fechaFin) {
+                this.mostrarAlerta('Por favor seleccione ambas fechas para el rango personalizado', 'error');
+                return;
             }
+            
+            if (fechaInicio > fechaFin) {
+                this.mostrarAlerta('La fecha de inicio no puede ser mayor a la fecha fin', 'error');
+                return;
+            }
+            
+            this.fechaInicio = fechaInicio;
+            this.fechaFin = fechaFin;
         }
+        
+        this.cargarDatosDashboard();
+        this.mostrarAlerta('Filtros aplicados correctamente', 'success');
+    },
+
+    inicializarGraficos: function() {
+        // Gráfico de evolución de ventas
+        const ctxVentas = document.getElementById('chartVentas').getContext('2d');
+        this.charts.ventas = new Chart(ctxVentas, {
+            type: 'line',
+            data: {
+                labels: ['Cargando...'],
+                datasets: [{
+                    label: 'Ventas',
+                    data: [0],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Evolución Diaria'
+                    }
+                }
+            }
+        });
+
+        // Gráfico de paquetes
+        const ctxPaquetes = document.getElementById('chartPaquetes').getContext('2d');
+        this.charts.paquetes = new Chart(ctxPaquetes, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cargando...'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#e5e7eb']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Gráfico de máquinas
+        const ctxMaquinas = document.getElementById('chartMaquinas').getContext('2d');
+        this.charts.maquinas = new Chart(ctxMaquinas, {
+            type: 'bar',
+            data: {
+                labels: ['Cargando...'],
+                datasets: [{
+                    label: 'Ventas',
+                    data: [0],
+                    backgroundColor: '#8b5cf6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Gráfico de estado de máquinas
+        const ctxEstado = document.getElementById('chartEstadoMaquinas').getContext('2d');
+        this.charts.estadoMaquinas = new Chart(ctxEstado, {
+            type: 'doughnut',
+            data: {
+                labels: ['Activas', 'Mantenimiento', 'Inactivas'],
+                datasets: [{
+                    data: [1, 1, 1],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    },
+
+    cargarDatosDashboard: function() {
+        console.log('📊 Cargando datos del dashboard...');
+        
+        // Mostrar loading en todos los componentes
+        this.mostrarEstadosLoading();
+        
+        // Cargar estadísticas principales
+        this.cargarEstadisticasPrincipales();
+        
+        // Cargar datos de gráficas
+        this.cargarDatosGraficas();
+        
+        // Cargar datos adicionales
+        this.cargarTopMaquinas();
+        this.cargarVentasRecientes();
+    },
+
+    mostrarEstadosLoading: function() {
+        // Estadísticas principales
+        document.getElementById('ingresos-totales').textContent = '--';
+        document.getElementById('paquetes-vendidos').textContent = '--';
+        document.getElementById('maquinas-activas').textContent = '--/--';
+        document.getElementById('ticket-promedio').textContent = '--';
+    },
+
+    cargarEstadisticasPrincipales: async function() {
+        try {
+            const params = new URLSearchParams({
+                fecha_inicio: this.fechaInicio,
+                fecha_fin: this.fechaFin
+            });
+            
+            const response = await fetch(`/api/dashboard/estadisticas?${params}`);
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Actualizar estadísticas
+                document.getElementById('ingresos-totales').textContent = 
+                    this.formatearMoneda(data.ingresos_totales || 0);
+                document.getElementById('paquetes-vendidos').textContent = 
+                    data.paquetes_vendidos || 0;
+                document.getElementById('maquinas-activas').textContent = 
+                    `${data.maquinas_activas || 0}/${data.maquinas_totales || 0}`;
+                document.getElementById('ticket-promedio').textContent = 
+                    this.formatearMoneda(data.ticket_promedio || 0);
+                
+                // Actualizar tendencias
+                this.actualizarTendencias(data.tendencias || {});
+                
+                // Actualizar porcentaje de máquinas activas
+                const porcentaje = data.maquinas_totales > 0 ? 
+                    Math.round((data.maquinas_activas / data.maquinas_totales) * 100) : 0;
+                document.getElementById('porcentaje-activas').textContent = `${porcentaje}%`;
+                
+            }
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    },
+
+    cargarDatosGraficas: async function() {
+        try {
+            const params = new URLSearchParams({
+                fecha_inicio: this.fechaInicio,
+                fecha_fin: this.fechaFin
+            });
+            
+            const response = await fetch(`/api/dashboard/graficas?${params}`);
+            if (response.ok) {
+                const data = await response.json();
+                this.actualizarTodasGraficas(data);
+            }
+        } catch (error) {
+            console.error('Error cargando gráficas:', error);
+        }
+    },
+
+    actualizarTodasGraficas: function(data) {
+        // Gráfico de evolución de ventas
+        if (data.evolucion_ventas) {
+            this.charts.ventas.data.labels = data.evolucion_ventas.labels;
+            this.charts.ventas.data.datasets[0].data = data.evolucion_ventas.data;
+            this.charts.ventas.update();
+        }
+
+        // Gráfico de paquetes
+        if (data.ventas_paquetes) {
+            this.charts.paquetes.data.labels = data.ventas_paquetes.labels;
+            this.charts.paquetes.data.datasets[0].data = data.ventas_paquetes.data;
+            this.charts.paquetes.data.datasets[0].backgroundColor = [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
+            ];
+            this.charts.paquetes.update();
+        }
+
+        // Gráfico de máquinas
+        if (data.rendimiento_maquinas) {
+            this.charts.maquinas.data.labels = data.rendimiento_maquinas.labels;
+            this.charts.maquinas.data.datasets[0].data = data.rendimiento_maquinas.data;
+            this.charts.maquinas.update();
+        }
+
+        // Gráfico de estado de máquinas
+        if (data.estado_maquinas) {
+            this.charts.estadoMaquinas.data.datasets[0].data = data.estado_maquinas;
+            this.charts.estadoMaquinas.update();
+        }
+    },
+
+    cargarTopMaquinas: async function() {
+        try {
+            const response = await fetch('/api/dashboard/top-maquinas');
+            const container = document.getElementById('top-maquinas');
+            
+            if (response.ok) {
+                const maquinas = await response.json();
+                
+                if (maquinas.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos de máquinas</p>';
+                    return;
+                }
+                
+                let html = '';
+                maquinas.slice(0, 5).forEach((maquina, index) => {
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-lg">${medal}</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">${maquina.nombre}</p>
+                                    <p class="text-xs text-gray-600">${maquina.ingresos ? this.formatearMoneda(maquina.ingresos) : '0'} ingresos</p>
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium text-green-600">${maquina.ventas || 0} ventas</span>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }
+        } catch (error) {
+            console.error('Error cargando top máquinas:', error);
+        }
+    },
+
+    cargarVentasRecientes: async function() {
+        try {
+            const response = await fetch('/api/dashboard/ventas-recientes');
+            const container = document.getElementById('ventas-recientes');
+            
+            if (response.ok) {
+                const ventas = await response.json();
+                
+                if (ventas.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay ventas recientes</p>';
+                    return;
+                }
+                
+                let html = '';
+                ventas.slice(0, 5).forEach(venta => {
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-shopping-cart text-blue-500"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">${venta.paquete}</p>
+                                    <p class="text-xs text-gray-600">${venta.hora}</p>
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">${this.formatearMoneda(venta.precio)}</span>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }
+        } catch (error) {
+            console.error('Error cargando ventas recientes:', error);
+        }
+    },
+
+
+    actualizarTendencias: function(tendencias) {
+        const tendenciaIngresos = document.getElementById('tendencia-ingresos');
+        const tendenciaPaquetes = document.getElementById('tendencia-paquetes');
+        
+        // Tendencia ingresos
+        if (tendencias.ingresos !== undefined) {
+            const color = tendencias.ingresos >= 0 ? 'text-green-600' : 'text-red-600';
+            const icono = tendencias.ingresos >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            tendenciaIngresos.className = `text-sm ${color}`;
+            tendenciaIngresos.innerHTML = `<i class="fas ${icono} mr-1"></i> ${Math.abs(tendencias.ingresos)}% vs período anterior`;
+        }
+        
+        // Tendencia paquetes
+        if (tendencias.paquetes !== undefined) {
+            const color = tendencias.paquetes >= 0 ? 'text-green-600' : 'text-red-600';
+            const icono = tendencias.paquetes >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            tendenciaPaquetes.className = `text-sm ${color}`;
+            tendenciaPaquetes.innerHTML = `<i class="fas ${icono} mr-1"></i> ${Math.abs(tendencias.paquetes)}% vs período anterior`;
+        }
+    },
+
+    actualizarGraficaVentas: function() {
+        const tipo = document.getElementById('tipoGraficaVentas').value;
+        // Aquí podrías recargar los datos con el nuevo tipo
+        this.mostrarAlerta(`Gráfica actualizada a vista ${tipo}`, 'info');
+    },
+
+    actualizarMetricaMaquinas: function() {
+        const metrica = document.getElementById('tipoMetricaMaquinas').value;
+        // Aquí podrías recargar los datos con la nueva métrica
+        this.mostrarAlerta(`Métrica actualizada a ${metrica}`, 'info');
+    },
+
+    actualizarTodo: function() {
+        this.cargarDatosDashboard();
+        this.mostrarAlerta('Dashboard actualizado completamente', 'success');
+    },
+
+    formatearMoneda: function(valor) {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+        }).format(valor);
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    tipo === 'success' ? 'check-circle' : 
+                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 4000);
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    AdminDashboard.init();
+});
     </script>
 </body>
 </html>
