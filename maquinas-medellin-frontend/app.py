@@ -10,6 +10,8 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 import logging
 from logging.handlers import RotatingFileHandler
 
+app = Flask(__name__, template_folder='templates')
+
 # ==================== CONFIGURACIÓN SENTRY ====================
 sentry_sdk.init(
     dsn="https://5fc281c2ace4860969f2f1f6fa10039d@o4510071013310464.ingest.us.sentry.io/4510071047454720",
@@ -1099,6 +1101,12 @@ def mostrar_admin():
     return render_template('admin/index.html',
                            nombre_usuario=session.get('user_name', 'Administrador'),
                            local_usuario=session.get('user_local', 'Sistema'))
+
+@app.route('/admin/usuarios/lista')
+def mostrar_lista_usuarios():
+    """Redirigir a la gestión de usuarios"""
+    return redirect(url_for('mostrar_gestion_usuarios'))
+
             
 
 #LLAMADAS DE APIS ADMINISTRADOR
@@ -1513,6 +1521,269 @@ def dashboard_metricas():
             'conversion': 0,
             'satisfaccion': 0
         }), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+            # ==================== APIS PARA GESTIÓN DE USUARIOS ====================
+
+@app.route('/admin/usuarios/gestionusuarios')
+def mostrar_gestion_usuarios():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    # Verificar que el usuario sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    return render_template('admin/usuarios/gestionusuarios.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
+
+@app.route('/api/usuarios', methods=['GET'])
+def obtener_usuarios():
+    """Obtener todos los usuarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT u.*, creador.name as creador_nombre
+            FROM Users u
+            LEFT JOIN Users creador ON u.createdBy = creador.id
+            ORDER BY u.createdAt DESC
+        """)
+        
+        usuarios = cursor.fetchall()
+        
+        # Formatear los datos para el frontend
+        usuarios_formateados = []
+        for usuario in usuarios:
+            usuarios_formateados.append({
+                'id': usuario['id'],
+                'name': usuario['name'],
+                'role': usuario['role'],
+                'createdBy': usuario['createdBy'],
+                'creador': {'name': usuario['creador_nombre']} if usuario['creador_nombre'] else None,
+                'createdAt': usuario['createdAt'],
+                'notes': usuario['notes']
+            })
+        
+        return jsonify(usuarios_formateados)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo usuarios: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios/<int:usuario_id>', methods=['GET'])
+def obtener_usuario(usuario_id):
+    """Obtener un usuario específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT * FROM Users WHERE id = %s", (usuario_id,))
+        usuario = cursor.fetchone()
+        
+        if not usuario:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        return jsonify({
+            'id': usuario['id'],
+            'name': usuario['name'],
+            'role': usuario['role'],
+            'createdBy': usuario['createdBy'],
+            'createdAt': usuario['createdAt'],
+            'notes': usuario['notes']
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo usuario: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios', methods=['POST'])
+def crear_usuario():
+    """Crear un nuevo usuario"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        password = data.get('password')
+        role = data.get('role')
+        local = data.get('local', 'El Mekatiadero')
+        notes = data.get('notes', '')
+        
+        # Validaciones
+        if not name or not password or not role:
+            return jsonify({'error': 'Nombre, contraseña y rol son obligatorios'}), 400
+        
+        if len(password) < 6:
+            return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
+        
+        if role not in ['admin', 'cajero', 'admin_restaurante']:
+            return jsonify({'error': 'Rol inválido'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si el usuario ya existe
+        cursor.execute("SELECT id FROM Users WHERE name = %s", (name,))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe un usuario con ese nombre'}), 400
+        
+        # Crear usuario
+        cursor.execute("""
+            INSERT INTO Users (name, password, role, createdBy, notes)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (name, password, role, session.get('user_id'), notes))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario creado correctamente',
+            'usuario_id': cursor.lastrowid
+        })
+        
+    except Exception as e:
+        print(f"❌ Error creando usuario: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios/<int:usuario_id>', methods=['PUT'])
+def actualizar_usuario(usuario_id):
+    """Actualizar un usuario existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        password = data.get('password')
+        role = data.get('role')
+        local = data.get('local')
+        notes = data.get('notes')
+        
+        # Validaciones
+        if not name or not role:
+            return jsonify({'error': 'Nombre y rol son obligatorios'}), 400
+        
+        if role not in ['admin', 'cajero', 'admin_restaurante']:
+            return jsonify({'error': 'Rol inválido'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el usuario existe
+        cursor.execute("SELECT id FROM Users WHERE id = %s", (usuario_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Verificar nombre duplicado
+        cursor.execute("SELECT id FROM Users WHERE name = %s AND id != %s", (name, usuario_id))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe otro usuario con ese nombre'}), 400
+        
+        # Actualizar usuario
+        if password:
+            cursor.execute("""
+                UPDATE Users 
+                SET name = %s, password = %s, role = %s, notes = %s
+                WHERE id = %s
+            """, (name, password, role, notes, usuario_id))
+        else:
+            cursor.execute("""
+                UPDATE Users 
+                SET name = %s, role = %s, notes = %s
+                WHERE id = %s
+            """, (name, role, notes, usuario_id))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario actualizado correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando usuario: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/usuarios/<int:usuario_id>', methods=['DELETE'])
+def eliminar_usuario(usuario_id):
+    """Eliminar un usuario"""
+    connection = None
+    cursor = None
+    try:
+        # No permitir eliminar el usuario actual
+        if usuario_id == session.get('user_id'):
+            return jsonify({'error': 'No puedes eliminar tu propio usuario'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el usuario existe
+        cursor.execute("SELECT id FROM Users WHERE id = %s", (usuario_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Eliminar usuario
+        cursor.execute("DELETE FROM Users WHERE id = %s", (usuario_id,))
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario eliminado correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error eliminando usuario: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()

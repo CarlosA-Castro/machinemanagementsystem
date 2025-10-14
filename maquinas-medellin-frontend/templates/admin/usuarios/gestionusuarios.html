@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Usuarios - Admin</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .user-row:hover {
+            background-color: #f8fafc;
+        }
+        
+        @media (max-width: 1024px) {
+            .contenido {
+                padding: 1rem !important;
+            }
+            .glass-card {
+                padding: 1.25rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.75rem !important;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-user-cog mr-2"></i>Admin
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/gestionusuarios" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/ventas/reporteventas" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-bar mr-2"></i>Reportes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                     <a href="/admin/maquinas/distribucionganancias" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Ganancias
+                    </a>
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">Sistema de Gestión</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-users mr-3 text-blue-600"></i>Gestión de Usuarios
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-user mr-2"></i>Administrador: <strong>{{ nombre_usuario }}</strong> | 
+                            <i class="fas fa-store mr-2 ml-4"></i><span id="fechaActual"></span>
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="UsuariosApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                        </button>
+                        <button onclick="UsuariosApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                            <i class="fas fa-plus mr-2"></i>Nuevo Usuario
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas rápidas -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
+                    <div class="text-sm text-gray-600">Total Usuarios</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-green-600" id="total-admins">0</div>
+                    <div class="text-sm text-gray-600">Administradores</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-purple-600" id="total-cajeros">0</div>
+                    <div class="text-sm text-gray-600">Cajeros</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-orange-600" id="total-restaurante">0</div>
+                    <div class="text-sm text-gray-600">Admin Restaurante</div>
+                </div>
+            </div>
+
+            <!-- Tabla de usuarios -->
+            <div class="glass-card">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-list mr-2 text-blue-600"></i>Lista de Usuarios
+                </h2>
+                
+                <!-- Barra de búsqueda y filtros -->
+                <div class="flex flex-col lg:flex-row gap-4 mb-4">
+                    <div class="flex-1">
+                        <input type="text" id="buscarUsuario" placeholder="Buscar por nombre, email o rol..." 
+                               class="w-full border border-gray-300 rounded-lg p-3" 
+                               onkeyup="UsuariosApp.filtrarUsuarios()">
+                    </div>
+                    <div>
+                        <select id="filtroRol" class="border border-gray-300 rounded-lg p-3" onchange="UsuariosApp.filtrarUsuarios()">
+                            <option value="">Todos los roles</option>
+                            <option value="admin">Administrador</option>
+                            <option value="cajero">Cajero</option>
+                            <option value="admin_restaurante">Admin Restaurante</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 text-left">
+                            <tr>
+                                <th class="p-3 font-semibold">ID</th>
+                                <th class="p-3 font-semibold">Nombre</th>
+                                <th class="p-3 font-semibold">Rol</th>
+                                <th class="p-3 font-semibold">Creado por</th>
+                                <th class="p-3 font-semibold">Fecha Creación</th>
+                                <th class="p-3 font-semibold">Estado</th>
+                                <th class="p-3 font-semibold text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaUsuarios" class="text-gray-700">
+                            <tr>
+                                <td colspan="7" class="p-4 text-center">
+                                    <div class="loading mx-auto mb-2"></div>
+                                    <p class="text-gray-600">Cargando usuarios...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para crear/editar usuario -->
+    <div id="modalUsuario" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 modal-content max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4" id="modalTitulo">
+                <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
+            </h2>
+            
+            <form id="formUsuario" onsubmit="UsuariosApp.guardarUsuario(event)">
+                <input type="hidden" id="usuarioId">
+                
+                <div class="space-y-4">
+                    <!-- Nombre -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-user mr-2"></i>Nombre Completo *
+                        </label>
+                        <input type="text" id="nombre" required
+                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                               placeholder="Ej: Juan Pérez">
+                    </div>
+
+                    <!-- Contraseña -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2"></i>Contraseña *
+                        </label>
+                        <input type="password" id="password" required
+                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                               placeholder="Mínimo 6 caracteres" minlength="6">
+                        <p class="text-xs text-gray-500 mt-1" id="passwordHelp">La contraseña debe tener al menos 6 caracteres</p>
+                    </div>
+
+                    <!-- Rol -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-user-tag mr-2"></i>Rol *
+                        </label>
+                        <select id="rol" required class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                            <option value="">Seleccionar rol</option>
+                            <option value="admin">Administrador</option>
+                            <option value="cajero">Cajero</option>
+                            <option value="admin_restaurante">Administrador Restaurante</option>
+                        </select>
+                    </div>
+
+                    <!-- Local -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-store mr-2"></i>Local
+                        </label>
+                        <select id="local" class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                            <option value="El Mekatiadero">El Mekatiadero</option>
+                            <!-- Se pueden agregar más locales aquí -->
+                        </select>
+                    </div>
+
+                    <!-- Notas -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-sticky-note mr-2"></i>Notas
+                        </label>
+                        <textarea id="notas" rows="3"
+                                  class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                                  placeholder="Información adicional sobre el usuario..."></textarea>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 btn-touch">
+                        <i class="fas fa-save mr-2"></i>Guardar
+                    </button>
+                    <button type="button" onclick="UsuariosApp.cerrarModal()" 
+                            class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para eliminar -->
+    <div id="modalConfirmar" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-red-600">
+                <i class="fas fa-exclamation-triangle mr-2"></i>Confirmar Eliminación
+            </h2>
+            <p class="text-gray-700 mb-6" id="mensajeConfirmacion">
+                ¿Estás seguro de que deseas eliminar este usuario?
+            </p>
+            <div class="flex gap-3">
+                <button onclick="UsuariosApp.confirmarEliminar()" 
+                        class="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 btn-touch">
+                    <i class="fas fa-trash mr-2"></i>Eliminar
+                </button>
+                <button onclick="UsuariosApp.cancelarEliminar()" 
+                        class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const UsuariosApp = {
+            usuarioAEliminar: null,
+
+            init: function() {
+                // Configurar partículas
+                particlesJS('particles-js', {
+                    particles: {
+                        number: { value: 40, density: { enable: true, value_area: 600 } },
+                        color: { value: '#3b82f6' },
+                        shape: { type: 'circle' },
+                        opacity: { value: 0.2, random: true },
+                        size: { value: 2, random: true },
+                        line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                        move: { enable: true, speed: 0.5, direction: 'none', random: true }
+                    },
+                    interactivity: {
+                        detect_on: 'canvas',
+                        events: {
+                            onhover: { enable: true, mode: 'grab' },
+                            onclick: { enable: true, mode: 'push' },
+                            resize: true
+                        }
+                    }
+                });
+
+                // Configurar fecha actual
+                this.configurarFechaActual();
+                
+                // Cargar usuarios
+                this.cargarUsuarios();
+                
+                console.log("Gestión de Usuarios inicializada");
+            },
+
+            configurarFechaActual: function() {
+                const ahora = new Date();
+                const opciones = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                document.getElementById('fechaActual').textContent = 
+                    ahora.toLocaleDateString('es-ES', opciones);
+            },
+
+            cargarUsuarios: function() {
+                fetch('/api/usuarios', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(data => {
+                    this.mostrarUsuarios(data);
+                    this.actualizarEstadisticas(data);
+                })
+                .catch(error => {
+                    console.error('Error cargando usuarios:', error);
+                    this.mostrarError('Error al cargar los usuarios');
+                });
+            },
+
+            mostrarUsuarios: function(usuarios) {
+                const tbody = document.getElementById('tablaUsuarios');
+                
+                if (!usuarios || usuarios.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="p-4 text-center text-gray-500">
+                                No hay usuarios registrados
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                usuarios.forEach(usuario => {
+                    const fechaCreacion = new Date(usuario.createdAt);
+                    const creadoPor = usuario.creador ? usuario.creador.name : 'Sistema';
+                    
+                    // Determinar color del badge según el rol
+                    let colorRol = 'bg-gray-100 text-gray-800';
+                    if (usuario.role === 'admin') colorRol = 'bg-red-100 text-red-800';
+                    if (usuario.role === 'cajero') colorRol = 'bg-blue-100 text-blue-800';
+                    if (usuario.role === 'admin_restaurante') colorRol = 'bg-green-100 text-green-800';
+
+                    html += `
+                        <tr class="user-row border-b border-gray-200">
+                            <td class="p-3 font-mono text-sm">${usuario.id}</td>
+                            <td class="p-3 font-medium">${usuario.name}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-full text-xs ${colorRol}">
+                                    ${this.formatearRol(usuario.role)}
+                                </span>
+                            </td>
+                            <td class="p-3">${creadoPor}</td>
+                            <td class="p-3 text-sm">${fechaCreacion.toLocaleDateString()}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                    Activo
+                                </span>
+                            </td>
+                            <td class="p-3 text-center">
+                                <div class="flex justify-center space-x-2">
+                                    <button onclick="UsuariosApp.editarUsuario(${usuario.id})" 
+                                            class="text-blue-600 hover:text-blue-800 btn-touch"
+                                            title="Editar usuario">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name}')" 
+                                            class="text-red-600 hover:text-red-800 btn-touch"
+                                            title="Eliminar usuario">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+            },
+
+            formatearRol: function(rol) {
+                const roles = {
+                    'admin': 'Administrador',
+                    'cajero': 'Cajero',
+                    'admin_restaurante': 'Admin Restaurante'
+                };
+                return roles[rol] || rol;
+            },
+
+            actualizarEstadisticas: function(usuarios) {
+                const total = usuarios.length;
+                const admins = usuarios.filter(u => u.role === 'admin').length;
+                const cajeros = usuarios.filter(u => u.role === 'cajero').length;
+                const restaurante = usuarios.filter(u => u.role === 'admin_restaurante').length;
+
+                document.getElementById('total-usuarios').textContent = total;
+                document.getElementById('total-admins').textContent = admins;
+                document.getElementById('total-cajeros').textContent = cajeros;
+                document.getElementById('total-restaurante').textContent = restaurante;
+            },
+
+            filtrarUsuarios: function() {
+                const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
+                const filtroRol = document.getElementById('filtroRol').value;
+                const filas = document.querySelectorAll('#tablaUsuarios tr');
+
+                filas.forEach(fila => {
+                    const nombre = fila.cells[1]?.textContent.toLowerCase() || '';
+                    const rol = fila.cells[2]?.textContent.toLowerCase() || '';
+                    
+                    const coincideBusqueda = nombre.includes(busqueda);
+                    const coincideRol = !filtroRol || rol.includes(filtroRol);
+
+                    fila.style.display = (coincideBusqueda && coincideRol) ? '' : 'none';
+                });
+            },
+
+            mostrarModalCrear: function() {
+                document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario';
+                document.getElementById('formUsuario').reset();
+                document.getElementById('usuarioId').value = '';
+                document.getElementById('modalUsuario').classList.remove('hidden');
+                document.getElementById('modalUsuario').classList.add('flex');
+            },
+
+            editarUsuario: function(id) {
+                fetch(`/api/usuarios/${id}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(usuario => {
+                    document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-edit mr-2 text-blue-600"></i>Editar Usuario';
+                    document.getElementById('usuarioId').value = usuario.id;
+                    document.getElementById('nombre').value = usuario.name;
+                    document.getElementById('password').value = ''; // No mostrar contraseña actual
+                    document.getElementById('password').required = false; // Hacer opcional en edición
+                    document.getElementById('passwordHelp').textContent = 'Dejar vacío para mantener la contraseña actual';
+                    document.getElementById('rol').value = usuario.role;
+                    document.getElementById('local').value = usuario.local || 'El Mekatiadero';
+                    document.getElementById('notas').value = usuario.notes || '';
+
+                    document.getElementById('modalUsuario').classList.remove('hidden');
+                    document.getElementById('modalUsuario').classList.add('flex');
+                })
+                .catch(error => {
+                    console.error('Error cargando usuario:', error);
+                    this.mostrarError('Error al cargar el usuario');
+                });
+            },
+
+            guardarUsuario: function(event) {
+                event.preventDefault();
+                
+                const usuarioId = document.getElementById('usuarioId').value;
+                const esEdicion = !!usuarioId;
+
+                const datos = {
+                    name: document.getElementById('nombre').value,
+                    role: document.getElementById('rol').value,
+                    local: document.getElementById('local').value,
+                    notes: document.getElementById('notas').value
+                };
+
+                // Solo incluir password si se proporcionó uno nuevo
+                const password = document.getElementById('password').value;
+                if (password) {
+                    datos.password = password;
+                }
+
+                const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
+                const method = esEdicion ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(datos)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(data => {
+                    this.mostrarAlerta(
+                        esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 
+                        'success'
+                    );
+                    this.cerrarModal();
+                    this.cargarUsuarios();
+                })
+                .catch(error => {
+                    console.error('Error guardando usuario:', error);
+                    this.mostrarError('Error al guardar el usuario');
+                });
+            },
+
+            eliminarUsuario: function(id, nombre) {
+                this.usuarioAEliminar = id;
+                document.getElementById('mensajeConfirmacion').textContent = 
+                    `¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
+                document.getElementById('modalConfirmar').classList.remove('hidden');
+                document.getElementById('modalConfirmar').classList.add('flex');
+            },
+
+            confirmarEliminar: function() {
+                if (!this.usuarioAEliminar) return;
+
+                fetch(`/api/usuarios/${this.usuarioAEliminar}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(data => {
+                    this.mostrarAlerta('Usuario eliminado correctamente', 'success');
+                    this.cancelarEliminar();
+                    this.cargarUsuarios();
+                })
+                .catch(error => {
+                    console.error('Error eliminando usuario:', error);
+                    this.mostrarError('Error al eliminar el usuario');
+                });
+            },
+
+            cancelarEliminar: function() {
+                this.usuarioAEliminar = null;
+                document.getElementById('modalConfirmar').classList.add('hidden');
+                document.getElementById('modalConfirmar').classList.remove('flex');
+            },
+
+            cerrarModal: function() {
+                document.getElementById('modalUsuario').classList.add('hidden');
+                document.getElementById('modalUsuario').classList.remove('flex');
+                // Restaurar requerimiento de password
+                document.getElementById('password').required = true;
+                document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
+            },
+
+            actualizarLista: function() {
+                this.cargarUsuarios();
+                this.mostrarAlerta('Lista de usuarios actualizada', 'success');
+            },
+
+            mostrarAlerta: function(mensaje, tipo) {
+                const toast = document.createElement('div');
+                toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                    tipo === 'error' ? 'bg-red-500' : 
+                    tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                } text-white max-w-md`;
+                toast.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-${
+                            tipo === 'success' ? 'check-circle' : 
+                            tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                        } mr-2"></i>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => toast.remove(), 4000);
+            },
+
+            mostrarError: function(mensaje) {
+                this.mostrarAlerta(mensaje, 'error');
+            }
+        };
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            UsuariosApp.init();
+        });
+    </script>
+</body>
+</html>
