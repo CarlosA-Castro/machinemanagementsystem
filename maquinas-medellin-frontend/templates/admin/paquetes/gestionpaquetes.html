@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Paquetes - Admin</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .package-row:hover {
+            background-color: #f8fafc;
+        }
+        
+        @media (max-width: 1024px) {
+            .contenido {
+                padding: 1rem !important;
+            }
+            .glass-card {
+                padding: 1.25rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.75rem !important;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-user-cog mr-2"></i>Admin
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/gestionusuarios" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/gestionpaquetes" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/ventas/reporteventas" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-bar mr-2"></i>Reportes
+                    </a>
+                     <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                     <a href="/admin/maquinas/distribucionganancias" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Ganancias
+                    </a>
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">Sistema de Gestión</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-cube mr-3 text-blue-600"></i>Gestión de Paquetes
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-user mr-2"></i>Administrador: <strong>{{ nombre_usuario }}</strong> | 
+                            <i class="fas fa-store mr-2 ml-4"></i><span id="fechaActual"></span>
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="PaquetesApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                        </button>
+                        <button onclick="PaquetesApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                            <i class="fas fa-plus mr-2"></i>Nuevo Paquete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas rápidas -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="total-paquetes">0</div>
+                    <div class="text-sm text-gray-600">Total Paquetes</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-green-600" id="paquetes-activos">0</div>
+                    <div class="text-sm text-gray-600">Paquetes Activos</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-purple-600" id="turnos-totales">0</div>
+                    <div class="text-sm text-gray-600">Turnos Totales</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-orange-600" id="valor-total">$0</div>
+                    <div class="text-sm text-gray-600">Valor Total</div>
+                </div>
+            </div>
+
+            <!-- Tabla de paquetes -->
+            <div class="glass-card">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-list mr-2 text-blue-600"></i>Lista de Paquetes
+                </h2>
+                
+                <!-- Barra de búsqueda y filtros -->
+                <div class="flex flex-col lg:flex-row gap-4 mb-4">
+                    <div class="flex-1">
+                        <input type="text" id="buscarPaquete" placeholder="Buscar por nombre..." 
+                               class="w-full border border-gray-300 rounded-lg p-3" 
+                               onkeyup="PaquetesApp.filtrarPaquetes()">
+                    </div>
+                    <div>
+                        <select id="filtroEstado" class="border border-gray-300 rounded-lg p-3" onchange="PaquetesApp.filtrarPaquetes()">
+                            <option value="">Todos los estados</option>
+                            <option value="activo">Activos</option>
+                            <option value="inactivo">Inactivos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 text-left">
+                            <tr>
+                                <th class="p-3 font-semibold">ID</th>
+                                <th class="p-3 font-semibold">Nombre</th>
+                                <th class="p-3 font-semibold">Turnos</th>
+                                <th class="p-3 font-semibold">Precio</th>
+                                <th class="p-3 font-semibold">Precio/Turno</th>
+                                <th class="p-3 font-semibold">Estado</th>
+                                <th class="p-3 font-semibold">Fecha Creación</th>
+                                <th class="p-3 font-semibold text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaPaquetes" class="text-gray-700">
+                            <tr>
+                                <td colspan="8" class="p-4 text-center">
+                                    <div class="loading mx-auto mb-2"></div>
+                                    <p class="text-gray-600">Cargando paquetes...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para crear/editar paquete -->
+    <div id="modalPaquete" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 modal-content max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4" id="modalTitulo">
+                <i class="fas fa-cube mr-2 text-green-600"></i>Crear Nuevo Paquete
+            </h2>
+            
+            <form id="formPaquete" onsubmit="PaquetesApp.guardarPaquete(event)">
+                <input type="hidden" id="paqueteId">
+                
+                <div class="space-y-4">
+                    <!-- Nombre -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-tag mr-2"></i>Nombre del Paquete *
+                        </label>
+                        <input type="text" id="nombre" required
+                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                               placeholder="Ej: Paquete P1">
+                    </div>
+
+                    <!-- Turnos -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-redo mr-2"></i>Número de Turnos *
+                        </label>
+                        <input type="number" id="turnos" required min="1" max="100"
+                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                               placeholder="Ej: 10">
+                        <p class="text-xs text-gray-500 mt-1">Número de turnos que incluye el paquete</p>
+                    </div>
+
+                    <!-- Precio -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-dollar-sign mr-2"></i>Precio (COP) *
+                        </label>
+                        <input type="number" id="precio" required min="1000" step="1000"
+                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                               placeholder="Ej: 15000">
+                        <p class="text-xs text-gray-500 mt-1">Precio en pesos colombianos</p>
+                    </div>
+
+                    <!-- Estado -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-toggle-on mr-2"></i>Estado
+                        </label>
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center">
+                                <input type="radio" name="estado" value="true" checked class="mr-2">
+                                <span class="text-sm">Activo</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="estado" value="false" class="mr-2">
+                                <span class="text-sm">Inactivo</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div id="resumenPaquete" class="bg-gray-50 p-4 rounded-lg hidden">
+                        <h3 class="font-semibold text-gray-800 mb-2">Resumen del Paquete:</h3>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <span>Precio por turno:</span>
+                            <span class="font-semibold" id="precioPorTurno">$0</span>
+                            <span>Total turnos:</span>
+                            <span class="font-semibold" id="totalTurnos">0</span>
+                            <span>Valor total:</span>
+                            <span class="font-semibold" id="valorTotal">$0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 btn-touch">
+                        <i class="fas fa-save mr-2"></i>Guardar
+                    </button>
+                    <button type="button" onclick="PaquetesApp.cerrarModal()" 
+                            class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para eliminar -->
+    <div id="modalConfirmar" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-red-600">
+                <i class="fas fa-exclamation-triangle mr-2"></i>Confirmar Eliminación
+            </h2>
+            <p class="text-gray-700 mb-6" id="mensajeConfirmacion">
+                ¿Estás seguro de que deseas eliminar este paquete?
+            </p>
+            <div class="flex gap-3">
+                <button onclick="PaquetesApp.confirmarEliminar()" 
+                        class="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 btn-touch">
+                    <i class="fas fa-trash mr-2"></i>Eliminar
+                </button>
+                <button onclick="PaquetesApp.cancelarEliminar()" 
+                        class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PaquetesApp = {
+            paqueteAEliminar: null,
+
+            init: function() {
+                // Configurar partículas
+                particlesJS('particles-js', {
+                    particles: {
+                        number: { value: 40, density: { enable: true, value_area: 600 } },
+                        color: { value: '#3b82f6' },
+                        shape: { type: 'circle' },
+                        opacity: { value: 0.2, random: true },
+                        size: { value: 2, random: true },
+                        line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                        move: { enable: true, speed: 0.5, direction: 'none', random: true }
+                    },
+                    interactivity: {
+                        detect_on: 'canvas',
+                        events: {
+                            onhover: { enable: true, mode: 'grab' },
+                            onclick: { enable: true, mode: 'push' },
+                            resize: true
+                        }
+                    }
+                });
+
+                // Configurar fecha actual
+                this.configurarFechaActual();
+                
+                // Cargar paquetes
+                this.cargarPaquetes();
+                
+                // Event listeners para calcular resumen
+                document.getElementById('turnos').addEventListener('input', () => this.calcularResumen());
+                document.getElementById('precio').addEventListener('input', () => this.calcularResumen());
+                
+                console.log("Gestión de Paquetes inicializada");
+            },
+
+            configurarFechaActual: function() {
+                const ahora = new Date();
+                const opciones = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                document.getElementById('fechaActual').textContent = 
+                    ahora.toLocaleDateString('es-ES', opciones);
+            },
+
+            cargarPaquetes: function() {
+                fetch('/api/paquetes', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(data => {
+                    this.mostrarPaquetes(data);
+                    this.actualizarEstadisticas(data);
+                })
+                .catch(error => {
+                    console.error('Error cargando paquetes:', error);
+                    this.mostrarError('Error al cargar los paquetes');
+                });
+            },
+
+            mostrarPaquetes: function(paquetes) {
+                const tbody = document.getElementById('tablaPaquetes');
+                
+                if (!paquetes || paquetes.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="p-4 text-center text-gray-500">
+                                No hay paquetes registrados
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                paquetes.forEach(paquete => {
+                    const fechaCreacion = new Date(paquete.createdAt);
+                    const precioPorTurno = paquete.price / paquete.turns;
+                    
+                    // Determinar estado
+                    const estado = paquete.isActive ? 'Activo' : 'Inactivo';
+                    const colorEstado = paquete.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+
+                    html += `
+                        <tr class="package-row border-b border-gray-200">
+                            <td class="p-3 font-mono text-sm">${paquete.id}</td>
+                            <td class="p-3 font-medium">${paquete.name}</td>
+                            <td class="p-3 text-center font-semibold">${paquete.turns}</td>
+                            <td class="p-3 font-semibold">${this.formatearMoneda(paquete.price)}</td>
+                            <td class="p-3 text-sm text-gray-600">${this.formatearMoneda(precioPorTurno)}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-full text-xs ${colorEstado}">
+                                    ${estado}
+                                </span>
+                            </td>
+                            <td class="p-3 text-sm">${fechaCreacion.toLocaleDateString()}</td>
+                            <td class="p-3 text-center">
+                                <div class="flex justify-center space-x-2">
+                                    <button onclick="PaquetesApp.editarPaquete(${paquete.id})" 
+                                            class="text-blue-600 hover:text-blue-800 btn-touch"
+                                            title="Editar paquete">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="PaquetesApp.eliminarPaquete(${paquete.id}, '${paquete.name}')" 
+                                            class="text-red-600 hover:text-red-800 btn-touch"
+                                            title="Eliminar paquete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+            },
+
+            actualizarEstadisticas: function(paquetes) {
+                const total = paquetes.length;
+                const activos = paquetes.filter(p => p.isActive).length;
+                const turnosTotales = paquetes.reduce((sum, p) => sum + p.turns, 0);
+                const valorTotal = paquetes.reduce((sum, p) => sum + p.price, 0);
+
+                document.getElementById('total-paquetes').textContent = total;
+                document.getElementById('paquetes-activos').textContent = activos;
+                document.getElementById('turnos-totales').textContent = turnosTotales;
+                document.getElementById('valor-total').textContent = this.formatearMoneda(valorTotal);
+            },
+
+            filtrarPaquetes: function() {
+                const busqueda = document.getElementById('buscarPaquete').value.toLowerCase();
+                const filtroEstado = document.getElementById('filtroEstado').value;
+                const filas = document.querySelectorAll('#tablaPaquetes tr');
+
+                filas.forEach(fila => {
+                    const nombre = fila.cells[1]?.textContent.toLowerCase() || '';
+                    const estado = fila.cells[5]?.textContent.toLowerCase() || '';
+                    
+                    const coincideBusqueda = nombre.includes(busqueda);
+                    const coincideEstado = !filtroEstado || 
+                        (filtroEstado === 'activo' && estado === 'activo') ||
+                        (filtroEstado === 'inactivo' && estado === 'inactivo');
+
+                    fila.style.display = (coincideBusqueda && coincideEstado) ? '' : 'none';
+                });
+            },
+
+            calcularResumen: function() {
+                const turnos = parseInt(document.getElementById('turnos').value) || 0;
+                const precio = parseInt(document.getElementById('precio').value) || 0;
+                
+                if (turnos > 0 && precio > 0) {
+                    const precioPorTurno = precio / turnos;
+                    const resumenDiv = document.getElementById('resumenPaquete');
+                    
+                    document.getElementById('precioPorTurno').textContent = this.formatearMoneda(precioPorTurno);
+                    document.getElementById('totalTurnos').textContent = turnos;
+                    document.getElementById('valorTotal').textContent = this.formatearMoneda(precio);
+                    
+                    resumenDiv.classList.remove('hidden');
+                } else {
+                    document.getElementById('resumenPaquete').classList.add('hidden');
+                }
+            },
+
+            mostrarModalCrear: function() {
+                document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-cube mr-2 text-green-600"></i>Crear Nuevo Paquete';
+                document.getElementById('formPaquete').reset();
+                document.getElementById('paqueteId').value = '';
+                document.getElementById('resumenPaquete').classList.add('hidden');
+                document.getElementById('modalPaquete').classList.remove('hidden');
+                document.getElementById('modalPaquete').classList.add('flex');
+            },
+
+            editarPaquete: function(id) {
+                fetch(`/api/paquetes/${id}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(paquete => {
+                    document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-edit mr-2 text-blue-600"></i>Editar Paquete';
+                    document.getElementById('paqueteId').value = paquete.id;
+                    document.getElementById('nombre').value = paquete.name;
+                    document.getElementById('turnos').value = paquete.turns;
+                    document.getElementById('precio').value = paquete.price;
+                    
+                    // Configurar estado
+                    const estadoRadios = document.getElementsByName('estado');
+                    estadoRadios.forEach(radio => {
+                        radio.checked = radio.value === paquete.isActive.toString();
+                    });
+
+                    // Mostrar resumen
+                    this.calcularResumen();
+
+                    document.getElementById('modalPaquete').classList.remove('hidden');
+                    document.getElementById('modalPaquete').classList.add('flex');
+                })
+                .catch(error => {
+                    console.error('Error cargando paquete:', error);
+                    this.mostrarError('Error al cargar el paquete');
+                });
+            },
+
+            guardarPaquete: function(event) {
+                event.preventDefault();
+                
+                const paqueteId = document.getElementById('paqueteId').value;
+                const esEdicion = !!paqueteId;
+
+                const datos = {
+                    name: document.getElementById('nombre').value,
+                    turns: parseInt(document.getElementById('turnos').value),
+                    price: parseInt(document.getElementById('precio').value),
+                    isActive: document.querySelector('input[name="estado"]:checked').value === 'true'
+                };
+
+                // Validaciones
+                if (datos.turns < 1) {
+                    this.mostrarError('El número de turnos debe ser mayor a 0');
+                    return;
+                }
+
+                if (datos.price < 1000) {
+                    this.mostrarError('El precio debe ser mayor a $1,000');
+                    return;
+                }
+
+                const url = esEdicion ? `/api/paquetes/${paqueteId}` : '/api/paquetes';
+                const method = esEdicion ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(datos)
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(data => {
+                    this.mostrarAlerta(
+                        esEdicion ? 'Paquete actualizado correctamente' : 'Paquete creado correctamente', 
+                        'success'
+                    );
+                    this.cerrarModal();
+                    this.cargarPaquetes();
+                })
+                .catch(error => {
+                    console.error('Error guardando paquete:', error);
+                    this.mostrarError('Error al guardar el paquete');
+                });
+            },
+
+            eliminarPaquete: function(id, nombre) {
+                this.paqueteAEliminar = id;
+                document.getElementById('mensajeConfirmacion').textContent = 
+                    `¿Estás seguro de que deseas eliminar el paquete "${nombre}"? Esta acción no se puede deshacer.`;
+                document.getElementById('modalConfirmar').classList.remove('hidden');
+                document.getElementById('modalConfirmar').classList.add('flex');
+            },
+
+            confirmarEliminar: function() {
+                if (!this.paqueteAEliminar) return;
+
+                fetch(`/api/paquetes/${this.paqueteAEliminar}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                    return response.json();
+                })
+                .then(data => {
+                    this.mostrarAlerta('Paquete eliminado correctamente', 'success');
+                    this.cancelarEliminar();
+                    this.cargarPaquetes();
+                })
+                .catch(error => {
+                    console.error('Error eliminando paquete:', error);
+                    this.mostrarError('Error al eliminar el paquete');
+                });
+            },
+
+            cancelarEliminar: function() {
+                this.paqueteAEliminar = null;
+                document.getElementById('modalConfirmar').classList.add('hidden');
+                document.getElementById('modalConfirmar').classList.remove('flex');
+            },
+
+            cerrarModal: function() {
+                document.getElementById('modalPaquete').classList.add('hidden');
+                document.getElementById('modalPaquete').classList.remove('flex');
+            },
+
+            actualizarLista: function() {
+                this.cargarPaquetes();
+                this.mostrarAlerta('Lista de paquetes actualizada', 'success');
+            },
+
+            formatearMoneda: function(valor) {
+                return new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    minimumFractionDigits: 0
+                }).format(valor);
+            },
+
+            mostrarAlerta: function(mensaje, tipo) {
+                const toast = document.createElement('div');
+                toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                    tipo === 'error' ? 'bg-red-500' : 
+                    tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                } text-white max-w-md`;
+                toast.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-${
+                            tipo === 'success' ? 'check-circle' : 
+                            tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                        } mr-2"></i>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => toast.remove(), 4000);
+            },
+
+            mostrarError: function(mensaje) {
+                this.mostrarAlerta(mensaje, 'error');
+            }
+        };
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            PaquetesApp.init();
+        });
+    </script>
+</body>
+</html>

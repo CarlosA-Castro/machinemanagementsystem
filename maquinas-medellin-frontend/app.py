@@ -1087,8 +1087,8 @@ def exportar_ventas():
 # ==================== RUTAS PARA EL PANEL DE ADMINISTRACIÓN ====================
 
 # RUTAS DE INTERFAZ ADMINISTRADOR
-# Dashboard del administrador
-# @app.route('/admin')
+
+# Mostrar panel de administración
 @app.route('/admin')
 def mostrar_admin():
     if not session.get('logged_in'):
@@ -1102,12 +1102,25 @@ def mostrar_admin():
                            nombre_usuario=session.get('user_name', 'Administrador'),
                            local_usuario=session.get('user_local', 'Sistema'))
 
+# Mostrar gestión de usuarios
 @app.route('/admin/usuarios/lista')
 def mostrar_lista_usuarios():
     """Redirigir a la gestión de usuarios"""
     return redirect(url_for('mostrar_gestion_usuarios'))
 
-            
+# Mostrar gestión de paquetes
+@app.route('/admin/paquetes/gestionpaquetes')
+def mostrar_gestion_paquetes():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    # Verificar que el usuario sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    return render_template('admin/paquetes/gestionpaquetes.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
 
 #LLAMADAS DE APIS ADMINISTRADOR
 @app.route('/api/dashboard/estadisticas')
@@ -1789,6 +1802,210 @@ def eliminar_usuario(usuario_id):
             cursor.close()
         if connection:
             connection.close()
+
+# ==================== APIS PARA GESTIÓN DE PAQUETES ====================
+@app.route('/api/paquetes/<int:paquete_id>', methods=['GET'])
+def obtener_paquete(paquete_id):
+    """Obtener un paquete específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT * FROM TurnPackage WHERE id = %s", (paquete_id,))
+        paquete = cursor.fetchone()
+        
+        if not paquete:
+            return jsonify({'error': 'Paquete no encontrado'}), 404
+        
+        return jsonify(paquete)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo paquete: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/paquetes', methods=['POST'])
+def crear_paquete():
+    """Crear un nuevo paquete"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        turns = data.get('turns')
+        price = data.get('price')
+        isActive = data.get('isActive', True)
+        
+        # Validaciones
+        if not name or not turns or not price:
+            return jsonify({'error': 'Nombre, turnos y precio son obligatorios'}), 400
+        
+        if turns < 1:
+            return jsonify({'error': 'El número de turnos debe ser mayor a 0'}), 400
+        
+        if price < 1000:
+            return jsonify({'error': 'El precio debe ser mayor a $1,000'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si el paquete ya existe
+        cursor.execute("SELECT id FROM TurnPackage WHERE name = %s", (name,))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe un paquete con ese nombre'}), 400
+        
+        # Crear paquete
+        cursor.execute("""
+            INSERT INTO TurnPackage (name, turns, price, isActive)
+            VALUES (%s, %s, %s, %s)
+        """, (name, turns, price, isActive))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Paquete creado correctamente',
+            'paquete_id': cursor.lastrowid
+        })
+        
+    except Exception as e:
+        print(f"❌ Error creando paquete: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/paquetes/<int:paquete_id>', methods=['PUT'])
+def actualizar_paquete(paquete_id):
+    """Actualizar un paquete existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        turns = data.get('turns')
+        price = data.get('price')
+        isActive = data.get('isActive')
+        
+        # Validaciones
+        if not name or not turns or not price:
+            return jsonify({'error': 'Nombre, turnos y precio son obligatorios'}), 400
+        
+        if turns < 1:
+            return jsonify({'error': 'El número de turnos debe ser mayor a 0'}), 400
+        
+        if price < 1000:
+            return jsonify({'error': 'El precio debe ser mayor a $1,000'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el paquete existe
+        cursor.execute("SELECT id FROM TurnPackage WHERE id = %s", (paquete_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Paquete no encontrado'}), 404
+        
+        # Verificar nombre duplicado
+        cursor.execute("SELECT id FROM TurnPackage WHERE name = %s AND id != %s", (name, paquete_id))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe otro paquete con ese nombre'}), 400
+        
+        # Actualizar paquete
+        cursor.execute("""
+            UPDATE TurnPackage 
+            SET name = %s, turns = %s, price = %s, isActive = %s
+            WHERE id = %s
+        """, (name, turns, price, isActive, paquete_id))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Paquete actualizado correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando paquete: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/paquetes/<int:paquete_id>', methods=['DELETE'])
+def eliminar_paquete(paquete_id):
+    """Eliminar un paquete"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el paquete existe
+        cursor.execute("SELECT id FROM TurnPackage WHERE id = %s", (paquete_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Paquete no encontrado'}), 404
+        
+        # Verificar si el paquete está en uso
+        cursor.execute("""
+            SELECT COUNT(*) as uso_count 
+            FROM QRCode 
+            WHERE turnPackageId = %s
+        """, (paquete_id,))
+        uso_count = cursor.fetchone()['uso_count']
+        
+        if uso_count > 0:
+            return jsonify({
+                'error': f'No se puede eliminar el paquete. Está siendo usado por {uso_count} códigos QR.'
+            }), 400
+        
+        # Eliminar paquete
+        cursor.execute("DELETE FROM TurnPackage WHERE id = %s", (paquete_id,))
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Paquete eliminado correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error eliminando paquete: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/admin/paquetes/lista')
+def mostrar_lista_paquetes():
+    """Redirigir a la gestión de paquetes"""
+    return redirect(url_for('mostrar_gestion_paquetes'))
 
 # Iniciar servidor
 if __name__ == '__main__':
