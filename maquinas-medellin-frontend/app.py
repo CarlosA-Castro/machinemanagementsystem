@@ -1122,6 +1122,20 @@ def mostrar_gestion_paquetes():
                            nombre_usuario=session.get('user_name', 'Administrador'),
                            local_usuario=session.get('user_local', 'Sistema'))
 
+# Mostrar gestión de locales
+@app.route('/admin/locales/gestionlocales')
+def mostrar_gestion_locales():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    # Verificar que el usuario sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    return render_template('admin/locales/gestionlocales.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
+
 #LLAMADAS DE APIS ADMINISTRADOR
 @app.route('/api/dashboard/estadisticas')
 def dashboard_estadisticas():
@@ -2006,6 +2020,309 @@ def eliminar_paquete(paquete_id):
 def mostrar_lista_paquetes():
     """Redirigir a la gestión de paquetes"""
     return redirect(url_for('mostrar_gestion_paquetes'))
+
+# ==================== APIS PARA GESTIÓN DE LOCALES ====================
+@app.route('/api/locales', methods=['GET'])
+def obtener_locales():
+    """Obtener todos los locales con estadísticas"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Primero verificar si las columnas adicionales existen
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'Location' AND COLUMN_NAME = 'telefono'
+        """)
+        tiene_telefono = cursor.fetchone() is not None
+        
+        if tiene_telefono:
+            cursor.execute("""
+                SELECT l.*, 
+                       COUNT(m.id) as maquinas_count,
+                       SUM(CASE WHEN m.status = 'activa' THEN 1 ELSE 0 END) as maquinas_activas
+                FROM Location l
+                LEFT JOIN Machine m ON l.id = m.location_id
+                GROUP BY l.id
+                ORDER BY l.name
+            """)
+        else:
+            # Si no tiene las columnas adicionales, usar solo las básicas
+            cursor.execute("""
+                SELECT l.id, l.name, l.address, l.city, l.status,
+                       COUNT(m.id) as maquinas_count,
+                       SUM(CASE WHEN m.status = 'activa' THEN 1 ELSE 0 END) as maquinas_activas
+                FROM Location l
+                LEFT JOIN Machine m ON l.id = m.location_id
+                GROUP BY l.id
+                ORDER BY l.name
+            """)
+        
+        locales = cursor.fetchall()
+        return jsonify(locales)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo locales: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/locales/<int:local_id>', methods=['GET'])
+def obtener_local(local_id):
+    """Obtener un local específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si las columnas adicionales existen
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'Location' AND COLUMN_NAME = 'telefono'
+        """)
+        tiene_telefono = cursor.fetchone() is not None
+        
+        if tiene_telefono:
+            cursor.execute("SELECT * FROM Location WHERE id = %s", (local_id,))
+        else:
+            cursor.execute("SELECT id, name, address, city, status FROM Location WHERE id = %s", (local_id,))
+        
+        local = cursor.fetchone()
+        
+        if not local:
+            return jsonify({'error': 'Local no encontrado'}), 404
+        
+        # Asegurarse de que todos los campos existan en la respuesta
+        local_completo = {
+            'id': local['id'],
+            'name': local['name'],
+            'address': local.get('address', ''),
+            'city': local.get('city', ''),
+            'status': local.get('status', 'activo'),
+            'telefono': local.get('telefono', ''),
+            'horario': local.get('horario', ''),
+            'notas': local.get('notas', '')
+        }
+        
+        return jsonify(local_completo)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo local: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/locales', methods=['POST'])
+def crear_local():
+    """Crear un nuevo local"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        address = data.get('address')
+        city = data.get('city')
+        status = data.get('status', 'activo')
+        telefono = data.get('telefono', '')
+        horario = data.get('horario', '')
+        notas = data.get('notas', '')
+        
+        # Validaciones
+        if not name or not address or not city:
+            return jsonify({'error': 'Nombre, dirección y ciudad son obligatorios'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si el local ya existe
+        cursor.execute("SELECT id FROM Location WHERE name = %s", (name,))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe un local con ese nombre'}), 400
+        
+        # Verificar si las columnas adicionales existen
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'Location' AND COLUMN_NAME = 'telefono'
+        """)
+        tiene_telefono = cursor.fetchone() is not None
+        
+        # Crear local
+        if tiene_telefono:
+            cursor.execute("""
+                INSERT INTO Location (name, address, city, status, telefono, horario, notas)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (name, address, city, status, telefono, horario, notas))
+        else:
+            cursor.execute("""
+                INSERT INTO Location (name, address, city, status)
+                VALUES (%s, %s, %s, %s)
+            """, (name, address, city, status))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Local creado correctamente',
+            'local_id': cursor.lastrowid
+        })
+        
+    except Exception as e:
+        print(f"❌ Error creando local: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/locales/<int:local_id>', methods=['PUT'])
+def actualizar_local(local_id):
+    """Actualizar un local existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        address = data.get('address')
+        city = data.get('city')
+        status = data.get('status')
+        telefono = data.get('telefono', '')
+        horario = data.get('horario', '')
+        notas = data.get('notas', '')
+        
+        # Validaciones
+        if not name or not address or not city:
+            return jsonify({'error': 'Nombre, dirección y ciudad son obligatorios'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el local existe
+        cursor.execute("SELECT id FROM Location WHERE id = %s", (local_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Local no encontrado'}), 404
+        
+        # Verificar nombre duplicado
+        cursor.execute("SELECT id FROM Location WHERE name = %s AND id != %s", (name, local_id))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe otro local con ese nombre'}), 400
+        
+        # Verificar si las columnas adicionales existen
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'Location' AND COLUMN_NAME = 'telefono'
+        """)
+        tiene_telefono = cursor.fetchone() is not None
+        
+        # Actualizar local
+        if tiene_telefono:
+            cursor.execute("""
+                UPDATE Location 
+                SET name = %s, address = %s, city = %s, status = %s, 
+                    telefono = %s, horario = %s, notas = %s
+                WHERE id = %s
+            """, (name, address, city, status, telefono, horario, notas, local_id))
+        else:
+            cursor.execute("""
+                UPDATE Location 
+                SET name = %s, address = %s, city = %s, status = %s
+                WHERE id = %s
+            """, (name, address, city, status, local_id))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Local actualizado correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando local: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/locales/<int:local_id>', methods=['DELETE'])
+def eliminar_local(local_id):
+    """Eliminar un local"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el local existe
+        cursor.execute("SELECT id FROM Location WHERE id = %s", (local_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Local no encontrado'}), 404
+        
+        # Verificar si el local tiene máquinas asignadas
+        cursor.execute("SELECT COUNT(*) as maquinas_count FROM Machine WHERE location_id = %s", (local_id,))
+        maquinas_count = cursor.fetchone()['maquinas_count']
+        
+        if maquinas_count > 0:
+            return jsonify({
+                'error': f'No se puede eliminar el local. Tiene {maquinas_count} máquinas asignadas.'
+            }), 400
+        
+        # Eliminar local
+        cursor.execute("DELETE FROM Location WHERE id = %s", (local_id,))
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Local eliminado correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error eliminando local: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/admin/locales/listalocales')
+def mostrar_lista_locales():
+    """Redirigir a la gestión de locales"""
+    return redirect(url_for('mostrar_gestion_locales'))
 
 # Iniciar servidor
 if __name__ == '__main__':
