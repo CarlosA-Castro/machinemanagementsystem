@@ -91,7 +91,7 @@
 
     <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Barra lateral -->
+        <!-- Barra lateral CON HORA ACTUAL -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
@@ -120,11 +120,15 @@
                     {% endif %}
                 </nav>
             </div>
-            <!-- Información de usuario -->
+            <!-- Información de usuario CON HORA ACTUAL -->
             <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
                 <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
                 <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
-                <div class="mb-2 text-xs text-gray-400">Rol: {{ session.get('user_role', 'Usuario') }}</div>
+                <div class="mb-2 text-xs text-gray-400">
+                    <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+                    <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+                    Rol: {{ session.get('user_role', 'Usuario') }}
+                </div>
                 <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
                     <i class="fas fa-sign-out-alt mr-1"></i>Salir
                 </a>
@@ -168,36 +172,36 @@
 
             <!-- Filtros -->
             <div class="glass-card mb-6">
-    <h2 class="text-xl font-semibold mb-4 text-gray-800">
-        <i class="fas fa-filter mr-2 text-purple-600"></i>Filtros
-    </h2>
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Rango:</label>
-            <select id="filtroRango" class="w-full border border-gray-300 rounded-lg p-3" onchange="VentasApp.cambiarRango()">
-                <option value="hoy">Hoy</option>
-                <option value="ayer">Ayer</option>
-                <option value="semana">Esta semana</option>
-                <option value="mes">Este mes</option>
-                <option value="quincena">Quincena actual</option>
-                <option value="personalizado">Personalizado</option>
-            </select>
-        </div>
-        <div id="fechaInicioContainer">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha inicio:</label>
-            <input type="date" id="filtroFechaInicio" class="w-full border border-gray-300 rounded-lg p-3">
-        </div>
-        <div id="fechaFinContainer" class="hidden">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha fin:</label>
-            <input type="date" id="filtroFechaFin" class="w-full border border-gray-300 rounded-lg p-3">
-        </div>
-        <div class="flex items-end">
-            <button onclick="VentasApp.aplicarFiltros()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
-                <i class="fas fa-search mr-2"></i>Aplicar Filtros
-            </button>
-        </div>
-    </div>
-</div>
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-filter mr-2 text-purple-600"></i>Filtros
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Rango:</label>
+                        <select id="filtroRango" class="w-full border border-gray-300 rounded-lg p-3" onchange="VentasApp.cambiarRango()">
+                            <option value="hoy">Hoy</option>
+                            <option value="ayer">Ayer</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="mes">Este mes</option>
+                            <option value="quincena">Quincena actual</option>
+                            <option value="personalizado">Personalizado</option>
+                        </select>
+                    </div>
+                    <div id="fechaInicioContainer">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fecha inicio:</label>
+                        <input type="date" id="filtroFechaInicio" class="w-full border border-gray-300 rounded-lg p-3">
+                    </div>
+                    <div id="fechaFinContainer" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fecha fin:</label>
+                        <input type="date" id="filtroFechaFin" class="w-full border border-gray-300 rounded-lg p-3">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="VentasApp.aplicarFiltros()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
+                            <i class="fas fa-search mr-2"></i>Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Estadísticas principales -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6 stat-grid">
@@ -287,7 +291,7 @@
                 </div>
             </div>
 
-            <!-- Tabla detallada de ventas -->
+            <!-- Tabla detallada de ventas CON NOMBRE QR -->
             <div class="glass-card">
                 <h3 class="text-lg font-semibold mb-4 text-gray-800">
                     <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Ventas
@@ -296,8 +300,10 @@
                     <table class="w-full text-sm">
                         <thead class="bg-gray-100 text-left">
                             <tr>
+                                <th class="p-3 font-semibold">Fecha</th>
                                 <th class="p-3 font-semibold">Hora</th>
                                 <th class="p-3 font-semibold">Paquete</th>
+                                <th class="p-3 font-semibold">Nombre QR</th>
                                 <th class="p-3 font-semibold">Precio</th>
                                 <th class="p-3 font-semibold">Turnos</th>
                                 <th class="p-3 font-semibold">Vendedor</th>
@@ -343,6 +349,10 @@
             }
         });
 
+        // Inicializar hora en tiempo real
+        this.actualizarHora();
+        setInterval(() => this.actualizarHora(), 1000);
+
         // Configurar fechas iniciales
         this.configurarFechasIniciales();
         
@@ -353,6 +363,35 @@
         this.cargarDatosVentas();
         
         console.log("Ventas App inicializada");
+    },
+
+    // Función para actualizar la hora en tiempo real
+    actualizarHora: function() {
+        const ahora = new Date();
+        const opciones = { 
+            timeZone: 'America/Bogota',
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        };
+        
+        const opcionesFecha = {
+            timeZone: 'America/Bogota',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        };
+        
+        const hora = ahora.toLocaleTimeString('es-CO', opciones);
+        const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+        
+        // Actualizar en sidebar
+        const horaSidebar = document.getElementById('horaActualSidebar');
+        const fechaSidebar = document.getElementById('fechaActualSidebar');
+        
+        if (horaSidebar) horaSidebar.textContent = hora;
+        if (fechaSidebar) fechaSidebar.textContent = fecha;
     },
 
     inicializarGraficos: function() {
@@ -398,48 +437,48 @@
 
         // Gráfico de horas (Line)
         const ctxHoras = document.getElementById('chartHoras').getContext('2d');
- this.charts.horas = new Chart(ctxHoras, {
-    type: 'line',
-    data: {
-        labels: ['Cargando...'],
-        datasets: [{
-            label: 'Ventas',
-            data: [0],
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            title: {
-                display: true,
-                text: 'Evolución de Ventas'
-            }
-        },
-        scales: {
-            x: {
-                title: {
-                    display: true,
-                    text: 'Período'
-                }
+        this.charts.horas = new Chart(ctxHoras, {
+            type: 'line',
+            data: {
+                labels: ['Cargando...'],
+                datasets: [{
+                    label: 'Ventas',
+                    data: [0],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
             },
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Evolución de Ventas'
+                    }
                 },
-                title: {
-                    display: true,
-                    text: 'Cantidad de Ventas'
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Período'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Ventas'
+                        }
+                    }
                 }
             }
-        }
-    }
-});
+        });
     },
 
     configurarFechasIniciales: function() {
@@ -621,7 +660,7 @@
         // Actualizar gráficos
         this.actualizarGraficos(data.graficos);
         
-        // Actualizar tabla
+        // Actualizar tabla CON NOMBRE QR
         this.actualizarTabla(data.ventas);
     },
 
@@ -656,70 +695,70 @@
     },
 
     actualizarGraficos: function(graficos) {
-    console.log('🎨 Actualizando gráficos:', graficos);
-    
-    // Gráfico de paquetes (siempre visible)
-    if (graficos.paquetes && graficos.paquetes.labels && graficos.paquetes.labels.length > 0) {
-        this.charts.paquetes.data.labels = graficos.paquetes.labels;
-        this.charts.paquetes.data.datasets[0].data = graficos.paquetes.data;
-        this.charts.paquetes.data.datasets[0].backgroundColor = [
-            '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-            '#8b5cf6', '#06b6d4', '#84cc16', '#f97316',
-            '#6366f1', '#ec4899', '#14b8a6', '#f43f5e'
-        ];
-    } else {
-        this.charts.paquetes.data.labels = ['Sin datos'];
-        this.charts.paquetes.data.datasets[0].data = [1];
-        this.charts.paquetes.data.datasets[0].backgroundColor = ['#e5e7eb'];
-    }
-    this.charts.paquetes.update();
+        console.log('🎨 Actualizando gráficos:', graficos);
+        
+        // Gráfico de paquetes (siempre visible)
+        if (graficos.paquetes && graficos.paquetes.labels && graficos.paquetes.labels.length > 0) {
+            this.charts.paquetes.data.labels = graficos.paquetes.labels;
+            this.charts.paquetes.data.datasets[0].data = graficos.paquetes.data;
+            this.charts.paquetes.data.datasets[0].backgroundColor = [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                '#8b5cf6', '#06b6d4', '#84cc16', '#f97316',
+                '#6366f1', '#ec4899', '#14b8a6', '#f43f5e'
+            ];
+        } else {
+            this.charts.paquetes.data.labels = ['Sin datos'];
+            this.charts.paquetes.data.datasets[0].data = [1];
+            this.charts.paquetes.data.datasets[0].backgroundColor = ['#e5e7eb'];
+        }
+        this.charts.paquetes.update();
 
-    // Gráfico de evolución (horas/días/semanas)
-    const evolucion = graficos.evolucion;
-    
-    if (evolucion && evolucion.labels && evolucion.labels.length > 0) {
-        this.charts.horas.data.labels = evolucion.labels;
-        this.charts.horas.data.datasets[0].data = evolucion.data;
+        // Gráfico de evolución (horas/días/semanas)
+        const evolucion = graficos.evolucion;
         
-        // Configurar título y estilo según el tipo
-        let titulo = 'Evolución de Ventas';
-        let tipoGrafica = 'line';
-        
-        switch(evolucion.tipo) {
-            case 'horas':
-                titulo = 'Ventas por Hora del Día';
-                this.charts.horas.data.datasets[0].label = 'Ventas por hora';
-                this.charts.horas.data.datasets[0].borderColor = '#10b981';
-                this.charts.horas.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                this.charts.horas.options.scales.x.title = { display: true, text: 'Hora del día' };
-                break;
-                
-            case 'dias':
-                titulo = 'Ventas por Día';
-                this.charts.horas.data.datasets[0].label = 'Ventas por día';
-                this.charts.horas.data.datasets[0].borderColor = '#3b82f6';
-                this.charts.horas.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                this.charts.horas.options.scales.x.title = { display: true, text: 'Fecha' };
-                break;
-                
-            case 'semanas':
-                titulo = 'Ventas por Semana';
-                this.charts.horas.data.datasets[0].label = 'Ventas por semana';
-                this.charts.horas.data.datasets[0].borderColor = '#8b5cf6';
-                this.charts.horas.data.datasets[0].backgroundColor = 'rgba(139, 92, 246, 0.1)';
-                this.charts.horas.options.scales.x.title = { display: true, text: 'Semana' };
-                break;
+        if (evolucion && evolucion.labels && evolucion.labels.length > 0) {
+            this.charts.horas.data.labels = evolucion.labels;
+            this.charts.horas.data.datasets[0].data = evolucion.data;
+            
+            // Configurar título y estilo según el tipo
+            let titulo = 'Evolución de Ventas';
+            let tipoGrafica = 'line';
+            
+            switch(evolucion.tipo) {
+                case 'horas':
+                    titulo = 'Ventas por Hora del Día';
+                    this.charts.horas.data.datasets[0].label = 'Ventas por hora';
+                    this.charts.horas.data.datasets[0].borderColor = '#10b981';
+                    this.charts.horas.data.datasets[0].backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                    this.charts.horas.options.scales.x.title = { display: true, text: 'Hora del día' };
+                    break;
+                    
+                case 'dias':
+                    titulo = 'Ventas por Día';
+                    this.charts.horas.data.datasets[0].label = 'Ventas por día';
+                    this.charts.horas.data.datasets[0].borderColor = '#3b82f6';
+                    this.charts.horas.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                    this.charts.horas.options.scales.x.title = { display: true, text: 'Fecha' };
+                    break;
+                    
+                case 'semanas':
+                    titulo = 'Ventas por Semana';
+                    this.charts.horas.data.datasets[0].label = 'Ventas por semana';
+                    this.charts.horas.data.datasets[0].borderColor = '#8b5cf6';
+                    this.charts.horas.data.datasets[0].backgroundColor = 'rgba(139, 92, 246, 0.1)';
+                    this.charts.horas.options.scales.x.title = { display: true, text: 'Semana' };
+                    break;
+            }
+            
+            this.charts.horas.options.plugins.title.text = titulo;
+        } else {
+            this.charts.horas.data.labels = ['No hay datos disponibles'];
+            this.charts.horas.data.datasets[0].data = [0];
+            this.charts.horas.options.plugins.title.text = 'Evolución de Ventas';
         }
         
-        this.charts.horas.options.plugins.title.text = titulo;
-    } else {
-        this.charts.horas.data.labels = ['No hay datos disponibles'];
-        this.charts.horas.data.datasets[0].data = [0];
-        this.charts.horas.options.plugins.title.text = 'Evolución de Ventas';
-    }
-    
-    this.charts.horas.update();
-},
+        this.charts.horas.update();
+    },
 
     actualizarTabla: function(ventas) {
         const tbody = document.getElementById('tablaVentas');
@@ -728,7 +767,7 @@
         if (!ventas || ventas.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="p-4 text-center text-gray-500">
+                    <td colspan="8" class="p-4 text-center text-gray-500">
                         No hay ventas registradas para este período
                     </td>
                 </tr>
@@ -740,8 +779,14 @@
             const fila = document.createElement('tr');
             fila.className = 'border-b border-gray-200 hover:bg-gray-50';
             fila.innerHTML = `
-                <td class="p-3 text-sm">${venta.fecha} ${venta.hora}</td>
+                <td class="p-3 text-sm">${venta.fecha}</td>
+                <td class="p-3 text-sm font-mono">${venta.hora}</td>
                 <td class="p-3 font-medium text-sm">${venta.paquete}</td>
+                <td class="p-3 text-sm">
+                    <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                        ${venta.qr_nombre || 'Sin nombre'}
+                    </span>
+                </td>
                 <td class="p-3 text-sm">${this.formatearMoneda(venta.precio)}</td>
                 <td class="p-3 text-center text-sm">${venta.turnos}</td>
                 <td class="p-3 text-sm">${venta.vendedor}</td>
@@ -768,37 +813,37 @@
         this.mostrarAlerta('Datos actualizados correctamente', 'success');
     },
 
-   exportarReporte: function() {
-    const rango = document.getElementById('filtroRango').value;
-    let fechaInicio, fechaFin;
+    exportarReporte: function() {
+        const rango = document.getElementById('filtroRango').value;
+        let fechaInicio, fechaFin;
 
-    if (rango === 'personalizado') {
-        fechaInicio = document.getElementById('filtroFechaInicio').value;
-        fechaFin = document.getElementById('filtroFechaFin').value;
-    } else {
-        fechaInicio = document.getElementById('filtroFechaInicio').value;
-        fechaFin = document.getElementById('filtroFechaFin').value;
-    }
+        if (rango === 'personalizado') {
+            fechaInicio = document.getElementById('filtroFechaInicio').value;
+            fechaFin = document.getElementById('filtroFechaFin').value;
+        } else {
+            fechaInicio = document.getElementById('filtroFechaInicio').value;
+            fechaFin = document.getElementById('filtroFechaFin').value;
+        }
 
-    // Mostrar loading
-    this.mostrarAlerta('<div class="loading mr-2"></div> Generando PDF...', 'info');
+        // Mostrar loading
+        this.mostrarAlerta('<div class="loading mr-2"></div> Generando PDF...', 'info');
 
-    // Crear enlace de descarga
-    const link = document.createElement('a');
-    link.href = `/api/exportar-ventas-pdf?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
-    link.target = '_blank';
-    link.download = `ventas_${fechaInicio}_${fechaFin}.pdf`;
-    
-    // Simular clic en el enlace
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        // Crear enlace de descarga
+        const link = document.createElement('a');
+        link.href = `/api/exportar-ventas-pdf?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+        link.target = '_blank';
+        link.download = `ventas_${fechaInicio}_${fechaFin}.pdf`;
+        
+        // Simular clic en el enlace
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-    // Actualizar mensaje después de un breve delay
-    setTimeout(() => {
-        this.mostrarAlerta('✅ PDF generado y descargado correctamente', 'success');
-    }, 1000);
-},
+        // Actualizar mensaje después de un breve delay
+        setTimeout(() => {
+            this.mostrarAlerta('✅ PDF generado y descargado correctamente', 'success');
+        }, 1000);
+    },
 
     mostrarError: function(mensaje) {
         this.mostrarAlerta(mensaje, 'error');
@@ -829,11 +874,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     VentasApp.init();
 });
-
-        // Inicializar cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            VentasApp.init();
-        });
     </script>
 </body>
 </html>

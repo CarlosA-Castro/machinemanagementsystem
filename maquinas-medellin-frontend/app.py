@@ -10,7 +10,27 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 import logging
 from logging.handlers import RotatingFileHandler
 
+# ==================== CONFIGURACIÓN DE ZONA HORARIA ====================
+# Configurar la zona horaria de Colombia
+COLOMBIA_TZ = pytz.timezone('America/Bogota')
+
+def get_colombia_time():
+    """Obtiene la hora actual en Colombia"""
+    return datetime.now(COLOMBIA_TZ)
+
+def format_datetime_for_db(dt):
+    """Formatea datetime para guardar en BD (sin timezone)"""
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+def parse_db_datetime(dt_str):
+    """Convierte string de BD a datetime con timezone Colombia"""
+    if not dt_str:
+        return None
+    naive_dt = datetime.strptime(str(dt_str), '%Y-%m-%d %H:%M:%S')
+    return COLOMBIA_TZ.localize(naive_dt)
+
 app = Flask(__name__, template_folder='templates')
+app.secret_key = 'maquinasmedellin_secret_key_2024'  
 
 # ==================== CONFIGURACIÓN SENTRY ====================
 sentry_sdk.init(
@@ -21,15 +41,8 @@ sentry_sdk.init(
     environment="development"
 )
 
-sentry_sdk.logger.info('This is an info log message')
-sentry_sdk.logger.warning('This is a warning message')
-sentry_sdk.logger.error('This is an error message')
-
 # ============================================================
 # Configuración del logger
-colombia = pytz.timezone("America/Bogota")
-fecha_hora = datetime.now(colombia).strftime("%Y-%m-%d %H:%M:%S")
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(
@@ -40,7 +53,7 @@ app = Flask(
 app.secret_key = 'maquinasmedellin_secret_key_2024'
 CORS(app)
 
-# Configuración del pool de conexiones
+# Configuración del pool de conexiones CON ZONA HORARIA
 db_config = {
     "host": "localhost",
     "user": "root",
@@ -58,18 +71,27 @@ except Exception as e:
     print(f"❌ Error creando pool de conexiones: {e}")
     connection_pool = None
 
-# Función para obtener conexión
+# Función para obtener conexión CON ZONA HORARIA
 def get_db_connection():
     try:
         if connection_pool:
-            return connection_pool.get_connection()
+            connection = connection_pool.get_connection()
+            # Configurar timezone para esta conexión
+            cursor = connection.cursor()
+            cursor.execute("SET time_zone = '-05:00'")
+            cursor.close()
+            return connection
         else:
-            return mysql.connector.connect(
+            connection = mysql.connector.connect(
                 host="localhost",
                 user="root",
                 password="Dattebayo",
                 database="maquinasmedellin"
             )
+            cursor = connection.cursor()
+            cursor.execute("SET time_zone = '-05:00'")
+            cursor.close()
+            return connection
     except Exception as e:
         print(f"❌ Error obteniendo conexión: {e}")
         return None
@@ -78,7 +100,6 @@ def get_db_connection():
 def get_db_cursor(connection):
     try:
         cursor = connection.cursor(dictionary=True)
-        cursor.execute("SET time_zone = '-05:00'")
         return cursor
     except Exception as e:
         print(f"❌ Error obteniendo cursor: {e}")
@@ -179,9 +200,15 @@ def procesar_login():
 def mostrar_local():
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
+    
+    # Obtener hora actual de Colombia
+    hora_colombia = get_colombia_time()
+    
     return render_template('local.html',
                            nombre_usuario=session.get('user_name', 'Usuario'),
-                           local_usuario=session.get('user_local', 'El Mekatiadero'))
+                           local_usuario=session.get('user_local', 'El Mekatiadero'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 # Interfaz paquetes
 @app.route('/package')
@@ -560,13 +587,21 @@ def guardar_qr():
             
         cursor = get_db_cursor(connection)
 
+        # Usar hora actual de Colombia
+        hora_colombia = get_colombia_time()
+        
+        # Buscar si el QR tiene un nombre asociado
+        cursor.execute("SELECT qr_name FROM QRCode WHERE code = %s", (qr_code,))
+        qr_data = cursor.fetchone()
+        qr_name = qr_data['qr_name'] if qr_data and 'qr_name' in qr_data else None
+        
         cursor.execute("""
-            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora)
-            VALUES (%s, %s, %s, %s, NOW())
-        """, (qr_code, user_id, user_name, local))
+            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_name))
         connection.commit()
 
-        return jsonify({'success': True, 'message': 'QR guardado en historial'})
+        return jsonify({'success': True, 'message': 'QR guardado en historial', 'qr_name': qr_name})
     except Exception as e:
         print(f"❌ Error guardando QR en historial: {e}")
         sentry_sdk.capture_exception(e)
@@ -589,7 +624,8 @@ def historial_qr(qr_code):
             
         cursor = get_db_cursor(connection)
         cursor.execute("""
-            SELECT h.id, h.qr_code, h.fecha_hora, h.user_name, tp.name as package_name, ut.turns_remaining
+            SELECT h.id, h.qr_code, h.fecha_hora, h.user_name, h.qr_name,
+                   tp.name as package_name, ut.turns_remaining
             FROM QRHistory h
             LEFT JOIN QRCode q ON q.code = h.qr_code
             LEFT JOIN UserTurns ut ON ut.qr_code_id = q.id
@@ -598,7 +634,17 @@ def historial_qr(qr_code):
             ORDER BY h.fecha_hora DESC
             LIMIT 10
         """, (qr_code,))
-        return jsonify(cursor.fetchall())
+        
+        resultados = cursor.fetchall()
+        
+        # Formatear fechas con zona horaria Colombia
+        for item in resultados:
+            if item['fecha_hora']:
+                fecha_colombia = parse_db_datetime(item['fecha_hora'])
+                item['fecha_hora'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                item['fecha_formateada'] = fecha_colombia.strftime('%d/%m/%Y %H:%M:%S')
+        
+        return jsonify(resultados)
     except Exception as e:
         print(f"❌ Error consultando historial: {e}")
         sentry_sdk.capture_exception(e)
@@ -621,12 +667,21 @@ def historial_completo():
             
         cursor = get_db_cursor(connection)
         cursor.execute("""
-            SELECT qr_code, user_id, user_name, local, fecha_hora
+            SELECT qr_code, user_id, user_name, local, fecha_hora, qr_name
             FROM QRHistory 
             ORDER BY fecha_hora DESC 
             LIMIT 20
         """)
         historial = cursor.fetchall()
+        
+        # Formatear fechas con zona horaria Colombia
+        for item in historial:
+            if item['fecha_hora']:
+                fecha_colombia = parse_db_datetime(item['fecha_hora'])
+                item['fecha_hora'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                item['fecha_formateada'] = fecha_colombia.strftime('%d/%m/%Y')
+                item['hora_formateada'] = fecha_colombia.strftime('%H:%M:%S')
+        
         return jsonify(historial)
     except Exception as e:
         print(f"❌ Error obteniendo historial completo: {e}")
@@ -646,6 +701,7 @@ def guardar_multiples_qr():
     try:
         data = request.get_json()
         qr_codes = data.get('qr_codes', [])
+        nombre = data.get('nombre', '')
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
         local = session.get('user_local', 'El Mekatiadero')
@@ -653,7 +709,7 @@ def guardar_multiples_qr():
         if not qr_codes:
             return jsonify({'error': 'Lista de QR vacía'}), 400
 
-        print(f"💾 Guardando {len(qr_codes)} QR en el sistema")
+        print(f"💾 Guardando {len(qr_codes)} QR en el sistema con nombre: {nombre}")
 
         connection = get_db_connection()
         if not connection:
@@ -661,31 +717,40 @@ def guardar_multiples_qr():
             
         cursor = get_db_cursor(connection)
 
+        # Usar hora actual de Colombia
+        hora_colombia = get_colombia_time()
+        fecha_hora_str = format_datetime_for_db(hora_colombia)
+
         for qr_code in qr_codes:
             cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
             qr_existente = cursor.fetchone()
             
             if not qr_existente:
-                print(f"➕ Insertando nuevo QR: {qr_code}")
+                print(f"➕ Insertando nuevo QR: {qr_code} con nombre: {nombre}")
                 cursor.execute("""
-                    INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
-                    VALUES (%s, %s, %s, %s)
-                """, (qr_code, 0, 1, 1))
+                    INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (qr_code, 0, 1, 1, nombre))
             else:
                 print(f"✅ QR ya existe: {qr_code}")
+                # Actualizar el nombre si ya existe
+                cursor.execute("""
+                    UPDATE QRCode SET qr_name = %s WHERE code = %s
+                """, (nombre, qr_code))
             
             cursor.execute("""
-                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora)
-                VALUES (%s, %s, %s, %s, NOW())
-            """, (qr_code, user_id, user_name, local))
+                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre))
 
         connection.commit()
-        print(f"✅ {len(qr_codes)} QR guardados exitosamente")
+        print(f"✅ {len(qr_codes)} QR guardados exitosamente con nombre: {nombre}")
 
         return jsonify({
             'success': True, 
             'message': f'{len(qr_codes)} QR guardados en el sistema',
-            'count': len(qr_codes)
+            'count': len(qr_codes),
+            'nombre': nombre
         })
         
     except Exception as e:
@@ -699,7 +764,7 @@ def guardar_multiples_qr():
             cursor.close()
         if connection:
             connection.close()
-    
+
 @app.route('/api/debug-qr/<qr_code>', methods=['GET'])
 def debug_qr(qr_code):
     connection = None
@@ -830,18 +895,22 @@ def reportar_falla_maquina():
 def mostrar_ventas():
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
+    
+    hora_colombia = get_colombia_time()
     return render_template('sales.html',
                            nombre_usuario=session.get('user_name', 'Usuario'),
-                           local_usuario=session.get('user_local', 'El Mekatiadero'))
+                           local_usuario=session.get('user_local', 'El Mekatiadero'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 @app.route('/api/ventas')
 def obtener_ventas():
-    """Obtiene datos de ventas para el panel"""
+    """Obtiene datos de ventas para el panel CON HORA COLOMBIA Y NOMBRE QR"""
     connection = None
     cursor = None
     try:
-        fecha_inicio = request.args.get('fecha_inicio', datetime.now().strftime('%Y-%m-%d'))
-        fecha_fin = request.args.get('fecha_fin', datetime.now().strftime('%Y-%m-%d'))
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
         
         print(f"📊 Solicitando ventas desde {fecha_inicio} hasta {fecha_fin}")
         
@@ -851,7 +920,7 @@ def obtener_ventas():
             
         cursor = get_db_cursor(connection)
         
-        # Obtener ventas del rango de fechas
+        # Obtener ventas del rango de fechas CON NOMBRE QR
         cursor.execute("""
             SELECT 
                 tp.name as paquete,
@@ -859,8 +928,10 @@ def obtener_ventas():
                 tp.turns as turnos,
                 u.name as vendedor,
                 qh.fecha_hora,
+                qh.qr_name,
                 DATE(qh.fecha_hora) as fecha,
-                DATE_FORMAT(qh.fecha_hora, '%%H:%%i') as hora
+                DATE_FORMAT(qh.fecha_hora, '%%H:%%i') as hora,
+                qh.qr_code
             FROM QRHistory qh
             JOIN Users u ON qh.user_id = u.id
             JOIN QRCode qr ON qr.code = qh.qr_code
@@ -871,6 +942,14 @@ def obtener_ventas():
         
         ventas = cursor.fetchall()
         print(f"✅ Encontradas {len(ventas)} ventas")
+        
+        # Formatear fechas con zona horaria Colombia
+        for venta in ventas:
+            if venta['fecha_hora']:
+                fecha_colombia = parse_db_datetime(venta['fecha_hora'])
+                venta['fecha_hora_formateada'] = fecha_colombia.strftime('%d/%m/%Y %H:%M:%S')
+                venta['fecha'] = fecha_colombia.strftime('%d/%m/%Y')
+                venta['hora'] = fecha_colombia.strftime('%H:%M:%S')  # Hora completa con segundos
         
         # Calcular estadísticas
         total_ventas = 0
@@ -1004,24 +1083,22 @@ def obtener_ventas():
             'evolucion': graficos_horas if dias_rango == 0 else graficos_dias
         }
         
-        # ... el resto del código se mantiene igual ...
-        # Preparar datos para tabla
+        # Preparar datos para tabla CON NOMBRE QR
         ventas_detalle = []
         for venta in ventas:
-            fecha_str = ""
-            if venta['fecha']:
-                if isinstance(venta['fecha'], str):
-                    fecha_str = venta['fecha']
-                else:
-                    fecha_str = venta['fecha'].strftime('%d/%m/%Y')
+            fecha_str = venta['fecha'] or ""
+            hora_str = venta['hora'] or ""
+            nombre_qr = venta['qr_name'] or 'Sin nombre'
             
             ventas_detalle.append({
                 'fecha': fecha_str,
-                'hora': venta['hora'] or '',
+                'hora': hora_str,
                 'paquete': venta['paquete'] or 'Sin paquete',
                 'precio': venta['precio'] or 0,
                 'turnos': venta['turnos'] or 0,
                 'vendedor': venta['vendedor'] or 'Desconocido',
+                'qr_nombre': nombre_qr,
+                'qr_codigo': venta['qr_code'] or '',
                 'estado': 'completada'
             })
         
@@ -1094,13 +1171,15 @@ def mostrar_admin():
     if not session.get('logged_in'):
         return redirect(url_for('mostrar_login'))
     
-    # Verificar que el usuario sea admin
     if session.get('user_role') != 'admin':
         return redirect(url_for('mostrar_local'))
     
+    hora_colombia = get_colombia_time()
     return render_template('admin/index.html',
                            nombre_usuario=session.get('user_name', 'Administrador'),
-                           local_usuario=session.get('user_local', 'Sistema'))
+                           local_usuario=session.get('user_local', 'Sistema'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 # Mostrar gestión de usuarios
 @app.route('/admin/usuarios/lista')
