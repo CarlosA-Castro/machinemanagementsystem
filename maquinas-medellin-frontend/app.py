@@ -2403,6 +2403,654 @@ def mostrar_lista_locales():
     """Redirigir a la gestión de locales"""
     return redirect(url_for('mostrar_gestion_locales'))
 
+# ==================== RUTAS PARA GESTIÓN DE MÁQUINAS ====================
+
+# Mostrar gestión de máquinas
+@app.route('/admin/maquinas/gestionmaquinas')
+def mostrar_gestion_maquinas():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    # Verificar que el usuario sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    return render_template('admin/maquinas/gestionmaquinas.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
+
+# ==================== FUNCIONES AUXILIARES ====================
+
+def formatear_info_propietarios(propietarios):
+    """Formatear la información de propietarios para display en la tabla"""
+    if not propietarios:
+        return "Sin propietarios"
+    
+    # Ordenar por porcentaje (mayor a menor)
+    propietarios_ordenados = sorted(propietarios, key=lambda x: x['porcentaje_propiedad'], reverse=True)
+    
+    info = []
+    for prop in propietarios_ordenados:
+        info.append(f"{prop['nombre']} ({prop['porcentaje_propiedad']}%)")
+    
+    return ", ".join(info)
+
+# ==================== APIS PARA GESTIÓN DE MÁQUINAS ====================
+
+@app.route('/api/maquinas', methods=['GET'])
+def obtener_maquinas():
+    """Obtener todas las máquinas con información completa de propietarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                m.id,
+                m.name,
+                m.type,
+                m.status,
+                m.location_id,
+                m.dailyFailedTurns,
+                m.dateLastQRUsed,
+                m.errorNote,
+                l.name as location_name,
+                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
+            FROM Machine m
+            LEFT JOIN Location l ON m.location_id = l.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            ORDER BY m.name
+        """)
+        
+        maquinas = cursor.fetchall()
+        
+        # Obtener información de propietarios para cada máquina
+        maquinas_formateadas = []
+        for maquina in maquinas:
+            cursor.execute("""
+                SELECT 
+                    p.id,
+                    p.nombre,
+                    mp.porcentaje_propiedad
+                FROM MaquinaPropietario mp
+                JOIN Propietarios p ON mp.propietario_id = p.id
+                WHERE mp.maquina_id = %s
+            """, (maquina['id'],))
+            
+            propietarios = cursor.fetchall()
+            
+            # Formatear información de propietarios para display
+            info_propietarios = formatear_info_propietarios(propietarios)
+            
+            maquinas_formateadas.append({
+                'id': maquina['id'],
+                'name': maquina['name'],
+                'type': maquina['type'],
+                'status': maquina['status'],
+                'location_id': maquina['location_id'],
+                'location_name': maquina['location_name'],
+                'dailyFailedTurns': maquina['dailyFailedTurns'],
+                'dateLastQRUsed': maquina['dateLastQRUsed'].isoformat() if maquina['dateLastQRUsed'] else None,
+                'errorNote': maquina['errorNote'],
+                'porcentaje_restaurante': float(maquina['porcentaje_restaurante']),
+                'propietarios': propietarios,
+                'info_propietarios': info_propietarios
+            })
+        
+        return jsonify(maquinas_formateadas)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo máquinas: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>', methods=['GET'])
+def obtener_maquina(maquina_id):
+    """Obtener una máquina específica con información detallada de propietarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                m.*,
+                l.name as location_name,
+                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
+            FROM Machine m
+            LEFT JOIN Location l ON m.location_id = l.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            WHERE m.id = %s
+        """, (maquina_id,))
+        
+        maquina = cursor.fetchone()
+        
+        if not maquina:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        # Obtener información de propietarios
+        cursor.execute("""
+            SELECT 
+                p.id,
+                p.nombre,
+                mp.porcentaje_propiedad
+            FROM MaquinaPropietario mp
+            JOIN Propietarios p ON mp.propietario_id = p.id
+            WHERE mp.maquina_id = %s
+        """, (maquina_id,))
+        
+        propietarios = cursor.fetchall()
+        
+        # Formatear información de propietarios
+        info_propietarios = formatear_info_propietarios(propietarios)
+        
+        return jsonify({
+            'id': maquina['id'],
+            'name': maquina['name'],
+            'type': maquina['type'],
+            'status': maquina['status'],
+            'location_id': maquina['location_id'],
+            'location_name': maquina['location_name'],
+            'dailyFailedTurns': maquina['dailyFailedTurns'],
+            'dateLastQRUsed': maquina['dateLastQRUsed'].isoformat() if maquina['dateLastQRUsed'] else None,
+            'errorNote': maquina['errorNote'],
+            'porcentaje_restaurante': float(maquina['porcentaje_restaurante']),
+            'propietarios': propietarios,
+            'info_propietarios': info_propietarios
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas', methods=['POST'])
+def crear_maquina():
+    """Crear una nueva máquina"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        type = data.get('type')
+        status = data.get('status', 'activa')
+        location_id = data.get('location_id')
+        errorNote = data.get('errorNote', '')
+        porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
+        
+        # Validaciones
+        if not name or not type or not location_id:
+            return jsonify({'error': 'Nombre, tipo y local son obligatorios'}), 400
+        
+        if type not in ['simulador', 'arcade', 'peluchera']:
+            return jsonify({'error': 'Tipo de máquina inválido'}), 400
+        
+        if status not in ['activa', 'mantenimiento', 'inactiva']:
+            return jsonify({'error': 'Estado inválido'}), 400
+        
+        if not (0 <= float(porcentaje_restaurante) <= 100):
+            return jsonify({'error': 'El porcentaje del restaurante debe estar entre 0 y 100'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si la máquina ya existe
+        cursor.execute("SELECT id FROM Machine WHERE name = %s", (name,))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe una máquina con ese nombre'}), 400
+        
+        # Verificar que el local existe
+        cursor.execute("SELECT id FROM Location WHERE id = %s", (location_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'El local especificado no existe'}), 400
+        
+        # Crear máquina
+        cursor.execute("""
+            INSERT INTO Machine (name, type, status, location_id, errorNote)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (name, type, status, location_id, errorNote))
+        
+        maquina_id = cursor.lastrowid
+        
+        # Guardar porcentaje del restaurante si es diferente al default
+        if float(porcentaje_restaurante) != 35.00:
+            cursor.execute("""
+                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
+                VALUES (%s, %s)
+            """, (maquina_id, porcentaje_restaurante))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Máquina creada correctamente',
+            'maquina_id': maquina_id
+        })
+        
+    except Exception as e:
+        print(f"❌ Error creando máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>', methods=['PUT'])
+def actualizar_maquina(maquina_id):
+    """Actualizar una máquina existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        type = data.get('type')
+        status = data.get('status')
+        location_id = data.get('location_id')
+        errorNote = data.get('errorNote', '')
+        porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
+        
+        # Validaciones
+        if not name or not type or not status or not location_id:
+            return jsonify({'error': 'Nombre, tipo, estado y local son obligatorios'}), 400
+        
+        if type not in ['simulador', 'arcade', 'peluchera']:
+            return jsonify({'error': 'Tipo de máquina inválido'}), 400
+        
+        if status not in ['activa', 'mantenimiento', 'inactiva']:
+            return jsonify({'error': 'Estado inválido'}), 400
+        
+        if not (0 <= float(porcentaje_restaurante) <= 100):
+            return jsonify({'error': 'El porcentaje del restaurante debe estar entre 0 y 100'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT id FROM Machine WHERE id = %s", (maquina_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        # Verificar nombre duplicado
+        cursor.execute("SELECT id FROM Machine WHERE name = %s AND id != %s", (name, maquina_id))
+        if cursor.fetchone():
+            return jsonify({'error': 'Ya existe otra máquina con ese nombre'}), 400
+        
+        # Verificar que el local existe
+        cursor.execute("SELECT id FROM Location WHERE id = %s", (location_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'El local especificado no existe'}), 400
+        
+        # Actualizar máquina
+        cursor.execute("""
+            UPDATE Machine 
+            SET name = %s, type = %s, status = %s, location_id = %s, errorNote = %s
+            WHERE id = %s
+        """, (name, type, status, location_id, errorNote, maquina_id))
+        
+        # Actualizar porcentaje del restaurante
+        if float(porcentaje_restaurante) != 35.00:
+            cursor.execute("""
+                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE porcentaje_restaurante = %s
+            """, (maquina_id, porcentaje_restaurante, porcentaje_restaurante))
+        else:
+            # Si es el valor por defecto, eliminar el registro específico
+            cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Máquina actualizada correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>', methods=['DELETE'])
+def eliminar_maquina(maquina_id):
+    """Eliminar una máquina"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        # Verificar si la máquina tiene uso histórico (para prevenir eliminación accidental)
+        cursor.execute("SELECT COUNT(*) as uso_count FROM TurnUsage WHERE machineId = %s", (maquina_id,))
+        uso_count = cursor.fetchone()['uso_count']
+        
+        if uso_count > 0:
+            return jsonify({
+                'error': f'No se puede eliminar la máquina "{maquina["name"]}". Tiene {uso_count} usos registrados en el historial.'
+            }), 400
+        
+        # Eliminar registros relacionados primero
+        cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
+        cursor.execute("DELETE FROM MaquinaPropietario WHERE maquina_id = %s", (maquina_id,))
+        cursor.execute("DELETE FROM ErrorReport WHERE machineId = %s", (maquina_id,))
+        
+        # Eliminar máquina
+        cursor.execute("DELETE FROM Machine WHERE id = %s", (maquina_id,))
+        
+        connection.commit()
+        
+        print(f"✅ Máquina eliminada: {maquina['name']} (ID: {maquina_id})")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Máquina eliminada correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error eliminando máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>/propietarios', methods=['PUT'])
+def actualizar_propietarios_maquina(maquina_id):
+    """Actualizar la distribución de propietarios de una máquina"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        distribucion = data.get('distribucion', [])  # Lista de {propietario_id, porcentaje_propiedad}
+        
+        # Validar que la suma de porcentajes sea 100%
+        total_porcentaje = sum(item['porcentaje_propiedad'] for item in distribucion)
+        if abs(total_porcentaje - 100.00) > 0.01:
+            return jsonify({'error': 'La suma de los porcentajes debe ser exactamente 100%'}), 400
+        
+        # Validar que no se excedan los límites por propietario
+        for item in distribucion:
+            if not (0 <= item['porcentaje_propiedad'] <= 100):
+                return jsonify({'error': f'Porcentaje inválido para propietario {item["propietario_id"]}'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT id, name FROM Machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        # Verificar que todos los propietarios existen
+        propietario_ids = [item['propietario_id'] for item in distribucion]
+        if propietario_ids:
+            placeholders = ','.join(['%s'] * len(propietario_ids))
+            cursor.execute(f"SELECT id FROM Propietarios WHERE id IN ({placeholders})", propietario_ids)
+            propietarios_existentes = cursor.fetchall()
+            if len(propietarios_existentes) != len(propietario_ids):
+                return jsonify({'error': 'Uno o más propietarios no existen'}), 400
+        
+        # Eliminar distribución anterior
+        cursor.execute("DELETE FROM MaquinaPropietario WHERE maquina_id = %s", (maquina_id,))
+        
+        # Insertar nueva distribución
+        for item in distribucion:
+            cursor.execute("""
+                INSERT INTO MaquinaPropietario (maquina_id, propietario_id, porcentaje_propiedad)
+                VALUES (%s, %s, %s)
+            """, (maquina_id, item['propietario_id'], item['porcentaje_propiedad']))
+        
+        connection.commit()
+        
+        # Registrar el cambio en el log
+        print(f"✅ Distribución actualizada para máquina {maquina['name']} (ID: {maquina_id})")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Distribución de propietarios actualizada correctamente'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando propietarios de máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA PROPIETARIOS ====================
+
+@app.route('/api/propietarios', methods=['GET'])
+def obtener_propietarios():
+    """Obtener todos los propietarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT * FROM Propietarios ORDER BY nombre")
+        propietarios = cursor.fetchall()
+        
+        return jsonify(propietarios)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo propietarios: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA LOCALES ====================
+
+@app.route('/api/locales', methods=['GET'])
+def obtener_locales():
+    """Obtener todos los locales"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT id, name, address, city, status FROM Location ORDER BY name")
+        locales = cursor.fetchall()
+        
+        return jsonify(locales)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo locales: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA FOTOS DE MÁQUINAS ====================
+
+@app.route('/api/maquinas/<int:maquina_id>/fotos', methods=['GET'])
+def obtener_fotos_maquina(maquina_id):
+    """Obtener las fotos de una máquina específica"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        
+        if not maquina:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        nombre_maquina = maquina['name'].lower()
+        fotos = []
+        
+        # Mapear nombres de máquinas a fotos disponibles
+        fotos_mapeo = {
+            'simulador': ['Simulador1.jpg', 'Simulador2.jpg', 'SimuladorConnection.jpg'],
+            'peluche': ['peluches1.jpg', 'Peluches2.jpg'],
+            'basket': ['Basket.jpg'],
+            'disco': ['DiscoHockey.jpg'],
+            'pelea': ['Pelea.jpg'],
+            'masaje': ['maquinasmedellmlogo.jpg'],
+            'mcqueen': ['maquinasmedellmlogo.jpg'],
+            'caballito': ['maquinasmedellmlogo.jpg'],
+            'trencito': ['maquinasmedellmlogo.jpg']
+        }
+        
+        for clave, lista_fotos in fotos_mapeo.items():
+            if clave in nombre_maquina:
+                fotos = lista_fotos
+                break
+        
+        # Si no hay coincidencia, usar fotos por defecto
+        if not fotos:
+            fotos = ['maquinasmedellmlogo.jpg']
+        
+        return jsonify(fotos)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo fotos de máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify([]), 500
+
+# ==================== APIS PARA PORCENTAJE RESTAURANTE ====================
+
+@app.route('/api/maquinas/<int:maquina_id>/porcentaje-restaurante', methods=['PUT'])
+def actualizar_porcentaje_restaurante(maquina_id):
+    """Actualizar el porcentaje del restaurante para una máquina específica"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
+        
+        # Validaciones
+        if not (0 <= float(porcentaje_restaurante) <= 100):
+            return jsonify({'error': 'El porcentaje del restaurante debe estar entre 0 y 100'}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT id, name FROM Machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        # Actualizar o insertar porcentaje del restaurante
+        if float(porcentaje_restaurante) != 35.00:
+            cursor.execute("""
+                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE porcentaje_restaurante = %s
+            """, (maquina_id, porcentaje_restaurante, porcentaje_restaurante))
+        else:
+            # Si es el valor por defecto, eliminar el registro específico
+            cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
+        
+        connection.commit()
+        
+        # Registrar el cambio
+        print(f"✅ Porcentaje restaurante actualizado para {maquina['name']}: {porcentaje_restaurante}%")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Porcentaje del restaurante actualizado a {porcentaje_restaurante}%'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error actualizando porcentaje restaurante: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== RUTAS ADICIONALES PARA NAVEGACIÓN ====================
+
+@app.route('/admin/maquinas/inventario')
+def mostrar_inventario_maquinas():
+    """Redirigir a la gestión de máquinas"""
+    return redirect(url_for('mostrar_gestion_maquinas'))
+
+@app.route('/admin/maquinas/distribucionganancias')
+def mostrar_distribucion_ganancias():
+    """Mostrar distribución de ganancias"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    return render_template('admin/maquinas/distribucionganancias.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'))
+
 # Iniciar servidor
 if __name__ == '__main__':
     print("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")
