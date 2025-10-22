@@ -322,10 +322,10 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                 <div class="glass-card">
                     <h3 class="text-lg font-semibold mb-4 text-gray-800">
-                        <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Rendimiento por Máquina
+                        <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Estado de Máquinas
                     </h3>
                     <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartRendimiento"></canvas>
+                        <canvas id="chartEstado"></canvas>
                     </div>
                 </div>
 
@@ -430,21 +430,6 @@
         </div>
     </div>
 
-    <!-- Modal para ver fotos -->
-    <div id="modalFotos" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="glass-card max-w-4xl w-full mx-4">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800" id="modalTituloFotos">Fotos de la Máquina</h3>
-                <button onclick="MaquinaManager.cerrarModalFotos()" class="text-gray-500 hover:text-gray-700 btn-touch">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div id="galeria-fotos" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <!-- Las fotos se cargarán dinámicamente -->
-            </div>
-        </div>
-    </div>
-
     <script>
         const MaquinaManager = {
     maquinas: [],
@@ -506,6 +491,7 @@
                 this.maquinasFiltradas = [...this.maquinas];
                 this.actualizarListaMaquinas();
                 this.actualizarEstadisticas();
+                this.actualizarGraficos();
             } else {
                 throw new Error('Error al cargar máquinas');
             }
@@ -573,8 +559,8 @@
             const estadoText = maquina.status === 'activa' ? 'Activa' : 
                              maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
             
-            // Obtener información de propietarios
-            const infoPropietarios = this.obtenerInfoPropietarios(maquina.id);
+            // Obtener información real de propietarios
+            const infoPropietarios = this.obtenerInfoPropietarios(maquina.propietarios);
             
             html += `
                 <tr class="border-b border-gray-100 hover:bg-gray-50 machine-card">
@@ -587,18 +573,12 @@
                         <span class="${estadoClass}">${estadoText}</span>
                     </td>
                     <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
-                    <td class="py-3 px-4 text-sm text-gray-600">${infoPropietarios.nombres}</td>
+                    <td class="py-3 px-4 text-sm text-gray-600">${infoPropietarios}</td>
                     <td class="py-3 px-4 text-sm text-gray-600">${maquina.porcentaje_restaurante || 35}%</td>
                     <td class="py-3 px-4 text-sm text-center">
                         <div class="flex justify-center space-x-2">
                             <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
                                 <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="MaquinaManager.verFotos(${maquina.id})" class="text-green-600 hover:text-green-800 btn-touch" title="Ver Fotos">
-                                <i class="fas fa-images"></i>
-                            </button>
-                            <button onclick="MaquinaManager.verGraficas(${maquina.id})" class="text-purple-600 hover:text-purple-800 btn-touch" title="Gráficas">
-                                <i class="fas fa-chart-line"></i>
                             </button>
                             <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
                                 <i class="fas fa-trash"></i>
@@ -613,13 +593,19 @@
         contador.textContent = `${this.maquinasFiltradas.length} máquina(s)`;
     },
 
-    obtenerInfoPropietarios: function(maquinaId) {
-        // Esta función debería obtener la información real de los propietarios
-        // Por ahora devolvemos datos de ejemplo
-        return {
-            nombres: 'Edison, Andrés, Beliza',
-            porcentajes: '33.3% cada uno'
-        };
+    obtenerInfoPropietarios: function(propietarios) {
+        if (!propietarios || propietarios.length === 0) {
+            return "Sin propietarios";
+        }
+        
+        // Ordenar por porcentaje (mayor a menor)
+        const propietariosOrdenados = [...propietarios].sort((a, b) => b.porcentaje_propiedad - a.porcentaje_propiedad);
+        
+        const info = propietariosOrdenados.map(prop => 
+            `${prop.nombre} (${prop.porcentaje_propiedad}%)`
+        );
+        
+        return info.join(', ');
     },
 
     actualizarEstadisticas: function() {
@@ -632,6 +618,30 @@
         document.getElementById('maquinas-activas').textContent = activas;
         document.getElementById('maquinas-mantenimiento').textContent = mantenimiento;
         document.getElementById('maquinas-inactivas').textContent = inactivas;
+    },
+
+    actualizarGraficos: function() {
+        // Gráfico de estado de máquinas
+        const activas = this.maquinas.filter(m => m.status === 'activa').length;
+        const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
+        const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
+        
+        if (this.chartEstado) {
+            this.chartEstado.data.datasets[0].data = [activas, mantenimiento, inactivas];
+            this.chartEstado.update();
+        }
+
+        // Gráfico de distribución por tipo
+        const tipos = {};
+        this.maquinas.forEach(maquina => {
+            tipos[maquina.type] = (tipos[maquina.type] || 0) + 1;
+        });
+
+        if (this.chartTipos) {
+            this.chartTipos.data.labels = Object.keys(tipos);
+            this.chartTipos.data.datasets[0].data = Object.values(tipos);
+            this.chartTipos.update();
+        }
     },
 
     filtrarMaquinas: function() {
@@ -688,9 +698,20 @@
         const container = document.getElementById('propietarios-container');
         let html = '';
         
+        // Obtener los propietarios actuales de la máquina si estamos editando
+        let propietariosActuales = [];
+        if (maquinaId) {
+            const maquina = this.maquinas.find(m => m.id === maquinaId);
+            if (maquina && maquina.propietarios) {
+                propietariosActuales = maquina.propietarios;
+            }
+        }
+        
         this.propietarios.forEach(propietario => {
-            // Aquí deberías obtener el porcentaje real de la base de datos
-            const porcentaje = 33.33; // Ejemplo
+            // Buscar el porcentaje actual del propietario
+            const propietarioActual = propietariosActuales.find(p => p.id === propietario.id);
+            const porcentaje = propietarioActual ? propietarioActual.porcentaje_propiedad : 0;
+            
             html += `
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span class="font-medium text-gray-800">${propietario.nombre}</span>
@@ -790,38 +811,8 @@
         }
     },
 
-    verFotos: function(id) {
-        const maquina = this.maquinas.find(m => m.id === id);
-        if (!maquina) return;
-        
-        document.getElementById('modalTituloFotos').textContent = `Fotos de ${maquina.name}`;
-        
-        // Aquí cargarías las fotos reales de la máquina
-        const galeria = document.getElementById('galeria-fotos');
-        galeria.innerHTML = `
-            <div class="text-center py-8 col-span-full">
-                <i class="fas fa-images text-4xl text-gray-300 mb-2"></i>
-                <p class="text-gray-500">No hay fotos disponibles para esta máquina</p>
-            </div>
-        `;
-        
-        document.getElementById('modalFotos').classList.remove('hidden');
-    },
-
-    verGraficas: function(id) {
-        const maquina = this.maquinas.find(m => m.id === id);
-        if (!maquina) return;
-        
-        // Aquí redirigirías a la página de gráficas específica de la máquina
-        this.mostrarAlerta(`Mostrando gráficas para ${maquina.name}`, 'info');
-    },
-
     cerrarModal: function() {
         document.getElementById('modalMaquina').classList.add('hidden');
-    },
-
-    cerrarModalFotos: function() {
-        document.getElementById('modalFotos').classList.add('hidden');
     },
 
     actualizarTodo: function() {
@@ -830,38 +821,68 @@
     },
 
     inicializarGraficos: function() {
-        // Gráfico de rendimiento
-        const ctxRendimiento = document.getElementById('chartRendimiento').getContext('2d');
-        this.chartRendimiento = new Chart(ctxRendimiento, {
-            type: 'bar',
+        // Gráfico de estado de máquinas
+        const ctxEstado = document.getElementById('chartEstado').getContext('2d');
+        this.chartEstado = new Chart(ctxEstado, {
+            type: 'doughnut',
             data: {
-                labels: ['Máquina 1', 'Máquina 2', 'Máquina 3'],
+                labels: ['Activas', 'Mantenimiento', 'Inactivas'],
                 datasets: [{
-                    label: 'Ingresos ($)',
-                    data: [1200000, 800000, 1500000],
-                    backgroundColor: '#8b5cf6'
+                    data: [0, 0, 0],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
             }
         });
 
         // Gráfico de tipos
         const ctxTipos = document.getElementById('chartTipos').getContext('2d');
         this.chartTipos = new Chart(ctxTipos, {
-            type: 'doughnut',
+            type: 'pie',
             data: {
-                labels: ['Simuladores', 'Arcade', 'Peluchera'],
+                labels: ['Cargando...'],
                 datasets: [{
-                    data: [40, 35, 25],
-                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b']
+                    data: [1],
+                    backgroundColor: [
+                        '#3B82F6', // Azul
+                        '#10B981', // Verde esmeralda
+                        '#F59E0B', // Ámbar
+                        '#EF4444', // Rojo
+                        '#8B5CF6', // Violeta
+                        '#EC4899', // Rosa
+                        '#14B8A6', // Verde azulado
+                        '#F97316', // Naranja
+                        '#6366F1', // Índigo
+                        '#06B6D4'  // Cian
+                    ]
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                borderWidth: 1,
+                borderColor: '#fff'
             }
         });
     },

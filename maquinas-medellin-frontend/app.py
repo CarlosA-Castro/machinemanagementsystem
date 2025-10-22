@@ -29,9 +29,6 @@ def parse_db_datetime(dt_str):
     naive_dt = datetime.strptime(str(dt_str), '%Y-%m-%d %H:%M:%S')
     return COLOMBIA_TZ.localize(naive_dt)
 
-app = Flask(__name__, template_folder='templates')
-app.secret_key = 'maquinasmedellin_secret_key_2024'  
-
 # ==================== CONFIGURACIÓN SENTRY ====================
 sentry_sdk.init(
     dsn="https://5fc281c2ace4860969f2f1f6fa10039d@o4510071013310464.ingest.us.sentry.io/4510071047454720",
@@ -2898,7 +2895,7 @@ def obtener_propietarios():
 # ==================== APIS PARA LOCALES ====================
 
 @app.route('/api/locales', methods=['GET'])
-def obtener_locales():
+def obtener_todos_locales():
     """Obtener todos los locales"""
     connection = None
     cursor = None
@@ -2924,105 +2921,61 @@ def obtener_locales():
         if connection:
             connection.close()
 
-# ==================== APIS PARA FOTOS DE MÁQUINAS ====================
+# ==================== APIS PARA ESTADÍSTICAS DE MÁQUINAS ====================
 
-@app.route('/api/maquinas/<int:maquina_id>/fotos', methods=['GET'])
-def obtener_fotos_maquina(maquina_id):
-    """Obtener las fotos de una máquina específica"""
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
-        maquina = cursor.fetchone()
-        
-        if not maquina:
-            return jsonify({'error': 'Máquina no encontrada'}), 404
-        
-        nombre_maquina = maquina['name'].lower()
-        fotos = []
-        
-        # Mapear nombres de máquinas a fotos disponibles
-        fotos_mapeo = {
-            'simulador': ['Simulador1.jpg', 'Simulador2.jpg', 'SimuladorConnection.jpg'],
-            'peluche': ['peluches1.jpg', 'Peluches2.jpg'],
-            'basket': ['Basket.jpg'],
-            'disco': ['DiscoHockey.jpg'],
-            'pelea': ['Pelea.jpg'],
-            'masaje': ['maquinasmedellmlogo.jpg'],
-            'mcqueen': ['maquinasmedellmlogo.jpg'],
-            'caballito': ['maquinasmedellmlogo.jpg'],
-            'trencito': ['maquinasmedellmlogo.jpg']
-        }
-        
-        for clave, lista_fotos in fotos_mapeo.items():
-            if clave in nombre_maquina:
-                fotos = lista_fotos
-                break
-        
-        # Si no hay coincidencia, usar fotos por defecto
-        if not fotos:
-            fotos = ['maquinasmedellmlogo.jpg']
-        
-        return jsonify(fotos)
-        
-    except Exception as e:
-        print(f"❌ Error obteniendo fotos de máquina: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify([]), 500
-
-# ==================== APIS PARA PORCENTAJE RESTAURANTE ====================
-
-@app.route('/api/maquinas/<int:maquina_id>/porcentaje-restaurante', methods=['PUT'])
-def actualizar_porcentaje_restaurante(maquina_id):
-    """Actualizar el porcentaje del restaurante para una máquina específica"""
+@app.route('/api/maquinas/estadisticas', methods=['GET'])
+def obtener_estadisticas_maquinas():
+    """Obtener estadísticas para las gráficas de máquinas"""
     connection = None
     cursor = None
     try:
-        data = request.get_json()
-        porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
-        
-        # Validaciones
-        if not (0 <= float(porcentaje_restaurante) <= 100):
-            return jsonify({'error': 'El porcentaje del restaurante debe estar entre 0 y 100'}), 400
-        
         connection = get_db_connection()
         if not connection:
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que la máquina existe
-        cursor.execute("SELECT id, name FROM Machine WHERE id = %s", (maquina_id,))
-        maquina = cursor.fetchone()
-        if not maquina:
-            return jsonify({'error': 'Máquina no encontrada'}), 404
+        # Estadísticas por estado
+        cursor.execute("""
+            SELECT 
+                status,
+                COUNT(*) as cantidad
+            FROM Machine
+            GROUP BY status
+        """)
+        estadisticas_estado = cursor.fetchall()
         
-        # Actualizar o insertar porcentaje del restaurante
-        if float(porcentaje_restaurante) != 35.00:
-            cursor.execute("""
-                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
-                VALUES (%s, %s)
-                ON DUPLICATE KEY UPDATE porcentaje_restaurante = %s
-            """, (maquina_id, porcentaje_restaurante, porcentaje_restaurante))
-        else:
-            # Si es el valor por defecto, eliminar el registro específico
-            cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
+        # Estadísticas por tipo
+        cursor.execute("""
+            SELECT 
+                type,
+                COUNT(*) as cantidad
+            FROM Machine
+            GROUP BY type
+        """)
+        estadisticas_tipo = cursor.fetchall()
         
-        connection.commit()
+        # Convertir a formato para gráficas
+        estado_data = {
+            'activa': 0,
+            'mantenimiento': 0,
+            'inactiva': 0
+        }
         
-        # Registrar el cambio
-        print(f"✅ Porcentaje restaurante actualizado para {maquina['name']}: {porcentaje_restaurante}%")
+        for item in estadisticas_estado:
+            estado_data[item['status']] = item['cantidad']
+        
+        tipo_data = {}
+        for item in estadisticas_tipo:
+            tipo_data[item['type']] = item['cantidad']
         
         return jsonify({
-            'success': True,
-            'message': f'Porcentaje del restaurante actualizado a {porcentaje_restaurante}%'
+            'estado': estado_data,
+            'tipo': tipo_data
         })
         
     except Exception as e:
-        print(f"❌ Error actualizando porcentaje restaurante: {e}")
+        print(f"❌ Error obteniendo estadísticas de máquinas: {e}")
         sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
