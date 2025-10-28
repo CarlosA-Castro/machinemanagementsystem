@@ -244,7 +244,7 @@
                     <a href="/admin/maquinas/inventario" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
                         <i class="fas fa-gamepad mr-2"></i>Máquinas
                     </a>
-                    <a href="/admin/paquetes/gestionpaquetes" class="block py-2 px-3 rounded-lg bg-blue-600 text-white transition btn-touch">
+                    <a href="/admin/paquetes/gestionpaquetes" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
                         <i class="fas fa-cube mr-2"></i>Paquetes
                     </a>
                     <a href="/admin/ventas/reporteventas" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
@@ -253,7 +253,7 @@
                     <a href="/admin/locales/listalocales" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
                         <i class="fas fa-store mr-2"></i>Locales
                     </a>
-                    <a href="/admin/ventas/liquidaciones" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                    <a href="/admin/ventas/liquidaciones" class="block py-2 px-3 rounded-lg bg-blue-600 text-white transition btn-touch">
                         <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
                     </a>
                 </nav>
@@ -291,6 +291,9 @@
                         <button onclick="LiquidacionesApp.actualizarDatos()" class="btn btn-primary">
                             <i class="fas fa-sync-alt"></i> Actualizar
                         </button>
+                        <button onclick="LiquidacionesApp.mostrarModalNuevaLiquidacion()" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Nueva Liquidación
+                        </button>
                         <div class="relative">
                             <button onclick="LiquidacionesApp.mostrarMenuExportar()" class="btn btn-secondary">
                                 <i class="fas fa-download"></i> Exportar
@@ -305,6 +308,31 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="glass-card mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                        <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                        <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Máquina</label>
+                        <select id="filtroMaquina" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="">Todas las máquinas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="LiquidacionesApp.aplicarFiltros()" class="btn btn-primary">
+                        <i class="fas fa-filter mr-2"></i>Aplicar Filtros
+                    </button>
                 </div>
             </div>
 
@@ -388,6 +416,7 @@
                                 <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
                                     Ingresos Máquinas <i class="fas fa-sort ml-1"></i>
                                 </th>
+                                <th class="text-right">Costos Operativos</th>
                                 <th class="text-right">Ganancia Restaurante</th>
                                 <th class="text-right">Ganancia Proveedor</th>
                                 <th class="text-right">Dinero Total</th>
@@ -403,6 +432,7 @@
                                 <td id="totalTurnos" class="text-right">0</td>
                                 <td></td>
                                 <td id="totalIngresosTabla" class="text-right">$0</td>
+                                <td id="totalCostos" class="text-right">$0</td>
                                 <td id="totalGananciaRestaurante" class="text-right">$0</td>
                                 <td id="totalGananciaProveedor" class="text-right">$0</td>
                                 <td id="totalDinero" class="text-right">$0</td>
@@ -439,6 +469,62 @@
         </main>
     </div>
 
+    <!-- Modal para nueva liquidación -->
+    <div id="modalNuevaLiquidacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">
+                    <i class="fas fa-plus-circle mr-2 text-green-600"></i>Nueva Liquidación
+                </h3>
+                <button onclick="LiquidacionesApp.cerrarModalNuevaLiquidacion()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="formNuevaLiquidacion" onsubmit="LiquidacionesApp.guardarLiquidacion(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+                        <input type="date" id="nuevaFecha" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Máquina *</label>
+                        <select id="nuevaMaquina" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="">Seleccionar máquina...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Turnos Retirados *</label>
+                        <input type="number" id="nuevaTurnos" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: 150">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor por Turno *</label>
+                        <input type="number" id="nuevaValorTurno" required min="1000" step="100" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: 3000">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Costos Operativos</label>
+                        <input type="number" id="nuevaCostos" min="0" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: 50000" value="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Porcentaje Restaurante</label>
+                        <input type="number" id="nuevaPorcentaje" min="0" max="100" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="35.00" readonly>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                    <textarea id="nuevaObservaciones" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="LiquidacionesApp.cerrarModalNuevaLiquidacion()" class="btn btn-secondary">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save mr-2"></i>Guardar Liquidación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script>
         // Configuración de fechas
@@ -466,11 +552,14 @@
                 liquidaciones: [],
                 maquinas: [],
                 filtros: {
+                    fechaInicio: formatearFechaInput(new Date(hoy.getFullYear(), hoy.getMonth(), 1)), // Primer día del mes
+                    fechaFin: formatearFechaInput(hoy),
+                    maquinaId: '',
                     busqueda: '',
                     orden: { campo: 'fecha', direccion: 'desc' },
                     paginacion: {
                         paginaActual: 1,
-                        registrosPorPagina: 50, // Más registros por página
+                        registrosPorPagina: 50,
                         totalRegistros: 0,
                         totalPaginas: 1
                     }
@@ -485,6 +574,7 @@
                 this.configurarEventos();
                 
                 // Cargar datos iniciales
+                this.cargarMaquinas();
                 this.actualizarDatos();
                 
                 // Actualizar hora y fecha
@@ -503,6 +593,44 @@
                         menu.classList.add('hidden');
                     }
                 });
+                
+                // Configurar fechas por defecto
+                document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
+                document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
+            },
+            
+            // Cargar lista de máquinas
+            cargarMaquinas: async function() {
+                try {
+                    const response = await fetch('/api/maquinas/select');
+                    if (!response.ok) throw new Error('Error al cargar máquinas');
+                    
+                    const maquinas = await response.json();
+                    this.estado.maquinas = maquinas;
+                    
+                    // Llenar select de filtro
+                    const selectFiltro = document.getElementById('filtroMaquina');
+                    selectFiltro.innerHTML = '<option value="">Todas las máquinas</option>';
+                    
+                    // Llenar select del modal
+                    const selectModal = document.getElementById('nuevaMaquina');
+                    selectModal.innerHTML = '<option value="">Seleccionar máquina...</option>';
+                    
+                    maquinas.forEach(maquina => {
+                        const option = document.createElement('option');
+                        option.value = maquina.id;
+                        option.textContent = maquina.nombre;
+                        option.setAttribute('data-porcentaje', maquina.porcentaje_restaurante);
+                        option.setAttribute('data-valor-turno', maquina.valor_por_turno);
+                        
+                        selectFiltro.appendChild(option.cloneNode(true));
+                        selectModal.appendChild(option);
+                    });
+                    
+                } catch (error) {
+                    console.error('Error al cargar máquinas:', error);
+                    this.mostrarAlerta('Error al cargar la lista de máquinas', 'error');
+                }
             },
             
             // Actualizar datos de la tabla desde la API
@@ -511,10 +639,14 @@
                     this.mostrarCarga(true);
                     
                     // Obtener filtros actuales
-                    const { busqueda, orden, paginacion } = this.estado.filtros;
+                    const { fechaInicio, fechaFin, maquinaId, busqueda, orden, paginacion } = this.estado.filtros;
                     
-                    // Construir URL de la API - SIN filtros de fecha para traer todo
-                    let url = `/api/liquidaciones?pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}&orden=${orden.campo}&direccion=${orden.direccion}`;
+                    // Construir URL de la API
+                    let url = `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}&orden=${orden.campo}&direccion=${orden.direccion}`;
+                    
+                    if (maquinaId) {
+                        url += `&maquinaId=${maquinaId}`;
+                    }
                     
                     if (busqueda) {
                         url += `&busqueda=${encodeURIComponent(busqueda)}`;
@@ -558,12 +690,12 @@
                 if (this.estado.liquidaciones.length === 0) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td colspan="10" class="text-center py-8 text-gray-500">
+                        <td colspan="11" class="text-center py-8 text-gray-500">
                             <i class="fas fa-inbox text-4xl mb-2 block"></i>
-                            No se encontraron registros de liquidaciones.
+                            No se encontraron registros de liquidaciones para los filtros seleccionados.
                             <br>
-                            <button onclick="LiquidacionesApp.crearDatosEjemplo()" class="btn btn-primary mt-4">
-                                <i class="fas fa-plus mr-2"></i> Crear Datos de Ejemplo
+                            <button onclick="LiquidacionesApp.mostrarModalNuevaLiquidacion()" class="btn btn-success mt-4">
+                                <i class="fas fa-plus mr-2"></i> Crear Primera Liquidación
                             </button>
                         </td>
                     `;
@@ -573,19 +705,22 @@
                 
                 let totalTurnos = 0;
                 let totalIngresos = 0;
+                let totalCostos = 0;
                 let totalGananciaRestaurante = 0;
                 let totalGananciaProveedor = 0;
                 let totalDinero = 0;
                 
                 this.estado.liquidaciones.forEach(liquidacion => {
                     const ingresos = liquidacion.turnos_retirados * liquidacion.valor_por_turno;
-                    const gananciaRestaurante = Math.round(ingresos * (liquidacion.porcentaje_restaurante / 100));
-                    const gananciaProveedor = ingresos - gananciaRestaurante;
-                    const dineroTotal = ingresos;
+                    const gananciaNeta = ingresos - (liquidacion.costos_operativos || 0);
+                    const gananciaRestaurante = Math.round(gananciaNeta * (liquidacion.porcentaje_restaurante / 100));
+                    const gananciaProveedor = gananciaNeta - gananciaRestaurante;
+                    const dineroTotal = gananciaNeta;
                     
                     // Actualizar totales
                     totalTurnos += liquidacion.turnos_retirados;
                     totalIngresos += ingresos;
+                    totalCostos += liquidacion.costos_operativos || 0;
                     totalGananciaRestaurante += gananciaRestaurante;
                     totalGananciaProveedor += gananciaProveedor;
                     totalDinero += dineroTotal;
@@ -599,11 +734,12 @@
                             ${liquidacion.porcentaje_restaurante}%
                         </td>
                         <td class="text-right">${liquidacion.turnos_retirados.toLocaleString()}</td>
-                        <td class="text-right">${liquidacion.valor_por_turno.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td class="text-right">${ingresos.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td class="text-right text-green-600">${gananciaRestaurante.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td class="text-right text-purple-600">${gananciaProveedor.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
-                        <td class="text-right font-semibold">${dineroTotal.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td class="text-right">${formatearMoneda(liquidacion.valor_por_turno)}</td>
+                        <td class="text-right">${formatearMoneda(ingresos)}</td>
+                        <td class="text-right">${formatearMoneda(liquidacion.costos_operativos || 0)}</td>
+                        <td class="text-right text-green-600">${formatearMoneda(gananciaRestaurante)}</td>
+                        <td class="text-right text-purple-600">${formatearMoneda(gananciaProveedor)}</td>
+                        <td class="text-right font-semibold">${formatearMoneda(dineroTotal)}</td>
                         <td class="text-center">
                             <button onclick="LiquidacionesApp.eliminarLiquidacion(${liquidacion.id})" class="text-red-600 hover:text-red-800" title="Eliminar">
                                 <i class="fas fa-trash-alt"></i>
@@ -615,10 +751,11 @@
                 
                 // Actualizar totales en el pie de la tabla
                 document.getElementById('totalTurnos').textContent = totalTurnos.toLocaleString();
-                document.getElementById('totalIngresosTabla').textContent = totalIngresos.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                document.getElementById('totalGananciaRestaurante').textContent = totalGananciaRestaurante.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                document.getElementById('totalGananciaProveedor').textContent = totalGananciaProveedor.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                document.getElementById('totalDinero').textContent = totalDinero.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                document.getElementById('totalIngresosTabla').textContent = formatearMoneda(totalIngresos);
+                document.getElementById('totalCostos').textContent = formatearMoneda(totalCostos);
+                document.getElementById('totalGananciaRestaurante').textContent = formatearMoneda(totalGananciaRestaurante);
+                document.getElementById('totalGananciaProveedor').textContent = formatearMoneda(totalGananciaProveedor);
+                document.getElementById('totalDinero').textContent = formatearMoneda(totalDinero);
             },
             
             // Actualizar resumen con totales
@@ -642,21 +779,131 @@
                 document.getElementById('totalRegistros').textContent = this.estado.filtros.paginacion.totalRegistros;
             },
             
-            // Actualizar controles de paginación
+            // Aplicar filtros
+            aplicarFiltros: function() {
+                this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
+                this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
+                this.estado.filtros.maquinaId = document.getElementById('filtroMaquina').value;
+                this.estado.filtros.paginacion.paginaActual = 1;
+                
+                this.actualizarDatos();
+            },
+            
+            // Resto de las funciones se mantienen igual que en el código anterior...
+            // (actualizarPaginacion, irAPagina, paginaAnterior, paginaSiguiente, irAUltimaPagina,
+            // buscar, ordenarPor, mostrarMenuExportar, exportarReporte, exportarAExcel, exportarAPDF,
+            // eliminarLiquidacion, mostrarCarga, mostrarAlerta, formatearFecha, actualizarHora,
+            // obtenerClaseAlerta, obtenerIconoAlerta)
+            
+            // Mostrar modal para nueva liquidación
+            mostrarModalNuevaLiquidacion: function() {
+                // Resetear formulario
+                document.getElementById('formNuevaLiquidacion').reset();
+                document.getElementById('nuevaFecha').value = formatearFechaInput(new Date());
+                document.getElementById('nuevaPorcentaje').value = '35.00';
+                
+                const modal = document.getElementById('modalNuevaLiquidacion');
+                modal.classList.remove('hidden');
+            },
+            
+            // Cerrar modal de nueva liquidación
+            cerrarModalNuevaLiquidacion: function() {
+                const modal = document.getElementById('modalNuevaLiquidacion');
+                modal.classList.add('hidden');
+            },
+            
+            // Guardar nueva liquidación
+            guardarLiquidacion: async function(event) {
+                event.preventDefault();
+                
+                try {
+                    const formData = {
+                        fecha: document.getElementById('nuevaFecha').value,
+                        maquina_id: parseInt(document.getElementById('nuevaMaquina').value),
+                        turnos_retirados: parseInt(document.getElementById('nuevaTurnos').value),
+                        valor_por_turno: parseInt(document.getElementById('nuevaValorTurno').value),
+                        costos_operativos: parseInt(document.getElementById('nuevaCostos').value) || 0,
+                        observaciones: document.getElementById('nuevaObservaciones').value
+                    };
+                    
+                    // Validaciones
+                    if (!formData.fecha || !formData.maquina_id || !formData.turnos_retirados || !formData.valor_por_turno) {
+                        this.mostrarAlerta('Todos los campos obligatorios deben ser completados', 'error');
+                        return;
+                    }
+                    
+                    if (formData.turnos_retirados <= 0) {
+                        this.mostrarAlerta('La cantidad de turnos debe ser mayor a 0', 'error');
+                        return;
+                    }
+                    
+                    if (formData.valor_por_turno <= 0) {
+                        this.mostrarAlerta('El valor por turno debe ser mayor a 0', 'error');
+                        return;
+                    }
+                    
+                    this.mostrarCarga(true);
+                    
+                    const response = await fetch('/api/liquidaciones', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error al guardar la liquidación');
+                    }
+                    
+                    const result = await response.json();
+                    
+                    this.mostrarAlerta(result.mensaje, 'success');
+                    this.cerrarModalNuevaLiquidacion();
+                    this.actualizarDatos();
+                    
+                } catch (error) {
+                    console.error('Error al guardar liquidación:', error);
+                    this.mostrarAlerta('Error al guardar la liquidación: ' + error.message, 'error');
+                } finally {
+                    this.mostrarCarga(false);
+                }
+            },
+            
+            // Evento cuando se selecciona una máquina en el modal
+            configurarEventoSeleccionMaquina: function() {
+                document.getElementById('nuevaMaquina').addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption.value) {
+                        const porcentaje = selectedOption.getAttribute('data-porcentaje') || '35.00';
+                        const valorTurno = selectedOption.getAttribute('data-valor-turno') || '3000';
+                        
+                        document.getElementById('nuevaPorcentaje').value = porcentaje;
+                        document.getElementById('nuevaValorTurno').value = valorTurno;
+                    }
+                });
+            }
+        };
+        
+        // Inicializar la aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            LiquidacionesApp.init();
+            LiquidacionesApp.configurarEventoSeleccionMaquina();
+        });
+
+        // Añadir las funciones que faltan (se mantienen igual que en el código anterior)
+        Object.assign(LiquidacionesApp, {
             actualizarPaginacion: function() {
                 const { paginaActual, totalPaginas } = this.estado.filtros.paginacion;
                 const numerosPagina = document.getElementById('numerosPagina');
                 numerosPagina.innerHTML = '';
                 
-                // Botón página anterior
                 document.getElementById('btnPrimeraPagina').disabled = paginaActual === 1;
                 document.getElementById('btnPaginaAnterior').disabled = paginaActual === 1;
-                
-                // Botón página siguiente
                 document.getElementById('btnPaginaSiguiente').disabled = paginaActual >= totalPaginas;
                 document.getElementById('btnUltimaPagina').disabled = paginaActual >= totalPaginas;
                 
-                // Números de página
                 const maxBotones = 5;
                 let inicio = Math.max(1, paginaActual - Math.floor(maxBotones / 2));
                 let fin = Math.min(totalPaginas, inicio + maxBotones - 1);
@@ -674,7 +921,6 @@
                 }
             },
             
-            // Cambiar a una página específica
             irAPagina: function(numeroPagina) {
                 if (numeroPagina >= 1 && numeroPagina <= this.estado.filtros.paginacion.totalPaginas) {
                     this.estado.filtros.paginacion.paginaActual = numeroPagina;
@@ -682,45 +928,37 @@
                 }
             },
             
-            // Ir a la página anterior
             paginaAnterior: function() {
                 if (this.estado.filtros.paginacion.paginaActual > 1) {
                     this.irAPagina(this.estado.filtros.paginacion.paginaActual - 1);
                 }
             },
             
-            // Ir a la página siguiente
             paginaSiguiente: function() {
                 if (this.estado.filtros.paginacion.paginaActual < this.estado.filtros.paginacion.totalPaginas) {
                     this.irAPagina(this.estado.filtros.paginacion.paginaActual + 1);
                 }
             },
             
-            // Ir a la última página
             irAUltimaPagina: function() {
                 this.irAPagina(this.estado.filtros.paginacion.totalPaginas);
             },
             
-            // Buscar por texto
             buscar: function() {
                 const busqueda = document.getElementById('busqueda').value.trim().toLowerCase();
                 this.estado.filtros.busqueda = busqueda;
-                this.estado.filtros.paginacion.paginaActual = 1; // Volver a la primera página
+                this.estado.filtros.paginacion.paginaActual = 1;
                 this.actualizarDatos();
             },
             
-            // Ordenar por columna
             ordenarPor: function(campo) {
                 if (this.estado.filtros.orden.campo === campo) {
-                    // Cambiar dirección si es el mismo campo
                     this.estado.filtros.orden.direccion = this.estado.filtros.orden.direccion === 'asc' ? 'desc' : 'asc';
                 } else {
-                    // Ordenar por nuevo campo (ascendente por defecto)
                     this.estado.filtros.orden.campo = campo;
                     this.estado.filtros.orden.direccion = 'asc';
                 }
                 
-                // Actualizar iconos de ordenación
                 document.querySelectorAll('th').forEach(th => {
                     const icono = th.querySelector('i');
                     if (icono) {
@@ -735,13 +973,11 @@
                 this.actualizarDatos();
             },
             
-            // Mostrar menú de exportación
             mostrarMenuExportar: function() {
                 const menu = document.getElementById('exportMenu');
                 menu.classList.toggle('hidden');
             },
             
-            // Exportar reporte
             exportarReporte: function(formato) {
                 try {
                     if (formato === 'excel') {
@@ -750,7 +986,6 @@
                         this.exportarAPDF();
                     }
                     
-                    // Cerrar menú de exportación
                     document.getElementById('exportMenu').classList.add('hidden');
                     
                 } catch (error) {
@@ -759,21 +994,17 @@
                 }
             },
             
-            // Exportar a Excel
             exportarAExcel: function() {
-                // Crear libro de trabajo
                 const wb = XLSX.utils.book_new();
-                
-                // Preparar datos
                 const datos = [
-                    ['Fecha', 'Máquina', '% Máquina', 'Cant. Turnos', 'Precio x Turno', 'Ingresos Máquinas', 'Ganancia Restaurante', 'Ganancia Proveedor', 'Dinero Total']
+                    ['Fecha', 'Máquina', '% Máquina', 'Cant. Turnos', 'Precio x Turno', 'Ingresos Máquinas', 'Costos Operativos', 'Ganancia Restaurante', 'Ganancia Proveedor', 'Dinero Total']
                 ];
                 
                 this.estado.liquidaciones.forEach(liquidacion => {
                     const ingresos = liquidacion.turnos_retirados * liquidacion.valor_por_turno;
-                    const gananciaRestaurante = Math.round(ingresos * (liquidacion.porcentaje_restaurante / 100));
-                    const gananciaProveedor = ingresos - gananciaRestaurante;
-                    const dineroTotal = ingresos;
+                    const gananciaNeta = ingresos - (liquidacion.costos_operativos || 0);
+                    const gananciaRestaurante = Math.round(gananciaNeta * (liquidacion.porcentaje_restaurante / 100));
+                    const gananciaProveedor = gananciaNeta - gananciaRestaurante;
                     
                     datos.push([
                         this.formatearFecha(liquidacion.fecha),
@@ -782,56 +1013,40 @@
                         liquidacion.turnos_retirados,
                         liquidacion.valor_por_turno,
                         ingresos,
+                        liquidacion.costos_operativos || 0,
                         gananciaRestaurante,
                         gananciaProveedor,
-                        dineroTotal
+                        gananciaNeta
                     ]);
                 });
                 
-                // Crear hoja de cálculo
                 const ws = XLSX.utils.aoa_to_sheet(datos);
-                
-                // Añadir hoja al libro
                 XLSX.utils.book_append_sheet(wb, ws, 'Liquidaciones');
-                
-                // Generar archivo y descargar
                 const fecha = new Date().toISOString().slice(0, 10);
                 XLSX.writeFile(wb, `Liquidaciones_${fecha}.xlsx`);
                 
                 this.mostrarAlerta('Reporte exportado a Excel correctamente', 'success');
             },
             
-            // Exportar a PDF
             exportarAPDF: function() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('landscape');
                 
-                // Título
                 doc.setFontSize(18);
                 doc.text('Reporte de Liquidaciones', 14, 20);
                 
-                // Fecha de generación
                 doc.setFontSize(10);
                 doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 28);
                 
-                // Preparar datos para la tabla
                 const headers = [
-                    'Fecha', 
-                    'Máquina', 
-                    '% Máq.', 
-                    'Turnos', 
-                    'Precio', 
-                    'Ingresos', 
-                    'G. Rest.', 
-                    'G. Prov.',
-                    'Total'
+                    'Fecha', 'Máquina', '% Máq.', 'Turnos', 'Precio', 'Ingresos', 'Costos', 'G. Rest.', 'G. Prov.', 'Total'
                 ];
                 
                 const data = this.estado.liquidaciones.map(liquidacion => {
                     const ingresos = liquidacion.turnos_retirados * liquidacion.valor_por_turno;
-                    const gananciaRestaurante = Math.round(ingresos * (liquidacion.porcentaje_restaurante / 100));
-                    const gananciaProveedor = ingresos - gananciaRestaurante;
-                    const dineroTotal = ingresos;
+                    const gananciaNeta = ingresos - (liquidacion.costos_operativos || 0);
+                    const gananciaRestaurante = Math.round(gananciaNeta * (liquidacion.porcentaje_restaurante / 100));
+                    const gananciaProveedor = gananciaNeta - gananciaRestaurante;
                     
                     return [
                         this.formatearFecha(liquidacion.fecha),
@@ -840,13 +1055,13 @@
                         liquidacion.turnos_retirados.toString(),
                         liquidacion.valor_por_turno.toLocaleString('es-CO'),
                         ingresos.toLocaleString('es-CO'),
+                        (liquidacion.costos_operativos || 0).toLocaleString('es-CO'),
                         gananciaRestaurante.toLocaleString('es-CO'),
                         gananciaProveedor.toLocaleString('es-CO'),
-                        dineroTotal.toLocaleString('es-CO')
+                        gananciaNeta.toLocaleString('es-CO')
                     ];
                 });
                 
-                // Añadir tabla
                 doc.autoTable({
                     startY: 35,
                     head: [headers],
@@ -869,70 +1084,36 @@
                     }
                 });
                 
-                // Guardar PDF
                 const fecha = new Date().toISOString().slice(0, 10);
                 doc.save(`Liquidaciones_${fecha}.pdf`);
                 
                 this.mostrarAlerta('Reporte exportado a PDF correctamente', 'success');
             },
             
-            // Crear datos de ejemplo
-            crearDatosEjemplo: async function() {
-                try {
-                    this.mostrarCarga(true);
-                    
-                    const response = await fetch('/api/liquidaciones/ejemplo', {
-                        method: 'POST'
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Error al crear datos de ejemplo');
-                    }
-                    
-                    const result = await response.json();
-                    
-                    this.mostrarAlerta(result.mensaje, 'success');
-                    this.actualizarDatos();
-                    
-                } catch (error) {
-                    console.error('Error al crear datos de ejemplo:', error);
-                    this.mostrarAlerta('Error al crear datos de ejemplo', 'error');
-                } finally {
-                    this.mostrarCarga(false);
-                }
-            },
-            
-            // Eliminar liquidación
             eliminarLiquidacion: function(id) {
                 if (!confirm('¿Está seguro de eliminar esta liquidación? Esta acción no se puede deshacer.')) {
                     return;
                 }
                 
-                try {
-                    fetch(`/api/liquidaciones/${id}`, {
-                        method: 'DELETE'
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Error al eliminar la liquidación');
-                        }
-                        return response.json();
-                    })
-                    .then(result => {
-                        this.mostrarAlerta(result.mensaje || 'Liquidación eliminada correctamente', 'success');
-                        this.actualizarDatos();
-                    })
-                    .catch(error => {
-                        throw error;
-                    });
-                    
-                } catch (error) {
+                fetch(`/api/liquidaciones/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error al eliminar la liquidación');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    this.mostrarAlerta(result.mensaje || 'Liquidación eliminada correctamente', 'success');
+                    this.actualizarDatos();
+                })
+                .catch(error => {
                     console.error('Error al eliminar la liquidación:', error);
                     this.mostrarAlerta('Error al eliminar la liquidación', 'error');
-                }
+                });
             },
             
-            // Mostrar/ocultar carga
             mostrarCarga: function(mostrar) {
                 const botones = document.querySelectorAll('button');
                 botones.forEach(boton => {
@@ -950,9 +1131,7 @@
                 });
             },
             
-            // Mostrar alerta
             mostrarAlerta: function(mensaje, tipo = 'info') {
-                // Crear alerta si no existe
                 let alerta = document.getElementById('alertaGlobal');
                 
                 if (!alerta) {
@@ -970,13 +1149,11 @@
                     `;
                     document.body.appendChild(alerta);
                 } else {
-                    // Actualizar alerta existente
                     alerta.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md ${this.obtenerClaseAlerta(tipo)}`;
                     alerta.querySelector('span').textContent = mensaje;
                     alerta.querySelector('i').className = `${this.obtenerIconoAlerta(tipo)} mr-2`;
                 }
                 
-                // Ocultar después de 5 segundos
                 setTimeout(() => {
                     if (alerta) {
                         alerta.remove();
@@ -984,7 +1161,6 @@
                 }, 5000);
             },
             
-            // Obtener clase CSS para la alerta según el tipo
             obtenerClaseAlerta: function(tipo) {
                 const clases = {
                     success: 'bg-green-100 border border-green-400 text-green-700',
@@ -995,7 +1171,6 @@
                 return clases[tipo] || clases.info;
             },
             
-            // Obtener icono para la alerta según el tipo
             obtenerIconoAlerta: function(tipo) {
                 const iconos = {
                     success: 'fas fa-check-circle',
@@ -1006,7 +1181,6 @@
                 return iconos[tipo] || iconos.info;
             },
             
-            // Formatear fecha para mostrar
             formatearFecha: function(fechaStr) {
                 const fecha = new Date(fechaStr);
                 return fecha.toLocaleDateString('es-CO', {
@@ -1016,13 +1190,11 @@
                 });
             },
             
-            // Actualizar hora y fecha en la interfaz
             actualizarHora: function() {
                 const ahora = new Date();
                 const opcionesHora = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
                 const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 
-                // Actualizar en el sidebar
                 const horaActualSidebar = document.getElementById('horaActualSidebar');
                 const fechaActualSidebar = document.getElementById('fechaActualSidebar');
                 
@@ -1034,7 +1206,6 @@
                     fechaActualSidebar.textContent = ahora.toLocaleDateString('es-CO', opcionesFecha);
                 }
                 
-                // Actualizar en el contenido principal
                 const fechaActual = document.getElementById('fechaActual');
                 if (fechaActual) {
                     fechaActual.textContent = ahora.toLocaleDateString('es-CO', {
@@ -1045,11 +1216,6 @@
                     });
                 }
             }
-        };
-        
-        // Inicializar la aplicación cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', () => {
-            LiquidacionesApp.init();
         });
     </script>
 </body>
