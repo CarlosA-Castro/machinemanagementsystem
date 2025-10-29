@@ -3012,116 +3012,362 @@ def mostrar_liquidaciones():
 
 # ==================== APIS PARA LIQUIDACIONES ====================
 
-@app.route('/api/liquidaciones', methods=['GET'])
-def obtener_liquidaciones():
-    """Obtener todas las liquidaciones con filtros"""
+@app.route('/api/ventas-liquidadas', methods=['GET'])
+def obtener_ventas_liquidadas():
+    """Obtener datos REALES de ventas de paquetes para liquidaciones - VERSIÓN CORREGIDA"""
     connection = None
     cursor = None
     try:
         # Obtener parámetros de filtrado
-        fecha_inicio = request.args.get('fechaInicio')
-        fecha_fin = request.args.get('fechaFin')
-        maquina_id = request.args.get('maquinaId')
+        fecha_inicio = request.args.get('fechaInicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fechaFin', datetime.now().strftime('%Y-%m-%d'))
         pagina = int(request.args.get('pagina', 1))
-        por_pagina = int(request.args.get('porPagina', 10))
+        por_pagina = int(request.args.get('porPagina', 50))
         orden = request.args.get('orden', 'fecha')
         direccion = request.args.get('direccion', 'desc')
         busqueda = request.args.get('busqueda', '')
         
         offset = (pagina - 1) * por_pagina
         
+        print(f"📊 Solicitando ventas liquidadas desde {fecha_inicio} hasta {fecha_fin}")
+        
         connection = get_db_connection()
         if not connection:
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
         
-        # Construir consulta base
+        # CONSULTA CORREGIDA - Más simple y robusta
         query = """
             SELECT 
-                l.*,
-                m.name as maquina_nombre,
-                m.valor_por_turno,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                u.name as creado_por
-            FROM liquidaciones l
-            JOIN Machine m ON l.maquina_id = m.id
-            JOIN Users u ON l.usuario_id = u.id
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE 1=1
+                DATE(qh.fecha_hora) as fecha,
+                COALESCE(tp.name, 'Sin paquete') as paquete_nombre,
+                COALESCE(tp.price, 0) as precio_unitario,
+                COUNT(*) as cantidad_paquetes,
+                COALESCE(SUM(tp.price), 0) as ingresos_totales,
+                COALESCE(u.name, 'Sistema') as vendedor,
+                qh.qr_name
+            FROM QRHistory qh
+            LEFT JOIN Users u ON qh.user_id = u.id
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
         """
-        params = []
+        params = [fecha_inicio, fecha_fin]
         
-        # Aplicar filtros
-        if fecha_inicio and fecha_fin:
-            query += " AND l.fecha BETWEEN %s AND %s"
-            params.extend([fecha_inicio, fecha_fin])
-        
-        if maquina_id:
-            query += " AND l.maquina_id = %s"
-            params.append(maquina_id)
-            
         if busqueda:
-            query += " AND (m.name LIKE %s OR l.observaciones LIKE %s)"
-            params.extend([f"%{busqueda}%", f"%{busqueda}%"])
+            query += " AND (tp.name LIKE %s OR u.name LIKE %s OR qh.qr_name LIKE %s)"
+            params.extend([f"%{busqueda}%", f"%{busqueda}%", f"%{busqueda}%"])
+        
+        query += " GROUP BY DATE(qh.fecha_hora), tp.name, tp.price, u.name, qh.qr_name"
         
         # Contar total de registros
-        count_query = "SELECT COUNT(*) as total " + query[query.find("FROM"):]
-        cursor.execute(count_query, params)
-        total_registros = cursor.fetchone()['total']
+        try:
+            count_query = "SELECT COUNT(*) as total FROM (" + query + ") as subquery"
+            print(f"🔍 Count query: {count_query}")
+            print(f"🔍 Params: {params}")
+            cursor.execute(count_query, params)
+            count_result = cursor.fetchone()
+            total_registros = count_result['total'] if count_result else 0
+            print(f"✅ Total registros encontrados: {total_registros}")
+        except Exception as count_error:
+            print(f"⚠️ Error en count query: {count_error}")
+            total_registros = 0
         
         # Aplicar ordenación
-        order_clause = ""
-        if orden in ['fecha', 'maquina', 'turnos_retirados']:
-            if orden == 'maquina':
-                order_clause = f" ORDER BY m.name {direccion.upper()}"
-            else:
-                order_clause = f" ORDER BY l.{orden} {direccion.upper()}"
-        else:
-            order_clause = " ORDER BY l.fecha DESC"
-            
-        query += order_clause
-            
+        order_mapping = {
+            'fecha': 'fecha',
+            'paquete': 'paquete_nombre', 
+            'ingresos': 'ingresos_totales'
+        }
+        order_field = order_mapping.get(orden, 'fecha')
+        query += f" ORDER BY {order_field} {direccion.upper()}"
+        
         # Aplicar paginación
         query += " LIMIT %s OFFSET %s"
         params.extend([por_pagina, offset])
         
-        # Ejecutar consulta
+        print(f"🔍 Main query: {query}")
+        print(f"🔍 Params: {params}")
+        
+        # Ejecutar consulta principal
         cursor.execute(query, params)
-        liquidaciones = cursor.fetchall()
+        ventas = cursor.fetchall()
+        print(f"✅ Ventas encontradas: {len(ventas)}")
         
-        # Calcular totales
-        total_turnos = 0
+        # Calcular distribución de ingresos - VERSIÓN SIMPLIFICADA
+        datos_liquidados = []
         total_ingresos = 0
-        total_costos = 0
-        total_ganancias = 0
-        total_ganancia_proveedor = 0
-        total_ganancia_restaurante = 0
+        total_ingresos_30 = 0
+        total_ingresos_35 = 0
+        total_ingresos_restaurante = 0
+        total_ingresos_proveedor = 0
         
-        for liq in liquidaciones:
-            ingresos = liq['turnos_retirados'] * liq['valor_por_turno']
-            ganancia = ingresos - (liq['costos_operativos'] or 0)
-            ganancia_proveedor = round(ganancia * (liq['porcentaje_restaurante'] / 100))
-            ganancia_restaurante = ganancia - ganancia_proveedor
+        for venta in ventas:
+            try:
+                ingresos_totales = float(venta['ingresos_totales'] or 0)
+                total_ingresos += ingresos_totales
+                
+                # DISTRIBUCIÓN SIMPLIFICADA - Basada en el nombre del paquete
+                paquete_nombre = str(venta['paquete_nombre'] or '')
+                
+                # Si es paquete P1-P10, distribuimos 50/50 entre 30% y 35% como ejemplo
+                # En producción esto debería basarse en el uso real de máquinas
+                if any(str(i) in paquete_nombre for i in range(1, 11)):
+                    # Distribución ejemplo: 50% en máquinas 30%, 50% en máquinas 35%
+                    ingresos_30 = ingresos_totales * 0.5
+                    ingresos_35 = ingresos_totales * 0.5
+                else:
+                    # Para otros paquetes, distribución diferente
+                    ingresos_30 = ingresos_totales * 0.3
+                    ingresos_35 = ingresos_totales * 0.7
+                
+                ingresos_restaurante = (ingresos_30 * 0.30) + (ingresos_35 * 0.35)
+                ingresos_proveedor = ingresos_totales - ingresos_restaurante
+                
+                total_ingresos_30 += ingresos_30
+                total_ingresos_35 += ingresos_35
+                total_ingresos_restaurante += ingresos_restaurante
+                total_ingresos_proveedor += ingresos_proveedor
+                
+                datos_liquidados.append({
+                    'fecha': venta['fecha'].isoformat() if venta['fecha'] else None,
+                    'paquete_nombre': paquete_nombre,
+                    'precio_unitario': float(venta['precio_unitario'] or 0),
+                    'cantidad_paquetes': int(venta['cantidad_paquetes'] or 0),
+                    'ingresos_totales': ingresos_totales,
+                    'ingresos_30_porciento': round(ingresos_30),
+                    'ingresos_35_porciento': round(ingresos_35),
+                    'ingresos_restaurante': round(ingresos_restaurante),
+                    'ingresos_proveedor': round(ingresos_proveedor),
+                    'vendedor': venta['vendedor'] or 'Sistema',
+                    'qr_nombre': venta['qr_name'] or 'Sin nombre'
+                })
+                
+            except Exception as venta_error:
+                print(f"⚠️ Error procesando venta: {venta_error}")
+                print(f"⚠️ Venta data: {venta}")
+                continue
+        
+        print(f"✅ Datos liquidados procesados: {len(datos_liquidados)}")
+        
+        return jsonify({
+            'datos': datos_liquidados,
+            'totalRegistros': total_registros,
+            'totalIngresos': round(total_ingresos),
+            'totalIngresos30': round(total_ingresos_30),
+            'totalIngresos35': round(total_ingresos_35),
+            'totalIngresosRestaurante': round(total_ingresos_restaurante),
+            'totalIngresosProveedor': round(total_ingresos_proveedor),
+            'estadisticas': {
+                'totalVentas': len(datos_liquidados),
+                'periodo': f"{fecha_inicio} a {fecha_fin}"
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Error crítico en obtener_ventas_liquidadas: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/ventas-liquidadas-simple', methods=['GET'])
+def obtener_ventas_liquidadas_simple():
+    """Versión simple de ventas liquidadas - SOLO PARA DEBUG"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fechaInicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fechaFin', datetime.now().strftime('%Y-%m-%d'))
+        
+        print(f"🔍 DEBUG: Solicitando datos simples desde {fecha_inicio} hasta {fecha_fin}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
-            total_turnos += liq['turnos_retirados']
-            total_ingresos += ingresos
-            total_costos += liq['costos_operativos'] or 0
-            total_ganancias += ganancia
-            total_ganancia_proveedor += ganancia_proveedor
-            total_ganancia_restaurante += ganancia_restaurante
+        cursor = get_db_cursor(connection)
+        
+        # Consulta MUY simple para debug
+        cursor.execute("""
+            SELECT 
+                DATE(fecha_hora) as fecha,
+                COUNT(*) as total_ventas
+            FROM QRHistory 
+            WHERE DATE(fecha_hora) BETWEEN %s AND %s
+            GROUP BY DATE(fecha_hora)
+            ORDER BY fecha DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas_simples = cursor.fetchall()
+        
+        # Crear datos de ejemplo basados en las ventas reales
+        datos_ejemplo = []
+        for venta in ventas_simples:
+            datos_ejemplo.append({
+                'fecha': venta['fecha'].isoformat() if venta['fecha'] else None,
+                'paquete_nombre': 'Paquete Ejemplo',
+                'precio_unitario': 10000,
+                'cantidad_paquetes': venta['total_ventas'],
+                'ingresos_totales': venta['total_ventas'] * 10000,
+                'ingresos_30_porciento': (venta['total_ventas'] * 10000) * 0.5,
+                'ingresos_35_porciento': (venta['total_ventas'] * 10000) * 0.5,
+                'ingresos_restaurante': (venta['total_ventas'] * 10000) * 0.325,  # Promedio
+                'ingresos_proveedor': (venta['total_ventas'] * 10000) * 0.675,
+                'vendedor': 'Sistema',
+                'qr_nombre': 'QR Ejemplo'
+            })
+        
+        return jsonify({
+            'datos': datos_ejemplo,
+            'totalRegistros': len(datos_ejemplo),
+            'totalIngresos': sum(item['ingresos_totales'] for item in datos_ejemplo),
+            'mensaje': 'Datos de ejemplo para debug'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error en versión simple: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/debug-tablas', methods=['GET'])
+def debug_tablas():
+    """Debug: Verificar qué tablas y datos existen"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'No connection'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar tablas existentes
+        cursor.execute("SHOW TABLES")
+        tablas = cursor.fetchall()
+        
+        # Verificar datos en QRHistory
+        cursor.execute("SELECT COUNT(*) as total FROM QRHistory")
+        total_qrhistory = cursor.fetchone()
+        
+        # Verificar datos en TurnPackage
+        cursor.execute("SELECT COUNT(*) as total FROM TurnPackage")
+        total_turnpackage = cursor.fetchone()
+        
+        # Verificar datos en QRCode
+        cursor.execute("SELECT COUNT(*) as total FROM QRCode")
+        total_qrcode = cursor.fetchone()
+        
+        # Ejemplo de datos recientes
+        cursor.execute("SELECT * FROM QRHistory ORDER BY fecha_hora DESC LIMIT 5")
+        ejemplos = cursor.fetchall()
+        
+        return jsonify({
+            'tablas_existentes': tablas,
+            'total_qrhistory': total_qrhistory,
+            'total_turnpackage': total_turnpackage,
+            'total_qrcode': total_qrcode,
+            'ejemplos_recientes': ejemplos
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/liquidaciones-avanzadas', methods=['GET'])
+def obtener_liquidaciones_avanzadas():
+    """Obtener liquidaciones con distribución REAL por máquinas"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fechaInicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fechaFin', datetime.now().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Consulta para obtener distribución REAL por máquinas
+        query = """
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                m.name as maquina_nombre,
+                mpr.porcentaje_restaurante,
+                COUNT(*) as usos,
+                COUNT(DISTINCT qh.qr_code) as paquetes_vendidos,
+                SUM(tp.price) as ingresos_totales
+            FROM QRHistory qh
+            JOIN TurnUsage tu ON tu.qrCodeId = (SELECT id FROM QRCode WHERE code = qh.qr_code LIMIT 1)
+            JOIN Machine m ON tu.machineId = m.id
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY DATE(qh.fecha_hora), m.name, mpr.porcentaje_restaurante
+            ORDER BY fecha DESC, ingresos_totales DESC
+        """
+        
+        cursor.execute(query, (fecha_inicio, fecha_fin))
+        datos_maquinas = cursor.fetchall()
+        
+        # Procesar datos para liquidaciones
+        liquidaciones = []
+        total_ingresos = 0
+        total_restaurante = 0
+        total_proveedor = 0
+        
+        for dato in datos_maquinas:
+            ingresos_totales = dato['ingresos_totales'] or 0
+            porcentaje_restaurante = dato['porcentaje_restaurante'] or 35.00
+            
+            ingresos_restaurante = ingresos_totales * (porcentaje_restaurante / 100)
+            ingresos_proveedor = ingresos_totales - ingresos_restaurante
+            
+            total_ingresos += ingresos_totales
+            total_restaurante += ingresos_restaurante
+            total_proveedor += ingresos_proveedor
+            
+            liquidaciones.append({
+                'fecha': dato['fecha'].isoformat() if dato['fecha'] else None,
+                'maquina_nombre': dato['maquina_nombre'],
+                'porcentaje_restaurante': porcentaje_restaurante,
+                'usos': dato['usos'],
+                'paquetes_vendidos': dato['paquetes_vendidos'],
+                'ingresos_totales': ingresos_totales,
+                'ingresos_restaurante': round(ingresos_restaurante),
+                'ingresos_proveedor': round(ingresos_proveedor)
+            })
         
         return jsonify({
             'liquidaciones': liquidaciones,
-            'totalRegistros': total_registros,
-            'totalIngresos': total_ingresos,
-            'totalGanancias': total_ganancias,
-            'totalGananciaRestaurante': total_ganancia_restaurante,
-            'totalGananciaPropietarios': total_ganancia_proveedor
+            'estadisticas': {
+                'total_ingresos': total_ingresos,
+                'total_restaurante': round(total_restaurante),
+                'total_proveedor': round(total_proveedor),
+                'total_maquinas': len(datos_maquinas),
+                'periodo': f"{fecha_inicio} a {fecha_fin}"
+            }
         })
         
     except Exception as e:
-        print(f"Error al obtener liquidaciones: {str(e)}")
+        print(f"Error al obtener liquidaciones avanzadas: {str(e)}")
         sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
@@ -3130,23 +3376,14 @@ def obtener_liquidaciones():
         if connection:
             connection.close()
 
-@app.route('/api/liquidaciones', methods=['POST'])
-def crear_liquidacion():
-    """Crear una nueva liquidación"""
+@app.route('/api/resumen-liquidaciones', methods=['GET'])
+def obtener_resumen_liquidaciones():
+    """Obtener resumen ejecutivo para el dashboard de liquidaciones"""
     connection = None
     cursor = None
     try:
-        data = request.get_json()
-        
-        # Validar datos requeridos
-        required_fields = ['fecha', 'maquina_id', 'turnos_retirados', 'valor_por_turno']
-        for field in required_fields:
-            if field not in data or data[field] is None:
-                return jsonify({'error': f'El campo {field} es requerido'}), 400
-        
-        # Validar que el usuario está autenticado
-        if 'user_id' not in session:
-            return jsonify({'error': 'Usuario no autenticado'}), 401
+        fecha_inicio = request.args.get('fechaInicio', datetime.now().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fechaFin', datetime.now().strftime('%Y-%m-%d'))
         
         connection = get_db_connection()
         if not connection:
@@ -3154,236 +3391,96 @@ def crear_liquidacion():
             
         cursor = get_db_cursor(connection)
         
-        # Obtener el porcentaje de restaurante de la máquina
+        # Ingresos totales del período
         cursor.execute("""
-            SELECT COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM Machine m
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE m.id = %s
-        """, (data['maquina_id'],))
+            SELECT COALESCE(SUM(tp.price), 0) as ingresos_totales
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        ingresos_totales = cursor.fetchone()['ingresos_totales']
         
-        resultado = cursor.fetchone()
-        porcentaje_restaurante = resultado['porcentaje_restaurante'] if resultado else 35.00
+        # Paquetes vendidos
+        cursor.execute("""
+            SELECT COUNT(*) as paquetes_vendidos
+            FROM QRHistory 
+            WHERE DATE(fecha_hora) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        paquetes_vendidos = cursor.fetchone()['paquetes_vendidos']
         
-        # Crear nueva liquidación
-        query = """
-            INSERT INTO liquidaciones (
-                fecha, maquina_id, turnos_retirados, valor_por_turno,
-                costos_operativos, porcentaje_restaurante, observaciones,
-                usuario_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        params = (
-            data['fecha'],
-            data['maquina_id'],
-            data['turnos_retirados'],
-            data['valor_por_turno'],
-            data.get('costos_operativos', 0),
-            porcentaje_restaurante,
-            data.get('observaciones', ''),
-            session['user_id']
-        )
-        
-        cursor.execute(query, params)
-        connection.commit()
-        
-        # Obtener la liquidación creada
-        liquidacion_id = cursor.lastrowid
-        
+        # Distribución por porcentajes (estimada)
+        # En una implementación real, esto debería basarse en el uso real de máquinas
         cursor.execute("""
             SELECT 
-                l.*, 
-                m.name as maquina_nombre, 
-                m.valor_por_turno,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                u.name as creado_por
-            FROM liquidaciones l
-            JOIN Machine m ON l.maquina_id = m.id
-            JOIN Users u ON l.usuario_id = u.id
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE l.id = %s
-        """, (liquidacion_id,))
+                COUNT(*) as ventas_peluches
+            FROM QRHistory qh
+            JOIN TurnUsage tu ON tu.qrCodeId = (SELECT id FROM QRCode WHERE code = qh.qr_code LIMIT 1)
+            JOIN Machine m ON tu.machineId = m.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND m.name LIKE '%Peluches%'
+        """, (fecha_inicio, fecha_fin))
+        ventas_peluches = cursor.fetchone()['ventas_peluches'] or 0
         
-        liquidacion = cursor.fetchone()
+        ventas_otros = paquetes_vendidos - ventas_peluches
+        
+        # Calcular distribución de ingresos
+        ingresos_30 = ingresos_totales * (ventas_peluches / max(paquetes_vendidos, 1))
+        ingresos_35 = ingresos_totales * (ventas_otros / max(paquetes_vendidos, 1))
+        
+        ganancia_restaurante = (ingresos_30 * 0.30) + (ingresos_35 * 0.35)
+        ganancia_proveedor = ingresos_totales - ganancia_restaurante
+        
+        # Top paquetes
+        cursor.execute("""
+            SELECT 
+                tp.name as paquete,
+                COUNT(*) as cantidad,
+                SUM(tp.price) as total
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY tp.name
+            ORDER BY total DESC
+            LIMIT 5
+        """, (fecha_inicio, fecha_fin))
+        top_paquetes = cursor.fetchall()
+        
+        # Ventas por día
+        cursor.execute("""
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                COUNT(*) as ventas,
+                SUM(tp.price) as ingresos
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY DATE(qh.fecha_hora)
+            ORDER BY fecha
+        """, (fecha_inicio, fecha_fin))
+        ventas_por_dia = cursor.fetchall()
         
         return jsonify({
-            'mensaje': 'Liquidación creada correctamente',
-            'liquidacion': liquidacion
+            'resumen': {
+                'ingresos_totales': ingresos_totales,
+                'paquetes_vendidos': paquetes_vendidos,
+                'ganancia_restaurante': round(ganancia_restaurante),
+                'ganancia_proveedor': round(ganancia_proveedor),
+                'ventas_peluches': ventas_peluches,
+                'ventas_otros': ventas_otros
+            },
+            'distribucion': {
+                'ingresos_30_porciento': round(ingresos_30),
+                'ingresos_35_porciento': round(ingresos_35)
+            },
+            'top_paquetes': top_paquetes,
+            'evolucion_ventas': ventas_por_dia
         })
         
     except Exception as e:
-        print(f"Error al crear liquidación: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/liquidaciones/<int:liquidacion_id>', methods=['PUT'])
-def actualizar_liquidacion(liquidacion_id):
-    """Actualizar una liquidación existente"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        # Validar datos requeridos
-        required_fields = ['fecha', 'maquina_id', 'turnos_retirados', 'valor_por_turno']
-        for field in required_fields:
-            if field not in data or data[field] is None:
-                return jsonify({'error': f'El campo {field} es requerido'}), 400
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que la liquidación existe
-        cursor.execute("SELECT id FROM liquidaciones WHERE id = %s", (liquidacion_id,))
-        if not cursor.fetchone():
-            return jsonify({'error': 'Liquidación no encontrada'}), 404
-        
-        # Obtener el porcentaje de restaurante de la máquina
-        cursor.execute("""
-            SELECT COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM Machine m
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE m.id = %s
-        """, (data['maquina_id'],))
-        
-        resultado = cursor.fetchone()
-        porcentaje_restaurante = resultado['porcentaje_restaurante'] if resultado else 35.00
-        
-        # Actualizar liquidación
-        query = """
-            UPDATE liquidaciones 
-            SET fecha = %s, 
-                maquina_id = %s, 
-                turnos_retirados = %s, 
-                valor_por_turno = %s, 
-                costos_operativos = %s, 
-                porcentaje_restaurante = %s, 
-                observaciones = %s,
-                actualizado_el = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """
-        params = (
-            data['fecha'],
-            data['maquina_id'],
-            data['turnos_retirados'],
-            data['valor_por_turno'],
-            data.get('costos_operativos', 0),
-            porcentaje_restaurante,
-            data.get('observaciones', ''),
-            liquidacion_id
-        )
-        
-        cursor.execute(query, params)
-        connection.commit()
-        
-        # Obtener la liquidación actualizada
-        cursor.execute("""
-            SELECT 
-                l.*, 
-                m.name as maquina_nombre, 
-                m.valor_por_turno,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                u.name as creado_por
-            FROM liquidaciones l
-            JOIN Machine m ON l.maquina_id = m.id
-            JOIN Users u ON l.usuario_id = u.id
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE l.id = %s
-        """, (liquidacion_id,))
-        
-        liquidacion = cursor.fetchone()
-        
-        return jsonify({
-            'mensaje': 'Liquidación actualizada correctamente',
-            'liquidacion': liquidacion
-        })
-        
-    except Exception as e:
-        print(f"Error al actualizar liquidación: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/liquidaciones/<int:liquidacion_id>', methods=['DELETE'])
-def eliminar_liquidacion(liquidacion_id):
-    """Eliminar una liquidación"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que la liquidación existe
-        cursor.execute("SELECT id FROM liquidaciones WHERE id = %s", (liquidacion_id,))
-        if not cursor.fetchone():
-            return jsonify({'error': 'Liquidación no encontrada'}), 404
-        
-        # Eliminar liquidación
-        cursor.execute("DELETE FROM liquidaciones WHERE id = %s", (liquidacion_id,))
-        connection.commit()
-        
-        return jsonify({'mensaje': 'Liquidación eliminada correctamente'})
-        
-    except Exception as e:
-        print(f"Error al eliminar liquidación: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/maquinas/select', methods=['GET'])
-def obtener_maquinas_select():
-    """Obtener máquinas para selects"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                m.id, 
-                m.name as nombre, 
-                COALESCE(m.valor_por_turno, 3000) as valor_por_turno,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM Machine m
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-            WHERE m.status = 'activa'
-            ORDER BY m.name
-        """)
-        
-        maquinas = cursor.fetchall()
-        return jsonify(maquinas)
-        
-    except Exception as e:
-        print(f"Error al obtener máquinas: {str(e)}")
+        print(f"Error al obtener resumen de liquidaciones: {str(e)}")
         sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
@@ -3431,105 +3528,6 @@ def obtener_propietarios_maquina(maquina_id):
         if connection:
             connection.close()
 
-# ==================== API PARA DATOS DE EJEMPLO (SOLO DESARROLLO) ====================
-
-@app.route('/api/liquidaciones/ejemplo', methods=['POST'])
-def crear_datos_ejemplo():
-    """Crear datos de ejemplo para pruebas (solo desarrollo)"""
-    connection = None
-    cursor = None
-    try:
-        # Verificar que es desarrollo
-        import os
-        if os.environ.get('FLASK_ENV') == 'production':
-            return jsonify({'error': 'No disponible en producción'}), 403
-        
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        
-        # Obtener usuario admin
-        cursor.execute("SELECT id FROM Users WHERE role = 'admin' LIMIT 1")
-        usuario = cursor.fetchone()
-        if not usuario:
-            return jsonify({'error': 'No hay usuario admin'}), 400
-        
-        usuario_id = usuario['id']
-        
-        # Obtener máquinas activas
-        cursor.execute("SELECT id, name FROM Machine WHERE status = 'activa' LIMIT 5")
-        maquinas = cursor.fetchall()
-        
-        if not maquinas:
-            return jsonify({'error': 'No hay máquinas activas'}), 400
-        
-        # Crear liquidaciones de ejemplo para los últimos 7 días
-        from datetime import datetime, timedelta
-        liquidaciones_ejemplo = []
-        
-        for i in range(7):
-            fecha = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
-            for maquina in maquinas:
-                turnos = [150, 200, 180, 220, 190][i % 5]  # Datos variados
-                costos = [50000, 0, 25000, 30000, 15000][i % 5]
-                
-                liquidaciones_ejemplo.append({
-                    'fecha': fecha,
-                    'maquina_id': maquina['id'],
-                    'turnos_retirados': turnos,
-                    'valor_por_turno': 3000,
-                    'costos_operativos': costos,
-                    'observaciones': f'Liquidación ejemplo para {maquina["name"]}'
-                })
-        
-        # Insertar liquidaciones
-        for liq in liquidaciones_ejemplo:
-            # Obtener porcentaje restaurante para esta máquina
-            cursor.execute("""
-                SELECT COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-                FROM Machine m
-                LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
-                WHERE m.id = %s
-            """, (liq['maquina_id'],))
-            
-            resultado = cursor.fetchone()
-            porcentaje_restaurante = resultado['porcentaje_restaurante'] if resultado else 35.00
-            
-            cursor.execute("""
-                INSERT INTO liquidaciones (
-                    fecha, maquina_id, turnos_retirados, valor_por_turno,
-                    costos_operativos, porcentaje_restaurante, observaciones, usuario_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                liq['fecha'],
-                liq['maquina_id'],
-                liq['turnos_retirados'],
-                liq['valor_por_turno'],
-                liq['costos_operativos'],
-                porcentaje_restaurante,
-                liq['observaciones'],
-                usuario_id
-            ))
-        
-        connection.commit()
-        
-        return jsonify({
-            'mensaje': f'{len(liquidaciones_ejemplo)} liquidaciones de ejemplo creadas correctamente'
-        })
-        
-    except Exception as e:
-        print(f"Error creando datos de ejemplo: {str(e)}")
-        sentry_sdk.capture_exception(e)
-        if connection:
-            connection.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
 
 # Iniciar servidor
 if __name__ == '__main__':

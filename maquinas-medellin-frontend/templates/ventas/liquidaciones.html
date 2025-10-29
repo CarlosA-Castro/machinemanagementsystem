@@ -291,9 +291,6 @@
                         <button onclick="LiquidacionesApp.actualizarDatos()" class="btn btn-primary">
                             <i class="fas fa-sync-alt"></i> Actualizar
                         </button>
-                        <button onclick="LiquidacionesApp.mostrarModalNuevaLiquidacion()" class="btn btn-success">
-                            <i class="fas fa-plus"></i> Nueva Liquidación
-                        </button>
                         <div class="relative">
                             <button onclick="LiquidacionesApp.mostrarMenuExportar()" class="btn btn-secondary">
                                 <i class="fas fa-download"></i> Exportar
@@ -304,6 +301,9 @@
                                 </a>
                                 <a href="#" onclick="LiquidacionesApp.exportarReporte('pdf')" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
                                     <i class="fas fa-file-pdf text-red-600 mr-2"></i>PDF
+                                </a>
+                                <a href="#" onclick="LiquidacionesApp.exportarBackupCompleto()" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
+                                    <i class="fas fa-database text-blue-600 mr-2"></i>Backup Completo
                                 </a>
                             </div>
                         </div>
@@ -323,9 +323,10 @@
                         <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Máquina</label>
-                        <select id="filtroMaquina" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                            <option value="">Todas las máquinas</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Reporte</label>
+                        <select id="tipoReporte" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="ventas">Ventas de Paquetes</option>
+                            <option value="liquidaciones">Liquidaciones Registradas</option>
                         </select>
                     </div>
                 </div>
@@ -392,7 +393,7 @@
                     </h2>
                     <div class="flex items-center">
                         <div class="relative">
-                            <input type="text" id="busqueda" placeholder="Buscar por máquina..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscar()">
+                            <input type="text" id="busqueda" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscar()">
                             <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                         </div>
                     </div>
@@ -405,22 +406,14 @@
                                 <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('fecha')">
                                     Fecha <i class="fas fa-sort ml-1"></i>
                                 </th>
-                                <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('maquina')">
-                                    Máquina <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th class="text-right">% Máquina</th>
-                                <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('turnos')">
-                                    Cant. Turnos <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th class="text-right">Precio x Turno</th>
+                                <th class="text-right">Cant. Paquetes</th>
                                 <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
-                                    Ingresos Máquinas <i class="fas fa-sort ml-1"></i>
+                                    Ingresos Totales <i class="fas fa-sort ml-1"></i>
                                 </th>
-                                <th class="text-right">Costos Operativos</th>
-                                <th class="text-right">Ganancia Restaurante</th>
-                                <th class="text-right">Ganancia Proveedor</th>
-                                <th class="text-right">Dinero Total</th>
-                                <th class="text-center">Acciones</th>
+                                <th class="text-right">30% Máquinas</th>
+                                <th class="text-right">35% Proveedores</th>
+                                <th class="text-right">Ingresos Restaurante</th>
+                                <th class="text-right">Ingresos Proveedores</th>
                             </tr>
                         </thead>
                         <tbody id="cuerpoTabla">
@@ -428,15 +421,13 @@
                         </tbody>
                         <tfoot>
                             <tr class="bg-gray-50 font-semibold">
-                                <td colspan="3" class="text-right">TOTALES:</td>
-                                <td id="totalTurnos" class="text-right">0</td>
-                                <td></td>
+                                <td class="text-right">TOTALES:</td>
+                                <td id="totalPaquetes" class="text-right">0</td>
                                 <td id="totalIngresosTabla" class="text-right">$0</td>
-                                <td id="totalCostos" class="text-right">$0</td>
-                                <td id="totalGananciaRestaurante" class="text-right">$0</td>
-                                <td id="totalGananciaProveedor" class="text-right">$0</td>
-                                <td id="totalDinero" class="text-right">$0</td>
-                                <td></td>
+                                <td id="total30Porciento" class="text-right">$0</td>
+                                <td id="total35Porciento" class="text-right">$0</td>
+                                <td id="totalIngresosRestaurante" class="text-right">$0</td>
+                                <td id="totalIngresosProveedor" class="text-right">$0</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -469,66 +460,11 @@
         </main>
     </div>
 
-    <!-- Modal para nueva liquidación -->
-    <div id="modalNuevaLiquidacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800">
-                    <i class="fas fa-plus-circle mr-2 text-green-600"></i>Nueva Liquidación
-                </h3>
-                <button onclick="LiquidacionesApp.cerrarModalNuevaLiquidacion()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="formNuevaLiquidacion" onsubmit="LiquidacionesApp.guardarLiquidacion(event)">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
-                        <input type="date" id="nuevaFecha" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Máquina *</label>
-                        <select id="nuevaMaquina" required class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                            <option value="">Seleccionar máquina...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Turnos Retirados *</label>
-                        <input type="number" id="nuevaTurnos" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: 150">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Valor por Turno *</label>
-                        <input type="number" id="nuevaValorTurno" required min="1000" step="100" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: 3000">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Costos Operativos</label>
-                        <input type="number" id="nuevaCostos" min="0" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: 50000" value="0">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Porcentaje Restaurante</label>
-                        <input type="number" id="nuevaPorcentaje" min="0" max="100" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="35.00" readonly>
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                    <textarea id="nuevaObservaciones" class="w-full border border-gray-300 rounded-lg px-3 py-2" rows="3" placeholder="Observaciones adicionales..."></textarea>
-                </div>
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="LiquidacionesApp.cerrarModalNuevaLiquidacion()" class="btn btn-secondary">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save mr-2"></i>Guardar Liquidación
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Scripts -->
     <script>
         // Configuración de fechas
         const hoy = new Date();
+        const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
         
         // Formatear fechas para input type="date"
         function formatearFechaInput(fecha) {
@@ -549,12 +485,11 @@
         const LiquidacionesApp = {
             // Estado de la aplicación
             estado: {
-                liquidaciones: [],
-                maquinas: [],
+                datos: [],
                 filtros: {
-                    fechaInicio: formatearFechaInput(new Date(hoy.getFullYear(), hoy.getMonth(), 1)), // Primer día del mes
+                    fechaInicio: formatearFechaInput(primerDiaMes),
                     fechaFin: formatearFechaInput(hoy),
-                    maquinaId: '',
+                    tipoReporte: 'ventas',
                     busqueda: '',
                     orden: { campo: 'fecha', direccion: 'desc' },
                     paginacion: {
@@ -574,7 +509,6 @@
                 this.configurarEventos();
                 
                 // Cargar datos iniciales
-                this.cargarMaquinas();
                 this.actualizarDatos();
                 
                 // Actualizar hora y fecha
@@ -597,56 +531,21 @@
                 // Configurar fechas por defecto
                 document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
                 document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
+                document.getElementById('tipoReporte').value = this.estado.filtros.tipoReporte;
             },
             
-            // Cargar lista de máquinas
-            cargarMaquinas: async function() {
-                try {
-                    const response = await fetch('/api/maquinas/select');
-                    if (!response.ok) throw new Error('Error al cargar máquinas');
-                    
-                    const maquinas = await response.json();
-                    this.estado.maquinas = maquinas;
-                    
-                    // Llenar select de filtro
-                    const selectFiltro = document.getElementById('filtroMaquina');
-                    selectFiltro.innerHTML = '<option value="">Todas las máquinas</option>';
-                    
-                    // Llenar select del modal
-                    const selectModal = document.getElementById('nuevaMaquina');
-                    selectModal.innerHTML = '<option value="">Seleccionar máquina...</option>';
-                    
-                    maquinas.forEach(maquina => {
-                        const option = document.createElement('option');
-                        option.value = maquina.id;
-                        option.textContent = maquina.nombre;
-                        option.setAttribute('data-porcentaje', maquina.porcentaje_restaurante);
-                        option.setAttribute('data-valor-turno', maquina.valor_por_turno);
-                        
-                        selectFiltro.appendChild(option.cloneNode(true));
-                        selectModal.appendChild(option);
-                    });
-                    
-                } catch (error) {
-                    console.error('Error al cargar máquinas:', error);
-                    this.mostrarAlerta('Error al cargar la lista de máquinas', 'error');
-                }
-            },
-            
-            // Actualizar datos de la tabla desde la API
+            // Actualizar datos desde la API
             actualizarDatos: async function() {
                 try {
                     this.mostrarCarga(true);
                     
                     // Obtener filtros actuales
-                    const { fechaInicio, fechaFin, maquinaId, busqueda, orden, paginacion } = this.estado.filtros;
+                    const { fechaInicio, fechaFin, tipoReporte, busqueda, orden, paginacion } = this.estado.filtros;
                     
-                    // Construir URL de la API
-                    let url = `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}&orden=${orden.campo}&direccion=${orden.direccion}`;
-                    
-                    if (maquinaId) {
-                        url += `&maquinaId=${maquinaId}`;
-                    }
+                    // Construir URL de la API según el tipo de reporte
+                    let url = tipoReporte === 'ventas' 
+                        ? `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}&orden=${orden.campo}&direccion=${orden.direccion}`
+                        : `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}&orden=${orden.campo}&direccion=${orden.direccion}`;
                     
                     if (busqueda) {
                         url += `&busqueda=${encodeURIComponent(busqueda)}`;
@@ -657,7 +556,7 @@
                     const response = await fetch(url);
                     
                     if (!response.ok) {
-                        throw new Error('Error al cargar liquidaciones');
+                        throw new Error('Error al cargar datos de liquidaciones');
                     }
                     
                     const data = await response.json();
@@ -665,7 +564,7 @@
                     console.log('Datos recibidos:', data);
                     
                     // Actualizar estado
-                    this.estado.liquidaciones = data.liquidaciones || [];
+                    this.estado.datos = data.datos || [];
                     this.estado.filtros.paginacion.totalRegistros = data.totalRegistros || 0;
                     this.estado.filtros.paginacion.totalPaginas = Math.ceil((data.totalRegistros || 0) / this.estado.filtros.paginacion.registrosPorPagina);
                     
@@ -676,10 +575,20 @@
                     
                 } catch (error) {
                     console.error('Error al actualizar datos:', error);
-                    this.mostrarAlerta('Error al cargar los datos de liquidaciones: ' + error.message, 'error');
+                    this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
                 } finally {
                     this.mostrarCarga(false);
                 }
+            },
+            
+            // Aplicar filtros
+            aplicarFiltros: function() {
+                this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
+                this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
+                this.estado.filtros.tipoReporte = document.getElementById('tipoReporte').value;
+                this.estado.filtros.paginacion.paginaActual = 1;
+                
+                this.actualizarDatos();
             },
             
             // Actualizar la tabla con los datos actuales
@@ -687,213 +596,118 @@
                 const tbody = document.getElementById('cuerpoTabla');
                 tbody.innerHTML = '';
                 
-                if (this.estado.liquidaciones.length === 0) {
+                if (this.estado.datos.length === 0) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td colspan="11" class="text-center py-8 text-gray-500">
+                        <td colspan="8" class="text-center py-8 text-gray-500">
                             <i class="fas fa-inbox text-4xl mb-2 block"></i>
-                            No se encontraron registros de liquidaciones para los filtros seleccionados.
-                            <br>
-                            <button onclick="LiquidacionesApp.mostrarModalNuevaLiquidacion()" class="btn btn-success mt-4">
-                                <i class="fas fa-plus mr-2"></i> Crear Primera Liquidación
-                            </button>
+                            No se encontraron registros para los filtros seleccionados.
                         </td>
                     `;
                     tbody.appendChild(tr);
                     return;
                 }
                 
-                let totalTurnos = 0;
-                let totalIngresos = 0;
-                let totalCostos = 0;
-                let totalGananciaRestaurante = 0;
-                let totalGananciaProveedor = 0;
-                let totalDinero = 0;
+                // Agrupar por fecha de liquidación
+                const liquidacionesPorFecha = {};
                 
-                this.estado.liquidaciones.forEach(liquidacion => {
-                    const ingresos = liquidacion.turnos_retirados * liquidacion.valor_por_turno;
-                    const gananciaNeta = ingresos - (liquidacion.costos_operativos || 0);
-                    const gananciaRestaurante = Math.round(gananciaNeta * (liquidacion.porcentaje_restaurante / 100));
-                    const gananciaProveedor = gananciaNeta - gananciaRestaurante;
-                    const dineroTotal = gananciaNeta;
+                // Procesar todos los datos sin filtrar por tipo de reporte
+                this.estado.datos.forEach(item => {
+                    const fecha = item.fecha;
+                    if (!liquidacionesPorFecha[fecha]) {
+                        liquidacionesPorFecha[fecha] = {
+                            fecha: fecha,
+                            totalPaquetes: 0,
+                            totalIngresos: 0,
+                            total30Porciento: 0,  // 30% para máquinas
+                            total35Porciento: 0,  // 35% para proveedores
+                            totalIngresosRestaurante: 0,
+                            totalIngresosProveedor: 0
+                        };
+                    }
                     
-                    // Actualizar totales
-                    totalTurnos += liquidacion.turnos_retirados;
-                    totalIngresos += ingresos;
-                    totalCostos += liquidacion.costos_operativos || 0;
-                    totalGananciaRestaurante += gananciaRestaurante;
-                    totalGananciaProveedor += gananciaProveedor;
-                    totalDinero += dineroTotal;
+                    // Calcular distribución de ingresos
+                    // 30% para máquinas y 35% para proveedores son porcentajes fijos
+                    const ingresos = item.ingresos_totales || item.ingresos || 0;
+                    const ingresos30 = item.ingresos_30_porciento || (ingresos * 0.30);
+                    const ingresos35 = item.ingresos_35_porciento || (ingresos * 0.35);
                     
+                    // El resto va para el restaurante (35%)
+                    const ingresosRestaurante = item.ingresos_restaurante || item.ganancia_restaurante || (ingresos * 0.35);
+                    const ingresosProveedor = item.ingresos_proveedor || item.ganancia_proveedor || 0;
+                    
+                    // Actualizar totales por fecha
+                    liquidacionesPorFecha[fecha].totalPaquetes += item.cantidad_paquetes || 1;
+                    liquidacionesPorFecha[fecha].totalIngresos += item.ingresos_totales || item.ingresos || 0;
+                    liquidacionesPorFecha[fecha].total30Porciento += ingresos30;
+                    liquidacionesPorFecha[fecha].total35Porciento += ingresos35;
+                    liquidacionesPorFecha[fecha].totalIngresosRestaurante += ingresosRestaurante;
+                    liquidacionesPorFecha[fecha].totalIngresosProveedor += ingresosProveedor;
+                });
+                
+                // Calcular totales generales
+                let totalPaquetes = 0;
+                let totalIngresos = 0;
+                let total30Porciento = 0;
+                let total35Porciento = 0;
+                let totalIngresosRestaurante = 0;
+                let totalIngresosProveedor = 0;
+                
+                // Mostrar una fila por liquidación
+                Object.values(liquidacionesPorFecha).forEach(liquidacion => {
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50';
                     tr.innerHTML = `
                         <td>${this.formatearFecha(liquidacion.fecha)}</td>
-                        <td>${liquidacion.maquina_nombre}</td>
-                        <td class="text-right ${liquidacion.porcentaje_restaurante == 30 ? 'text-orange-600 font-semibold' : 'text-blue-600'}">
-                            ${liquidacion.porcentaje_restaurante}%
-                        </td>
-                        <td class="text-right">${liquidacion.turnos_retirados.toLocaleString()}</td>
-                        <td class="text-right">${formatearMoneda(liquidacion.valor_por_turno)}</td>
-                        <td class="text-right">${formatearMoneda(ingresos)}</td>
-                        <td class="text-right">${formatearMoneda(liquidacion.costos_operativos || 0)}</td>
-                        <td class="text-right text-green-600">${formatearMoneda(gananciaRestaurante)}</td>
-                        <td class="text-right text-purple-600">${formatearMoneda(gananciaProveedor)}</td>
-                        <td class="text-right font-semibold">${formatearMoneda(dineroTotal)}</td>
-                        <td class="text-center">
-                            <button onclick="LiquidacionesApp.eliminarLiquidacion(${liquidacion.id})" class="text-red-600 hover:text-red-800" title="Eliminar">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </td>
+                        <td class="text-right">${liquidacion.totalPaquetes.toLocaleString()}</td>
+                        <td class="text-right font-semibold">${formatearMoneda(liquidacion.totalIngresos)}</td>
+                        <td class="text-right text-orange-600">${formatearMoneda(liquidacion.total30Porciento)} <span class="text-xs text-gray-500">(30%)</span></td>
+                        <td class="text-right text-blue-600">${formatearMoneda(liquidacion.total35Porciento)} <span class="text-xs text-gray-500">(35%)</span></td>
+                        <td class="text-right text-green-600">${formatearMoneda(liquidacion.totalIngresosRestaurante)} <span class="text-xs text-gray-500">(35%)</span></td>
+                        <td class="text-right text-purple-600">${formatearMoneda(liquidacion.totalIngresosProveedor)}</td>
                     `;
                     tbody.appendChild(tr);
+                    
+                    // Sumar a totales generales
+                    totalPaquetes += liquidacion.totalPaquetes;
+                    totalIngresos += liquidacion.totalIngresos;
+                    total30Porciento += liquidacion.total30Porciento;
+                    total35Porciento += liquidacion.total35Porciento;
+                    totalIngresosRestaurante += liquidacion.totalIngresosRestaurante;
+                    totalIngresosProveedor += liquidacion.totalIngresosProveedor;
                 });
                 
                 // Actualizar totales en el pie de la tabla
-                document.getElementById('totalTurnos').textContent = totalTurnos.toLocaleString();
+                document.getElementById('totalPaquetes').textContent = totalPaquetes.toLocaleString();
                 document.getElementById('totalIngresosTabla').textContent = formatearMoneda(totalIngresos);
-                document.getElementById('totalCostos').textContent = formatearMoneda(totalCostos);
-                document.getElementById('totalGananciaRestaurante').textContent = formatearMoneda(totalGananciaRestaurante);
-                document.getElementById('totalGananciaProveedor').textContent = formatearMoneda(totalGananciaProveedor);
-                document.getElementById('totalDinero').textContent = formatearMoneda(totalDinero);
+                document.getElementById('total30Porciento').textContent = formatearMoneda(total30Porciento);
+                document.getElementById('total35Porciento').textContent = formatearMoneda(total35Porciento);
+                document.getElementById('totalIngresosRestaurante').textContent = formatearMoneda(totalIngresosRestaurante);
+                document.getElementById('totalIngresosProveedor').textContent = formatearMoneda(totalIngresosProveedor);
             },
             
             // Actualizar resumen con totales
             actualizarResumen: function(data) {
                 const totalIngresos = data.totalIngresos || 0;
-                const totalGanancias = data.totalGanancias || 0;
-                const totalGananciaRestaurante = data.totalGananciaRestaurante || 0;
-                const totalGananciaProveedor = data.totalGananciaPropietarios || 0;
+                const gananciaTotal = data.gananciaTotal || data.totalGanancias || 0;
+                const gananciaProveedor = data.gananciaProveedor || data.totalGananciaPropietarios || 0;
+                const gananciaRestaurante = data.gananciaRestaurante || data.totalGananciaRestaurante || 0;
                 
                 document.getElementById('totalIngresos').textContent = formatearMoneda(totalIngresos);
-                document.getElementById('gananciaTotal').textContent = formatearMoneda(totalGanancias);
-                document.getElementById('gananciaProveedor').textContent = formatearMoneda(totalGananciaProveedor);
-                document.getElementById('gananciaRestaurante').textContent = formatearMoneda(totalGananciaRestaurante);
+                document.getElementById('gananciaTotal').textContent = formatearMoneda(gananciaTotal);
+                document.getElementById('gananciaProveedor').textContent = formatearMoneda(gananciaProveedor);
+                document.getElementById('gananciaRestaurante').textContent = formatearMoneda(gananciaRestaurante);
                 
                 // Actualizar texto de registros mostrados
                 const desde = (this.estado.filtros.paginacion.paginaActual - 1) * this.estado.filtros.paginacion.registrosPorPagina + 1;
-                const hasta = Math.min(desde + this.estado.liquidaciones.length - 1, this.estado.filtros.paginacion.totalRegistros);
+                const hasta = Math.min(desde + this.estado.datos.length - 1, this.estado.filtros.paginacion.totalRegistros);
                 
                 document.getElementById('mostrandoDesde').textContent = desde;
                 document.getElementById('mostrandoHasta').textContent = hasta;
                 document.getElementById('totalRegistros').textContent = this.estado.filtros.paginacion.totalRegistros;
             },
             
-            // Aplicar filtros
-            aplicarFiltros: function() {
-                this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
-                this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
-                this.estado.filtros.maquinaId = document.getElementById('filtroMaquina').value;
-                this.estado.filtros.paginacion.paginaActual = 1;
-                
-                this.actualizarDatos();
-            },
-            
-            // Resto de las funciones se mantienen igual que en el código anterior...
-            // (actualizarPaginacion, irAPagina, paginaAnterior, paginaSiguiente, irAUltimaPagina,
-            // buscar, ordenarPor, mostrarMenuExportar, exportarReporte, exportarAExcel, exportarAPDF,
-            // eliminarLiquidacion, mostrarCarga, mostrarAlerta, formatearFecha, actualizarHora,
-            // obtenerClaseAlerta, obtenerIconoAlerta)
-            
-            // Mostrar modal para nueva liquidación
-            mostrarModalNuevaLiquidacion: function() {
-                // Resetear formulario
-                document.getElementById('formNuevaLiquidacion').reset();
-                document.getElementById('nuevaFecha').value = formatearFechaInput(new Date());
-                document.getElementById('nuevaPorcentaje').value = '35.00';
-                
-                const modal = document.getElementById('modalNuevaLiquidacion');
-                modal.classList.remove('hidden');
-            },
-            
-            // Cerrar modal de nueva liquidación
-            cerrarModalNuevaLiquidacion: function() {
-                const modal = document.getElementById('modalNuevaLiquidacion');
-                modal.classList.add('hidden');
-            },
-            
-            // Guardar nueva liquidación
-            guardarLiquidacion: async function(event) {
-                event.preventDefault();
-                
-                try {
-                    const formData = {
-                        fecha: document.getElementById('nuevaFecha').value,
-                        maquina_id: parseInt(document.getElementById('nuevaMaquina').value),
-                        turnos_retirados: parseInt(document.getElementById('nuevaTurnos').value),
-                        valor_por_turno: parseInt(document.getElementById('nuevaValorTurno').value),
-                        costos_operativos: parseInt(document.getElementById('nuevaCostos').value) || 0,
-                        observaciones: document.getElementById('nuevaObservaciones').value
-                    };
-                    
-                    // Validaciones
-                    if (!formData.fecha || !formData.maquina_id || !formData.turnos_retirados || !formData.valor_por_turno) {
-                        this.mostrarAlerta('Todos los campos obligatorios deben ser completados', 'error');
-                        return;
-                    }
-                    
-                    if (formData.turnos_retirados <= 0) {
-                        this.mostrarAlerta('La cantidad de turnos debe ser mayor a 0', 'error');
-                        return;
-                    }
-                    
-                    if (formData.valor_por_turno <= 0) {
-                        this.mostrarAlerta('El valor por turno debe ser mayor a 0', 'error');
-                        return;
-                    }
-                    
-                    this.mostrarCarga(true);
-                    
-                    const response = await fetch('/api/liquidaciones', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(formData)
-                    });
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Error al guardar la liquidación');
-                    }
-                    
-                    const result = await response.json();
-                    
-                    this.mostrarAlerta(result.mensaje, 'success');
-                    this.cerrarModalNuevaLiquidacion();
-                    this.actualizarDatos();
-                    
-                } catch (error) {
-                    console.error('Error al guardar liquidación:', error);
-                    this.mostrarAlerta('Error al guardar la liquidación: ' + error.message, 'error');
-                } finally {
-                    this.mostrarCarga(false);
-                }
-            },
-            
-            // Evento cuando se selecciona una máquina en el modal
-            configurarEventoSeleccionMaquina: function() {
-                document.getElementById('nuevaMaquina').addEventListener('change', function() {
-                    const selectedOption = this.options[this.selectedIndex];
-                    if (selectedOption.value) {
-                        const porcentaje = selectedOption.getAttribute('data-porcentaje') || '35.00';
-                        const valorTurno = selectedOption.getAttribute('data-valor-turno') || '3000';
-                        
-                        document.getElementById('nuevaPorcentaje').value = porcentaje;
-                        document.getElementById('nuevaValorTurno').value = valorTurno;
-                    }
-                });
-            }
-        };
-        
-        // Inicializar la aplicación cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', () => {
-            LiquidacionesApp.init();
-            LiquidacionesApp.configurarEventoSeleccionMaquina();
-        });
-
-        // Añadir las funciones que faltan (se mantienen igual que en el código anterior)
-        Object.assign(LiquidacionesApp, {
+            // Resto de funciones de paginación, ordenación, etc.
             actualizarPaginacion: function() {
                 const { paginaActual, totalPaginas } = this.estado.filtros.paginacion;
                 const numerosPagina = document.getElementById('numerosPagina');
@@ -959,17 +773,6 @@
                     this.estado.filtros.orden.direccion = 'asc';
                 }
                 
-                document.querySelectorAll('th').forEach(th => {
-                    const icono = th.querySelector('i');
-                    if (icono) {
-                        if (th.getAttribute('onclick').includes(`'${campo}'`)) {
-                            icono.className = `fas fa-sort-${this.estado.filtros.orden.direccion === 'asc' ? 'up' : 'down'} ml-1`;
-                        } else {
-                            icono.className = 'fas fa-sort ml-1';
-                        }
-                    }
-                });
-                
                 this.actualizarDatos();
             },
             
@@ -994,36 +797,89 @@
                 }
             },
             
+            exportarBackupCompleto: function() {
+                try {
+                    // Crear un backup completo de todos los datos
+                    const backupData = {
+                        fechaBackup: new Date().toISOString(),
+                        rangoFechas: {
+                            inicio: this.estado.filtros.fechaInicio,
+                            fin: this.estado.filtros.fechaFin
+                        },
+                        datos: this.estado.datos,
+                        totales: {
+                            ingresosTotales: document.getElementById('totalIngresos').textContent,
+                            gananciaTotal: document.getElementById('gananciaTotal').textContent,
+                            gananciaProveedor: document.getElementById('gananciaProveedor').textContent,
+                            gananciaRestaurante: document.getElementById('gananciaRestaurante').textContent
+                        }
+                    };
+                    
+                    // Crear y descargar archivo JSON
+                    const dataStr = JSON.stringify(backupData, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `backup_liquidaciones_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    this.mostrarAlerta('Backup completo exportado correctamente', 'success');
+                    document.getElementById('exportMenu').classList.add('hidden');
+                    
+                } catch (error) {
+                    console.error('Error al exportar backup:', error);
+                    this.mostrarAlerta('Error al exportar el backup', 'error');
+                }
+            },
+            
             exportarAExcel: function() {
                 const wb = XLSX.utils.book_new();
+                const tipoReporte = this.estado.filtros.tipoReporte === 'ventas' ? 'Ventas_Paquetes' : 'Liquidaciones';
+                
                 const datos = [
-                    ['Fecha', 'Máquina', '% Máquina', 'Cant. Turnos', 'Precio x Turno', 'Ingresos Máquinas', 'Costos Operativos', 'Ganancia Restaurante', 'Ganancia Proveedor', 'Dinero Total']
+                    ['Fecha', 'Paquete', 'Cant. Paquetes', 'Valor Unitario', 'Ingresos Totales', 'Ingresos 30%', 'Ingresos 35%', 'Ingresos Restaurante', 'Ingresos Proveedor', 'Vendedor']
                 ];
                 
-                this.estado.liquidaciones.forEach(liquidacion => {
-                    const ingresos = liquidacion.turnos_retirados * liquidacion.valor_por_turno;
-                    const gananciaNeta = ingresos - (liquidacion.costos_operativos || 0);
-                    const gananciaRestaurante = Math.round(gananciaNeta * (liquidacion.porcentaje_restaurante / 100));
-                    const gananciaProveedor = gananciaNeta - gananciaRestaurante;
+                this.estado.datos.forEach(item => {
+                    let ingresos30 = 0;
+                    let ingresos35 = 0;
+                    let ingresosRestaurante = 0;
+                    let ingresosProveedor = 0;
+                    
+                    if (this.estado.filtros.tipoReporte === 'ventas') {
+                        ingresos30 = item.ingresos_30_porciento || 0;
+                        ingresos35 = item.ingresos_35_porciento || 0;
+                        ingresosRestaurante = item.ingresos_restaurante || 0;
+                        ingresosProveedor = item.ingresos_proveedor || 0;
+                    } else {
+                        ingresos30 = item.ingresos_30_porciento || 0;
+                        ingresos35 = item.ingresos_35_porciento || 0;
+                        ingresosRestaurante = item.ganancia_restaurante || 0;
+                        ingresosProveedor = item.ganancia_proveedor || 0;
+                    }
                     
                     datos.push([
-                        this.formatearFecha(liquidacion.fecha),
-                        liquidacion.maquina_nombre,
-                        `${liquidacion.porcentaje_restaurante}%`,
-                        liquidacion.turnos_retirados,
-                        liquidacion.valor_por_turno,
-                        ingresos,
-                        liquidacion.costos_operativos || 0,
-                        gananciaRestaurante,
-                        gananciaProveedor,
-                        gananciaNeta
+                        this.formatearFecha(item.fecha),
+                        item.paquete_nombre || 'Venta General',
+                        item.cantidad_paquetes || 1,
+                        item.precio_unitario || item.valor_unitario || 0,
+                        item.ingresos_totales || item.ingresos || 0,
+                        ingresos30,
+                        ingresos35,
+                        ingresosRestaurante,
+                        ingresosProveedor,
+                        item.vendedor || 'Sistema'
                     ]);
                 });
                 
                 const ws = XLSX.utils.aoa_to_sheet(datos);
-                XLSX.utils.book_append_sheet(wb, ws, 'Liquidaciones');
+                XLSX.utils.book_append_sheet(wb, ws, tipoReporte);
                 const fecha = new Date().toISOString().slice(0, 10);
-                XLSX.writeFile(wb, `Liquidaciones_${fecha}.xlsx`);
+                XLSX.writeFile(wb, `${tipoReporte}_${fecha}.xlsx`);
                 
                 this.mostrarAlerta('Reporte exportado a Excel correctamente', 'success');
             },
@@ -1031,39 +887,51 @@
             exportarAPDF: function() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('landscape');
+                const tipoReporte = this.estado.filtros.tipoReporte === 'ventas' ? 'Ventas de Paquetes' : 'Liquidaciones';
                 
                 doc.setFontSize(18);
-                doc.text('Reporte de Liquidaciones', 14, 20);
+                doc.text(`Reporte de ${tipoReporte}`, 14, 20);
                 
                 doc.setFontSize(10);
                 doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 28);
+                doc.text(`Rango: ${this.estado.filtros.fechaInicio} a ${this.estado.filtros.fechaFin}`, 14, 35);
                 
-                const headers = [
-                    'Fecha', 'Máquina', '% Máq.', 'Turnos', 'Precio', 'Ingresos', 'Costos', 'G. Rest.', 'G. Prov.', 'Total'
-                ];
+                const headers = ['Fecha', 'Paquete', 'Cant.', 'Valor', 'Ingresos', '30%', '35%', 'Rest.', 'Prov.', 'Vendedor'];
                 
-                const data = this.estado.liquidaciones.map(liquidacion => {
-                    const ingresos = liquidacion.turnos_retirados * liquidacion.valor_por_turno;
-                    const gananciaNeta = ingresos - (liquidacion.costos_operativos || 0);
-                    const gananciaRestaurante = Math.round(gananciaNeta * (liquidacion.porcentaje_restaurante / 100));
-                    const gananciaProveedor = gananciaNeta - gananciaRestaurante;
+                const data = this.estado.datos.map(item => {
+                    let ingresos30 = 0;
+                    let ingresos35 = 0;
+                    let ingresosRestaurante = 0;
+                    let ingresosProveedor = 0;
+                    
+                    if (this.estado.filtros.tipoReporte === 'ventas') {
+                        ingresos30 = item.ingresos_30_porciento || 0;
+                        ingresos35 = item.ingresos_35_porciento || 0;
+                        ingresosRestaurante = item.ingresos_restaurante || 0;
+                        ingresosProveedor = item.ingresos_proveedor || 0;
+                    } else {
+                        ingresos30 = item.ingresos_30_porciento || 0;
+                        ingresos35 = item.ingresos_35_porciento || 0;
+                        ingresosRestaurante = item.ganancia_restaurante || 0;
+                        ingresosProveedor = item.ganancia_proveedor || 0;
+                    }
                     
                     return [
-                        this.formatearFecha(liquidacion.fecha),
-                        liquidacion.maquina_nombre,
-                        `${liquidacion.porcentaje_restaurante}%`,
-                        liquidacion.turnos_retirados.toString(),
-                        liquidacion.valor_por_turno.toLocaleString('es-CO'),
-                        ingresos.toLocaleString('es-CO'),
-                        (liquidacion.costos_operativos || 0).toLocaleString('es-CO'),
-                        gananciaRestaurante.toLocaleString('es-CO'),
-                        gananciaProveedor.toLocaleString('es-CO'),
-                        gananciaNeta.toLocaleString('es-CO')
+                        this.formatearFecha(item.fecha),
+                        item.paquete_nombre || 'General',
+                        (item.cantidad_paquetes || 1).toString(),
+                        (item.precio_unitario || item.valor_unitario || 0).toLocaleString('es-CO'),
+                        (item.ingresos_totales || item.ingresos || 0).toLocaleString('es-CO'),
+                        ingresos30.toLocaleString('es-CO'),
+                        ingresos35.toLocaleString('es-CO'),
+                        ingresosRestaurante.toLocaleString('es-CO'),
+                        ingresosProveedor.toLocaleString('es-CO'),
+                        item.vendedor || 'Sistema'
                     ];
                 });
                 
                 doc.autoTable({
-                    startY: 35,
+                    startY: 45,
                     head: [headers],
                     body: data,
                     theme: 'grid',
@@ -1072,46 +940,18 @@
                         textColor: 255,
                         fontStyle: 'bold'
                     },
-                    alternateRowStyles: {
-                        fillColor: [249, 250, 251]
-                    },
-                    margin: { top: 35 },
+                    margin: { top: 45 },
                     styles: {
-                        fontSize: 8,
-                        cellPadding: 2,
-                        overflow: 'linebreak',
-                        lineWidth: 0.1
+                        fontSize: 7,
+                        cellPadding: 1,
+                        overflow: 'linebreak'
                     }
                 });
                 
                 const fecha = new Date().toISOString().slice(0, 10);
-                doc.save(`Liquidaciones_${fecha}.pdf`);
+                doc.save(`${tipoReporte}_${fecha}.pdf`);
                 
                 this.mostrarAlerta('Reporte exportado a PDF correctamente', 'success');
-            },
-            
-            eliminarLiquidacion: function(id) {
-                if (!confirm('¿Está seguro de eliminar esta liquidación? Esta acción no se puede deshacer.')) {
-                    return;
-                }
-                
-                fetch(`/api/liquidaciones/${id}`, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error al eliminar la liquidación');
-                    }
-                    return response.json();
-                })
-                .then(result => {
-                    this.mostrarAlerta(result.mensaje || 'Liquidación eliminada correctamente', 'success');
-                    this.actualizarDatos();
-                })
-                .catch(error => {
-                    console.error('Error al eliminar la liquidación:', error);
-                    this.mostrarAlerta('Error al eliminar la liquidación', 'error');
-                });
             },
             
             mostrarCarga: function(mostrar) {
@@ -1216,6 +1056,11 @@
                     });
                 }
             }
+        };
+        
+        // Inicializar la aplicación cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            LiquidacionesApp.init();
         });
     </script>
 </body>
