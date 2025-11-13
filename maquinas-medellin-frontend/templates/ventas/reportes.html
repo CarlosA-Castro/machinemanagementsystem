@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reportes - Máquinas Medellín</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Estilos para tarjetas de estadísticas */
+        .stat-card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            border-left-width: 4px;
+        }
+        .stat-icon {
+            font-size: 1.5rem;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        
+        /* Estilos para tabla */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        table {
+            min-width: 100%;
+            border-collapse: collapse;
+        }
+        thead {
+            background-color: #f9fafb;
+        }
+        th {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+        td {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+            white-space: nowrap;
+            font-size: 0.875rem;
+            color: #1f2937;
+        }
+        tbody tr {
+            background-color: white;
+        }
+        tbody tr:hover {
+            background-color: #f9fafb;
+            transition: background-color 0.2s;
+        }
+        tfoot {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        
+        /* Estilos para botones */
+        .btn {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            min-height: 44px;
+            min-width: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #1f2937;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+        .btn-success {
+            background-color: #059669;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #047857;
+        }
+        .btn-warning {
+            background-color: #d97706;
+            color: white;
+        }
+        .btn-warning:hover {
+            background-color: #b45309;
+        }
+        
+        /* Estilos para pestañas */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            color: #374151;
+        }
+        .tab.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+        
+        /* Estilos para modales */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 0.75rem;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 100%;
+        }
+        
+        /* Estilos para gráficos */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        /* Estilos para cards de resumen */
+        .summary-card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        @media (max-width: 1024px) {
+            .contenido {
+                padding: 1rem !important;
+            }
+            .glass-card {
+                padding: 1.25rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.75rem !important;
+            }
+            .table-container {
+                overflow-x: auto;
+            }
+            table {
+                font-size: 0.75rem;
+            }
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-700 text-center lg:text-left">
+                    <i class="fas fa-user-cog mr-2"></i>Admin
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/gestionusuarios" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/gestionpaquetes" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/ventas/reportes" class="block py-2 px-3 rounded-lg bg-blue-600 text-white transition btn-touch">
+                        <i class="fas fa-chart-bar mr-2"></i>Reportes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                    <a href="/admin/ventas/liquidaciones" class="block py-2 px-3 rounded-lg hover:bg-gray-800 hover:text-gray-100 transition btn-touch">
+                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
+                    </a>
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
+                <div class="mb-2 text-xs text-gray-400">
+                    <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+                    <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+                    Rol: {{ session.get('user_role', 'Usuario') }}
+                </div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-chart-bar mr-3 text-blue-600"></i>Reportes de Liquidaciones
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-store mr-2"></i>Local: <strong>{{ local_usuario }}</strong> | 
+                            <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span>
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex flex-wrap gap-2">
+                        <button onclick="ReportesApp.actualizarDatos()" class="btn btn-primary">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                        <div class="relative">
+                            <button onclick="ReportesApp.mostrarMenuExportar()" class="btn btn-success">
+                                <i class="fas fa-download"></i> Exportar
+                            </button>
+                            <div class="absolute top-full right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-10" id="exportMenu">
+                                <a href="#" onclick="ReportesApp.exportarReporte('excel')" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
+                                    <i class="fas fa-file-excel text-green-600 mr-2"></i>Excel
+                                </a>
+                                <a href="#" onclick="ReportesApp.exportarReporte('pdf')" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
+                                    <i class="fas fa-file-pdf text-red-600 mr-2"></i>PDF
+                                </a>
+                                <a href="#" onclick="ReportesApp.exportarBackupCompleto()" class="block px-4 py-2 hover:bg-gray-100 text-gray-800">
+                                    <i class="fas fa-database text-blue-600 mr-2"></i>Backup Completo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="glass-card mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                        <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                        <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Reporte</label>
+                        <select id="tipoReporte" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="resumen">Resumen General</option>
+                            <option value="detallado">Detalle Completo</option>
+                            <option value="propietarios">Por Propietarios</option>
+                            <option value="maquinas">Por Máquinas</option>
+                            <option value="ventas">Ventas por Paquete</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Agrupación</label>
+                        <select id="agrupacion" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="diario">Diario</option>
+                            <option value="semanal">Semanal</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="ReportesApp.aplicarFiltros()" class="btn btn-primary">
+                        <i class="fas fa-filter mr-2"></i>Aplicar Filtros
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pestañas -->
+            <div class="tabs">
+                <div class="tab active" onclick="ReportesApp.cambiarPestana('resumen')">
+                    <i class="fas fa-chart-pie mr-2"></i>Resumen
+                </div>
+                <div class="tab" onclick="ReportesApp.cambiarPestana('graficos')">
+                    <i class="fas fa-chart-line mr-2"></i>Gráficos
+                </div>
+                <div class="tab" onclick="ReportesApp.cambiarPestana('detalle')">
+                    <i class="fas fa-table mr-2"></i>Detalle
+                </div>
+                <div class="tab" onclick="ReportesApp.cambiarPestana('propietarios')">
+                    <i class="fas fa-users mr-2"></i>Propietarios
+                </div>
+                <div class="tab" onclick="ReportesApp.cambiarPestana('maquinas')">
+                    <i class="fas fa-gamepad mr-2"></i>Máquinas
+                </div>
+            </div>
+
+            <!-- Contenido de pestañas -->
+            <div id="contenidoPestanas">
+                <!-- Pestaña Resumen -->
+                <div id="pestanaResumen" class="pestana-contenido">
+                    <!-- Resumen General -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card" style="border-left-color: #3b82f6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #3b82f6;">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ingresos Totales</p>
+                                    <p class="stat-value" id="totalIngresos">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #10b981;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #10b981;">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Total</p>
+                                    <p class="stat-value" id="gananciaTotal">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #8b5cf6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #8b5cf6;">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Proveedor</p>
+                                    <p class="stat-value" id="gananciaProveedor">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #f59e0b;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #f59e0b;">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Restaurante</p>
+                                    <p class="stat-value" id="gananciaRestaurante">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas Adicionales -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-blue-100 p-3 mr-4">
+                                    <i class="fas fa-shopping-cart text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Total Ventas</p>
+                                    <p class="text-xl font-bold" id="totalVentas">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-green-100 p-3 mr-4">
+                                    <i class="fas fa-gamepad text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Máquinas Activas</p>
+                                    <p class="text-xl font-bold" id="maquinasActivas">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-purple-100 p-3 mr-4">
+                                    <i class="fas fa-ticket-alt text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Turnos Usados</p>
+                                    <p class="text-xl font-bold" id="turnosUsados">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-orange-100 p-3 mr-4">
+                                    <i class="fas fa-dollar-sign text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Ticket Promedio</p>
+                                    <p class="text-xl font-bold" id="ticketPromedio">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Distribución por Propietarios -->
+                    <div class="glass-card mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Distribución por Propietarios
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="distribucionPropietarios">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Top Máquinas -->
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas Más Rentables
+                        </h2>
+                        <div class="space-y-4" id="topMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Gráficos -->
+                <div id="pestanaGraficos" class="pestana-contenido hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-pie mr-2"></i>Distribución de Ingresos
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoDistribucion"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-bar mr-2"></i>Ventas por Día
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoVentasDiarias"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-line mr-2"></i>Evolución de Ingresos
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoEvolucion"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-pie mr-2"></i>Ventas por Paquete
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoPaquetes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Detalle -->
+                <div id="pestanaDetalle" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2 md:mb-0">
+                                <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Liquidaciones
+                            </h2>
+                            <div class="flex items-center">
+                                <div class="relative">
+                                    <input type="text" id="busqueda" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="ReportesApp.buscar()">
+                                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table id="tablaDetalle">
+                                <thead>
+                                    <tr>
+                                        <th class="cursor-pointer" onclick="ReportesApp.ordenarPor('fecha')">
+                                            Fecha <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th>Paquete</th>
+                                        <th>Máquina</th>
+                                        <th class="text-right">Turnos</th>
+                                        <th class="text-right cursor-pointer" onclick="ReportesApp.ordenarPor('ingresos')">
+                                            Ingresos <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th class="text-right">% Rest.</th>
+                                        <th class="text-right">Restaurante</th>
+                                        <th class="text-right">Proveedor</th>
+                                        <th>Propietario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpoTablaDetalle">
+                                    <!-- Se llenará dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center">
+                            <div class="text-sm text-gray-600 mb-2 sm:mb-0">
+                                Mostrando <span id="mostrandoDesde">0</span> a <span id="mostrandoHasta">0</span> de <span id="totalRegistros">0</span> registros
+                            </div>
+                            <div class="pagination">
+                                <button id="btnPrimeraPagina" onclick="ReportesApp.irAPagina(1)" disabled>
+                                    <i class="fas fa-angle-double-left"></i>
+                                </button>
+                                <button id="btnPaginaAnterior" onclick="ReportesApp.paginaAnterior()" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div id="numerosPagina" class="flex">
+                                    <!-- Se generan dinámicamente -->
+                                </div>
+                                <button id="btnPaginaSiguiente" onclick="ReportesApp.paginaSiguiente()" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                                <button id="btnUltimaPagina" onclick="ReportesApp.irAUltimaPagina()" disabled>
+                                    <i class="fas fa-angle-double-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Propietarios -->
+                <div id="pestanaPropietarios" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Reporte por Propietarios
+                        </h2>
+                        <div id="tablaPropietarios">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Máquinas -->
+                <div id="pestanaMaquinas" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-gamepad mr-2 text-purple-600"></i>Reporte por Máquinas
+                        </h2>
+                        <div id="tablaMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Configuración de fechas
+        const hoy = new Date();
+        const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        
+        // Formatear fechas para input type="date"
+        function formatearFechaInput(fecha) {
+            return fecha.toISOString().split('T')[0];
+        }
+        
+        // Formatear moneda
+        function formatearMoneda(valor) {
+            return new Intl.NumberFormat('es-CO', { 
+                style: 'currency', 
+                currency: 'COP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0 
+            }).format(valor);
+        }
+        
+        // Aplicación de reportes
+        const ReportesApp = {
+            // Estado de la aplicación
+            estado: {
+                datos: [],
+                filtros: {
+                    fechaInicio: formatearFechaInput(primerDiaMes),
+                    fechaFin: formatearFechaInput(hoy),
+                    tipoReporte: 'resumen',
+                    agrupacion: 'diario',
+                    busqueda: '',
+                    orden: { campo: 'fecha', direccion: 'desc' },
+                    paginacion: {
+                        paginaActual: 1,
+                        registrosPorPagina: 50,
+                        totalRegistros: 0,
+                        totalPaginas: 1
+                    }
+                },
+                graficos: {}
+            },
+            
+            // Inicialización
+            init: function() {
+                console.log('Inicializando módulo de reportes...');
+                
+                // Configurar eventos
+                this.configurarEventos();
+                
+                // Cargar datos iniciales
+                this.actualizarDatos();
+                
+                // Actualizar hora y fecha
+                this.actualizarHora();
+                setInterval(() => this.actualizarHora(), 1000);
+                
+                console.log('Módulo de reportes inicializado');
+            },
+            
+            // Configurar eventos
+            configurarEventos: function() {
+                // Cerrar menú de exportación al hacer clic fuera
+                document.addEventListener('click', (e) => {
+                    const menu = document.getElementById('exportMenu');
+                    if (menu && !menu.contains(e.target) && !e.target.closest('button[onclick*="mostrarMenuExportar"]')) {
+                        menu.classList.add('hidden');
+                    }
+                });
+                
+                // Configurar fechas por defecto
+                document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
+                document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
+                document.getElementById('tipoReporte').value = this.estado.filtros.tipoReporte;
+                document.getElementById('agrupacion').value = this.estado.filtros.agrupacion;
+            },
+            
+            // Cambiar pestaña activa
+            cambiarPestana: function(pestana) {
+                // Ocultar todas las pestañas
+                document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                
+                // Mostrar pestaña seleccionada
+                document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
+                document.querySelector(`.tab[onclick="ReportesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
+                
+                // Si es la pestaña de gráficos, inicializar gráficos
+                if (pestana === 'graficos') {
+                    setTimeout(() => this.inicializarGraficos(), 100);
+                }
+            },
+            
+            // Capitalizar primera letra
+            capitalize: function(str) {
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            },
+            
+            // Inicializar gráficos
+            inicializarGraficos: function() {
+                this.crearGraficoDistribucion();
+                this.crearGraficoVentasDiarias();
+                this.crearGraficoEvolucion();
+                this.crearGraficoPaquetes();
+            },
+            
+            // Crear gráfico de distribución
+            crearGraficoDistribucion: function() {
+                const ctx = document.getElementById('graficoDistribucion').getContext('2d');
+                
+                if (this.estado.graficos.distribucion) {
+                    this.estado.graficos.distribucion.destroy();
+                }
+                
+                this.estado.graficos.distribucion = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Restaurante', 'Proveedores'],
+                        datasets: [{
+                            data: [
+                                this.estado.totales?.gananciaRestaurante || 0,
+                                this.estado.totales?.gananciaProveedor || 0
+                            ],
+                            backgroundColor: ['#10b981', '#8b5cf6'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ${formatearMoneda(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de ventas diarias
+            crearGraficoVentasDiarias: function() {
+                const ctx = document.getElementById('graficoVentasDiarias').getContext('2d');
+                
+                if (this.estado.graficos.ventasDiarias) {
+                    this.estado.graficos.ventasDiarias.destroy();
+                }
+                
+                // Datos de ejemplo - reemplazar con datos reales
+                const datosEjemplo = {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                    datasets: [{
+                        label: 'Ingresos',
+                        data: [120000, 190000, 150000, 180000, 220000, 300000, 280000],
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 2
+                    }]
+                };
+                
+                this.estado.graficos.ventasDiarias = new Chart(ctx, {
+                    type: 'bar',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatearMoneda(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de evolución
+            crearGraficoEvolucion: function() {
+                const ctx = document.getElementById('graficoEvolucion').getContext('2d');
+                
+                if (this.estado.graficos.evolucion) {
+                    this.estado.graficos.evolucion.destroy();
+                }
+                
+                // Datos de ejemplo - reemplazar con datos reales
+                const datosEjemplo = {
+                    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+                    datasets: [
+                        {
+                            label: 'Ingresos Totales',
+                            data: [850000, 920000, 780000, 1100000],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Ganancia Proveedores',
+                            data: [552500, 598000, 507000, 715000],
+                            borderColor: 'rgb(139, 92, 246)',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                };
+                
+                this.estado.graficos.evolucion = new Chart(ctx, {
+                    type: 'line',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatearMoneda(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de paquetes
+            crearGraficoPaquetes: function() {
+                const ctx = document.getElementById('graficoPaquetes').getContext('2d');
+                
+                if (this.estado.graficos.paquetes) {
+                    this.estado.graficos.paquetes.destroy();
+                }
+                
+                // Datos de ejemplo - reemplazar con datos reales
+                const datosEjemplo = {
+                    labels: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'],
+                    datasets: [{
+                        data: [12, 19, 8, 15, 10, 7, 5, 9, 11, 6],
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
+                            '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
+                        ]
+                    }]
+                };
+                
+                this.estado.graficos.paquetes = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Actualizar datos desde la API
+            actualizarDatos: async function() {
+                try {
+                    this.mostrarCarga(true);
+                    
+                    // Obtener filtros actuales
+                    const { fechaInicio, fechaFin, tipoReporte, agrupacion, busqueda, orden, paginacion } = this.estado.filtros;
+                    
+                    console.log('🔄 Actualizando datos con filtros:', {
+                        fechaInicio, fechaFin, tipoReporte, agrupacion,
+                        pagina: paginacion.paginaActual, 
+                        registros: paginacion.registrosPorPagina 
+                    });
+                    
+                    // Usar la API de liquidaciones para obtener datos completos
+                    const url = `/api/liquidaciones/calcular?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+                    
+                    console.log('📡 URL de la API:', url);
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            fecha_inicio: fechaInicio,
+                            fecha_fin: fechaFin
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('❌ Error en la respuesta:', response.status, errorText);
+                        throw new Error(`Error ${response.status}: ${errorText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    console.log('✅ Datos recibidos correctamente:', {
+                        totalVentas: data.periodo?.total_ventas,
+                        totalIngresos: data.periodo?.total_ingresos,
+                        distribucion: data.distribucion_propietarios ? Object.keys(data.distribucion_propietarios).length : 0
+                    });
+                    
+                    // Actualizar estado
+                    this.estado.datos = data;
+                    
+                    // Actualizar UI
+                    this.actualizarResumen(data);
+                    this.actualizarDistribucionPropietarios(data);
+                    this.actualizarTopMaquinas(data);
+                    this.actualizarTablaDetalle(data);
+                    this.actualizarTablaPropietarios(data);
+                    this.actualizarTablaMaquinas(data);
+                    
+                    // Si estamos en la pestaña de gráficos, actualizarlos
+                    if (document.getElementById('pestanaGraficos') && !document.getElementById('pestanaGraficos').classList.contains('hidden')) {
+                        setTimeout(() => this.inicializarGraficos(), 100);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error al actualizar datos:', error);
+                    this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
+                    
+                    // Mostrar datos de ejemplo en caso de error (para desarrollo)
+                    this.mostrarDatosEjemplo();
+                } finally {
+                    this.mostrarCarga(false);
+                }
+            },
+            
+            // Función para mostrar datos de ejemplo (solo desarrollo)
+            mostrarDatosEjemplo: function() {
+                console.log('📋 Mostrando datos de ejemplo para desarrollo');
+                
+                // Generar datos de ejemplo completos
+                const datosEjemplo = {
+                    periodo: {
+                        fecha_inicio: this.estado.filtros.fechaInicio,
+                        fecha_fin: this.estado.filtros.fechaFin,
+                        total_ingresos: 2850000,
+                        total_restaurante: 997500,
+                        total_proveedor: 1852500,
+                        total_ventas: 45,
+                        maquinas_utilizadas: 12
+                    },
+                    distribucion_propietarios: {
+                        'Edison': {
+                            total_ingresos: 925000,
+                            detalles_maquinas: [
+                                { maquina_nombre: 'Sillas masajes', monto_propietario: 150000 },
+                                { maquina_nombre: 'Basketball', monto_propietario: 120000 },
+                                { maquina_nombre: 'Disco hockey', monto_propietario: 80000 },
+                                { maquina_nombre: 'Peluches 1', monto_propietario: 95000 },
+                                { maquina_nombre: 'Peluches 2', monto_propietario: 90000 },
+                                { maquina_nombre: 'Pelea', monto_propietario: 75000 },
+                                { maquina_nombre: 'McQueen', monto_propietario: 110000 },
+                                { maquina_nombre: 'Caballito', monto_propietario: 85000 },
+                                { maquina_nombre: 'Trencito', monto_propietario: 120000 }
+                            ]
+                        },
+                        'Andrés': {
+                            total_ingresos: 650000,
+                            detalles_maquinas: [
+                                { maquina_nombre: 'Simulador Connection', monto_propietario: 180000 },
+                                { maquina_nombre: 'Simulador Cruisin 1', monto_propietario: 160000 },
+                                { maquina_nombre: 'Simulador Cruisin 2', monto_propietario: 140000 },
+                                { maquina_nombre: 'Disco hockey', monto_propietario: 80000 },
+                                { maquina_nombre: 'Peluches 1', monto_propietario: 95000 },
+                                { maquina_nombre: 'Peluches 2', monto_propietario: 90000 },
+                                { maquina_nombre: 'Pelea', monto_propietario: 75000 }
+                            ]
+                        },
+                        'Beliza': {
+                            total_ingresos: 277500,
+                            detalles_maquinas: [
+                                { maquina_nombre: 'Sillas masajes', monto_propietario: 150000 },
+                                { maquina_nombre: 'Basketball', monto_propietario: 120000 },
+                                { maquina_nombre: 'Disco hockey', monto_propietario: 7500 }
+                            ]
+                        }
+                    },
+                    resumen_maquinas: {
+                        1: { maquina_nombre: 'Simulador Connection', ingresos_totales: 180000, ingresos_proveedor: 117000 },
+                        2: { maquina_nombre: 'Simulador Cruisin 1', ingresos_totales: 160000, ingresos_proveedor: 104000 },
+                        3: { maquina_nombre: 'Simulador Cruisin 2', ingresos_totales: 140000, ingresos_proveedor: 91000 },
+                        4: { maquina_nombre: 'Peluches 1', ingresos_totales: 190000, ingresos_proveedor: 133000 },
+                        5: { maquina_nombre: 'Peluches 2', ingresos_totales: 180000, ingresos_proveedor: 126000 },
+                        6: { maquina_nombre: 'Basketball', ingresos_totales: 240000, ingresos_proveedor: 156000 },
+                        7: { maquina_nombre: 'Pelea', ingresos_totales: 150000, ingresos_proveedor: 97500 },
+                        8: { maquina_nombre: 'Disco hockey', ingresos_totales: 175000, ingresos_proveedor: 113750 },
+                        9: { maquina_nombre: 'Sillas masajes', ingresos_totales: 300000, ingresos_proveedor: 195000 },
+                        10: { maquina_nombre: 'McQueen', ingresos_totales: 220000, ingresos_proveedor: 143000 },
+                        11: { maquina_nombre: 'Caballito', ingresos_totales: 170000, ingresos_proveedor: 110500 },
+                        12: { maquina_nombre: 'Trencito', ingresos_totales: 240000, ingresos_proveedor: 156000 }
+                    },
+                    datos_tabla: [
+                        // Datos de ejemplo para la tabla detallada
+                        { fecha: this.estado.filtros.fechaInicio, paquete_nombre: 'Paquete P5', maquina_nombre: 'Basketball', turnos_usados: 3, ingresos_totales: 20000, porcentaje_restaurante: 35, ingresos_restaurante: 7000, ingresos_proveedor: 13000, propietario: 'Edison' }
+                        // ... más datos de ejemplo
+                    ]
+                };
+                
+                this.estado.datos = datosEjemplo;
+                this.estado.filtros.paginacion.totalRegistros = 45;
+                this.estado.filtros.paginacion.totalPaginas = 1;
+                
+                this.actualizarResumen(datosEjemplo);
+                this.actualizarDistribucionPropietarios(datosEjemplo);
+                this.actualizarTopMaquinas(datosEjemplo);
+                this.actualizarTablaDetalle(datosEjemplo);
+                this.actualizarTablaPropietarios(datosEjemplo);
+                this.actualizarTablaMaquinas(datosEjemplo);
+                
+                this.mostrarAlerta('Se están mostrando datos de ejemplo para desarrollo', 'warning');
+            },
+            
+            // Actualizar resumen con totales
+            actualizarResumen: function(data) {
+                const periodo = data.periodo || {};
+                const totalIngresos = periodo.total_ingresos || 0;
+                const gananciaRestaurante = periodo.total_restaurante || 0;
+                const gananciaProveedor = periodo.total_proveedor || 0;
+                const gananciaTotal = totalIngresos;
+                const totalVentas = periodo.total_ventas || 0;
+                const maquinasActivas = periodo.maquinas_utilizadas || 0;
+                const ticketPromedio = totalVentas > 0 ? totalIngresos / totalVentas : 0;
+                
+                // Calcular turnos usados (aproximación)
+                const turnosUsados = totalVentas * 10; // Estimación: 10 turnos por paquete en promedio
+                
+                document.getElementById('totalIngresos').textContent = formatearMoneda(totalIngresos);
+                document.getElementById('gananciaTotal').textContent = formatearMoneda(gananciaTotal);
+                document.getElementById('gananciaProveedor').textContent = formatearMoneda(gananciaProveedor);
+                document.getElementById('gananciaRestaurante').textContent = formatearMoneda(gananciaRestaurante);
+                document.getElementById('totalVentas').textContent = totalVentas.toLocaleString();
+                document.getElementById('maquinasActivas').textContent = maquinasActivas.toLocaleString();
+                document.getElementById('turnosUsados').textContent = turnosUsados.toLocaleString();
+                document.getElementById('ticketPromedio').textContent = formatearMoneda(ticketPromedio);
+                
+                // Guardar totales para gráficos
+                this.estado.totales = {
+                    gananciaRestaurante,
+                    gananciaProveedor,
+                    totalIngresos
+                };
+            },
+            
+            // Actualizar distribución por propietarios
+            actualizarDistribucionPropietarios: function(data) {
+                const distribucion = data.distribucion_propietarios || {};
+                const container = document.getElementById('distribucionPropietarios');
+                container.innerHTML = '';
+                
+                Object.entries(distribucion).forEach(([nombre, datos]) => {
+                    const card = document.createElement('div');
+                    card.className = 'summary-card';
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-gray-800">${nombre}</h3>
+                            <div class="text-lg font-bold text-green-600">${formatearMoneda(datos.total_ingresos)}</div>
+                        </div>
+                        <div class="text-sm text-gray-600 mb-3">
+                            ${((datos.total_ingresos / (data.periodo?.total_proveedor || 1)) * 100).toFixed(1)}% del total proveedores
+                        </div>
+                        <div class="space-y-2">
+                            ${datos.detalles_maquinas?.slice(0, 3).map(maquina => `
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="truncate">${maquina.maquina_nombre}</span>
+                                    <span class="font-medium">${formatearMoneda(maquina.monto_propietario)}</span>
+                                </div>
+                            `).join('')}
+                            ${datos.detalles_maquinas?.length > 3 ? `
+                                <div class="text-xs text-gray-500 text-center">
+                                    +${datos.detalles_maquinas.length - 3} máquinas más
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+            
+            // Actualizar top máquinas
+            actualizarTopMaquinas: function(data) {
+                const maquinas = data.resumen_maquinas || {};
+                const container = document.getElementById('topMaquinas');
+                container.innerHTML = '';
+                
+                // Convertir a array y ordenar por ingresos
+                const maquinasArray = Object.values(maquinas)
+                    .sort((a, b) => (b.ingresos_totales || 0) - (a.ingresos_totales || 0))
+                    .slice(0, 5);
+                
+                maquinasArray.forEach((maquina, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                    item.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                <span class="text-blue-600 font-bold">${index + 1}</span>
+                            </div>
+                            <div>
+                                <div class="font-medium">${maquina.maquina_nombre}</div>
+                                <div class="text-xs text-gray-500">${formatearMoneda(maquina.ingresos_proveedor || 0)} proveedor</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-green-600">${formatearMoneda(maquina.ingresos_totales || 0)}</div>
+                            <div class="text-xs text-gray-500">total</div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            },
+            
+            // Actualizar tabla detalle
+            actualizarTablaDetalle: function(data) {
+                const tbody = document.getElementById('cuerpoTablaDetalle');
+                tbody.innerHTML = '';
+                
+                const datosTabla = data.datos_tabla || [];
+                
+                if (datosTabla.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td colspan="9" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-2 block"></i>
+                            No se encontraron registros para los filtros seleccionados.
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    return;
+                }
+                
+                datosTabla.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    tr.innerHTML = `
+                        <td>${this.formatearFecha(item.fecha)}</td>
+                        <td class="font-medium">${item.paquete_nombre || 'General'}</td>
+                        <td>${item.maquina_nombre || 'No especificada'}</td>
+                        <td class="text-right">${item.turnos_usados || 0}</td>
+                        <td class="text-right font-semibold">${formatearMoneda(item.ingresos_totales || 0)}</td>
+                        <td class="text-right">${item.porcentaje_restaurante || 35}%</td>
+                        <td class="text-right text-green-600">${formatearMoneda(item.ingresos_restaurante || 0)}</td>
+                        <td class="text-right text-purple-600">${formatearMoneda(item.ingresos_proveedor || 0)}</td>
+                        <td>${item.propietario || 'No asignado'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                // Actualizar paginación
+                this.estado.filtros.paginacion.totalRegistros = datosTabla.length;
+                this.actualizarPaginacion();
+            },
+            
+            // Actualizar tabla de propietarios
+            actualizarTablaPropietarios: function(data) {
+                const distribucion = data.distribucion_propietarios || {};
+                const container = document.getElementById('tablaPropietarios');
+                
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Propietario</th>
+                                    <th class="text-right">Total Ingresos</th>
+                                    <th class="text-right">% del Total</th>
+                                    <th class="text-right">Máquinas</th>
+                                    <th>Principales Máquinas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                Object.entries(distribucion).forEach(([nombre, datos]) => {
+                    const totalProveedor = data.periodo?.total_proveedor || 1;
+                    const porcentaje = ((datos.total_ingresos / totalProveedor) * 100).toFixed(1);
+                    const numMaquinas = datos.detalles_maquinas?.length || 0;
+                    const principalesMaquinas = datos.detalles_maquinas?.slice(0, 3).map(m => m.maquina_nombre).join(', ') || '';
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="font-medium">${nombre}</td>
+                            <td class="text-right font-semibold text-green-600">${formatearMoneda(datos.total_ingresos)}</td>
+                            <td class="text-right">${porcentaje}%</td>
+                            <td class="text-right">${numMaquinas}</td>
+                            <td class="text-sm text-gray-600">${principalesMaquinas}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            },
+            
+            // Actualizar tabla de máquinas
+            actualizarTablaMaquinas: function(data) {
+                const maquinas = data.resumen_maquinas || {};
+                const container = document.getElementById('tablaMaquinas');
+                
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Máquina</th>
+                                    <th>Tipo</th>
+                                    <th class="text-right">Ingresos Totales</th>
+                                    <th class="text-right">% Rest.</th>
+                                    <th class="text-right">Restaurante</th>
+                                    <th class="text-right">Proveedor</th>
+                                    <th class="text-right">Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                Object.values(maquinas).forEach(maquina => {
+                    const ventas = maquina.detalles?.length || 0;
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="font-medium">${maquina.maquina_nombre}</td>
+                            <td class="text-gray-600">${maquina.tipo_maquina}</td>
+                            <td class="text-right font-semibold">${formatearMoneda(maquina.ingresos_totales || 0)}</td>
+                            <td class="text-right text-blue-600">${maquina.porcentaje_restaurante || 35}%</td>
+                            <td class="text-right text-green-600">${formatearMoneda(maquina.ingresos_restaurante || 0)}</td>
+                            <td class="text-right text-purple-600">${formatearMoneda(maquina.ingresos_proveedor || 0)}</td>
+                            <td class="text-right text-gray-600">${ventas}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            },
+            
+            // Resto de funciones (paginación, ordenación, exportación, etc.)
+            // ... (las mismas funciones que en liquidaciones.html pero adaptadas)
+            
+            aplicarFiltros: function() {
+                this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
+                this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
+                this.estado.filtros.tipoReporte = document.getElementById('tipoReporte').value;
+                this.estado.filtros.agrupacion = document.getElementById('agrupacion').value;
+                this.estado.filtros.paginacion.paginaActual = 1;
+                
+                this.actualizarDatos();
+            },
+            
+            buscar: function() {
+                const busqueda = document.getElementById('busqueda').value.trim().toLowerCase();
+                this.estado.filtros.busqueda = busqueda;
+                this.estado.filtros.paginacion.paginaActual = 1;
+                this.actualizarDatos();
+            },
+            
+            ordenarPor: function(campo) {
+                if (this.estado.filtros.orden.campo === campo) {
+                    this.estado.filtros.orden.direccion = this.estado.filtros.orden.direccion === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.estado.filtros.orden.campo = campo;
+                    this.estado.filtros.orden.direccion = 'asc';
+                }
+                
+                this.actualizarDatos();
+            },
+            
+            mostrarMenuExportar: function() {
+                const menu = document.getElementById('exportMenu');
+                menu.classList.toggle('hidden');
+            },
+            
+            exportarReporte: function(formato) {
+                try {
+                    if (formato === 'excel') {
+                        this.exportarAExcel();
+                    } else if (formato === 'pdf') {
+                        this.exportarAPDF();
+                    }
+                    
+                    document.getElementById('exportMenu').classList.add('hidden');
+                    
+                } catch (error) {
+                    console.error('Error al exportar reporte:', error);
+                    this.mostrarAlerta('Error al exportar el reporte', 'error');
+                }
+            },
+            
+            exportarBackupCompleto: function() {
+                try {
+                    // Crear un backup completo de todos los datos
+                    const backupData = {
+                        fechaBackup: new Date().toISOString(),
+                        rangoFechas: {
+                            inicio: this.estado.filtros.fechaInicio,
+                            fin: this.estado.filtros.fechaFin
+                        },
+                        datos: this.estado.datos,
+                        totales: {
+                            ingresosTotales: document.getElementById('totalIngresos').textContent,
+                            gananciaTotal: document.getElementById('gananciaTotal').textContent,
+                            gananciaProveedor: document.getElementById('gananciaProveedor').textContent,
+                            gananciaRestaurante: document.getElementById('gananciaRestaurante').textContent
+                        }
+                    };
+                    
+                    // Crear y descargar archivo JSON
+                    const dataStr = JSON.stringify(backupData, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `backup_reportes_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    this.mostrarAlerta('Backup completo exportado correctamente', 'success');
+                    document.getElementById('exportMenu').classList.add('hidden');
+                    
+                } catch (error) {
+                    console.error('Error al exportar backup:', error);
+                    this.mostrarAlerta('Error al exportar el backup', 'error');
+                }
+            },
+            
+            exportarAExcel: function() {
+                // Implementación de exportación a Excel
+                this.mostrarAlerta('Funcionalidad de exportación a Excel en desarrollo', 'info');
+            },
+            
+            exportarAPDF: function() {
+                // Implementación de exportación a PDF
+                this.mostrarAlerta('Funcionalidad de exportación a PDF en desarrollo', 'info');
+            },
+            
+            mostrarCarga: function(mostrar) {
+                const botones = document.querySelectorAll('button');
+                botones.forEach(boton => {
+                    if (mostrar) {
+                        boton.disabled = true;
+                        if (boton.querySelector('.fa-sync-alt')) {
+                            boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+                        }
+                    } else {
+                        boton.disabled = false;
+                        if (boton.querySelector('.fa-spinner')) {
+                            boton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
+                        }
+                    }
+                });
+            },
+            
+            mostrarAlerta: function(mensaje, tipo = 'info') {
+                let alerta = document.getElementById('alertaGlobal');
+                
+                if (!alerta) {
+                    alerta = document.createElement('div');
+                    alerta.id = 'alertaGlobal';
+                    alerta.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md ${this.obtenerClaseAlerta(tipo)}`;
+                    alerta.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="${this.obtenerIconoAlerta(tipo)} mr-2"></i>
+                            <span>${mensaje}</span>
+                            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    document.body.appendChild(alerta);
+                } else {
+                    alerta.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md ${this.obtenerClaseAlerta(tipo)}`;
+                    alerta.querySelector('span').textContent = mensaje;
+                    alerta.querySelector('i').className = `${this.obtenerIconoAlerta(tipo)} mr-2`;
+                }
+                
+                setTimeout(() => {
+                    if (alerta) {
+                        alerta.remove();
+                    }
+                }, 5000);
+            },
+            
+            obtenerClaseAlerta: function(tipo) {
+                const clases = {
+                    success: 'bg-green-100 border border-green-400 text-green-700',
+                    error: 'bg-red-100 border border-red-400 text-red-700',
+                    warning: 'bg-yellow-100 border border-yellow-400 text-yellow-700',
+                    info: 'bg-blue-100 border border-blue-400 text-blue-700'
+                };
+                return clases[tipo] || clases.info;
+            },
+            
+            obtenerIconoAlerta: function(tipo) {
+                const iconos = {
+                    success: 'fas fa-check-circle',
+                    error: 'fas fa-exclamation-circle',
+                    warning: 'fas fa-exclamation-triangle',
+                    info: 'fas fa-info-circle'
+                };
+                return iconos[tipo] || iconos.info;
+            },
+            
+            formatearFecha: function(fechaStr) {
+                const fecha = new Date(fechaStr);
+                return fecha.toLocaleDateString('es-CO', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            },
+            
+            actualizarHora: function() {
+                const ahora = new Date();
+                const opcionesHora = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+                const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                
+                const horaActualSidebar = document.getElementById('horaActualSidebar');
+                const fechaActualSidebar = document.getElementById('fechaActualSidebar');
+                
+                if (horaActualSidebar) {
+                    horaActualSidebar.textContent = ahora.toLocaleTimeString('es-CO', opcionesHora);
+                }
+                
+                if (fechaActualSidebar) {
+                    fechaActualSidebar.textContent = ahora.toLocaleDateString('es-CO', opcionesFecha);
+                }
+                
+                const fechaActual = document.getElementById('fechaActual');
+                if (fechaActual) {
+                    fechaActual.textContent = ahora.toLocaleDateString('es-CO', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                }
+            },
+            
+            // Funciones de paginación
+            actualizarPaginacion: function() {
+                const { paginaActual, totalPaginas } = this.estado.filtros.paginacion;
+                const numerosPagina = document.getElementById('numerosPagina');
+                numerosPagina.innerHTML = '';
+                
+                document.getElementById('btnPrimeraPagina').disabled = paginaActual === 1;
+                document.getElementById('btnPaginaAnterior').disabled = paginaActual === 1;
+                document.getElementById('btnPaginaSiguiente').disabled = paginaActual >= totalPaginas;
+                document.getElementById('btnUltimaPagina').disabled = paginaActual >= totalPaginas;
+                
+                const maxBotones = 5;
+                let inicio = Math.max(1, paginaActual - Math.floor(maxBotones / 2));
+                let fin = Math.min(totalPaginas, inicio + maxBotones - 1);
+                
+                if (fin - inicio + 1 < maxBotones) {
+                    inicio = Math.max(1, fin - maxBotones + 1);
+                }
+                
+                for (let i = inicio; i <= fin; i++) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = i === paginaActual ? 'px-3 py-1 rounded bg-blue-600 text-white' : 'px-3 py-1 rounded bg-white hover:bg-gray-100';
+                    btn.onclick = () => this.irAPagina(i);
+                    numerosPagina.appendChild(btn);
+                }
+                
+                // Actualizar texto de registros mostrados
+                const desde = (paginaActual - 1) * this.estado.filtros.paginacion.registrosPorPagina + 1;
+                const hasta = Math.min(desde + this.estado.datos.datos_tabla?.length - 1 || 0, this.estado.filtros.paginacion.totalRegistros);
+                
+                document.getElementById('mostrandoDesde').textContent = desde;
+                document.getElementById('mostrandoHasta').textContent = hasta;
+                document.getElementById('totalRegistros').textContent = this.estado.filtros.paginacion.totalRegistros;
+            },
+            
+            irAPagina: function(numeroPagina) {
+                if (numeroPagina >= 1 && numeroPagina <= this.estado.filtros.paginacion.totalPaginas) {
+                    this.estado.filtros.paginacion.paginaActual = numeroPagina;
+                    this.actualizarDatos();
+                }
+            },
+            
+            paginaAnterior: function() {
+                if (this.estado.filtros.paginacion.paginaActual > 1) {
+                    this.irAPagina(this.estado.filtros.paginacion.paginaActual - 1);
+                }
+            },
+            
+            paginaSiguiente: function() {
+                if (this.estado.filtros.paginacion.paginaActual < this.estado.filtros.paginacion.totalPaginas) {
+                    this.irAPagina(this.estado.filtros.paginacion.paginaActual + 1);
+                }
+            },
+            
+            irAUltimaPagina: function() {
+                this.irAPagina(this.estado.filtros.paginacion.totalPaginas);
+            }
+        };
+        
+        // Configuración de partículas.js
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof particlesJS !== 'undefined') {
+                particlesJS('particles-js', {
+                    particles: {
+                        number: { value: 80, density: { enable: true, value_area: 800 } },
+                        color: { value: "#3b82f6" },
+                        shape: { type: "circle" },
+                        opacity: { value: 0.1, random: true },
+                        size: { value: 3, random: true },
+                        line_linked: {
+                            enable: true,
+                            distance: 150,
+                            color: "#3b82f6",
+                            opacity: 0.1,
+                            width: 1
+                        },
+                        move: {
+                            enable: true,
+                            speed: 2,
+                            direction: "none",
+                            random: true,
+                            straight: false,
+                            out_mode: "out",
+                            bounce: false
+                        }
+                    },
+                    interactivity: {
+                        detect_on: "canvas",
+                        events: {
+                            onhover: { enable: true, mode: "repulse" },
+                            onclick: { enable: true, mode: "push" },
+                            resize: true
+                        }
+                    },
+                    retina_detect: true
+                });
+            }
+            
+            // Inicializar la aplicación
+            ReportesApp.init();
+        });
+    </script>
+</body>
+</html>

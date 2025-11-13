@@ -3376,14 +3376,22 @@ def obtener_liquidaciones_avanzadas():
         if connection:
             connection.close()
 
-@app.route('/api/resumen-liquidaciones', methods=['GET'])
-def obtener_resumen_liquidaciones():
-    """Obtener resumen ejecutivo para el dashboard de liquidaciones"""
+    # ==================== APIS PARA LIQUIDACIONES COMPLETAS ====================
+
+@app.route('/api/liquidaciones/calcular', methods=['POST'])
+def calcular_liquidacion():
+    """Calcular liquidación completa con distribución real por propietarios Y desglose detallado"""
     connection = None
     cursor = None
     try:
-        fecha_inicio = request.args.get('fechaInicio', datetime.now().strftime('%Y-%m-%d'))
-        fecha_fin = request.args.get('fechaFin', datetime.now().strftime('%Y-%m-%d'))
+        data = request.get_json()
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin')
+        
+        if not fecha_inicio or not fecha_fin:
+            return jsonify({'error': 'Fechas de inicio y fin son requeridas'}), 400
+        
+        print(f"🧮 Calculando liquidación desde {fecha_inicio} hasta {fecha_fin}")
         
         connection = get_db_connection()
         if not connection:
@@ -3391,98 +3399,278 @@ def obtener_resumen_liquidaciones():
             
         cursor = get_db_cursor(connection)
         
-        # Ingresos totales del período
-        cursor.execute("""
-            SELECT COALESCE(SUM(tp.price), 0) as ingresos_totales
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-        """, (fecha_inicio, fecha_fin))
-        ingresos_totales = cursor.fetchone()['ingresos_totales']
-        
-        # Paquetes vendidos
-        cursor.execute("""
-            SELECT COUNT(*) as paquetes_vendidos
-            FROM QRHistory 
-            WHERE DATE(fecha_hora) BETWEEN %s AND %s
-        """, (fecha_inicio, fecha_fin))
-        paquetes_vendidos = cursor.fetchone()['paquetes_vendidos']
-        
-        # Distribución por porcentajes (estimada)
-        # En una implementación real, esto debería basarse en el uso real de máquinas
+        # 1. OBTENER VENTAS DEL PERÍODO (QR únicos para evitar duplicados)
+        # CORREGIDO: Usar GROUP BY en lugar de DISTINCT con ORDER BY problemático
         cursor.execute("""
             SELECT 
-                COUNT(*) as ventas_peluches
-            FROM QRHistory qh
-            JOIN TurnUsage tu ON tu.qrCodeId = (SELECT id FROM QRCode WHERE code = qh.qr_code LIMIT 1)
-            JOIN Machine m ON tu.machineId = m.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            AND m.name LIKE '%Peluches%'
-        """, (fecha_inicio, fecha_fin))
-        ventas_peluches = cursor.fetchone()['ventas_peluches'] or 0
-        
-        ventas_otros = paquetes_vendidos - ventas_peluches
-        
-        # Calcular distribución de ingresos
-        ingresos_30 = ingresos_totales * (ventas_peluches / max(paquetes_vendidos, 1))
-        ingresos_35 = ingresos_totales * (ventas_otros / max(paquetes_vendidos, 1))
-        
-        ganancia_restaurante = (ingresos_30 * 0.30) + (ingresos_35 * 0.35)
-        ganancia_proveedor = ingresos_totales - ganancia_restaurante
-        
-        # Top paquetes
-        cursor.execute("""
-            SELECT 
-                tp.name as paquete,
-                COUNT(*) as cantidad,
-                SUM(tp.price) as total
+                qh.qr_code,
+                qr.turnPackageId as paquete_id,
+                tp.name as paquete_nombre,
+                tp.price as precio_paquete,
+                tp.turns as turnos_paquete,
+                DATE(qh.fecha_hora) as fecha_venta,
+                u.name as vendedor,
+                qh.qr_name,
+                qh.user_name,  -- Usar user_name en lugar de local que no existe
+                MAX(qh.fecha_hora) as ultima_fecha  -- Para ordenar
             FROM QRHistory qh
             JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            LEFT JOIN Users u ON qh.user_id = u.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            GROUP BY tp.name
-            ORDER BY total DESC
-            LIMIT 5
+            GROUP BY qh.qr_code, qr.turnPackageId, tp.name, tp.price, tp.turns, 
+                     DATE(qh.fecha_hora), u.name, qh.qr_name, qh.user_name
+            ORDER BY ultima_fecha DESC
         """, (fecha_inicio, fecha_fin))
-        top_paquetes = cursor.fetchall()
         
-        # Ventas por día
-        cursor.execute("""
-            SELECT 
-                DATE(qh.fecha_hora) as fecha,
-                COUNT(*) as ventas,
-                SUM(tp.price) as ingresos
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            GROUP BY DATE(qh.fecha_hora)
-            ORDER BY fecha
-        """, (fecha_inicio, fecha_fin))
-        ventas_por_dia = cursor.fetchall()
+        ventas = cursor.fetchall()
+        print(f"📦 Encontradas {len(ventas)} ventas únicas")
+        
+        # 2. OBTENER USO DE MÁQUINAS PARA CADA QR CON DESGLOSE
+        liquidacion_detallada = []
+        desglose_por_fecha = {}
+        total_ingresos = 0
+        
+        for venta in ventas:
+            qr_code = venta['qr_code']
+            precio_paquete = float(venta['precio_paquete'] or 0)
+            fecha_venta = venta['fecha_venta'].isoformat() if venta['fecha_venta'] else 'Sin fecha'
+            
+            # Inicializar desglose por fecha
+            if fecha_venta not in desglose_por_fecha:
+                desglose_por_fecha[fecha_venta] = {
+                    'total_ventas': 0,
+                    'ingresos_totales': 0,
+                    'detalles_ventas': []
+                }
+            
+            desglose_por_fecha[fecha_venta]['total_ventas'] += 1
+            desglose_por_fecha[fecha_venta]['ingresos_totales'] += precio_paquete
+            
+            # Obtener máquinas usadas con este QR
+            cursor.execute("""
+                SELECT 
+                    tu.machineId as maquina_id,
+                    m.name as maquina_nombre,
+                    m.type as tipo_maquina,
+                    COUNT(*) as turnos_usados
+                FROM TurnUsage tu
+                JOIN Machine m ON m.id = tu.machineId
+                WHERE tu.qrCodeId = (SELECT id FROM QRCode WHERE code = %s LIMIT 1)
+                AND DATE(tu.usedAt) BETWEEN %s AND %s
+                GROUP BY tu.machineId, m.name, m.type
+            """, (qr_code, fecha_inicio, fecha_fin))
+            
+            usos_maquinas = cursor.fetchall()
+            
+            # Si no hay usos registrados, distribuir igualmente entre máquinas activas
+            if not usos_maquinas:
+                cursor.execute("""
+                    SELECT id, name, type 
+                    FROM Machine 
+                    WHERE status = 'activa'
+                """)
+                maquinas_activas = cursor.fetchall()
+                
+                if maquinas_activas:
+                    turnos_por_maquina = venta['turnos_paquete'] / len(maquinas_activas)
+                    for maquina in maquinas_activas:
+                        usos_maquinas.append({
+                            'maquina_id': maquina['id'],
+                            'maquina_nombre': maquina['name'],
+                            'tipo_maquina': maquina['type'],
+                            'turnos_usados': turnos_por_maquina
+                        })
+            
+            # Distribuir el precio del paquete proporcionalmente a los turnos usados
+            total_turnos_qr = sum(uso['turnos_usados'] for uso in usos_maquinas)
+            distribucion_venta = []
+            
+            if total_turnos_qr > 0:
+                for uso in usos_maquinas:
+                    proporcion = uso['turnos_usados'] / total_turnos_qr
+                    ingresos_maquina = precio_paquete * proporcion
+                    
+                    detalle = {
+                        'qr_code': qr_code,
+                        'paquete_nombre': venta['paquete_nombre'],
+                        'precio_paquete': precio_paquete,
+                        'maquina_id': uso['maquina_id'],
+                        'maquina_nombre': uso['maquina_nombre'],
+                        'tipo_maquina': uso['tipo_maquina'],
+                        'turnos_usados': uso['turnos_usados'],
+                        'proporcion': proporcion,
+                        'ingresos_maquina': ingresos_maquina,
+                        'fecha_venta': fecha_venta,
+                        'vendedor': venta['vendedor'],
+                        'qr_nombre': venta['qr_name']
+                    }
+                    
+                    liquidacion_detallada.append(detalle)
+                    distribucion_venta.append({
+                        'maquina_nombre': uso['maquina_nombre'],
+                        'tipo_maquina': uso['tipo_maquina'],
+                        'turnos_usados': uso['turnos_usados'],
+                        'proporcion': proporcion,
+                        'ingresos_asignados': ingresos_maquina
+                    })
+                    
+                    total_ingresos += ingresos_maquina
+            
+            # Agregar al desglose por fecha
+            desglose_por_fecha[fecha_venta]['detalles_ventas'].append({
+                'qr_code': qr_code,
+                'paquete_nombre': venta['paquete_nombre'],
+                'precio_paquete': precio_paquete,
+                'turnos_paquete': venta['turnos_paquete'],
+                'vendedor': venta['vendedor'],
+                'qr_nombre': venta['qr_name'],
+                'distribucion_maquinas': distribucion_venta
+            })
+        
+        # 3. CALCULAR DISTRIBUCIÓN POR PROPIETARIOS CON DESGLOSE
+        distribucion_final = {}
+        resumen_maquinas = {}
+        total_restaurante = 0
+        total_proveedor = 0
+        
+        for detalle in liquidacion_detallada:
+            maquina_id = detalle['maquina_id']
+            ingresos_maquina = detalle['ingresos_maquina']
+            
+            if maquina_id not in resumen_maquinas:
+                # Obtener información de la máquina
+                cursor.execute("""
+                    SELECT 
+                        COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
+                    FROM Machine m
+                    LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+                    WHERE m.id = %s
+                """, (maquina_id,))
+                
+                info_maquina = cursor.fetchone()
+                porcentaje_restaurante = float(info_maquina['porcentaje_restaurante']) if info_maquina else 35.00
+                
+                # Obtener propietarios de la máquina
+                cursor.execute("""
+                    SELECT 
+                        p.id,
+                        p.nombre,
+                        mp.porcentaje_propiedad
+                    FROM MaquinaPropietario mp
+                    JOIN Propietarios p ON mp.propietario_id = p.id
+                    WHERE mp.maquina_id = %s
+                """, (maquina_id,))
+                
+                propietarios = cursor.fetchall()
+                
+                resumen_maquinas[maquina_id] = {
+                    'maquina_nombre': detalle['maquina_nombre'],
+                    'tipo_maquina': detalle['tipo_maquina'],
+                    'porcentaje_restaurante': porcentaje_restaurante,
+                    'propietarios': propietarios,
+                    'ingresos_totales': 0,
+                    'ingresos_restaurante': 0,
+                    'ingresos_proveedor': 0,
+                    'detalles': []
+                }
+            
+            resumen_maquinas[maquina_id]['ingresos_totales'] += ingresos_maquina
+            resumen_maquinas[maquina_id]['detalles'].append(detalle)
+        
+        # Calcular distribución para cada máquina
+        for maquina_id, datos_maquina in resumen_maquinas.items():
+            ingresos_maquina = datos_maquina['ingresos_totales']
+            porcentaje_restaurante = datos_maquina['porcentaje_restaurante']
+            
+            # Calcular parte del restaurante
+            ingresos_restaurante = ingresos_maquina * (porcentaje_restaurante / 100)
+            ingresos_proveedor = ingresos_maquina - ingresos_restaurante
+            
+            datos_maquina['ingresos_restaurante'] = ingresos_restaurante
+            datos_maquina['ingresos_proveedor'] = ingresos_proveedor
+            
+            total_restaurante += ingresos_restaurante
+            total_proveedor += ingresos_proveedor
+            
+            # Distribuir entre propietarios
+            for propietario in datos_maquina['propietarios']:
+                propietario_nombre = propietario['nombre']
+                porcentaje_propiedad = propietario['porcentaje_propiedad']
+                
+                if propietario_nombre not in distribucion_final:
+                    distribucion_final[propietario_nombre] = {
+                        'total_ingresos': 0,
+                        'detalles_maquinas': []
+                    }
+                
+                monto_propietario = float(ingresos_proveedor) * (float(porcentaje_propiedad) / 100)
+                distribucion_final[propietario_nombre]['total_ingresos'] += monto_propietario
+                
+                distribucion_final[propietario_nombre]['detalles_maquinas'].append({
+                    'maquina_id': maquina_id,
+                    'maquina_nombre': datos_maquina['maquina_nombre'],
+                    'tipo_maquina': datos_maquina['tipo_maquina'],
+                    'ingresos_maquina': ingresos_maquina,
+                    'porcentaje_propiedad': porcentaje_propiedad,
+                    'monto_propietario': monto_propietario,
+                    'porcentaje_restaurante': porcentaje_restaurante,
+                    'ingresos_restaurante': ingresos_restaurante,
+                    'ingresos_proveedor': ingresos_proveedor
+                })
+        
+        # 4. PREPARAR DATOS PARA EL FRONTEND
+        datos_simplificados = []
+        for detalle in liquidacion_detallada:
+            # Buscar el porcentaje de restaurante para esta máquina
+            porcentaje_restaurante = resumen_maquinas.get(detalle['maquina_id'], {}).get('porcentaje_restaurante', 35.00)
+            
+            datos_simplificados.append({
+                'fecha': detalle['fecha_venta'],
+                'paquete_nombre': detalle['paquete_nombre'],
+                'precio_unitario': detalle['precio_paquete'],
+                'cantidad_paquetes': 1,
+                'ingresos_totales': detalle['precio_paquete'],
+                'ingresos_30_porciento': detalle['ingresos_maquina'] * 0.3,  # Para máquinas 30%
+                'ingresos_35_porciento': detalle['ingresos_maquina'] * 0.35, # Para máquinas 35%
+                'ingresos_restaurante': detalle['ingresos_maquina'] * (porcentaje_restaurante / 100),
+                'ingresos_proveedor': detalle['ingresos_maquina'] * (1 - porcentaje_restaurante / 100),
+                'vendedor': detalle['vendedor'],
+                'qr_nombre': detalle['qr_nombre'],
+                'maquina_nombre': detalle['maquina_nombre'],
+                'tipo_maquina': detalle['tipo_maquina'],
+                'porcentaje_restaurante_real': porcentaje_restaurante
+            })
         
         return jsonify({
-            'resumen': {
-                'ingresos_totales': ingresos_totales,
-                'paquetes_vendidos': paquetes_vendidos,
-                'ganancia_restaurante': round(ganancia_restaurante),
-                'ganancia_proveedor': round(ganancia_proveedor),
-                'ventas_peluches': ventas_peluches,
-                'ventas_otros': ventas_otros
+            'success': True,
+            'periodo': {
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+                'total_ingresos': round(total_ingresos, 2),
+                'total_restaurante': round(total_restaurante, 2),
+                'total_proveedor': round(total_proveedor, 2),
+                'total_ventas': len(ventas),
+                'maquinas_utilizadas': len(resumen_maquinas)
             },
-            'distribucion': {
-                'ingresos_30_porciento': round(ingresos_30),
-                'ingresos_35_porciento': round(ingresos_35)
-            },
-            'top_paquetes': top_paquetes,
-            'evolucion_ventas': ventas_por_dia
+            'distribucion_propietarios': distribucion_final,
+            'resumen_maquinas': resumen_maquinas,
+            'desglose_por_fecha': desglose_por_fecha,
+            'datos_tabla': datos_simplificados,
+            'detalle_completo': liquidacion_detallada,
+            'estadisticas': {
+                'ticket_promedio': round(total_ingresos / len(ventas), 2) if ventas else 0,
+                'porcentaje_restaurante_promedio': round((total_restaurante / total_ingresos) * 100, 2) if total_ingresos > 0 else 0,
+                'maquinas_activas': len(resumen_maquinas)
+            }
         })
         
     except Exception as e:
-        print(f"Error al obtener resumen de liquidaciones: {str(e)}")
+        print(f"❌ Error calculando liquidación: {str(e)}")
+        import traceback
+        traceback.print_exc()
         sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Error calculando liquidación: {str(e)}'}), 500
     finally:
         if cursor:
             cursor.close()
@@ -3522,6 +3710,590 @@ def obtener_propietarios_maquina(maquina_id):
         print(f"Error al obtener propietarios: {str(e)}")
         sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+        # RUTA INTERFAZ DE REPORTES
+
+@app.route('/admin/ventas/reportes')
+def mostrar_reportes():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    
+    # Verificar que el usuario sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('mostrar_local'))
+    
+    hora_colombia = get_colombia_time()
+    return render_template('ventas/reportes.html',
+                         nombre_usuario=session.get('user_name', 'Administrador'),
+                         local_usuario=session.get('user_local', 'Sistema'),
+                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+
+@app.route('/api/reportes/liquidaciones', methods=['POST'])
+def obtener_reporte_liquidaciones():
+    """Obtener reporte completo de liquidaciones con todos los datos"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin')
+        tipo_reporte = data.get('tipo_reporte', 'resumen')
+        agrupacion = data.get('agrupacion', 'diario')
+        
+        if not fecha_inicio or not fecha_fin:
+            return jsonify({'error': 'Fechas de inicio y fin son requeridas'}), 400
+        
+        print(f"📊 Generando reporte desde {fecha_inicio} hasta {fecha_fin}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. OBTENER DATOS BASE
+        cursor.execute("""
+            SELECT 
+                qh.qr_code,
+                qr.turnPackageId as paquete_id,
+                tp.name as paquete_nombre,
+                tp.price as precio_paquete,
+                tp.turns as turnos_paquete,
+                DATE(qh.fecha_hora) as fecha_venta,
+                u.name as vendedor,
+                qh.qr_name,
+                qh.user_name,
+                MAX(qh.fecha_hora) as ultima_fecha
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            LEFT JOIN Users u ON qh.user_id = u.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY qh.qr_code, qr.turnPackageId, tp.name, tp.price, tp.turns, 
+                     DATE(qh.fecha_hora), u.name, qh.qr_name, qh.user_name
+            ORDER BY ultima_fecha DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas = cursor.fetchall()
+        print(f"📦 Encontradas {len(ventas)} ventas únicas")
+        
+        # 2. PROCESAR DATOS PARA REPORTE COMPLETO
+        reporte_data = procesar_datos_reporte(connection, cursor, ventas, fecha_inicio, fecha_fin, tipo_reporte, agrupacion)
+        
+        return jsonify({
+            'success': True,
+            'periodo': {
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+                'total_ingresos': reporte_data['totales']['ingresos_totales'],
+                'total_restaurante': reporte_data['totales']['ganancia_restaurante'],
+                'total_proveedor': reporte_data['totales']['ganancia_proveedor'],
+                'total_ventas': len(ventas),
+                'maquinas_utilizadas': reporte_data['totales']['maquinas_utilizadas']
+            },
+            'distribucion_propietarios': reporte_data['distribucion_propietarios'],
+            'resumen_maquinas': reporte_data['resumen_maquinas'],
+            'datos_tabla': reporte_data['datos_tabla'],
+            'estadisticas_avanzadas': reporte_data['estadisticas_avanzadas'],
+            'agrupacion': agrupacion,
+            'tipo_reporte': tipo_reporte
+        })
+        
+    except Exception as e:
+        print(f"❌ Error generando reporte: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error generando reporte: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+def procesar_datos_reporte(connection, cursor, ventas, fecha_inicio, fecha_fin, tipo_reporte, agrupacion):
+    """Procesar datos para el reporte completo"""
+    
+    # Estructura base del reporte
+    reporte_data = {
+        'totales': {
+            'ingresos_totales': 0,
+            'ganancia_restaurante': 0,
+            'ganancia_proveedor': 0,
+            'maquinas_utilizadas': 0
+        },
+        'distribucion_propietarios': {},
+        'resumen_maquinas': {},
+        'datos_tabla': [],
+        'estadisticas_avanzadas': {}
+    }
+    
+    # Procesar cada venta
+    for venta in ventas:
+        qr_code = venta['qr_code']
+        precio_paquete = float(venta['precio_paquete'] or 0)
+        
+        # Obtener máquinas usadas con este QR
+        cursor.execute("""
+            SELECT 
+                tu.machineId as maquina_id,
+                m.name as maquina_nombre,
+                m.type as tipo_maquina,
+                COUNT(*) as turnos_usados
+            FROM TurnUsage tu
+            JOIN Machine m ON m.id = tu.machineId
+            WHERE tu.qrCodeId = (SELECT id FROM QRCode WHERE code = %s LIMIT 1)
+            AND DATE(tu.usedAt) BETWEEN %s AND %s
+            GROUP BY tu.machineId, m.name, m.type
+        """, (qr_code, fecha_inicio, fecha_fin))
+        
+        usos_maquinas = cursor.fetchall()
+        
+        # Si no hay usos registrados, distribuir entre máquinas activas
+        if not usos_maquinas:
+            cursor.execute("""
+                SELECT id, name, type 
+                FROM Machine 
+                WHERE status = 'activa'
+            """)
+            maquinas_activas = cursor.fetchall()
+            
+            if maquinas_activas:
+                turnos_por_maquina = venta['turnos_paquete'] / len(maquinas_activas)
+                for maquina in maquinas_activas:
+                    usos_maquinas.append({
+                        'maquina_id': maquina['id'],
+                        'maquina_nombre': maquina['name'],
+                        'tipo_maquina': maquina['type'],
+                        'turnos_usados': turnos_por_maquina
+                    })
+        
+        # Distribuir el precio del paquete
+        total_turnos_qr = sum(uso['turnos_usados'] for uso in usos_maquinas)
+        
+        if total_turnos_qr > 0:
+            for uso in usos_maquinas:
+                proporcion = uso['turnos_usados'] / total_turnos_qr
+                ingresos_maquina = precio_paquete * proporcion
+                
+                # Obtener información de distribución para esta máquina
+                distribucion = obtener_distribucion_maquina(cursor, uso['maquina_id'], ingresos_maquina)
+                
+                # Actualizar totales
+                reporte_data['totales']['ingresos_totales'] += ingresos_maquina
+                reporte_data['totales']['ganancia_restaurante'] += distribucion['ingresos_restaurante']
+                reporte_data['totales']['ganancia_proveedor'] += distribucion['ingresos_proveedor']
+                
+                # Actualizar distribución por propietarios
+                for propietario, monto in distribucion['distribucion_propietarios'].items():
+                    if propietario not in reporte_data['distribucion_propietarios']:
+                        reporte_data['distribucion_propietarios'][propietario] = {
+                            'total_ingresos': 0,
+                            'detalles_maquinas': []
+                        }
+                    reporte_data['distribucion_propietarios'][propietario]['total_ingresos'] += monto
+                    reporte_data['distribucion_propietarios'][propietario]['detalles_maquinas'].append({
+                        'maquina_nombre': uso['maquina_nombre'],
+                        'monto_propietario': monto
+                    })
+                
+                # Actualizar resumen de máquinas
+                maquina_id = uso['maquina_id']
+                if maquina_id not in reporte_data['resumen_maquinas']:
+                    reporte_data['resumen_maquinas'][maquina_id] = {
+                        'maquina_nombre': uso['maquina_nombre'],
+                        'tipo_maquina': uso['tipo_maquina'],
+                        'ingresos_totales': 0,
+                        'ingresos_restaurante': 0,
+                        'ingresos_proveedor': 0,
+                        'detalles': []
+                    }
+                
+                reporte_data['resumen_maquinas'][maquina_id]['ingresos_totales'] += ingresos_maquina
+                reporte_data['resumen_maquinas'][maquina_id]['ingresos_restaurante'] += distribucion['ingresos_restaurante']
+                reporte_data['resumen_maquinas'][maquina_id]['ingresos_proveedor'] += distribucion['ingresos_proveedor']
+                reporte_data['resumen_maquinas'][maquina_id]['detalles'].append({
+                    'qr_code': qr_code,
+                    'paquete_nombre': venta['paquete_nombre'],
+                    'ingresos_asignados': ingresos_maquina
+                })
+                
+                # Agregar a datos de tabla
+                reporte_data['datos_tabla'].append({
+                    'fecha': venta['fecha_venta'].isoformat() if venta['fecha_venta'] else 'Sin fecha',
+                    'paquete_nombre': venta['paquete_nombre'],
+                    'maquina_nombre': uso['maquina_nombre'],
+                    'tipo_maquina': uso['tipo_maquina'],
+                    'turnos_usados': uso['turnos_usados'],
+                    'ingresos_totales': ingresos_maquina,
+                    'porcentaje_restaurante': distribucion['porcentaje_restaurante'],
+                    'ingresos_restaurante': distribucion['ingresos_restaurante'],
+                    'ingresos_proveedor': distribucion['ingresos_proveedor'],
+                    'propietario': list(distribucion['distribucion_propietarios'].keys())[0] if distribucion['distribucion_propietarios'] else 'No asignado',
+                    'vendedor': venta['vendedor'],
+                    'qr_nombre': venta['qr_name']
+                })
+    
+    # Calcular estadísticas avanzadas
+    reporte_data['totales']['maquinas_utilizadas'] = len(reporte_data['resumen_maquinas'])
+    reporte_data['estadisticas_avanzadas'] = calcular_estadisticas_avanzadas(reporte_data, len(ventas))
+    
+    return reporte_data
+
+def obtener_distribucion_maquina(cursor, maquina_id, ingresos_maquina):
+    """Obtener distribución de ingresos para una máquina específica"""
+    
+    # Obtener porcentaje de restaurante
+    cursor.execute("""
+        SELECT 
+            COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
+        FROM Machine m
+        LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+        WHERE m.id = %s
+    """, (maquina_id,))
+    
+    info_maquina = cursor.fetchone()
+    porcentaje_restaurante = float(info_maquina['porcentaje_restaurante']) if info_maquina else 35.00
+    
+    # Calcular distribución restaurante/proveedor
+    ingresos_restaurante = ingresos_maquina * (porcentaje_restaurante / 100)
+    ingresos_proveedor = ingresos_maquina - ingresos_restaurante
+    
+    # Obtener propietarios y distribuir
+    cursor.execute("""
+        SELECT 
+            p.nombre,
+            mp.porcentaje_propiedad
+        FROM MaquinaPropietario mp
+        JOIN Propietarios p ON mp.propietario_id = p.id
+        WHERE mp.maquina_id = %s
+    """, (maquina_id,))
+    
+    propietarios = cursor.fetchall()
+    distribucion_propietarios = {}
+    
+    for propietario in propietarios:
+        monto_propietario = ingresos_proveedor * (float(propietario['porcentaje_propiedad']) / 100)
+        distribucion_propietarios[propietario['nombre']] = monto_propietario
+    
+    return {
+        'porcentaje_restaurante': porcentaje_restaurante,
+        'ingresos_restaurante': ingresos_restaurante,
+        'ingresos_proveedor': ingresos_proveedor,
+        'distribucion_propietarios': distribucion_propietarios
+    }
+
+def calcular_estadisticas_avanzadas(reporte_data, total_ventas):
+    """Calcular estadísticas avanzadas para el reporte"""
+    
+    totales = reporte_data['totales']
+    maquinas = reporte_data['resumen_maquinas']
+    
+    # Calcular métricas básicas
+    ticket_promedio = totales['ingresos_totales'] / total_ventas if total_ventas > 0 else 0
+    porcentaje_restaurante_promedio = (totales['ganancia_restaurante'] / totales['ingresos_totales']) * 100 if totales['ingresos_totales'] > 0 else 0
+    
+    # Calcular métricas por máquina
+    ingresos_por_maquina = [maquina['ingresos_totales'] for maquina in maquinas.values()]
+    maquina_mas_rentable = max(maquinas.values(), key=lambda x: x['ingresos_totales']) if maquinas else None
+    maquina_menos_rentable = min(maquinas.values(), key=lambda x: x['ingresos_totales']) if maquinas else None
+    
+    # Calcular eficiencia por máquina
+    eficiencia_maquinas = {}
+    for maquina_id, datos in maquinas.items():
+        ventas_maquina = len(datos['detalles'])
+        eficiencia = datos['ingresos_totales'] / ventas_maquina if ventas_maquina > 0 else 0
+        eficiencia_maquinas[maquina_id] = {
+            'nombre': datos['maquina_nombre'],
+            'eficiencia': eficiencia,
+            'ventas': ventas_maquina
+        }
+    
+    return {
+        'ticket_promedio': round(ticket_promedio, 2),
+        'porcentaje_restaurante_promedio': round(porcentaje_restaurante_promedio, 2),
+        'maquina_mas_rentable': {
+            'nombre': maquina_mas_rentable['maquina_nombre'] if maquina_mas_rentable else 'N/A',
+            'ingresos': maquina_mas_rentable['ingresos_totales'] if maquina_mas_rentable else 0
+        },
+        'maquina_menos_rentable': {
+            'nombre': maquina_menos_rentable['maquina_nombre'] if maquina_menos_rentable else 'N/A',
+            'ingresos': maquina_menos_rentable['ingresos_totales'] if maquina_menos_rentable else 0
+        },
+        'eficiencia_maquinas': eficiencia_maquinas,
+        'distribucion_tipos_maquina': calcular_distribucion_tipos_maquina(maquinas)
+    }
+
+def calcular_distribucion_tipos_maquina(maquinas):
+    """Calcular distribución de ingresos por tipo de máquina"""
+    distribucion = {}
+    
+    for maquina in maquinas.values():
+        tipo = maquina['tipo_maquina']
+        if tipo not in distribucion:
+            distribucion[tipo] = 0
+        distribucion[tipo] += maquina['ingresos_totales']
+    
+    return distribucion
+
+@app.route('/api/reportes/graficos', methods=['POST'])
+def obtener_datos_graficos():
+    """Obtener datos específicos para gráficos"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin')
+        tipo_grafico = data.get('tipo_grafico', 'distribucion')
+        
+        if not fecha_inicio or not fecha_fin:
+            return jsonify({'error': 'Fechas de inicio y fin son requeridas'}), 400
+        
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        datos_grafico = {}
+        
+        if tipo_grafico == 'distribucion':
+            datos_grafico = obtener_datos_distribucion(cursor, fecha_inicio, fecha_fin)
+        elif tipo_grafico == 'ventas_diarias':
+            datos_grafico = obtener_ventas_diarias(cursor, fecha_inicio, fecha_fin)
+        elif tipo_grafico == 'evolucion':
+            datos_grafico = obtener_evolucion_ingresos(cursor, fecha_inicio, fecha_fin)
+        elif tipo_grafico == 'paquetes':
+            datos_grafico = obtener_ventas_paquetes(cursor, fecha_inicio, fecha_fin)
+        
+        return jsonify({
+            'success': True,
+            'tipo_grafico': tipo_grafico,
+            'datos': datos_grafico
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo datos de gráficos: {str(e)}")
+        return jsonify({'error': f'Error obteniendo datos de gráficos: {str(e)}'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+def obtener_datos_distribucion(cursor, fecha_inicio, fecha_fin):
+    """Obtener datos para gráfico de distribución"""
+    cursor.execute("""
+        SELECT 
+            SUM(tp.price) as ingresos_totales,
+            COUNT(*) as total_ventas
+        FROM QRHistory qh
+        JOIN QRCode qr ON qr.code = qh.qr_code
+        JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+    """, (fecha_inicio, fecha_fin))
+    
+    totales = cursor.fetchone()
+    ingresos_totales = float(totales['ingresos_totales'] or 0)
+    
+    # Calcular distribución estimada (35% restaurante, 65% proveedores)
+    ingresos_restaurante = ingresos_totales * 0.35
+    ingresos_proveedor = ingresos_totales * 0.65
+    
+    return {
+        'labels': ['Restaurante', 'Proveedores'],
+        'datasets': [{
+            'data': [ingresos_restaurante, ingresos_proveedor],
+            'backgroundColor': ['#10b981', '#8b5cf6']
+        }]
+    }
+
+def obtener_ventas_diarias(cursor, fecha_inicio, fecha_fin):
+    """Obtener ventas diarias para gráfico de barras"""
+    cursor.execute("""
+        SELECT 
+            DATE(qh.fecha_hora) as fecha,
+            SUM(tp.price) as ingresos,
+            COUNT(*) as ventas
+        FROM QRHistory qh
+        JOIN QRCode qr ON qr.code = qh.qr_code
+        JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        GROUP BY DATE(qh.fecha_hora)
+        ORDER BY fecha
+    """, (fecha_inicio, fecha_fin))
+    
+    ventas_diarias = cursor.fetchall()
+    
+    labels = []
+    datos_ingresos = []
+    
+    for venta in ventas_diarias:
+        labels.append(venta['fecha'].strftime('%d/%m'))
+        datos_ingresos.append(float(venta['ingresos'] or 0))
+    
+    return {
+        'labels': labels,
+        'datasets': [{
+            'label': 'Ingresos Diarios',
+            'data': datos_ingresos,
+            'backgroundColor': 'rgba(59, 130, 246, 0.5)',
+            'borderColor': 'rgb(59, 130, 246)',
+            'borderWidth': 2
+        }]
+    }
+
+def obtener_evolucion_ingresos(cursor, fecha_inicio, fecha_fin):
+    """Obtener datos para gráfico de evolución"""
+    # Agrupar por semanas
+    cursor.execute("""
+        SELECT 
+            YEARWEEK(qh.fecha_hora) as semana,
+            SUM(tp.price) as ingresos_totales,
+            SUM(tp.price) * 0.35 as ingresos_restaurante,
+            SUM(tp.price) * 0.65 as ingresos_proveedor
+        FROM QRHistory qh
+        JOIN QRCode qr ON qr.code = qh.qr_code
+        JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        GROUP BY YEARWEEK(qh.fecha_hora)
+        ORDER BY semana
+        LIMIT 8
+    """, (fecha_inicio, fecha_fin))
+    
+    semanas = cursor.fetchall()
+    
+    labels = []
+    datos_totales = []
+    datos_proveedor = []
+    
+    for semana in semanas:
+        labels.append(f"Sem {len(labels) + 1}")
+        datos_totales.append(float(semana['ingresos_totales'] or 0))
+        datos_proveedor.append(float(semana['ingresos_proveedor'] or 0))
+    
+    return {
+        'labels': labels,
+        'datasets': [
+            {
+                'label': 'Ingresos Totales',
+                'data': datos_totales,
+                'borderColor': 'rgb(59, 130, 246)',
+                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'tension': 0.4,
+                'fill': True
+            },
+            {
+                'label': 'Ganancia Proveedores',
+                'data': datos_proveedor,
+                'borderColor': 'rgb(139, 92, 246)',
+                'backgroundColor': 'rgba(139, 92, 246, 0.1)',
+                'tension': 0.4,
+                'fill': True
+            }
+        ]
+    }
+
+def obtener_ventas_paquetes(cursor, fecha_inicio, fecha_fin):
+    """Obtener ventas por paquete para gráfico de dona"""
+    cursor.execute("""
+        SELECT 
+            tp.name as paquete,
+            COUNT(*) as ventas,
+            SUM(tp.price) as ingresos
+        FROM QRHistory qh
+        JOIN QRCode qr ON qr.code = qh.qr_code
+        JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        GROUP BY tp.name, tp.id
+        ORDER BY ventas DESC
+    """, (fecha_inicio, fecha_fin))
+    
+    paquetes = cursor.fetchall()
+    
+    labels = []
+    datos_ventas = []
+    
+    for paquete in paquetes:
+        labels.append(paquete['paquete'])
+        datos_ventas.append(paquete['ventas'])
+    
+    return {
+        'labels': labels,
+        'datasets': [{
+            'data': datos_ventas,
+            'backgroundColor': [
+                '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
+                '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
+            ]
+        }]
+    }
+
+@app.route('/api/reportes/estadisticas-tiempo-real', methods=['GET'])
+def obtener_estadisticas_tiempo_real():
+    """Obtener estadísticas en tiempo real para el dashboard"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        # Ventas del día actual
+        from datetime import datetime
+        hoy = datetime.now().date()
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as ventas_hoy,
+                COALESCE(SUM(tp.price), 0) as ingresos_hoy
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            WHERE DATE(qh.fecha_hora) = %s
+        """, (hoy,))
+        
+        ventas_hoy = cursor.fetchone()
+        
+        # Ventas del mes actual
+        primer_dia_mes = hoy.replace(day=1)
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as ventas_mes,
+                COALESCE(SUM(tp.price), 0) as ingresos_mes
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        """, (primer_dia_mes, hoy))
+        
+        ventas_mes = cursor.fetchone()
+        
+        # Máquinas activas
+        cursor.execute("""
+            SELECT COUNT(*) as maquinas_activas
+            FROM Machine 
+            WHERE status = 'activa'
+        """)
+        
+        maquinas_activas = cursor.fetchone()
+        
+        return jsonify({
+            'success': True,
+            'estadisticas': {
+                'ventas_hoy': ventas_hoy['ventas_hoy'] or 0,
+                'ingresos_hoy': float(ventas_hoy['ingresos_hoy'] or 0),
+                'ventas_mes': ventas_mes['ventas_mes'] or 0,
+                'ingresos_mes': float(ventas_mes['ingresos_mes'] or 0),
+                'maquinas_activas': maquinas_activas['maquinas_activas'] or 0
+            },
+            'ultima_actualizacion': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo estadísticas tiempo real: {str(e)}")
+        return jsonify({'error': f'Error obteniendo estadísticas: {str(e)}'}), 500
     finally:
         if cursor:
             cursor.close()
