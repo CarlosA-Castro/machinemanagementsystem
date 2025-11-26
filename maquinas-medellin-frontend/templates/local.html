@@ -160,6 +160,7 @@
           <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-cogs mr-2"></i>Falla Máq.
           </a>
+          
           <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-chart-line mr-2"></i>Ventas
           </a>
@@ -731,43 +732,45 @@
       },
 
       generarVistaPrevia: function() {
-        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
-        const nombre = document.getElementById('nombreQR').value.trim();
-        
-        // Validar que el nombre no esté vacío
-        if (!nombre) {
-            this.mostrarAlerta("❌ El nombre es obligatorio", "error");
-            return;
-        }
-        
-        // Generar código de ejemplo para vista previa
-        const ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
-        const numero = (ultimoNumero + 1).toString().padStart(3, '0');
-        const codigoEjemplo = `QR${numero}`;
-        
-        // Limpiar vista previa anterior
-        document.getElementById('qrPreview').innerHTML = '';
-        
-        // Generar QR de vista previa
-        new QRCode(document.getElementById('qrPreview'), {
-          text: codigoEjemplo,
-          width: 120,
-          height: 120
-        });
-        
-        // Mostrar información de vista previa
-        document.getElementById('previewText').innerHTML = `
-            <strong>Nombre:</strong> ${nombre}<br>
-            <strong>Código:</strong> ${codigoEjemplo}
-        `;
-        
-        document.getElementById('vistaPreviaQR').classList.remove('hidden');
-      },
+    const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+    const nombre = document.getElementById('nombreQR').value.trim();
+    
+    // Validar que el nombre no esté vacío
+    if (!nombre) {
+        this.mostrarAlerta("❌ El nombre es obligatorio", "error");
+        return;
+    }
+    
+    // Generar código de ejemplo para vista previa
+    const ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
+    const numero = (ultimoNumero + 1).toString().padStart(3, '0');
+    const codigoEjemplo = `QR${numero}`;
+    
+    // Limpiar vista previa anterior
+    document.getElementById('qrPreview').innerHTML = '';
+    
+    // Generar QR de vista previa MÁS GRANDE
+    new QRCode(document.getElementById('qrPreview'), {
+        text: codigoEjemplo,
+        width: 200, // Más grande para vista previa
+        height: 200,
+        correctLevel: QRCode.CorrectLevel.H
+    });
+    
+    // Mostrar información de vista previa
+    document.getElementById('previewText').innerHTML = `
+        <strong>Nombre:</strong> ${nombre}<br>
+        <strong>Código:</strong> ${codigoEjemplo}<br>
+        <small class="text-gray-600">Tamaño real en PDF: 35x35mm</small>
+    `;
+    
+    document.getElementById('vistaPreviaQR').classList.remove('hidden');
+},
 
       generarPDF: function() {
         const nombre = document.getElementById('nombreQR').value.trim();
         if (!this.validarFormulario(nombre)) return;
-        
+        // 
         this.generarDocumento(nombre, 'pdf');
       },
 
@@ -786,135 +789,167 @@
         return true;
       },
 
-      generarDocumento: function(nombre, tipo) {
-        const { jsPDF } = window.jspdf;
-        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+generarDocumento: function(nombre, tipo) {
+    const { jsPDF } = window.jspdf;
+    const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
 
-        const doc = new jsPDF();
-        let yPosition = 20;
-        let xPosition = 20;
-        let pagina = 1;
-        const codigosGenerados = [];
+    // Configuración para papel de 58mm 
+    const anchoPapel = 58; // mm
+    const altoPapel = 80; // mm 
+    
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [anchoPapel, altoPapel]
+    });
+    
+    let codigosGenerados = [];
 
-        // Pantalla de carga
-        const loadingMessage = document.createElement('div');
-        loadingMessage.innerHTML = `
-            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg p-6 text-center">
-                    <div class="loading mx-auto mb-4"></div>
-                    <p>${tipo === 'pdf' ? 'Generando PDF...' : 'Preparando QR para WhatsApp...'}</p>
-                </div>
+    // Pantalla de carga
+    const loadingMessage = document.createElement('div');
+    loadingMessage.innerHTML = `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 text-center">
+                <div class="loading mx-auto mb-4"></div>
+                <p>${tipo === 'pdf' ? 'Generando PDF...' : 'Preparando QR para WhatsApp...'}</p>
             </div>
-        `;
-        document.body.appendChild(loadingMessage);
+        </div>
+    `;
+    document.body.appendChild(loadingMessage);
 
-        // Obtener el último número utilizado desde localStorage
-        let ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
-        
-        const generarQRRecursivo = (i = 1) => {
-            if (i > cantidad) {
-                // Guardar los QR con el nombre
-                this.guardarMultiplesQRS(codigosGenerados, nombre);
-                
-                if (tipo === 'pdf') {
-                    doc.save(`codigos-qr-${nombre}.pdf`);
-                    this.mostrarAlerta("✅ PDF generado exitosamente", "success");
-                } else {
-                    // Pasar los códigos generados a la función de WhatsApp
-                    this.compartirWhatsApp(doc, nombre, codigosGenerados);
-                }
-                
-                this.cerrarModalGenerador();
-                document.body.removeChild(loadingMessage);
-                
-                // Guardar el último número utilizado para la próxima generación
-                localStorage.setItem('ultimoNumeroQR', ultimoNumero.toString());
-                return;
+    // Obtener el último número utilizado desde localStorage
+    let ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
+    
+    const generarQRRecursivo = (i = 1) => {
+        if (i > cantidad) {
+            // Guardar los QR con el nombre
+            this.guardarMultiplesQRS(codigosGenerados, nombre);
+            
+            if (tipo === 'pdf') {
+                doc.save(`codigos-qr-${nombre}.pdf`);
+                this.mostrarAlerta("✅ PDF generado exitosamente", "success");
+            } else {
+                // Pasar los códigos generados a la función de WhatsApp
+                this.compartirWhatsApp(doc, nombre, codigosGenerados);
             }
+            
+            this.cerrarModalGenerador();
+            document.body.removeChild(loadingMessage);
+            
+            // Guardar el último número utilizado para la próxima generación
+            localStorage.setItem('ultimoNumeroQR', ultimoNumero.toString());
+            return;
+        }
 
-            // Generar número secuencial único
-            ultimoNumero++;
-            const numero = ultimoNumero.toString().padStart(3, '0');
-            const codigoQR = `QR${numero}`;
-            codigosGenerados.push(codigoQR);
+        // Generar número secuencial único
+        ultimoNumero++;
+        const numero = ultimoNumero.toString().padStart(3, '0');
+        const codigoQR = `QR${numero}`;
+        codigosGenerados.push(codigoQR);
 
-            // Generar SVG temporal
+        // Si no es el primer QR, agregar nueva página
+        if (i > 1) {
+            doc.addPage();
+        }
+
+        // Generar SVG temporal con QR más grande
+        const tempDiv = document.createElement('div');
+        new QRCode(tempDiv, {
+            text: codigoQR,
+            width: 300, // Tamaño más grande para mejor calidad
+            height: 300,
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        setTimeout(() => {
+            const canvas = tempDiv.querySelector('canvas');
+            if (canvas) {
+                const img = new Image();
+                img.src = canvas.toDataURL('image/png');
+                img.onload = () => {
+                    // Calcular posiciones centradas
+                    const anchoQR = 35; // mm - más grande
+                    const altoQR = 35;  // mm
+                    
+                    const xCentrado = (anchoPapel - anchoQR) / 2;
+                    const yQR = 10; // Posición Y para el QR
+                    
+                    // Agregar QR centrado al PDF
+                    doc.addImage(img, 'PNG', xCentrado, yQR, anchoQR, altoQR);
+                    
+                    // Agregar información textual centrada
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'bold');
+                    
+                    // Centrar texto
+                    const textoNombre = `Nombre: ${nombre}`;
+                    const textoCodigo = `Código: ${codigoQR}`;
+                    const textoID = `ID: ${numero}`;
+                    
+                    const anchoTextoNombre = doc.getTextWidth(textoNombre);
+                    const anchoTextoCodigo = doc.getTextWidth(textoCodigo);
+                    const anchoTextoID = doc.getTextWidth(textoID);
+                    
+                    const xTextoNombre = (anchoPapel - anchoTextoNombre) / 2;
+                    const xTextoCodigo = (anchoPapel - anchoTextoCodigo) / 2;
+                    const xTextoID = (anchoPapel - anchoTextoID) / 2;
+                    
+                    doc.text(textoNombre, xTextoNombre, yQR + altoQR + 8);
+                    doc.text(textoCodigo, xTextoCodigo, yQR + altoQR + 12);
+                    doc.text(textoID, xTextoID, yQR + altoQR + 16);
+                    
+                    // Agregar línea separadora
+                    doc.setLineWidth(0.5);
+                    doc.line(5, yQR + altoQR + 18, anchoPapel - 5, yQR + altoQR + 18);
+                    
+                    // Información adicional más pequeña
+                    doc.setFontSize(6);
+                    doc.setFont(undefined, 'normal');
+                    const textoInfo = "Máquinas Medellín - Presentar para canjear";
+                    const anchoTextoInfo = doc.getTextWidth(textoInfo);
+                    const xTextoInfo = (anchoPapel - anchoTextoInfo) / 2;
+                    doc.text(textoInfo, xTextoInfo, yQR + altoQR + 22);
+
+                    setTimeout(() => generarQRRecursivo(i + 1), 100);
+                };
+            }
+        }, 200);
+    };
+
+    generarQRRecursivo(1);
+},
+
+      // función compartir WhatsApp
+      compartirWhatsApp: function(doc, nombre, codigosGenerados) {
+    try {
+        if (codigosGenerados.length > 0) {
+            const primerCodigo = codigosGenerados[0];
+            
+            // Crear contenedor temporal para el QR MÁS GRANDE
             const tempDiv = document.createElement('div');
             new QRCode(tempDiv, {
-                text: codigoQR,
-                width: 200,
-                height: 200,
+                text: primerCodigo,
+                width: 400, // Más grande para mejor calidad
+                height: 400,
                 correctLevel: QRCode.CorrectLevel.H
             });
 
             setTimeout(() => {
-                const svg = tempDiv.querySelector('img');
-                if (svg) {
-                    const img = new Image();
-                    img.src = svg.src;
-                    img.onload = () => {
-                        // Agregar QR al PDF
-                        doc.addImage(img, 'PNG', xPosition, yPosition, 40, 40);
-                        
-                        // Agregar información textual
-                        doc.setFontSize(10);
-                        doc.text(`Nombre: ${nombre}`, xPosition, yPosition + 50);
-                        doc.text(`Código: ${codigoQR}`, xPosition, yPosition + 55);
-                        doc.text(`ID: ${numero}`, xPosition, yPosition + 60);
-
-                        xPosition += 50;
-                        if (xPosition > 150) {
-                            xPosition = 20;
-                            yPosition += 70;
-                        }
-
-                        if (yPosition > 250 && i < cantidad) {
-                            doc.addPage();
-                            yPosition = 20;
-                            xPosition = 20;
-                            pagina++;
-                        }
-
-                        setTimeout(() => generarQRRecursivo(i + 1), 100);
-                    };
+                const canvas = tempDiv.querySelector('canvas');
+                if (canvas) {
+                    // Convertir canvas a data URL
+                    const qrDataUrl = canvas.toDataURL('image/png');
+                    
+                    // Mostrar modal para ingresar número
+                    this.mostrarModalNumeroWhatsApp(qrDataUrl, nombre, primerCodigo);
                 }
-            }, 200);
-        };
-
-        generarQRRecursivo(1);
-      },
-
-      // función compartir WhatsApp
-      compartirWhatsApp: function(doc, nombre, codigosGenerados) {
-        try {
-            if (codigosGenerados.length > 0) {
-                const primerCodigo = codigosGenerados[0];
-                
-                // Crear contenedor temporal para el QR
-                const tempDiv = document.createElement('div');
-                new QRCode(tempDiv, {
-                    text: primerCodigo,
-                    width: 300,
-                    height: 300,
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-
-                setTimeout(() => {
-                    const canvas = tempDiv.querySelector('canvas');
-                    if (canvas) {
-                        // Convertir canvas a data URL
-                        const qrDataUrl = canvas.toDataURL('image/png');
-                        
-                        // Mostrar modal para ingresar número
-                        this.mostrarModalNumeroWhatsApp(qrDataUrl, nombre, primerCodigo);
-                    }
-                }, 500);
-            }
-        } catch (error) {
-            console.error("Error compartiendo por WhatsApp:", error);
-            this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error");
+            }, 500);
         }
-      },
+    } catch (error) {
+        console.error("Error compartiendo por WhatsApp:", error);
+        this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error");
+    }
+},
 
       mostrarModalNumeroWhatsApp: function(qrDataUrl, nombre, codigo) {
         const modal = document.createElement('div');

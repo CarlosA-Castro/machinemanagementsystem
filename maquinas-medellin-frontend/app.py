@@ -47,15 +47,16 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, 'static'),
     template_folder=os.path.join(BASE_DIR, 'templates')
 )
-app.secret_key = 'maquinasmedellin_secret_key_2024'
+app.secret_key = 'maquinasmedellin_secret_key_2025'
 CORS(app)
 
 # Configuración del pool de conexiones CON ZONA HORARIA
 db_config = {
     "host": "localhost",
     "user": "root",
-    "password": "Dattebayo",
+    "password": "",
     "database": "maquinasmedellin",
+     "port": 3306,
     "pool_name": "maquinas_pool",
     "pool_size": 5
 }
@@ -4300,6 +4301,137 @@ def obtener_estadisticas_tiempo_real():
         if connection:
             connection.close()
 
+# ==================== APIS PARA ESP32-CAM ====================
+
+@app.route('/api/esp32/status', methods=['GET'])
+def esp32_status():
+    """Endpoint para verificar estado del servidor desde ESP32"""
+    return jsonify({
+        'status': 'online',
+        'message': 'Servidor funcionando correctamente',
+        'timestamp': get_colombia_time().isoformat()
+    })
+
+@app.route('/api/esp32/registrar-uso', methods=['POST'])
+def esp32_registrar_uso():
+    """Registrar uso de máquina desde ESP32"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        qr_code = data.get('qr_code')
+        machine_id = data.get('machine_id')
+        
+        if not qr_code or not machine_id:
+            return jsonify({'error': 'QR code y machine_id son requeridos'}), 400
+        
+        print(f"🎮 Registrando uso desde ESP32 - QR: {qr_code}, Máquina: {machine_id}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el QR existe y tiene turnos
+        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        qr_data = cursor.fetchone()
+        if not qr_data:
+            return jsonify({'error': 'Código QR no encontrado'}), 404
+        
+        qr_id = qr_data['id']
+        cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+        turnos_data = cursor.fetchone()
+        
+        if not turnos_data or turnos_data['turns_remaining'] <= 0:
+            return jsonify({'error': 'No hay turnos disponibles'}), 400
+        
+        # Registrar uso
+        cursor.execute("INSERT INTO TurnUsage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
+        
+        # Actualizar última fecha de uso de la máquina
+        cursor.execute("UPDATE Machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
+        
+        connection.commit()
+        
+        # Obtener información actualizada
+        cursor.execute("""
+            SELECT ut.turns_remaining, tp.name as package_name 
+            FROM UserTurns ut 
+            JOIN QRCode qr ON qr.id = ut.qr_code_id
+            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            WHERE ut.qr_code_id = %s
+        """, (qr_id,))
+        
+        info_actualizada = cursor.fetchone()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Turno utilizado correctamente',
+            'turns_remaining': info_actualizada['turns_remaining'],
+            'package_name': info_actualizada['package_name'],
+            'machine_id': machine_id
+        })
+        
+    except Exception as e:
+        print(f"❌ Error registrando uso desde ESP32: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/esp32/machine-status/<int:machine_id>', methods=['GET'])
+def esp32_machine_status(machine_id):
+    """Obtener estado de una máquina específica"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                m.id, m.name, m.status, m.errorNote,
+                l.name as location_name,
+                COUNT(tu.id) as usos_hoy
+            FROM Machine m
+            LEFT JOIN Location l ON m.location_id = l.id
+            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = CURDATE()
+            WHERE m.id = %s
+            GROUP BY m.id, m.name, m.status, m.errorNote, l.name
+        """, (machine_id,))
+        
+        machine_data = cursor.fetchone()
+        
+        if not machine_data:
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+        
+        return jsonify({
+            'machine_id': machine_data['id'],
+            'machine_name': machine_data['name'],
+            'status': machine_data['status'],
+            'location': machine_data['location_name'],
+            'usos_hoy': machine_data['usos_hoy'],
+            'error_note': machine_data['errorNote'],
+            'online': True
+        })
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo estado de máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # Iniciar servidor
 if __name__ == '__main__':
