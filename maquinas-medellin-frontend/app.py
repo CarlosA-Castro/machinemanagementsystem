@@ -51,22 +51,47 @@ app.secret_key = 'maquinasmedellin_secret_key_2025'
 CORS(app)
 
 # Configuración del pool de conexiones CON ZONA HORARIA
-db_config = {
-    "host": "localhost",
-    "user": "root",
-    "password": "",
-    "database": "maquinasmedellin",
-     "port": 3306,
-    "pool_name": "maquinas_pool",
-    "pool_size": 5
-}
-
-# Crear el pool de conexiones
 try:
+    db_config = {
+        "host": "localhost",
+        "user": "root",
+        "password": "" , 
+        "database": "maquinasmedellin",
+        "port": 3306,
+        "pool_name": "maquinas_pool",
+        "pool_size": 5
+    }
+
+    print("🔧 Intentando crear pool de conexiones...")
+    print(f"   Host: {db_config['host']}")
+    print(f"   User: {db_config['user']}")
+    print(f"   Database: {db_config['database']}")
+    print(f"   Port: {db_config['port']}")
+    
+    # Probar conexión simple primero
+    test_conn = mysql.connector.connect(
+        host=db_config["host"],
+        user=db_config["user"], 
+        password=db_config["password"],
+        database=db_config["database"],
+        port=db_config["port"]
+    )
+    print("✅ Conexión simple exitosa")
+    test_conn.close()
+    
+    # Ahora intentar el pool
     connection_pool = pooling.MySQLConnectionPool(**db_config)
     print("✅ Pool de conexiones creado exitosamente")
+    
+except mysql.connector.Error as e:
+    print(f"❌ Error MySQL específico: {e}")
+    print(f"   Error number: {e.errno}")
+    print(f"   SQL state: {e.sqlstate}")
+    connection_pool = None
 except Exception as e:
-    print(f"❌ Error creando pool de conexiones: {e}")
+    print(f"❌ Error general creando pool: {e}")
+    import traceback
+    traceback.print_exc()
     connection_pool = None
 
 # Función para obtener conexión CON ZONA HORARIA
@@ -74,17 +99,18 @@ def get_db_connection():
     try:
         if connection_pool:
             connection = connection_pool.get_connection()
-            # Configurar timezone para esta conexión
             cursor = connection.cursor()
             cursor.execute("SET time_zone = '-05:00'")
             cursor.close()
             return connection
         else:
+            # Conexión de respaldo con la MISMA contraseña
             connection = mysql.connector.connect(
                 host="localhost",
                 user="root",
-                password="Dattebayo",
-                database="maquinasmedellin"
+                password="", 
+                database="maquinasmedellin",
+                port=3306
             )
             cursor = connection.cursor()
             cursor.execute("SET time_zone = '-05:00'")
