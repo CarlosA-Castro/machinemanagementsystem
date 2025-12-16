@@ -56,7 +56,7 @@ try:
         "host": "localhost",
         "user": "root",
         "password": "" , 
-        "database": "maquinasmedellin",
+        "database": "base datos mm",
         "port": 3306,
         "pool_name": "maquinas_pool",
         "pool_size": 5
@@ -4458,6 +4458,253 @@ def esp32_machine_status(machine_id):
             cursor.close()
         if connection:
             connection.close()
+
+            # ==================== APIS PARA ESP32 y TFT ====================
+
+
+@app.route('/api/tft/machine-status/<machine_id>', methods=['GET'])
+def tft_machine_status(machine_id):
+    """Obtener estado de máquina para pantalla TFT"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                m.id, m.name, m.status, m.type,
+                l.name as location_name,
+                COUNT(tu.id) as usos_hoy
+            FROM Machine m
+            LEFT JOIN Location l ON m.location_id = l.id
+            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = CURDATE()
+            WHERE m.id = %s OR m.name = %s
+            GROUP BY m.id, m.name, m.status, m.type, l.name
+        """, (machine_id, machine_id))
+        
+        machine_data = cursor.fetchone()
+        
+        if not machine_data:
+            return jsonify({
+                'machine_id': machine_id,
+                'machine_name': 'Desconocida',
+                'status': 'offline',
+                'type': 'arcade',
+                'location': 'Sin ubicación',
+                'usos_hoy': 0,
+                'message': 'Máquina no registrada'
+            }), 200
+        
+        # Determinar mensaje según estado
+        status_messages = {
+            'activa': 'Disponible para jugar',
+            'mantenimiento': 'En mantenimiento',
+            'inactiva': 'Máquina desactivada'
+        }
+        
+        return jsonify({
+            'machine_id': machine_data['id'],
+            'machine_name': machine_data['name'],
+            'status': machine_data['status'],
+            'type': machine_data['type'],
+            'location': machine_data['location_name'],
+            'usos_hoy': machine_data['usos_hoy'],
+            'message': status_messages.get(machine_data['status'], 'Estado desconocido'),
+            'online': True,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error estado máquina TFT: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/tft/qr-info/<qr_code>', methods=['GET'])
+def tft_qr_info(qr_code):
+    """Obtener información detallada de QR para mostrar en TFT"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Buscar información completa del QR
+        cursor.execute("""
+            SELECT 
+                qr.code,
+                COALESCE(qr.qr_name, 'Usuario') as user_name,
+                ut.turns_remaining,
+                ut.total_turns,
+                tp.name as package_name,
+                tp.price as package_price,
+                tp.turns as package_turns,
+                COALESCE(u.name, 'Sistema') as seller_name,
+                MAX(qh.fecha_hora) as last_used
+            FROM QRCode qr
+            LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
+            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            LEFT JOIN QRHistory qh ON qh.qr_code = qr.code
+            LEFT JOIN Users u ON qh.user_id = u.id
+            WHERE qr.code = %s
+            GROUP BY qr.code, qr.qr_name, ut.turns_remaining, ut.total_turns, 
+                     tp.name, tp.price, tp.turns, u.name
+        """, (qr_code,))
+        
+        qr_data = cursor.fetchone()
+        
+        if not qr_data:
+            return jsonify({
+                'exists': False,
+                'message': 'QR no encontrado en el sistema'
+            })
+        
+        # Determinar mensaje según turnos disponibles
+        turns_remaining = qr_data['turns_remaining'] or 0
+        message = ""
+        
+        if turns_remaining <= 0:
+            message = "No tienes turnos disponibles. Visita la caja para recargar."
+        elif turns_remaining <= 2:
+            message = f"Solo te quedan {turns_remaining} turnos. ¡Aprovecha!"
+        else:
+            message = f"Tienes {turns_remaining} turnos disponibles. ¡Disfruta!"
+        
+        return jsonify({
+            'exists': True,
+            'qr_code': qr_data['code'],
+            'user_name': qr_data['user_name'],
+            'turns_remaining': turns_remaining,
+            'total_turns': qr_data['total_turns'] or 0,
+            'package_name': qr_data['package_name'] or 'Sin paquete',
+            'package_price': float(qr_data['package_price'] or 0),
+            'package_turns': qr_data['package_turns'] or 0,
+            'seller_name': qr_data['seller_name'],
+            'last_used': qr_data['last_used'].isoformat() if qr_data['last_used'] else None,
+            'message': message,
+            'instructions': 'Escanea el código en la máquina para usar un turno'
+        })
+        
+    except Exception as e:
+        print(f"❌ Error info QR TFT: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/tft/register-usage', methods=['POST'])
+def tft_register_usage():
+    """Registrar uso desde pantalla TFT"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        qr_code = data.get('qr_code')
+        machine_id = data.get('machine_id')
+        
+        if not qr_code or not machine_id:
+            return jsonify({'error': 'QR y máquina requeridos'}), 400
+        
+        print(f"🎮 TFT: Registrando uso - QR: {qr_code}, Máquina: {machine_id}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. Verificar QR
+        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        qr_data = cursor.fetchone()
+        if not qr_data:
+            return jsonify({
+                'success': False,
+                'message': 'QR no encontrado',
+                'error_type': 'qr_not_found'
+            })
+        
+        qr_id = qr_data['id']
+        
+        # 2. Verificar turnos
+        cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+        turns_data = cursor.fetchone()
+        if not turns_data or turns_data['turns_remaining'] <= 0:
+            return jsonify({
+                'success': False,
+                'message': 'No hay turnos disponibles',
+                'error_type': 'no_turns',
+                'turns_remaining': 0
+            })
+        
+        # 3. Registrar uso
+        cursor.execute("INSERT INTO TurnUsage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
+        
+        # 4. Actualizar máquina
+        cursor.execute("UPDATE Machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
+        
+        connection.commit()
+        
+        # 5. Obtener información actualizada
+        cursor.execute("""
+            SELECT 
+                ut.turns_remaining,
+                tp.name as package_name,
+                qr.qr_name as user_name
+            FROM UserTurns ut
+            JOIN QRCode qr ON qr.id = ut.qr_code_id
+            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            WHERE ut.qr_code_id = %s
+        """, (qr_id,))
+        
+        updated_info = cursor.fetchone()
+        
+        # Determinar mensaje
+        new_turns = updated_info['turns_remaining']
+        message = ""
+        
+        if new_turns <= 0:
+            message = "¡Último turno usado! Recarga en caja."
+        elif new_turns == 1:
+            message = "Te queda 1 turno. ¡Úsalo sabiamente!"
+        else:
+            message = f"Te quedan {new_turns} turnos. ¡Sigue divirtiéndote!"
+        
+        return jsonify({
+            'success': True,
+            'message': 'Turno usado exitosamente',
+            'turns_remaining': new_turns,
+            'user_name': updated_info['user_name'] or 'Usuario',
+            'package_name': updated_info['package_name'] or 'Sin paquete',
+            'machine_id': machine_id,
+            'usage_message': message,
+            'next_instruction': 'Puedes seguir jugando o escanear otro QR',
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error registro uso TFT: {e}")
+        if connection:
+            connection.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 
 # Iniciar servidor
 if __name__ == '__main__':
