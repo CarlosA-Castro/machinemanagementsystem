@@ -1,502 +1,643 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Devolución - Máquinas Medellín</title>
-    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Devolución - Máquinas Medellín</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
     
-    <style>
-        #particles-js {
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            top: 0;
-            left: 0;
-        }
-        .contenido {
-            position: relative;
-            z-index: 10;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 20px rgba(31, 38, 135, 0.1);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .btn-touch {
-            min-height: 44px;
-            min-width: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1rem;
-        }
-        .status-valid {
-            color: #10b981;
-            font-weight: bold;
-        }
-        .status-invalid {
-            color: #ef4444;
-            font-weight: bold;
-        }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        @media (max-width: 768px) {
-            .contenido {
-                padding: 1rem !important;
-            }
-            
-            .glass-card {
-                padding: 1rem;
-                margin-bottom: 1rem;
-            }
-            
-            h1 {
-                font-size: 1.5rem !important;
-            }
-            
-            h2 {
-                font-size: 1.25rem !important;
-            }
-            
-            .grid-cols-1 {
-                grid-template-columns: 1fr !important;
-            }
-            
-            .info-grid {
-                grid-template-columns: 1fr !important;
-                gap: 0.5rem !important;
-            }
-            
-            .btn-touch {
-                width: 100%;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .glass-card {
-                padding: 0.75rem;
-            }
-            
-            .btn-touch {
-                padding: 1rem 0.5rem;
-                font-size: 0.9rem;
-            }
-            
-            .text-lg {
-                font-size: 1rem !important;
-            }
-        }
-    </style>
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    
+    .btn-touch {
+      min-height: 44px;
+      min-width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-touch:active {
+      transform: scale(0.98);
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(5px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 20px rgba(31, 38, 135, 0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .status-valid {
+      color: #10b981;
+      font-weight: bold;
+    }
+    
+    .status-invalid {
+      color: #ef4444;
+      font-weight: bold;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive para tablets y móviles */
+    @media (max-width: 1024px) {
+      .flex.h-screen {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+      }
+      
+      aside {
+        width: 100% !important;
+        order: 1;
+      }
+      
+      main {
+        order: 2;
+        padding: 1rem !important;
+      }
+      
+      .sidebar-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 1rem;
+      }
+      
+      .sidebar-nav a {
+        flex: 1;
+        min-width: 120px;
+        text-align: center;
+        padding: 0.75rem 0.5rem !important;
+      }
+      
+      .user-info {
+        text-align: center;
+        padding: 1rem;
+      }
+      
+      .contenido {
+        padding: 1rem !important;
+      }
+      
+      .glass-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 1.5rem !important;
+      }
+      
+      h2 {
+        font-size: 1.25rem !important;
+      }
+      
+      .grid-cols-1 {
+        grid-template-columns: 1fr !important;
+      }
+      
+      .info-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.5rem !important;
+      }
+      
+      .btn-touch {
+        width: 100%;
+      }
+      
+      #html5-qrcode-container {
+        max-width: 100% !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .glass-card {
+        padding: 0.75rem;
+      }
+      
+      .btn-touch {
+        padding: 1rem 0.5rem;
+        font-size: 0.9rem;
+      }
+      
+      .text-lg {
+        font-size: 1rem !important;
+      }
+      
+      .text-3xl {
+        font-size: 1.75rem !important;
+      }
+    }
+  </style>
 </head>
-<body class="relative min-h-screen bg-gray-100 p-4">
 
-    <!-- Fondo de partículas -->
-    <div id="particles-js"></div>
+<body class="bg-[#f4f1eb] text-gray-900 font-sans relative">
+  <div id="particles-js"></div>
+
+  <div class="flex flex-col lg:flex-row min-h-screen">
+    <!-- Barra lateral responsive -->
+    <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+      <div>
+        <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+          <i class="fas fa-gamepad mr-2"></i>Máquinas Medellín
+        </div>
+        <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+          <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-home mr-2"></i>Home
+          </a>
+          <a href="/package" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-box mr-2"></i>Paquete
+          </a>
+          <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Falla Paq.
+          </a>
+          <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-cogs mr-2"></i>Falla Máq.
+          </a>
+          <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-chart-line mr-2"></i>Ventas
+          </a>
+          {% if session.get('user_role') == 'admin' %}
+          <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-user-cog mr-2"></i>Admin
+          </a>
+          {% endif %}
+        </nav>
+        <div class="mt-4 px-4 text-sm text-center lg:text-left hidden lg:block">
+          <a href="https://wa.me/573218001092" target="_blank" class="text-blue-400 hover:underline">
+            <i class="fas fa-phone-alt mr-1"></i>Soporte
+          </a>
+        </div>
+      </div>
+      <!-- Información de usuario CON HORA ACTUAL -->
+      <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+        <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+        <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
+        <div class="mb-2 text-xs text-gray-400">
+          <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+          <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+          Rol: {{ session.get('user_role', 'Usuario') }}
+        </div>
+        <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+          <i class="fas fa-sign-out-alt mr-1"></i>Salir
+        </a>
+      </div>
+    </aside>
 
     <!-- Contenido principal -->
-    <div class="contenido max-w-4xl mx-auto space-y-6">
-
+    <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+      <!-- Contenido específico de devolución -->
+      <div class="contenido max-w-4xl mx-auto space-y-6">
         <!-- Encabezado -->
         <div class="glass-card text-center">
-            <h1 class="text-3xl font-bold mb-3">
-                <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>Devolución de Turnos
-            </h1>
-            <p class="text-gray-700">
-                Sistema de devolución para paquetes con un solo uso registrado
-            </p>
+          <h1 class="text-3xl font-bold mb-3">
+            <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>Devolución de Turnos
+          </h1>
+          <p class="text-gray-700">
+            Sistema de devolución para paquetes con un solo uso registrado
+          </p>
         </div>
 
         <!-- Sección de escaneo QR -->
         <div class="glass-card">
-            <h2 class="text-xl font-semibold mb-4">
-                <i class="fas fa-qrcode text-green-600 mr-2"></i>Escanear Código QR del Paquete
-            </h2>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Código QR del paquete:</label>
-                <input 
-                    id="qr-result" 
-                    type="text" 
-                    readonly 
-                    class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-center font-medium" 
-                    placeholder="Escanea el código QR del paquete"
-                >
-            </div>
-
-            <button 
-                id="btn-scan-qr" 
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch"
+          <h2 class="text-xl font-semibold mb-4">
+            <i class="fas fa-qrcode text-green-600 mr-2"></i>Escanear Código QR del Paquete
+          </h2>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Código QR del paquete:</label>
+            <input 
+              id="qr-result" 
+              type="text" 
+              readonly 
+              class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-center font-medium" 
+              placeholder="Escanea el código QR del paquete"
             >
-                <i class="fas fa-camera"></i>
-                <span id="scanner-text">Escanear QR</span>
-            </button>
+          </div>
 
-            <!-- Contenedor para el escáner -->
-            <div id="html5-qrcode-container" class="mt-4 hidden mx-auto w-full max-w-md">
-                <div id="html5-qrcode-scanner" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
-            </div>
+          <button 
+            id="btn-scan-qr" 
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch"
+          >
+            <i class="fas fa-camera"></i>
+            <span id="scanner-text">Escanear QR</span>
+          </button>
+
+          <!-- Contenedor para el escáner -->
+          <div id="html5-qrcode-container" class="mt-4 hidden mx-auto w-full max-w-md">
+            <div id="html5-qrcode-scanner" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
+          </div>
         </div>
 
         <!-- Información del paquete -->
         <div id="package-info" class="glass-card hidden">
-            <h2 class="text-xl font-semibold mb-4">
-                <i class="fas fa-info-circle text-purple-600 mr-2"></i>Información del Paquete
-            </h2>
+          <h2 class="text-xl font-semibold mb-4">
+            <i class="fas fa-info-circle text-purple-600 mr-2"></i>Información del Paquete
+          </h2>
+          
+          <div class="info-grid grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <h3 class="font-semibold text-gray-700">Código QR:</h3>
+              <p id="package-code" class="font-mono text-blue-600 text-sm"></p>
+            </div>
             
-            <div class="info-grid grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <h3 class="font-semibold text-gray-700">Código QR:</h3>
-                    <p id="package-code" class="font-mono text-blue-600 text-sm"></p>
-                </div>
-                
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <h3 class="font-semibold text-gray-700">Turnos usados:</h3>
-                    <p id="package-usage" class="font-bold"></p>
-                </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <h3 class="font-semibold text-gray-700">Paquete:</h3>
-                    <p id="package-name" class="text-sm"></p>
-                </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <h3 class="font-semibold text-gray-700">Turnos totales:</h3>
-                    <p id="package-turns" class=""></p>
-                </div>
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <h3 class="font-semibold text-gray-700">Turnos usados:</h3>
+              <p id="package-usage" class="font-bold"></p>
             </div>
 
-            <div class="bg-gray-50 p-3 rounded-lg mb-4">
-                <h3 class="font-semibold text-gray-700">Estado para devolución:</h3>
-                <p id="package-status" class=""></p>
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <h3 class="font-semibold text-gray-700">Paquete:</h3>
+              <p id="package-name" class="text-sm"></p>
             </div>
 
-            <!-- Botones de acción -->
-            <div id="action-buttons" class="flex flex-col sm:flex-row gap-2 justify-center">
-                <button 
-                    id="btn-process-refund" 
-                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg btn-touch hidden"
-                >
-                    <i class="fas fa-check-circle mr-2"></i> Devolver 1 Turno
-                </button>
-                
-                <button 
-                    id="btn-cancel" 
-                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg btn-touch"
-                >
-                    <i class="fas fa-sync mr-2"></i> Escanear otro
-                </button>
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <h3 class="font-semibold text-gray-700">Turnos totales:</h3>
+              <p id="package-turns" class=""></p>
             </div>
+          </div>
+
+          <div class="bg-gray-50 p-3 rounded-lg mb-4">
+            <h3 class="font-semibold text-gray-700">Estado para devolución:</h3>
+            <p id="package-status" class=""></p>
+          </div>
+
+          <!-- Botones de acción -->
+          <div id="action-buttons" class="flex flex-col sm:flex-row gap-2 justify-center">
+            <button 
+              id="btn-process-refund" 
+              class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg btn-touch hidden"
+            >
+              <i class="fas fa-check-circle mr-2"></i> Devolver 1 Turno
+            </button>
+            
+            <button 
+              id="btn-cancel" 
+              class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg btn-touch"
+            >
+              <i class="fas fa-sync mr-2"></i> Escanear otro
+            </button>
+          </div>
         </div>
 
         <!-- Mensaje de resultado -->
         <div id="result-message" class="glass-card hidden">
-            <h2 class="text-xl font-semibold mb-3">
-                <i class="fas fa-clipboard-list text-orange-600 mr-2"></i>Resultado
-            </h2>
-            <div id="result-content" class="p-3 rounded-lg bg-gray-50"></div>
+          <h2 class="text-xl font-semibold mb-3">
+            <i class="fas fa-clipboard-list text-orange-600 mr-2"></i>Resultado
+          </h2>
+          <div id="result-content" class="p-3 rounded-lg bg-gray-50"></div>
         </div>
+      </div>
+    </main>
+  </div>
 
-        <!-- Botón Volver -->
-        <div class="text-center">
-            <a href="{{ url_for('mostrar_local') }}" class="inline-block px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium btn-touch">
-                <i class="fas fa-arrow-left mr-2"></i> Volver al Local
-            </a>
-        </div>
-    </div>
-
-    <script>
-        // Namespace para PackFailure App
-        const PackFailureApp = {
-            init: function() {
-                // Configuración de partículas optimizada
-                particlesJS('particles-js', {
-                    particles: {
-                        number: { value: 50, density: { enable: true, value_area: 600 } },
-                        color: { value: '#3b82f6' },
-                        shape: { type: 'circle' },
-                        opacity: { value: 0.3, random: true },
-                        size: { value: 2, random: true },
-                        line_linked: { enable: true, distance: 100, color: '#3b82f6', opacity: 0.2, width: 1 },
-                        move: { enable: true, speed: 0.6, direction: 'none', random: true }
-                    },
-                    interactivity: {
-                        detect_on: 'canvas',
-                        events: {
-                            onhover: { enable: true, mode: 'grab' },
-                            onclick: { enable: true, mode: 'push' },
-                            resize: true
-                        },
-                        modes: {
-                            grab: { distance: 100, line_linked: { opacity: 0.6 } },
-                            push: { particles_nb: 2 }
-                        }
-                    },
-                    retina_detect: true
-                });
-
-                // Variables para el escáner QR
-                this.html5QrCodeScanner = null;
-                this.scannerActivo = false;
-                this.paqueteActual = null;
-                
-                // Elementos del DOM
-                this.qrResult = document.getElementById('qr-result');
-                this.btnScanQR = document.getElementById('btn-scan-qr');
-                this.scannerText = document.getElementById('scanner-text');
-                this.html5QrcodeContainer = document.getElementById('html5-qrcode-container');
-                this.packageInfo = document.getElementById('package-info');
-                this.resultMessage = document.getElementById('result-message');
-                this.resultContent = document.getElementById('result-content');
-                this.btnProcessRefund = document.getElementById('btn-process-refund');
-                this.btnCancel = document.getElementById('btn-cancel');
-
-                // Event listeners
-                this.btnScanQR.addEventListener('click', () => this.toggleScanner());
-                this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion());
-                this.btnCancel.addEventListener('click', () => this.limpiarFormulario());
-
-                console.log("PackFailure App inicializada correctamente");
+  <script>
+    // Namespace para PackFailure App
+    const PackFailureApp = {
+      init: function() {
+        // Configuración de partículas optimizada
+        particlesJS('particles-js', {
+          particles: {
+            number: { value: 50, density: { enable: true, value_area: 600 } },
+            color: { value: '#3b82f6' },
+            shape: { type: 'circle' },
+            opacity: { value: 0.3, random: true },
+            size: { value: 2, random: true },
+            line_linked: { enable: true, distance: 100, color: '#3b82f6', opacity: 0.2, width: 1 },
+            move: { enable: true, speed: 0.6, direction: 'none', random: true }
+          },
+          interactivity: {
+            detect_on: 'canvas',
+            events: {
+              onhover: { enable: true, mode: 'grab' },
+              onclick: { enable: true, mode: 'push' },
+              resize: true
             },
-
-            toggleScanner: function() {
-                if (this.scannerActivo) {
-                    this.detenerScanner();
-                    this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-                    return;
-                }
-                
-                this.iniciarScanner();
-                this.scannerText.innerHTML = '<div class="loading mr-2"></div> Escaneando...';
-            },
-
-            iniciarScanner: function() {
-                if (!this.html5QrCodeScanner) {
-                    this.html5QrCodeScanner = new Html5QrcodeScanner(
-                        "html5-qrcode-scanner",
-                        { fps: 10, qrbox: { width: 250, height: 250 } },
-                        false
-                    );
-
-                    this.html5QrCodeScanner.render(
-                        (decodedText) => {
-                            this.qrResult.value = decodedText;
-                            this.detenerScanner();
-                            this.html5QrcodeContainer.classList.add("hidden");
-                            this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-                            this.scannerActivo = false;
-                            
-                            // Verificar el paquete con la API real
-                            this.verificarPaquete(decodedText);
-                        },
-                        (errorMessage) => {
-                            console.log("Error escaneando:", errorMessage);
-                        }
-                    );
-                }
-                
-                this.html5QrcodeContainer.classList.remove("hidden");
-                this.scannerActivo = true;
-            },
-
-            detenerScanner: function() {
-                if (this.html5QrCodeScanner) {
-                    this.html5QrCodeScanner.clear().catch(error => {
-                        console.error("Error al detener el escáner:", error);
-                    });
-                }
-                this.html5QrcodeContainer.classList.add("hidden");
-                this.scannerActivo = false;
-            },
-
-            // Función para verificar el paquete con la API real
-            verificarPaquete: async function(codigoQR) {
-                try {
-                    this.mostrarCargando();
-                    
-                    const response = await fetch(`/api/verificar-qr/${codigoQR}`, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.existe) {
-                        const turnosUsados = data.total_turns - data.turns_remaining;
-                        
-                        this.paqueteActual = {
-                            codigo: codigoQR,
-                            turns_remaining: data.turns_remaining,
-                            total_turns: data.total_turns,
-                            turnos_usados: turnosUsados,
-                            package_name: data.package_name,
-                            validoParaDevolucion: turnosUsados === 1 // Solo válido si tiene exactamente 1 uso
-                        };
-                        
-                        this.mostrarInformacionPaquete();
-                    } else {
-                        this.mostrarError("❌ QR no encontrado", "El código QR escaneado no existe en el sistema.");
-                    }
-                } catch (error) {
-                    console.error("Error verificando paquete:", error);
-                    this.mostrarError("❌ Error de conexión", "No se pudo verificar el paquete. Intenta nuevamente.");
-                }
-            },
-
-            mostrarInformacionPaquete: function() {
-                document.getElementById('package-code').textContent = this.paqueteActual.codigo;
-                document.getElementById('package-usage').textContent = `${this.paqueteActual.turnos_usados} de ${this.paqueteActual.total_turns}`;
-                document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'N/A';
-                document.getElementById('package-turns').textContent = this.paqueteActual.total_turns;
-                
-                const statusElement = document.getElementById('package-status');
-                
-                if (this.paqueteActual.validoParaDevolucion) {
-                    statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
-                    statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete tiene exactamente 1 uso registrado.</p>';
-                    this.btnProcessRefund.classList.remove('hidden');
-                } else {
-                    if (this.paqueteActual.turnos_usados === 0) {
-                        statusElement.innerHTML = '<span class="status-invalid">❌ NO USADO</span>';
-                        statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete no ha sido usado aún.</p>';
-                    } else {
-                        statusElement.innerHTML = '<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>';
-                        statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">Este paquete tiene ${this.paqueteActual.turnos_usados} usos registrados.</p>`;
-                    }
-                    this.btnProcessRefund.classList.add('hidden');
-                }
-                
-                this.packageInfo.classList.remove('hidden');
-                this.resultMessage.classList.add('hidden');
-            },
-
-            procesarDevolucion: async function() {
-                try {
-                    this.mostrarCargandoProcesando();
-                    
-                    // 1. Guardar en el historial
-                    await fetch('/api/guardar-qr', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            qr_code: this.paqueteActual.codigo
-                        })
-                    });
-                    
-                    // 2. Procesar la devolución con la API real
-                    const response = await fetch('/api/reportar-falla', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            qr_code: this.paqueteActual.codigo,
-                            machine_id: 0, // ID genérico para devolución
-                            machine_name: 'Devolución Manual',
-                            turnos_devueltos: 1
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        this.resultContent.innerHTML = `
-                            <div class="text-center">
-                                <div class="text-4xl mb-4">✅</div>
-                                <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
-                                <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
-                                <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
-                                <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
-                            </div>
-                        `;
-                    } else {
-                        throw new Error(result.error || 'Error desconocido');
-                    }
-                    
-                    this.resultMessage.classList.remove('hidden');
-                    this.btnProcessRefund.classList.add('hidden');
-                } catch (error) {
-                    console.error("Error procesando devolución:", error);
-                    this.mostrarError("❌ Error en devolución", "No se pudo procesar la devolución: " + error.message);
-                }
-            },
-
-            limpiarFormulario: function() {
-                this.qrResult.value = "";
-                this.packageInfo.classList.add('hidden');
-                this.resultMessage.classList.add('hidden');
-                this.paqueteActual = null;
-            },
-
-            mostrarCargando: function() {
-                this.resultContent.innerHTML = `
-                    <div class="text-center">
-                        <div class="loading mx-auto mb-4"></div>
-                        <p class="text-gray-700">Verificando paquete...</p>
-                    </div>
-                `;
-                this.resultMessage.classList.remove('hidden');
-            },
-
-            mostrarCargandoProcesando: function() {
-                this.resultContent.innerHTML = `
-                    <div class="text-center">
-                        <div class="loading mx-auto mb-4"></div>
-                        <p class="text-gray-700">Procesando devolución...</p>
-                    </div>
-                `;
-                this.resultMessage.classList.remove('hidden');
-            },
-
-            mostrarError: function(titulo, mensaje) {
-                this.resultContent.innerHTML = `
-                    <div class="text-center">
-                        <div class="text-4xl mb-4">❌</div>
-                        <h3 class="text-xl font-semibold text-red-600 mb-2">${titulo}</h3>
-                        <p class="text-gray-700">${mensaje}</p>
-                    </div>
-                `;
-                this.resultMessage.classList.remove('hidden');
+            modes: {
+              grab: { distance: 100, line_linked: { opacity: 0.6 } },
+              push: { particles_nb: 2 }
             }
-        };
-
-        // Inicializar la aplicación cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            PackFailureApp.init();
+          },
+          retina_detect: true
         });
-    </script>
+
+        // Inicializar hora en tiempo real
+        this.actualizarHora();
+        setInterval(() => this.actualizarHora(), 1000);
+
+        // Variables para el escáner QR
+        this.html5QrCodeScanner = null;
+        this.scannerActivo = false;
+        this.paqueteActual = null;
+        
+        // Elementos del DOM
+        this.qrResult = document.getElementById('qr-result');
+        this.btnScanQR = document.getElementById('btn-scan-qr');
+        this.scannerText = document.getElementById('scanner-text');
+        this.html5QrcodeContainer = document.getElementById('html5-qrcode-container');
+        this.packageInfo = document.getElementById('package-info');
+        this.resultMessage = document.getElementById('result-message');
+        this.resultContent = document.getElementById('result-content');
+        this.btnProcessRefund = document.getElementById('btn-process-refund');
+        this.btnCancel = document.getElementById('btn-cancel');
+
+        // Event listeners
+        this.btnScanQR.addEventListener('click', () => this.toggleScanner());
+        this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion());
+        this.btnCancel.addEventListener('click', () => this.limpiarFormulario());
+
+        console.log("PackFailure App inicializada correctamente");
+      },
+
+      // Función para actualizar la hora en tiempo real
+      actualizarHora: function() {
+        const ahora = new Date();
+        const opciones = { 
+          timeZone: 'America/Bogota',
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        };
+        
+        const opcionesFecha = {
+          timeZone: 'America/Bogota',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        };
+        
+        const hora = ahora.toLocaleTimeString('es-CO', opciones);
+        const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+        
+        // Actualizar en sidebar
+        const horaSidebar = document.getElementById('horaActualSidebar');
+        const fechaSidebar = document.getElementById('fechaActualSidebar');
+        
+        if (horaSidebar) horaSidebar.textContent = hora;
+        if (fechaSidebar) fechaSidebar.textContent = fecha;
+      },
+
+      toggleScanner: function() {
+        if (this.scannerActivo) {
+          this.detenerScanner();
+          this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+          return;
+        }
+        
+        this.iniciarScanner();
+        this.scannerText.innerHTML = '<div class="loading mr-2"></div> Escaneando...';
+      },
+
+      iniciarScanner: function() {
+        if (!this.html5QrCodeScanner) {
+          this.html5QrCodeScanner = new Html5QrcodeScanner(
+            "html5-qrcode-scanner",
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            false
+          );
+
+          this.html5QrCodeScanner.render(
+            (decodedText) => {
+              this.qrResult.value = decodedText;
+              this.detenerScanner();
+              this.html5QrcodeContainer.classList.add("hidden");
+              this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+              this.scannerActivo = false;
+              
+              // Verificar el paquete con la API real
+              this.verificarPaquete(decodedText);
+            },
+            (errorMessage) => {
+              console.log("Error escaneando:", errorMessage);
+            }
+          );
+        }
+        
+        this.html5QrcodeContainer.classList.remove("hidden");
+        this.scannerActivo = true;
+      },
+
+      detenerScanner: function() {
+        if (this.html5QrCodeScanner) {
+          this.html5QrCodeScanner.clear().catch(error => {
+            console.error("Error al detener el escáner:", error);
+          });
+        }
+        this.html5QrcodeContainer.classList.add("hidden");
+        this.scannerActivo = false;
+      },
+
+      // Función para verificar el paquete con la API real
+      verificarPaquete: async function(codigoQR) {
+        try {
+          this.mostrarCargando();
+          
+          const response = await fetch(`/api/verificar-qr/${codigoQR}`, {
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Error en la respuesta del servidor');
+          }
+          
+          const data = await response.json();
+          
+          if (data.existe) {
+            const turnosUsados = data.total_turns - data.turns_remaining;
+            
+            this.paqueteActual = {
+              codigo: codigoQR,
+              turns_remaining: data.turns_remaining,
+              total_turns: data.total_turns,
+              turnos_usados: turnosUsados,
+              package_name: data.package_name,
+              validoParaDevolucion: turnosUsados === 1 // Solo válido si tiene exactamente 1 uso
+            };
+            
+            this.mostrarInformacionPaquete();
+          } else {
+            this.mostrarError("❌ QR no encontrado", "El código QR escaneado no existe en el sistema.");
+          }
+        } catch (error) {
+          console.error("Error verificando paquete:", error);
+          this.mostrarError("❌ Error de conexión", "No se pudo verificar el paquete. Intenta nuevamente.");
+        }
+      },
+
+      mostrarInformacionPaquete: function() {
+        document.getElementById('package-code').textContent = this.paqueteActual.codigo;
+        document.getElementById('package-usage').textContent = `${this.paqueteActual.turnos_usados} de ${this.paqueteActual.total_turns}`;
+        document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'N/A';
+        document.getElementById('package-turns').textContent = this.paqueteActual.total_turns;
+        
+        const statusElement = document.getElementById('package-status');
+        
+        if (this.paqueteActual.validoParaDevolucion) {
+          statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
+          statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete tiene exactamente 1 uso registrado.</p>';
+          this.btnProcessRefund.classList.remove('hidden');
+        } else {
+          if (this.paqueteActual.turnos_usados === 0) {
+            statusElement.innerHTML = '<span class="status-invalid">❌ NO USADO</span>';
+            statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete no ha sido usado aún.</p>';
+          } else {
+            statusElement.innerHTML = '<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>';
+            statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">Este paquete tiene ${this.paqueteActual.turnos_usados} usos registrados.</p>`;
+          }
+          this.btnProcessRefund.classList.add('hidden');
+        }
+        
+        this.packageInfo.classList.remove('hidden');
+        this.resultMessage.classList.add('hidden');
+      },
+
+      procesarDevolucion: async function() {
+        try {
+          this.mostrarCargandoProcesando();
+          
+          // 1. Guardar en el historial
+          await fetch('/api/guardar-qr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+              qr_code: this.paqueteActual.codigo
+            })
+          });
+          
+          // 2. Procesar la devolución con la API real
+          const response = await fetch('/api/reportar-falla', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+              qr_code: this.paqueteActual.codigo,
+              machine_id: 0, // ID genérico para devolución
+              machine_name: 'Devolución Manual',
+              turnos_devueltos: 1
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Error en la respuesta del servidor');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            this.resultContent.innerHTML = `
+              <div class="text-center">
+                <div class="text-4xl mb-4">✅</div>
+                <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
+                <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
+                <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
+                <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
+              </div>
+            `;
+          } else {
+            throw new Error(result.error || 'Error desconocido');
+          }
+          
+          this.resultMessage.classList.remove('hidden');
+          this.btnProcessRefund.classList.add('hidden');
+        } catch (error) {
+          console.error("Error procesando devolución:", error);
+          this.mostrarError("❌ Error en devolución", "No se pudo procesar la devolución: " + error.message);
+        }
+      },
+
+      limpiarFormulario: function() {
+        this.qrResult.value = "";
+        this.packageInfo.classList.add('hidden');
+        this.resultMessage.classList.add('hidden');
+        this.paqueteActual = null;
+      },
+
+      mostrarCargando: function() {
+        this.resultContent.innerHTML = `
+          <div class="text-center">
+            <div class="loading mx-auto mb-4"></div>
+            <p class="text-gray-700">Verificando paquete...</p>
+          </div>
+        `;
+        this.resultMessage.classList.remove('hidden');
+      },
+
+      mostrarCargandoProcesando: function() {
+        this.resultContent.innerHTML = `
+          <div class="text-center">
+            <div class="loading mx-auto mb-4"></div>
+            <p class="text-gray-700">Procesando devolución...</p>
+          </div>
+        `;
+        this.resultMessage.classList.remove('hidden');
+      },
+
+      mostrarError: function(titulo, mensaje) {
+        this.resultContent.innerHTML = `
+          <div class="text-center">
+            <div class="text-4xl mb-4">❌</div>
+            <h3 class="text-xl font-semibold text-red-600 mb-2">${titulo}</h3>
+            <p class="text-gray-700">${mensaje}</p>
+          </div>
+        `;
+        this.resultMessage.classList.remove('hidden');
+      }
+    };
+
+    // Inicializar la aplicación cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+      PackFailureApp.init();
+    });
+  </script>
 </body>
 </html>

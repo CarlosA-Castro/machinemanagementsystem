@@ -10,6 +10,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+
   <!-- Librerías para generar QR y PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -87,7 +88,7 @@
     }
     #btnEscanearQR.scanning:hover {
       background-color: #b91c1c;
-      border-color: #b91c1c;
+      border-color: #b42727;
     }
     #btnEscanearQR.scanning::after {
       content: '';
@@ -206,6 +207,7 @@
   <div id="particles-js"></div>
 
   <div class="flex flex-col lg:flex-row min-h-screen">
+
     <!-- Barra lateral responsive -->
     <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
@@ -241,6 +243,7 @@
           </a>
         </div>
       </div>
+
       <!-- Información de usuario CON HORA ACTUAL -->
       <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
@@ -262,33 +265,73 @@
       <p class="mb-4 lg:mb-6 text-base lg:text-lg"><i class="fas fa-store mr-2"></i>Local: <strong>{{ local_usuario }}</strong></p>
 
       <!-- Contador Global Y HORA ACTUAL -->
-      <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <h2 class="text-lg lg:text-xl font-bold mb-2"><i class="fas fa-chart-bar mr-2"></i>Contador Global de QR</h2>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base">Total de códigos QR vendidos hoy:</p>
-            <div id="contadorGlobal" class="text-2xl lg:text-3xl font-bold text-blue-600">0</div>
-          </div>
-          <div>
-            <h2 class="text-lg lg:text-xl font-bold mb-2"><i class="fas fa-shopping-cart mr-2"></i>Ventas del Día</h2>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base">Total de paquetes vendidos hoy:</p>
-            <div id="ventasDia" class="text-2xl lg:text-3xl font-bold text-green-600">0</div>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base mt-2">Valor total de ventas:</p>
-            <div id="valorTotalVentas" class="text-xl lg:text-2xl font-bold text-purple-600">$0</div>
-          </div>
-          <div>
-            <h2 class="text-lg lg:text-xl font-bold mb-2"><i class="fas fa-clock mr-2"></i>Hora Actual</h2>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base">Hora local (Colombia):</p>
-            <div id="horaActual" class="text-2xl lg:text-3xl font-bold text-purple-600">
-              Cargando...
-            </div>
-            <div id="fechaActual" class="text-sm text-gray-500 mt-1">
-              Cargando...
-            </div>
-          </div>
-        </div>
-      </div>
+     <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
+    <!-- QR VENDIDOS HOY (con paquete) -->
+    <div>
+      <h2 class="text-lg lg:text-xl font-bold mb-2">
+        <i class="fas fa-chart-bar mr-2"></i>QR Vendidos Hoy
+      </h2>
+      <p class="text-gray-600 mb-2 text-sm lg:text-base">
+        Códigos QR con paquete asignado hoy:
+      </p>
+      <div id="contadorGlobal" class="text-2xl lg:text-3xl font-bold text-blue-600">0</div>
+      <p class="text-xs text-gray-500 mt-1">
+        <i class="fas fa-info-circle mr-1"></i>Solo QR con paquete asignado
+      </p>
+    </div>
+    
+    <!-- VENTAS DEL DÍA -->
+    <div>
+      <h2 class="text-lg lg:text-xl font-bold mb-2">
+        <i class="fas fa-shopping-cart mr-2"></i>Ventas del Día
+      </h2>
+      <p class="text-gray-600 mb-2 text-sm lg:text-base">
+        Paquetes vendidos hoy:
+      </p>
+      <div id="ventasDia" class="text-2xl lg:text-3xl font-bold text-green-600">0</div>
+      <p class="text-gray-600 mb-2 text-sm lg:text-base mt-2">
+        Valor total de ventas:
+      </p>
+      <div id="valorTotalVentas" class="text-xl lg:text-2xl font-bold text-purple-600">$0</div>
+      <p class="text-xs text-gray-500 mt-1">
+        <i class="fas fa-info-circle mr-1"></i>Se actualiza al asignar paquetes
+      </p>
+    </div>
+    
+    <!-- HORA ACTUAL -->
+    <div>
+      <h2 class="text-lg lg:text-xl font-bold mb-2">
+        <i class="fas fa-clock mr-2"></i>Hora Actual
+      </h2>
+      <p class="text-gray-600 mb-2 text-sm lg:text-base">
+        Hora local (Colombia):
+      </p>
+      <div id="horaActual" class="text-2xl lg:text-3xl font-bold text-purple-600">
+        Cargando...
+      </div>
+      <div id="fechaActual" class="text-sm text-gray-500 mt-1">
+        Cargando...
+      </div>
+      <p class="text-xs text-gray-500 mt-2">
+        <i class="fas fa-map-marker-alt mr-1"></i>Zona horaria: Bogotá (UTC-5)
+      </p>
+    </div>
+  </div>
+  
+  <!-- Indicador de estado -->
+  <div class="mt-4 pt-4 border-t border-gray-200">
+    <div class="flex items-center justify-between text-xs text-gray-600">
+      <div class="flex items-center">
+        <div class="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+      </div>
+      <div>
+        <span id="ultimaActualizacion">Última actualización: -</span>
+      </div>
+    </div>
+  </div>
+</div>
       <!-- Modal para detalles QR -->
       <div id="modalQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-4 lg:p-6 modal-content">
@@ -517,122 +560,276 @@
       },
 
       // Función para actualizar los contadores
-      actualizarContadores: function() {
-        this.actualizarContadorGlobal();
-        this.actualizarVentasDia();
-      },
+  actualizarContadores: function() {
+  console.log("🔄 Actualizando contadores...");
+  
+  // Primero actualizar contador global
+  this.actualizarContadorGlobal();
+  
+  // Luego actualizar ventas del día
+  this.actualizarVentasDia();
+  
+  // Actualizar hora de última actualización
+  const ahora = new Date();
+  const horaActualizada = ahora.toLocaleTimeString('es-CO', { 
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  document.getElementById('ultimaActualizacion').textContent = 
+    `Última actualización: ${horaActualizada}`;
+},
 
       // Función para actualizar el contador global de QR vendidos
-      actualizarContadorGlobal: function() {
-        fetch('/api/contador-global-vendidos', {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-          .then(res => {
-            if (!res.ok) throw new Error('Error en la respuesta del servidor');
-            return res.json();
-          })
-          .then(data => {
-            document.getElementById('contadorGlobal').innerText = data.total_qr || 0;
-          })
-          .catch(err => {
-            console.error("Error obteniendo contador global:", err);
-          });
-      },
+actualizarContadorGlobal: function() {
+  fetch('/api/contador-global-vendidos', {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Error en la respuesta del servidor');
+      return res.json();
+    })
+    .then(data => {
+      const contadorElement = document.getElementById('contadorGlobal');
+      if (contadorElement) {
+        contadorElement.innerText = data.total_qr || 0;
+        console.log(`📊 QR vendidos hoy: ${data.total_qr || 0}`);
+      }
+    })
+    .catch(err => {
+      console.error(" Error obteniendo contador global vendidos:", err);
+      // Mostrar error en el contador
+      const contadorElement = document.getElementById('contadorGlobal');
+      if (contadorElement) {
+        contadorElement.innerText = "Error";
+        contadorElement.className = "text-2xl lg:text-3xl font-bold text-red-600";
+      }
+    });
+},
 
       // Función para actualizar las ventas del día CON VALOR TOTAL
-      actualizarVentasDia: function() {
-        const hoy = new Date().toISOString().split('T')[0];
-        
-        fetch(`/api/ventas-dia?fecha=${hoy}`, {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+     actualizarVentasDia: function() {
+  const hoy = new Date().toISOString().split('T')[0];
+  
+  console.log(`📈 Solicitando ventas del día: ${hoy}`);
+  
+  fetch(`/api/ventas-dia?fecha=${hoy}`, {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Error en la respuesta del servidor');
+      return res.json();
+    })
+    .then(data => {
+      // Actualizar número de ventas
+      const ventasElement = document.getElementById('ventasDia');
+      if (ventasElement) {
+        ventasElement.innerText = data.total_ventas || 0;
+      }
+      
+      // Formatear y mostrar el valor total
+      const valorTotal = data.valor_total || 0;
+      const valorFormateado = new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+      }).format(valorTotal);
+      
+      const valorElement = document.getElementById('valorTotalVentas');
+      if (valorElement) {
+        valorElement.innerText = valorFormateado;
+      }
+      
+      console.log(`💰 Ventas del día: ${data.total_ventas || 0} paquetes, valor: ${valorFormateado}`);
+    })
+    .catch(err => {
+      console.error(" Error obteniendo ventas del día:", err);
+      // Mostrar errores en los elementos
+      const ventasElement = document.getElementById('ventasDia');
+      const valorElement = document.getElementById('valorTotalVentas');
+      
+      if (ventasElement) {
+        ventasElement.innerText = "Error";
+        ventasElement.className = "text-2xl lg:text-3xl font-bold text-red-600";
+      }
+      
+      if (valorElement) {
+        valorElement.innerText = "$Error";
+        valorElement.className = "text-xl lg:text-2xl font-bold text-red-600";
+      }
+    });
+},
+
+     // Función para cargar el historial de QR - VERSIÓN ROBUSTA
+cargarHistorialQR: function() {
+  console.log("🔄 Cargando historial de QR...");
+  
+  fetch("/api/historial-completo", {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Error HTTP: ${res.status} ${res.statusText}`);
+      }
+      return res.json();
+    })
+    .then(data => {
+      console.log("📊 Datos recibidos del backend:", data);
+      
+      const tabla = document.getElementById("tablaRegistros");
+      if (!tabla) {
+        console.error(" No se encontró la tabla con id 'tablaRegistros'");
+        return;
+      }
+      
+      // Limpiar tabla
+      tabla.innerHTML = "";
+
+      // Manejar errores del backend
+      if (data.error) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="6" class="p-4 text-center text-red-500">
+              <i class="fas fa-exclamation-triangle mr-2"></i>
+              Error: ${data.error}
+            </td>
+          </tr>`;
+        return;
+      }
+
+      // Verificar que sea un array
+      if (!Array.isArray(data)) {
+        console.error(" Los datos no son un array:", typeof data, data);
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="6" class="p-4 text-center text-yellow-600">
+              <i class="fas fa-exclamation-circle mr-2"></i>
+              Formato de datos incorrecto. Recargue la página.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      // Si no hay datos
+      if (data.length === 0) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="6" class="p-4 text-center text-gray-500">
+              <i class="fas fa-history mr-2"></i>
+              No hay QR escaneados aún. Escanea tu primer QR.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      // Procesar cada registro
+      data.forEach((item, index) => {
+        try {
+          // VALORES POR DEFECTO SEGUROS
+          const qrCode = item.qr_code || 'N/A';
+          const qrName = item.qr_name || item.user_name || 'Sin nombre';
+          const esVenta = item.es_venta || false; // Ya viene del backend
+          
+          // Formatear fecha y hora
+          let fechaFormateada = 'N/A';
+          let horaFormateada = '';
+          
+          if (item.fecha_hora) {
+            try {
+              const fechaStr = String(item.fecha_hora);
+              // Intentar diferentes formatos
+              if (fechaStr.includes('T')) {
+                // Formato ISO
+                const fechaObj = new Date(fechaStr);
+                fechaFormateada = fechaObj.toLocaleDateString('es-CO');
+                horaFormateada = fechaObj.toLocaleTimeString('es-CO', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+              } else {
+                // Formato ya separado
+                const [fecha, hora] = fechaStr.split(' ');
+                fechaFormateada = fecha || 'N/A';
+                horaFormateada = hora ? hora.substring(0, 8) : ''; // Tomar solo HH:MM:SS
+              }
+            } catch (e) {
+              console.warn("⚠️ Error formateando fecha:", e);
+              fechaFormateada = 'N/A';
+            }
           }
-        })
-          .then(res => {
-            if (!res.ok) throw new Error('Error en la respuesta del servidor');
-            return res.json();
-          })
-          .then(data => {
-            document.getElementById('ventasDia').innerText = data.total_ventas || 0;
-            
-            // Formatear el valor total con separadores de miles y símbolo de peso
-            const valorTotal = data.valor_total || 0;
-            const valorFormateado = new Intl.NumberFormat('es-CO', {
-              style: 'currency',
-              currency: 'COP',
-              minimumFractionDigits: 0
-            }).format(valorTotal);
-            
-            document.getElementById('valorTotalVentas').innerText = valorFormateado;
-          })
-          .catch(err => {
-            console.error("Error obteniendo ventas del día:", err);
-          });
-      },
 
-      // Función para cargar el historial de QR
-      cargarHistorialQR: function() {
-        fetch("/api/historial-completo", {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-          .then(res => {
-            if (!res.ok) throw new Error('Error en la respuesta del servidor');
-            return res.json();
-          })
-          .then(data => {
-            const tabla = document.getElementById("tablaRegistros");
-            if (!tabla) return;
-            
-            tabla.innerHTML = "";
-
-            if (data.error) {
-              tabla.innerHTML = `<tr><td colspan="6" class="p-3 text-center">Error cargando historial</td></tr>`;
-              return;
-            }
-
-            if (data.length === 0) {
-              tabla.innerHTML = `<tr><td colspan="6" class="p-3 text-center">No hay QR escaneados aún</td></tr>`;
-              return;
-            }
-
-            data.forEach((item, index) => {
-              // Usar las fechas ya formateadas desde el servidor o formatear localmente
-              const fechaCompleta = this.formatearFechaColombia(item.fecha_hora);
-              const fechaParts = fechaCompleta.split(' ');
-              
-              const fila = document.createElement('tr');
-              fila.className = 'history-row';
-              fila.innerHTML = `
-                <td class="p-3">${index + 1}</td>
-                <td class="p-3 font-mono text-sm">${item.qr_code}</td>
-                <td class="p-3">${item.qr_name || 'Sin nombre'}</td>
-                <td class="p-3">${item.fecha_formateada || fechaParts[0]}</td>
-                <td class="p-3">${item.hora_formateada || (fechaParts[1] || '')}</td>
-                <td class="p-3 space-x-2">
-                  <button onclick="LocalApp.verDetalles('${item.qr_code}')" class="text-blue-600 hover:text-blue-800 text-xs btn-touch">
-                    <i class="fas fa-info-circle mr-1"></i>Detalles
-                  </button>
-                  <button onclick="LocalApp.reimprimirQR('${item.qr_code}', '${item.qr_name || ''}')" class="text-green-600 hover:text-green-800 text-xs btn-touch">
-                    <i class="fas fa-print mr-1"></i>Imprimir
-                  </button>
-                </td>
-              `;
-              tabla.appendChild(fila);
-            });
-          })
-          .catch(err => {
-            console.error("Error cargando historial inicial:", err);
-            const tabla = document.getElementById("tablaRegistros");
-            if (tabla) {
-              tabla.innerHTML = `<tr><td colspan="6" class="p-3 text-center">Error al cargar historial</td></tr>`;
-            }
-          });
-      },
-
+          // Determinar badge (usar el cálculo del backend)
+          const ventaBadge = esVenta ? 
+            '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2">VENTA</span>' : 
+            '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded ml-2">ESCANEO</span>';
+          
+          // Crear fila
+          const fila = document.createElement('tr');
+          fila.className = 'history-row border-b border-gray-100 hover:bg-gray-50';
+          fila.innerHTML = `
+            <td class="p-3 text-center">${index + 1}</td>
+            <td class="p-3 font-mono text-sm">${qrCode}</td>
+            <td class="p-3">
+              <div class="flex items-center">
+                <span>${qrName}</span>
+                ${ventaBadge}
+              </div>
+            </td>
+            <td class="p-3">${fechaFormateada}</td>
+            <td class="p-3">${horaFormateada}</td>
+            <td class="p-3">
+              <div class="flex space-x-2">
+                <button onclick="LocalApp.verDetalles('${qrCode.replace(/'/g, "\\'")}')" 
+                        class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
+                  <i class="fas fa-info-circle mr-1"></i>Detalles
+                </button>
+                ${esVenta ? `
+                <button onclick="LocalApp.reimprimirQR('${qrCode.replace(/'/g, "\\'")}', '${qrName.replace(/'/g, "\\'")}')" 
+                        class="text-green-600 hover:text-green-800 text-xs btn-touch px-2 py-1 rounded bg-green-50 hover:bg-green-100 transition">
+                  <i class="fas fa-print mr-1"></i>Imprimir
+                </button>
+                ` : ''}
+              </div>
+            </td>
+          `;
+          
+          tabla.appendChild(fila);
+          
+        } catch (error) {
+          console.error(`❌ Error procesando registro ${index}:`, error, item);
+        }
+      });
+      
+      console.log(`✅ Historial cargado: ${data.length} registros`);
+    })
+    .catch(err => {
+      console.error("❌ Error cargando historial:", err);
+      const tabla = document.getElementById("tablaRegistros");
+      if (tabla) {
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="6" class="p-4 text-center text-red-500">
+              <div class="mb-2">
+                <i class="fas fa-times-circle text-xl"></i>
+              </div>
+              <div class="font-semibold">Error al cargar historial</div>
+              <div class="text-sm mt-1">${err.message}</div>
+              <button onclick="LocalApp.cargarHistorialQR()" 
+                      class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                <i class="fas fa-sync-alt mr-2"></i>Reintentar
+              </button>
+            </td>
+          </tr>`;
+      }
+    });
+},
       // Función para reimprimir un QR
       reimprimirQR: function(codigoQR, nombre) {
         const { jsPDF } = window.jspdf;
@@ -884,64 +1081,78 @@
       },
 
       guardarEnHistorial: function(codigo) {
-        const tabla = document.getElementById("tablaRegistros");
-        
-        // Crear nueva fila
-        const fila = tabla.insertRow(1);
-        fila.className = "history-row";
-        const fecha = new Date();
+  const tabla = document.getElementById("tablaRegistros");
+  
+  // Crear nueva fila
+  const fila = tabla.insertRow(1);
+  fila.className = "history-row";
+  const fecha = new Date();
 
-        fila.innerHTML = `
-          <td class="p-3">1</td>
-          <td class="p-3 font-mono text-sm">${codigo}</td>
-          <td class="p-3">Cargando...</td>
-          <td class="p-3">${fecha.toLocaleDateString()}</td>
-          <td class="p-3">${fecha.toLocaleTimeString()}</td>
-          <td class="p-3 space-x-2">
-            <button onclick="LocalApp.verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs btn-touch">
-              <i class="fas fa-info-circle mr-1"></i>Detalles
-            </button>
-            <button onclick="LocalApp.reimprimirQR('${codigo}', 'Cargando...')" class="text-green-600 hover:text-green-800 text-xs btn-touch">
-              <i class="fas fa-print mr-1"></i>Imprimir
-            </button>
-          </td>
-        `;
+  fila.innerHTML = `
+    <td class="p-3">1</td>
+    <td class="p-3 font-mono text-sm">${codigo}</td>
+    <td class="p-3">Cargando...</td>
+    <td class="p-3">${fecha.toLocaleDateString('es-CO')}</td>
+    <td class="p-3">${fecha.toLocaleTimeString('es-CO', {hour12: false})}</td>
+    <td class="p-3 space-x-2">
+      <button onclick="LocalApp.verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs btn-touch">
+        <i class="fas fa-info-circle mr-1"></i>Detalles
+      </button>
+    </td>
+  `;
 
-        // Renumerar las filas existentes
-        const rows = tabla.getElementsByTagName('tr');
-        for (let i = 2; i < rows.length; i++) {
-          rows[i].getElementsByTagName('td')[0].textContent = i;
-        }
+  // Renumerar las filas existentes
+  const rows = tabla.getElementsByTagName('tr');
+  for (let i = 2; i < rows.length; i++) {
+    rows[i].getElementsByTagName('td')[0].textContent = i;
+  }
 
-        // Guardar en historial en la BD
-        fetch("/api/guardar-qr", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest"
-          },
-          body: JSON.stringify({ qr_code: codigo })
-        })
-        .then(res => {
-          if (!res.ok) throw new Error('Error en la respuesta del servidor');
-          return res.json();
-        })
-        .then(data => {
-          console.log("Historial guardado:", data);
-          // Actualizar el nombre en la fila si está disponible
-          if (data.qr_name) {
-            fila.cells[2].textContent = data.qr_name;
-          }
-          // Recargar el historial completo para asegurar consistencia
-          this.cargarHistorialQR();
-          // Actualizar contadores
-          this.actualizarContadores();
-        })
-        .catch(err => {
-          console.error("Error guardando historial:", err);
-          this.mostrarAlerta("Error al guardar en el historial", "error");
-        });
-      },
+  // 
+  fetch("/api/guardar-qr", {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest"
+    },
+    body: JSON.stringify({ 
+      qr_code: codigo,
+      es_venta_real: false  // 
+    })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Error en la respuesta del servidor');
+    return res.json();
+  })
+  .then(data => {
+    console.log("Historial guardado (escaneo informativo):", data);
+    
+    // Actualizar el nombre en la fila si está disponible
+    if (data.qr_name) {
+      fila.cells[2].textContent = data.qr_name;
+    }
+    
+    // Solo agregar botón de imprimir si es venta (pero aquí nunca será venta real)
+    if (data.es_venta) {
+      const accionesCelda = fila.cells[5];
+      accionesCelda.innerHTML += `
+        <button onclick="LocalApp.reimprimirQR('${codigo}', '${data.qr_name || ''}')" 
+                class="text-green-600 hover:text-green-800 text-xs btn-touch">
+          <i class="fas fa-print mr-1"></i>Imprimir
+        </button>
+      `;
+    }
+    
+    // Recargar el historial completo
+    this.cargarHistorialQR();
+    
+    // **SOLO actualizar contador global, NO ventas**
+    setTimeout(() => this.actualizarContadorGlobal(), 1000);
+  })
+  .catch(err => {
+    console.error("Error guardando historial:", err);
+    this.mostrarAlerta("Error al guardar en el historial", "error");
+  });
+},
 
       // Funcionalidad del escáner QR - CORREGIDA
       html5QrcodeScanner: null,
@@ -1446,12 +1657,12 @@
                 // Actualizar contadores
                 this.actualizarContadores();
             } else {
-                this.mostrarAlerta("❌ Error al guardar los QR: " + (data.error || 'Error desconocido'), "error");
+                this.mostrarAlerta(" Error al guardar los QR: " + (data.error || 'Error desconocido'), "error");
             }
         })
         .catch(err => {
             console.error("Error guardando QRs:", err);
-            this.mostrarAlerta("❌ Error de conexión al guardar los QR", "error");
+            this.mostrarAlerta(" Error de conexión al guardar los QR", "error");
         });
       },
 

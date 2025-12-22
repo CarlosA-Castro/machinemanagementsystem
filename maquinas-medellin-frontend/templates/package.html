@@ -1,945 +1,1095 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Ingreso de Paquete - Máquinas Medellín</title>
-    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}?v=2" type="image/jpg">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Ingreso de Paquete - Máquinas Medellín</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}?v=2" type="image/jpg">
 
-    <style>
-      #particles-js {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 0;
-        width: 100%;
-        height: 100%;
-      }
-      .contenido {
-        position: relative;
-        z-index: 10;
-      }
-      .btn-touch {
-        min-height: 44px;
-        min-width: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .btnPaquete {
-        background-color: #e5e7eb;
-        color: #374151;
-        padding: 1rem 0.5rem;
-        border-radius: 0.75rem;
-        font-weight: 600;
-        transition: all 0.2s;
-        min-height: 90px;
-        display: flex;
+  <!-- Tailwind CSS y librerías -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    
+    .btn-touch {
+      min-height: 44px;
+      min-width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-touch:active {
+      transform: scale(0.98);
+    }
+    
+    .btnPaquete {
+      background-color: #e5e7eb;
+      color: #374151;
+      padding: 1rem 0.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    
+    .btnPaquete:hover, .btnPaquete:active {
+      background-color: #93c5fd;
+      transform: translateY(-2px);
+      border-color: #3b82f6;
+    }
+    
+    .btnPaquete.disabled {
+      background-color: #d1d5db;
+      color: #9ca3af;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .btnPaquete.disabled:hover {
+      background-color: #d1d5db;
+      transform: none;
+      border-color: transparent;
+    }
+    
+    .paquete-info {
+      font-size: 0.75rem;
+      margin-top: 0.4rem;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.2;
+    }
+    
+    .qr-info-card {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .qr-info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .qr-info-label {
+      font-weight: 600;
+      color: #4b5563;
+    }
+    
+    .qr-info-value {
+      font-weight: 500;
+    }
+    
+    .qr-with-package {
+      border-color: #ef4444;
+      background-color: #fef2f2;
+    }
+    
+    .qr-without-package {
+      border-color: #10b981;
+      background-color: #f0fdf4;
+    }
+    
+    .qr-input-container {
+      position: relative;
+    }
+    
+    .qr-input-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    
+    .qr-code-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .qr-name-badge {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .qr-id-badge {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive para tablets y móviles */
+    @media (max-width: 1024px) {
+      .flex.h-screen {
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid transparent;
-      }
-      .btnPaquete:hover, .btnPaquete:active {
-        background-color: #93c5fd;
-        transform: translateY(-2px);
-        border-color: #3b82f6;
-      }
-      .btnPaquete.disabled {
-        background-color: #d1d5db;
-        color: #9ca3af;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-      .btnPaquete.disabled:hover {
-        background-color: #d1d5db;
-        transform: none;
-        border-color: transparent;
-      }
-      .paquete-info {
-        font-size: 0.75rem;
-        margin-top: 0.4rem;
-        color: #6b7280;
-        text-align: center;
-        line-height: 1.2;
+        height: auto;
+        min-height: 100vh;
       }
       
-      .qr-info-card {
-        background-color: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.75rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
+      aside {
+        width: 100% !important;
+        order: 1;
       }
       
-      .qr-info-item {
+      main {
+        order: 2;
+        padding: 1rem !important;
+      }
+      
+      .sidebar-nav {
         display: flex;
-        justify-content: space-between;
-        padding: 0.25rem 0;
-        border-bottom: 1px solid #f3f4f6;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 1rem;
       }
       
-      .qr-info-label {
-        font-weight: 600;
-        color: #4b5563;
+      .sidebar-nav a {
+        flex: 1;
+        min-width: 120px;
+        text-align: center;
+        padding: 0.75rem 0.5rem !important;
       }
       
-      .qr-info-value {
-        font-weight: 500;
+      .user-info {
+        text-align: center;
+        padding: 1rem;
       }
       
-      .qr-with-package {
-        border-color: #ef4444;
-        background-color: #fef2f2;
+      #paquetes-container {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.75rem !important;
       }
       
-      .qr-without-package {
-        border-color: #10b981;
-        background-color: #f0fdf4;
+      .btnPaquete {
+        padding: 0.75rem 0.25rem;
+        min-height: 80px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #paquetes-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
       }
       
-      /* Estilos para el campo de QR con información mejorada */
-      .qr-input-container {
-        position: relative;
+      .btnPaquete {
+        font-size: 0.9rem;
+        min-height: 75px;
+      }
+      
+      .paquete-info {
+        font-size: 0.7rem;
       }
       
       .qr-input-info {
-        display: flex;
-        align-items: center;
+        flex-direction: column;
+        align-items: flex-start;
         gap: 0.5rem;
-        padding: 0.75rem;
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        margin-top: 0.5rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #paquetes-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
       }
       
-      .qr-code-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
+      .btnPaquete {
+        padding: 0.5rem 0.25rem;
+        min-height: 70px;
+        font-size: 0.85rem;
       }
       
-      .qr-name-badge {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
+      .paquete-info {
+        font-size: 0.65rem;
       }
       
+      .contenido {
+        padding: 1rem !important;
+      }
+      
+      .qr-code-badge,
+      .qr-name-badge,
       .qr-id-badge {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
       }
-      
-      @media (max-width: 1024px) {
-        .contenido {
-          padding: 1.5rem !important;
-          margin: 1rem !important;
-        }
-        
-        #paquetes-container {
-          grid-template-columns: repeat(3, 1fr) !important;
-          gap: 0.75rem !important;
-        }
-        
-        .btnPaquete {
-          padding: 0.75rem 0.25rem;
-          min-height: 80px;
-        }
-        
-        h1 {
-          font-size: 1.75rem !important;
-        }
-      }
-      
-      @media (max-width: 768px) {
-        #paquetes-container {
-          grid-template-columns: repeat(2, 1fr) !important;
-          gap: 0.5rem !important;
-        }
-        
-        .btnPaquete {
-          font-size: 0.9rem;
-          min-height: 75px;
-        }
-        
-        .paquete-info {
-          font-size: 0.7rem;
-        }
-        
-        h1 {
-          font-size: 1.5rem !important;
-        }
-        
-        h2 {
-          font-size: 1.25rem !important;
-        }
-        
-        .qr-input-info {
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.5rem;
-        }
-      }
-      
-      @media (max-width: 480px) {
-        #paquetes-container {
-          grid-template-columns: repeat(2, 1fr) !important;
-          gap: 0.5rem !important;
-        }
-        
-        .btnPaquete {
-          padding: 0.5rem 0.25rem;
-          min-height: 70px;
-          font-size: 0.85rem;
-        }
-        
-        .paquete-info {
-          font-size: 0.65rem;
-        }
-        
-        .contenido {
-          padding: 1rem !important;
-        }
-        
-        .qr-code-badge,
-        .qr-name-badge,
-        .qr-id-badge {
-          font-size: 0.75rem;
-          padding: 0.2rem 0.6rem;
-        }
-      }
-      
-      .loading {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(255,255,255,.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-      }
-      
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-    </style>
-  </head>
-  <body class="relative min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    }
+  </style>
+</head>
 
-    <!-- Fondo partículas MEJORADO -->
-    <div id="particles-js"></div>
+<body class="bg-[#f4f1eb] text-gray-900 font-sans relative">
+  <div id="particles-js"></div>
 
-    <!-- Contenido principal -->
-    <div class="contenido bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl space-y-6">
+  <div class="flex flex-col lg:flex-row min-h-screen">
+    <!-- Barra lateral responsive (IGUAL que en local.html) -->
+    <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
-        <h1 class="text-2xl font-bold flex items-center gap-2 justify-center">
-          <i class="fas fa-box text-blue-600"></i> Ingreso de Paquete
-        </h1>
-        <p class="text-sm text-gray-600 mt-2 text-center">
-          Escanee un código QR para asignar turnos a un paquete
-        </p>
-      </div>
-
-      <!-- Información del QR escaneado -->
-      <div id="qrInfo" class="hidden">
-        <!-- Se llenará dinámicamente con la info del QR -->
-      </div>
-
-      <!-- Código QR -->
-      <div id="reader" class="mt-4 hidden mx-auto w-full max-w-md"></div>
-      <div class="space-y-3">
-        <label class="block font-semibold text-gray-700">Código QR escaneado:</label>
-        <div class="qr-input-container">
-          <input
-            id="codigoQR"
-            type="text"
-            readonly
-            placeholder="Escanea un código QR..."
-            class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-center font-medium focus:outline-none focus:border-blue-500"
-          />
-          <!-- Información del QR (ID y Nombre) -->
-          <div id="qrInputInfo" class="qr-input-info hidden">
-            <div class="flex flex-wrap gap-2">
-              <span id="qrCodeBadge" class="qr-code-badge">
-                <i class="fas fa-qrcode"></i>
-                <span id="qrCodeValue">QR000</span>
-              </span>
-              <span id="qrNameBadge" class="qr-name-badge">
-                <i class="fas fa-user"></i>
-                <span id="qrNameValue">Nombre</span>
-              </span>
-              <span id="qrIdBadge" class="qr-id-badge">
-                <i class="fas fa-hashtag"></i>
-                <span id="qrIdValue">ID: 000</span>
-              </span>
-            </div>
-          </div>
+        <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+          <i class="fas fa-gamepad mr-2"></i>Máquinas Medellín
         </div>
-        <button
-          id="btnEscanear"
-          class="bg-blue-600 hover:bg-blue-700 text-white w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch transition-colors"
-        >
-          <i class="fas fa-camera"></i>
-          <span id="scanner-text">Escanear QR</span>
-        </button>
-      </div>
-
-      <!-- Selección de paquete -->
-      <div>
-        <h2 class="text-xl font-bold mb-4 flex items-center gap-2 justify-center">
-          <i class="fas fa-tags text-green-600"></i> Seleccione el paquete:
-        </h2>
-        <div id="paquetes-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          <!-- Paquetes se cargarán aquí -->
+        <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+          <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-home mr-2"></i>Home
+          </a>
+          <a href="/package" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-box mr-2"></i>Paquete
+          </a>
+          <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Falla Paq.
+          </a>
+          <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-cogs mr-2"></i>Falla Máq.
+          </a>
+          <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-chart-line mr-2"></i>Ventas
+          </a>
+          {% if session.get('user_role') == 'admin' %}
+          <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+            <i class="fas fa-user-cog mr-2"></i>Admin
+          </a>
+          {% endif %}
+        </nav>
+        <div class="mt-4 px-4 text-sm text-center lg:text-left hidden lg:block">
+          <a href="https://wa.me/573218001092" target="_blank" class="text-blue-400 hover:underline">
+            <i class="fas fa-phone-alt mr-1"></i>Soporte
+          </a>
         </div>
       </div>
-
-      <!-- Loading indicator -->
-      <div id="loading" class="hidden text-center py-4">
-        <div class="loading mx-auto mb-2"></div>
-        <p class="text-gray-600 text-sm">Procesando...</p>
-      </div>
-      
-      <div class="text-center pt-4">
-        <a href="{{ url_for('mostrar_local') }}" onclick="PackageApp.forceReload()" class="text-blue-600 hover:text-blue-800 btn-touch inline-block">
-          <i class="fas fa-arrow-left mr-2"></i>Volver al Local
+      <!-- Información de usuario CON HORA ACTUAL -->
+      <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+        <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+        <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
+        <div class="mb-2 text-xs text-gray-400">
+          <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+          <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+          Rol: {{ session.get('user_role', 'Usuario') }}
+        </div>
+        <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+          <i class="fas fa-sign-out-alt mr-1"></i>Salir
         </a>
       </div>
-    </div>
+    </aside>
 
-    <!-- Modal de confirmación -->
-    <div id="modalConfirmacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl text-center space-y-4">
-        <h3 class="text-xl font-bold text-gray-800">¿Confirmar ingreso?</h3>
-        <div id="qrInfoModal" class="text-left text-sm bg-gray-50 p-3 rounded-lg mb-2">
-          <!-- Información del QR en el modal -->
+    <!-- Contenido principal (reestructurado) -->
+    <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+      <!-- Contenedor del contenido específico de package -->
+      <div class="contenido bg-white rounded-xl shadow-2xl p-6 w-full space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold flex items-center gap-2 justify-center">
+            <i class="fas fa-box text-blue-600"></i> Ingreso de Paquete
+          </h1>
+          <p class="text-sm text-gray-600 mt-2 text-center">
+            Escanee un código QR para asignar turnos a un paquete
+          </p>
         </div>
-        <p class="text-gray-700">Paquete <span id="paqueteSeleccionado" class="font-bold text-blue-600"></span></p>
-        <p class="font-semibold text-green-600" id="precioPaquete">Costo: $0 - 0 turnos</p>
-        <div class="flex flex-col sm:flex-row gap-3 justify-center mt-4">
-          <button onclick="PackageApp.cerrarModal()" class="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium btn-touch flex-1">
-            <i class="fas fa-times mr-2"></i>Cancelar
+
+        <!-- Información del QR escaneado -->
+        <div id="qrInfo" class="hidden">
+          <!-- Se llenará dinámicamente con la info del QR -->
+        </div>
+
+        <!-- Código QR -->
+        <div id="reader" class="mt-4 hidden mx-auto w-full max-w-md"></div>
+        <div class="space-y-3">
+          <label class="block font-semibold text-gray-700">Código QR escaneado:</label>
+          <div class="qr-input-container">
+            <input
+              id="codigoQR"
+              type="text"
+              readonly
+              placeholder="Escanea un código QR..."
+              class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-center font-medium focus:outline-none focus:border-blue-500"
+            />
+            <!-- Información del QR (ID y Nombre) -->
+            <div id="qrInputInfo" class="qr-input-info hidden">
+              <div class="flex flex-wrap gap-2">
+                <span id="qrCodeBadge" class="qr-code-badge">
+                  <i class="fas fa-qrcode"></i>
+                  <span id="qrCodeValue">QR000</span>
+                </span>
+                <span id="qrNameBadge" class="qr-name-badge">
+                  <i class="fas fa-user"></i>
+                  <span id="qrNameValue">Nombre</span>
+                </span>
+                <span id="qrIdBadge" class="qr-id-badge">
+                  <i class="fas fa-hashtag"></i>
+                  <span id="qrIdValue">ID: 000</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            id="btnEscanear"
+            class="bg-blue-600 hover:bg-blue-700 text-white w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch transition-colors"
+          >
+            <i class="fas fa-camera"></i>
+            <span id="scanner-text">Escanear QR</span>
           </button>
-          <button onclick="PackageApp.confirmarIngreso()" class="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium btn-touch flex-1">
-            <i class="fas fa-check mr-2"></i>Confirmar
-          </button>
+        </div>
+
+        <!-- Selección de paquete -->
+        <div>
+          <h2 class="text-xl font-bold mb-4 flex items-center gap-2 justify-center">
+            <i class="fas fa-tags text-green-600"></i> Seleccione el paquete:
+          </h2>
+          <div id="paquetes-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <!-- Paquetes se cargarán aquí -->
+          </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading" class="hidden text-center py-4">
+          <div class="loading mx-auto mb-2"></div>
+          <p class="text-gray-600 text-sm">Procesando...</p>
         </div>
       </div>
+    </main>
+  </div>
+
+  <!-- Modal de confirmación -->
+  <div id="modalConfirmacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl text-center space-y-4">
+      <h3 class="text-xl font-bold text-gray-800">¿Confirmar ingreso?</h3>
+      <div id="qrInfoModal" class="text-left text-sm bg-gray-50 p-3 rounded-lg mb-2">
+        <!-- Información del QR en el modal -->
+      </div>
+      <p class="text-gray-700">Paquete <span id="paqueteSeleccionado" class="font-bold text-blue-600"></span></p>
+      <p class="font-semibold text-green-600" id="precioPaquete">Costo: $0 - 0 turnos</p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+        <button onclick="PackageApp.cerrarModal()" class="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium btn-touch flex-1">
+          <i class="fas fa-times mr-2"></i>Cancelar
+        </button>
+        <button onclick="PackageApp.confirmarIngreso()" class="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium btn-touch flex-1">
+          <i class="fas fa-check mr-2"></i>Confirmar
+        </button>
+      </div>
     </div>
+  </div>
 
-    <script>
-      // Namespace para Package App
-      const PackageApp = {
-        init: function() {
-          // Configuración de partículas MEJORADA (más visibles)
-          particlesJS('particles-js', {
-            particles: {
-              number: { 
-                value: 80, // Más partículas
-                density: { 
-                  enable: true, 
-                  value_area: 800 
-                }
-              },
-              color: { 
-                value: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'] // Variedad de colores
-              },
-              shape: { 
-                type: 'circle',
-                stroke: {
-                  width: 0,
-                  color: '#000000'
-                }
-              },
-              opacity: { 
-                value: 0.6, // Más opaco
-                random: true,
-                anim: { 
-                  enable: true, 
-                  speed: 1, 
-                  opacity_min: 0.2, 
-                  sync: false 
-                }
-              },
-              size: { 
-                value: 4, // Tamaño mayor
-                random: true,
-                anim: { 
-                  enable: true, 
-                  speed: 2, 
-                  size_min: 0.5, 
-                  sync: false 
-                }
-              },
-              line_linked: { 
+  <script>
+    // Namespace para Package App
+    const PackageApp = {
+      init: function() {
+        // Configuración de partículas MEJORADA (más visibles)
+        particlesJS('particles-js', {
+          particles: {
+            number: { 
+              value: 80, // Más partículas
+              density: { 
                 enable: true, 
-                distance: 120, 
-                color: '#3b82f6', 
-                opacity: 0.4, // Más visible
-                width: 1.5 // Más ancho
-              },
-              move: { 
-                enable: true, 
-                speed: 1.2, // Más rápido
-                direction: 'none', 
-                random: true,
-                straight: false,
-                out_mode: 'out',
-                bounce: false,
-                attract: { 
-                  enable: false, 
-                  rotateX: 600, 
-                  rotateY: 1200 
-                }
+                value_area: 800 
               }
             },
-            interactivity: {
-              detect_on: 'canvas',
-              events: {
-                onhover: { 
-                  enable: true, 
-                  mode: 'grab' 
-                },
-                onclick: { 
-                  enable: true, 
-                  mode: 'push' 
-                },
-                resize: true
-              },
-              modes: {
-                grab: { 
-                  distance: 150, 
-                  line_linked: { 
-                    opacity: 0.8 
-                  } 
-                },
-                push: { 
-                  particles_nb: 4 
-                },
-                remove: { 
-                  particles_nb: 2 
-                }
+            color: { 
+              value: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'] // Variedad de colores
+            },
+            shape: { 
+              type: 'circle',
+              stroke: {
+                width: 0,
+                color: '#000000'
               }
             },
-            retina_detect: true
-          });
-
-          // Cargar paquetes al iniciar
-          this.cargarPaquetes();
-          
-          // Event listeners
-          document.getElementById('btnEscanear').addEventListener('click', () => this.toggleScanner());
-          
-          console.log("Package App inicializada correctamente");
-        },
-
-        // Variables
-        paquetesData: [],
-        paqueteTemp: null,
-        codigoQR: '',
-        html5QrCode: null,
-        scannerActivo: false,
-        qrInfoData: null, // Información del QR escaneado
-
-        forceReload: function() {
-          window.location.reload(true);
-        },
-
-        // Cargar paquetes desde la base de datos
-        cargarPaquetes: async function() {
-          try {
-            const response = await fetch('/api/paquetes', {
-              headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+            opacity: { 
+              value: 0.6, // Más opaco
+              random: true,
+              anim: { 
+                enable: true, 
+                speed: 1, 
+                opacity_min: 0.2, 
+                sync: false 
               }
-            });
-            
-            if (!response.ok) {
-              throw new Error('Error en la respuesta del servidor');
-            }
-            
-            const paquetes = await response.json();
-            
-            this.paquetesData = paquetes;
-            this.renderizarPaquetes(paquetes);
-          } catch (error) {
-            console.error('Error cargando paquetes:', error);
-            this.mostrarAlerta('Error al cargar los paquetes', 'error');
-          }
-        },
-
-        // Renderizar botones de paquetes
-        renderizarPaquetes: function(paquetes) {
-          const container = document.getElementById('paquetes-container');
-          container.innerHTML = '';
-          
-          paquetes.forEach(paquete => {
-            const button = document.createElement('button');
-            button.className = 'btnPaquete btn-touch';
-            button.id = `paquete-${paquete.id}`;
-            button.innerHTML = `
-              <div class="font-bold">P${paquete.id}</div>
-              <div class="paquete-info">
-                ${paquete.turns} turnos<br>
-                $${paquete.price.toLocaleString()}
-              </div>
-            `;
-            button.onclick = () => this.abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
-            container.appendChild(button);
-          });
-        },
-
-        // Verificar si el QR ya tiene paquete
-        verificarQR: async function(codigoQR) {
-          try {
-            document.getElementById('scanner-text').innerHTML = '<div class="loading"></div> Verificando...';
-            
-            const response = await fetch(`/api/verificar-qr/${codigoQR}`, {
-              headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+            },
+            size: { 
+              value: 4, // Tamaño mayor
+              random: true,
+              anim: { 
+                enable: true, 
+                speed: 2, 
+                size_min: 0.5, 
+                sync: false 
               }
-            });
-            
-            if (!response.ok) {
-              throw new Error('Error en la respuesta del servidor');
-            }
-            
-            const qrData = await response.json();
-            
-            // Guardar la información del QR
-            this.qrInfoData = qrData;
-            
-            // Mostrar información del QR
-            this.mostrarInfoQR(qrData);
-            
-            // Actualizar los badges con ID y nombre
-            this.actualizarBadgesQR(qrData);
-            
-            // Habilitar/deshabilitar paquetes según si ya tiene paquete
-            this.actualizarEstadoPaquetes(qrData.tiene_paquete);
-            
-            document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-            
-            return qrData;
-            
-          } catch (error) {
-            console.error('Error verificando QR:', error);
-            document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-            
-            // Si el QR no existe, permitir asignar paquete
-            if (error.message.includes('404') || error.message.includes('no encontrado')) {
-              this.qrInfoData = { existe: false, tiene_paquete: false, qr_code: codigoQR };
-              this.mostrarInfoQR({ existe: false, tiene_paquete: false, qr_code: codigoQR });
-              this.actualizarBadgesQR({ existe: false, qr_code: codigoQR });
-              this.actualizarEstadoPaquetes(false);
-              return { existe: false, tiene_paquete: false };
-            }
-            
-            this.mostrarAlerta('Error verificando QR', 'error');
-            return null;
-          }
-        },
-
-        // Actualizar badges con información del QR
-        actualizarBadgesQR: function(qrData) {
-          const qrInputInfo = document.getElementById('qrInputInfo');
-          const codigoQR = document.getElementById('codigoQR');
-          
-          if (qrData.existe) {
-            // Mostrar información del QR
-            qrInputInfo.classList.remove('hidden');
-            
-            // Extraer número del código QR (ej: QR001 -> 001)
-            let qrNumber = '000';
-            if (qrData.qr_code) {
-              const match = qrData.qr_code.match(/\d+/);
-              qrNumber = match ? match[0].padStart(3, '0') : '000';
-            }
-            
-            // Actualizar badges
-            document.getElementById('qrCodeValue').textContent = qrData.qr_code || codigoQR.value;
-            document.getElementById('qrNameValue').textContent = qrData.qr_name || 'Sin nombre';
-            document.getElementById('qrIdValue').textContent = `ID: ${qrNumber}`;
-            
-          } else {
-            // QR no existe, mostrar información básica
-            qrInputInfo.classList.remove('hidden');
-            
-            // Extraer número del código QR
-            let qrNumber = '000';
-            if (codigoQR.value) {
-              const match = codigoQR.value.match(/\d+/);
-              qrNumber = match ? match[0].padStart(3, '0') : '000';
-            }
-            
-            document.getElementById('qrCodeValue').textContent = codigoQR.value;
-            document.getElementById('qrNameValue').textContent = 'Nuevo QR';
-            document.getElementById('qrIdValue').textContent = `ID: ${qrNumber}`;
-          }
-        },
-
-        // Mostrar información del QR escaneado
-        mostrarInfoQR: function(qrData) {
-          const qrInfoDiv = document.getElementById('qrInfo');
-          
-          if (!qrData.existe) {
-            // QR no existe en el sistema - se puede crear
-            qrInfoDiv.innerHTML = `
-              <div class="qr-info-card qr-without-package">
-                <div class="text-center mb-2">
-                  <i class="fas fa-qrcode text-2xl text-blue-600 mb-2"></i>
-                  <h4 class="font-bold text-lg">Nuevo QR</h4>
-                  <p class="text-sm text-gray-600">Este QR no está registrado en el sistema</p>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Código:</span>
-                  <span class="qr-info-value font-mono">${qrData.qr_code || document.getElementById('codigoQR').value}</span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Estado:</span>
-                  <span class="qr-info-value text-green-600 font-bold">Puede recibir paquete ✓</span>
-                </div>
-              </div>
-            `;
-          } else if (qrData.tiene_paquete) {
-            // QR ya tiene paquete
-            qrInfoDiv.innerHTML = `
-              <div class="qr-info-card qr-with-package">
-                <div class="text-center mb-2">
-                  <i class="fas fa-exclamation-triangle text-2xl text-red-600 mb-2"></i>
-                  <h4 class="font-bold text-lg">QR con Paquete</h4>
-                  <p class="text-sm text-gray-600">Este QR ya tiene un paquete asignado</p>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Código:</span>
-                  <span class="qr-info-value font-mono">${qrData.qr_code}</span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Paquete actual:</span>
-                  <span class="qr-info-value">${qrData.package_name || 'Sin nombre'}</span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Turnos restantes:</span>
-                  <span class="qr-info-value ${qrData.turns_remaining > 0 ? 'text-green-600' : 'text-red-600'} font-bold">
-                    ${qrData.turns_remaining || 0}
-                  </span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Estado:</span>
-                  <span class="qr-info-value text-red-600 font-bold">NO puede recibir otro paquete ✗</span>
-                </div>
-              </div>
-            `;
-          } else {
-            // QR existe pero no tiene paquete
-            qrInfoDiv.innerHTML = `
-              <div class="qr-info-card qr-without-package">
-                <div class="text-center mb-2">
-                  <i class="fas fa-check-circle text-2xl text-green-600 mb-2"></i>
-                  <h4 class="font-bold text-lg">QR Verificado</h4>
-                  <p class="text-sm text-gray-600">Este QR está listo para recibir un paquete</p>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Código:</span>
-                  <span class="qr-info-value font-mono">${qrData.qr_code}</span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Nombre:</span>
-                  <span class="qr-info-value">${qrData.qr_name || 'Sin nombre'}</span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Turnos restantes:</span>
-                  <span class="qr-info-value">${qrData.turns_remaining || 0}</span>
-                </div>
-                <div class="qr-info-item">
-                  <span class="qr-info-label">Estado:</span>
-                  <span class="qr-info-value text-green-600 font-bold">Puede recibir paquete ✓</span>
-                </div>
-              </div>
-            `;
-          }
-          
-          qrInfoDiv.classList.remove('hidden');
-        },
-
-        // Actualizar estado de los botones de paquetes
-        actualizarEstadoPaquetes: function(tienePaquete) {
-          const paquetes = document.querySelectorAll('.btnPaquete');
-          
-          paquetes.forEach(btn => {
-            if (tienePaquete) {
-              // Si ya tiene paquete, deshabilitar todos los botones
-              btn.classList.add('disabled');
-              btn.onclick = null;
-              btn.title = 'Este QR ya tiene un paquete asignado';
-            } else {
-              // Si no tiene paquete, habilitar todos los botones
-              btn.classList.remove('disabled');
-              const paqueteId = btn.id.replace('paquete-', '');
-              const paquete = this.paquetesData.find(p => p.id == paqueteId);
-              if (paquete) {
-                btn.onclick = () => this.abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
+            },
+            line_linked: { 
+              enable: true, 
+              distance: 120, 
+              color: '#3b82f6', 
+              opacity: 0.4, // Más visible
+              width: 1.5 // Más ancho
+            },
+            move: { 
+              enable: true, 
+              speed: 1.2, // Más rápido
+              direction: 'none', 
+              random: true,
+              straight: false,
+              out_mode: 'out',
+              bounce: false,
+              attract: { 
+                enable: false, 
+                rotateX: 600, 
+                rotateY: 1200 
               }
-              btn.title = '';
             }
-          });
-        },
-
-        abrirConfirmacion: async function(id, turns, price) {
-          // Verificar si hay un código QR escaneado
-          this.codigoQR = document.getElementById('codigoQR').value;
-          
-          if (!this.codigoQR) {
-            this.mostrarAlerta('⚠️ Primero debe escanear un código QR', 'warning');
-            return;
-          }
-          
-          // Verificar nuevamente que el QR no tenga paquete
-          if (this.qrInfoData && this.qrInfoData.tiene_paquete) {
-            this.mostrarAlerta('❌ Este QR ya tiene un paquete asignado. No se pueden asignar más paquetes.', 'error');
-            return;
-          }
-          
-          this.paqueteTemp = { id, turns, price };
-          
-          // Mostrar información del QR en el modal
-          const qrInfoModal = document.getElementById('qrInfoModal');
-          if (this.qrInfoData && this.qrInfoData.existe) {
-            // Extraer número del ID
-            let qrNumber = '000';
-            if (this.qrInfoData.qr_code) {
-              const match = this.qrInfoData.qr_code.match(/\d+/);
-              qrNumber = match ? match[0].padStart(3, '0') : '000';
-            }
-            
-            qrInfoModal.innerHTML = `
-              <div class="font-medium mb-1">
-                <i class="fas fa-qrcode text-blue-600 mr-1"></i>
-                QR: <span class="font-mono">${this.qrInfoData.qr_code}</span>
-              </div>
-              <div class="font-medium mb-1">
-                <i class="fas fa-user text-blue-600 mr-1"></i>
-                Nombre: <span class="font-semibold">${this.qrInfoData.qr_name || 'Sin nombre'}</span>
-              </div>
-              <div class="font-medium mb-1">
-                <i class="fas fa-hashtag text-green-600 mr-1"></i>
-                ID: <span class="font-semibold">${qrNumber}</span>
-              </div>
-              <div class="text-xs text-gray-600 mt-2">
-                Estado: <span class="text-green-600 font-bold">Sin paquete asignado</span>
-              </div>
-            `;
-          } else {
-            // Extraer número del código QR
-            let qrNumber = '000';
-            if (this.codigoQR) {
-              const match = this.codigoQR.match(/\d+/);
-              qrNumber = match ? match[0].padStart(3, '0') : '000';
-            }
-            
-            qrInfoModal.innerHTML = `
-              <div class="font-medium mb-1">
-                <i class="fas fa-qrcode text-blue-600 mr-1"></i>
-                QR: <span class="font-mono">${this.codigoQR}</span>
-              </div>
-              <div class="font-medium mb-1">
-                <i class="fas fa-user text-blue-600 mr-1"></i>
-                Nombre: <span class="font-semibold">Nuevo QR</span>
-              </div>
-              <div class="font-medium mb-1">
-                <i class="fas fa-hashtag text-green-600 mr-1"></i>
-                ID: <span class="font-semibold">${qrNumber}</span>
-              </div>
-              <div class="text-xs text-gray-600 mt-2">
-                Estado: <span class="text-green-600 font-bold">Nuevo QR - Se creará en el sistema</span>
-              </div>
-            `;
-          }
-          
-          document.getElementById('paqueteSeleccionado').innerText = 'P' + id;
-          document.getElementById('precioPaquete').innerText = `Costo: $${price.toLocaleString()} - ${turns} turnos`;
-          document.getElementById('modalConfirmacion').classList.remove('hidden');
-        },
-
-        cerrarModal: function() {
-          document.getElementById('modalConfirmacion').classList.add('hidden');
-        },
-
-        confirmarIngreso: async function() {
-          if (!this.paqueteTemp || !this.codigoQR) {
-            this.mostrarAlerta('Error: Datos incompletos', 'error');
-            return;
-          }
-
-          // Verificar una última vez que el QR no tenga paquete
-          if (this.qrInfoData && this.qrInfoData.tiene_paquete) {
-            this.mostrarAlerta('❌ Error: Este QR ya tiene un paquete asignado', 'error');
-            this.cerrarModal();
-            return;
-          }
-
-          // Mostrar loading
-          document.getElementById('loading').classList.remove('hidden');
-          this.cerrarModal();
-
-          try {
-            const response = await fetch('/api/asignar-paquete', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+          },
+          interactivity: {
+            detect_on: 'canvas',
+            events: {
+              onhover: { 
+                enable: true, 
+                mode: 'grab' 
               },
-              body: JSON.stringify({
-                codigo_qr: this.codigoQR,
-                paquete_id: this.paqueteTemp.id
-              })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-              // ✅ Guardar en historial después de asignar paquete
-              await fetch('/api/guardar-qr', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({
-                  qr_code: this.codigoQR
-                })
-              });
-              
-              this.mostrarAlerta('✅ ' + result.message, 'success');
-              
-              // Limpiar formulario
-              document.getElementById('codigoQR').value = '';
-              document.getElementById('qrInputInfo').classList.add('hidden');
-              document.getElementById('qrInfo').classList.add('hidden');
-              document.getElementById('qrInfo').innerHTML = '';
-              this.codigoQR = '';
-              this.qrInfoData = null;
-              
-              // Resetear estado de paquetes
-              this.actualizarEstadoPaquetes(false);
-              
-            } else if (result.error === true) {
-              // Error específico: QR ya tiene paquete
-              this.mostrarAlerta('❌ ' + result.message, 'error');
-              
-              // Actualizar información del QR
-              const qrData = await this.verificarQR(this.codigoQR);
-              if (qrData && qrData.tiene_paquete) {
-                this.actualizarEstadoPaquetes(true);
+              onclick: { 
+                enable: true, 
+                mode: 'push' 
+              },
+              resize: true
+            },
+            modes: {
+              grab: { 
+                distance: 150, 
+                line_linked: { 
+                  opacity: 0.8 
+                } 
+              },
+              push: { 
+                particles_nb: 4 
+              },
+              remove: { 
+                particles_nb: 2 
               }
-              
-            } else {
-              this.mostrarAlerta('❌ Error: ' + result.error, 'error');
             }
-          } catch (error) {
-            console.error('Error:', error);
-            this.mostrarAlerta('❌ Error de conexión: ' + error.message, 'error');
-          } finally {
-            document.getElementById('loading').classList.add('hidden');
-          }
-        },
+          },
+          retina_detect: true
+        });
 
-        // Funcionalidad del escáner QR
-        toggleScanner: async function() {
-          if (this.scannerActivo) {
-            // Si ya está activo, detener el escáner
-            try {
-              await this.html5QrCode.stop();
+        // Inicializar hora en tiempo real (igual que en local.html)
+        this.actualizarHora();
+        setInterval(() => this.actualizarHora(), 1000);
+
+        // Cargar paquetes al iniciar
+        this.cargarPaquetes();
+        
+        // Event listeners
+        document.getElementById('btnEscanear').addEventListener('click', () => this.toggleScanner());
+        
+        console.log("Package App inicializada correctamente");
+      },
+
+      // Función para actualizar la hora en tiempo real (igual que en local.html)
+      actualizarHora: function() {
+        const ahora = new Date();
+        const opciones = { 
+          timeZone: 'America/Bogota',
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        };
+        
+        const opcionesFecha = {
+          timeZone: 'America/Bogota',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        };
+        
+        const hora = ahora.toLocaleTimeString('es-CO', opciones);
+        const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+        
+        // Actualizar en sidebar
+        const horaSidebar = document.getElementById('horaActualSidebar');
+        const fechaSidebar = document.getElementById('fechaActualSidebar');
+        
+        if (horaSidebar) horaSidebar.textContent = hora;
+        if (fechaSidebar) fechaSidebar.textContent = fecha;
+      },
+
+      // Variables
+      paquetesData: [],
+      paqueteTemp: null,
+      codigoQR: '',
+      html5QrCode: null,
+      scannerActivo: false,
+      qrInfoData: null,
+
+      // Cargar paquetes desde la base de datos
+      cargarPaquetes: async function() {
+        try {
+          const response = await fetch('/api/paquetes', {
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Error en la respuesta del servidor');
+          }
+          
+          const paquetes = await response.json();
+          
+          this.paquetesData = paquetes;
+          this.renderizarPaquetes(paquetes);
+        } catch (error) {
+          console.error('Error cargando paquetes:', error);
+          this.mostrarAlerta('Error al cargar los paquetes', 'error');
+        }
+      },
+
+      // Renderizar botones de paquetes
+      renderizarPaquetes: function(paquetes) {
+        const container = document.getElementById('paquetes-container');
+        container.innerHTML = '';
+        
+        paquetes.forEach(paquete => {
+          const button = document.createElement('button');
+          button.className = 'btnPaquete btn-touch';
+          button.id = `paquete-${paquete.id}`;
+          button.innerHTML = `
+            <div class="font-bold">P${paquete.id}</div>
+            <div class="paquete-info">
+              ${paquete.turns} turnos<br>
+              $${paquete.price.toLocaleString()}
+            </div>
+          `;
+          button.onclick = () => this.abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
+          container.appendChild(button);
+        });
+      },
+
+      // Verificar si el QR ya tiene paquete
+      verificarQR: async function(codigoQR) {
+        try {
+          document.getElementById('scanner-text').innerHTML = '<div class="loading"></div> Verificando...';
+          
+          const response = await fetch(`/api/verificar-qr/${codigoQR}`, {
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Error en la respuesta del servidor');
+          }
+          
+          const qrData = await response.json();
+          
+          // Guardar la información del QR
+          this.qrInfoData = qrData;
+          
+          // Mostrar información del QR
+          this.mostrarInfoQR(qrData);
+          
+          // Actualizar los badges con ID y nombre
+          this.actualizarBadgesQR(qrData);
+          
+          // Habilitar/deshabilitar paquetes según si ya tiene paquete
+          this.actualizarEstadoPaquetes(qrData.tiene_paquete);
+          
+          document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+          
+          return qrData;
+          
+        } catch (error) {
+          console.error('Error verificando QR:', error);
+          document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+          
+          // Si el QR no existe, permitir asignar paquete
+          if (error.message.includes('404') || error.message.includes('no encontrado')) {
+            this.qrInfoData = { existe: false, tiene_paquete: false, qr_code: codigoQR };
+            this.mostrarInfoQR({ existe: false, tiene_paquete: false, qr_code: codigoQR });
+            this.actualizarBadgesQR({ existe: false, qr_code: codigoQR });
+            this.actualizarEstadoPaquetes(false);
+            return { existe: false, tiene_paquete: false };
+          }
+          
+          this.mostrarAlerta('Error verificando QR', 'error');
+          return null;
+        }
+      },
+
+      // Actualizar badges con información del QR
+      actualizarBadgesQR: function(qrData) {
+        const qrInputInfo = document.getElementById('qrInputInfo');
+        const codigoQR = document.getElementById('codigoQR');
+        
+        if (qrData.existe) {
+          // Mostrar información del QR
+          qrInputInfo.classList.remove('hidden');
+          
+          // Extraer número del código QR (ej: QR001 -> 001)
+          let qrNumber = '000';
+          if (qrData.qr_code) {
+            const match = qrData.qr_code.match(/\d+/);
+            qrNumber = match ? match[0].padStart(3, '0') : '000';
+          }
+          
+          // Actualizar badges
+          document.getElementById('qrCodeValue').textContent = qrData.qr_code || codigoQR.value;
+          document.getElementById('qrNameValue').textContent = qrData.qr_name || 'Sin nombre';
+          document.getElementById('qrIdValue').textContent = `ID: ${qrNumber}`;
+          
+        } else {
+          // QR no existe, mostrar información básica
+          qrInputInfo.classList.remove('hidden');
+          
+          // Extraer número del código QR
+          let qrNumber = '000';
+          if (codigoQR.value) {
+            const match = codigoQR.value.match(/\d+/);
+            qrNumber = match ? match[0].padStart(3, '0') : '000';
+          }
+          
+          document.getElementById('qrCodeValue').textContent = codigoQR.value;
+          document.getElementById('qrNameValue').textContent = 'Nuevo QR';
+          document.getElementById('qrIdValue').textContent = `ID: ${qrNumber}`;
+        }
+      },
+
+      // Mostrar información del QR escaneado
+      mostrarInfoQR: function(qrData) {
+        const qrInfoDiv = document.getElementById('qrInfo');
+        
+        if (!qrData.existe) {
+          // QR no existe en el sistema - se puede crear
+          qrInfoDiv.innerHTML = `
+            <div class="qr-info-card qr-without-package">
+              <div class="text-center mb-2">
+                <i class="fas fa-qrcode text-2xl text-blue-600 mb-2"></i>
+                <h4 class="font-bold text-lg">Nuevo QR</h4>
+                <p class="text-sm text-gray-600">Este QR no está registrado en el sistema</p>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Código:</span>
+                <span class="qr-info-value font-mono">${qrData.qr_code || document.getElementById('codigoQR').value}</span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Estado:</span>
+                <span class="qr-info-value text-green-600 font-bold">Puede recibir paquete ✓</span>
+              </div>
+            </div>
+          `;
+        } else if (qrData.tiene_paquete) {
+          // QR ya tiene paquete
+          qrInfoDiv.innerHTML = `
+            <div class="qr-info-card qr-with-package">
+              <div class="text-center mb-2">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-600 mb-2"></i>
+                <h4 class="font-bold text-lg">QR con Paquete</h4>
+                <p class="text-sm text-gray-600">Este QR ya tiene un paquete asignado</p>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Código:</span>
+                <span class="qr-info-value font-mono">${qrData.qr_code}</span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Paquete actual:</span>
+                <span class="qr-info-value">${qrData.package_name || 'Sin nombre'}</span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Turnos restantes:</span>
+                <span class="qr-info-value ${qrData.turns_remaining > 0 ? 'text-green-600' : 'text-red-600'} font-bold">
+                  ${qrData.turns_remaining || 0}
+                </span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Estado:</span>
+                <span class="qr-info-value text-red-600 font-bold">NO puede recibir otro paquete ✗</span>
+              </div>
+            </div>
+          `;
+        } else {
+          // QR existe pero no tiene paquete
+          qrInfoDiv.innerHTML = `
+            <div class="qr-info-card qr-without-package">
+              <div class="text-center mb-2">
+                <i class="fas fa-check-circle text-2xl text-green-600 mb-2"></i>
+                <h4 class="font-bold text-lg">QR Verificado</h4>
+                <p class="text-sm text-gray-600">Este QR está listo para recibir un paquete</p>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Código:</span>
+                <span class="qr-info-value font-mono">${qrData.qr_code}</span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Nombre:</span>
+                <span class="qr-info-value">${qrData.qr_name || 'Sin nombre'}</span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Turnos restantes:</span>
+                <span class="qr-info-value">${qrData.turns_remaining || 0}</span>
+              </div>
+              <div class="qr-info-item">
+                <span class="qr-info-label">Estado:</span>
+                <span class="qr-info-value text-green-600 font-bold">Puede recibir paquete ✓</span>
+              </div>
+            </div>
+          `;
+        }
+        
+        qrInfoDiv.classList.remove('hidden');
+      },
+
+      // Actualizar estado de los botones de paquetes
+      actualizarEstadoPaquetes: function(tienePaquete) {
+        const paquetes = document.querySelectorAll('.btnPaquete');
+        
+        paquetes.forEach(btn => {
+          if (tienePaquete) {
+            // Si ya tiene paquete, deshabilitar todos los botones
+            btn.classList.add('disabled');
+            btn.onclick = null;
+            btn.title = 'Este QR ya tiene un paquete asignado';
+          } else {
+            // Si no tiene paquete, habilitar todos los botones
+            btn.classList.remove('disabled');
+            const paqueteId = btn.id.replace('paquete-', '');
+            const paquete = this.paquetesData.find(p => p.id == paqueteId);
+            if (paquete) {
+              btn.onclick = () => this.abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
+            }
+            btn.title = '';
+          }
+        });
+      },
+
+      abrirConfirmacion: async function(id, turns, price) {
+        // Verificar si hay un código QR escaneado
+        this.codigoQR = document.getElementById('codigoQR').value;
+        
+        if (!this.codigoQR) {
+          this.mostrarAlerta('⚠️ Primero debe escanear un código QR', 'warning');
+          return;
+        }
+        
+        // Verificar nuevamente que el QR no tenga paquete
+        if (this.qrInfoData && this.qrInfoData.tiene_paquete) {
+          this.mostrarAlerta('❌ Este QR ya tiene un paquete asignado. No se pueden asignar más paquetes.', 'error');
+          return;
+        }
+        
+        this.paqueteTemp = { id, turns, price };
+        
+        // Mostrar información del QR en el modal
+        const qrInfoModal = document.getElementById('qrInfoModal');
+        if (this.qrInfoData && this.qrInfoData.existe) {
+          // Extraer número del ID
+          let qrNumber = '000';
+          if (this.qrInfoData.qr_code) {
+            const match = this.qrInfoData.qr_code.match(/\d+/);
+            qrNumber = match ? match[0].padStart(3, '0') : '000';
+          }
+          
+          qrInfoModal.innerHTML = `
+            <div class="font-medium mb-1">
+              <i class="fas fa-qrcode text-blue-600 mr-1"></i>
+              QR: <span class="font-mono">${this.qrInfoData.qr_code}</span>
+            </div>
+            <div class="font-medium mb-1">
+              <i class="fas fa-user text-blue-600 mr-1"></i>
+              Nombre: <span class="font-semibold">${this.qrInfoData.qr_name || 'Sin nombre'}</span>
+            </div>
+            <div class="font-medium mb-1">
+              <i class="fas fa-hashtag text-green-600 mr-1"></i>
+              ID: <span class="font-semibold">${qrNumber}</span>
+            </div>
+            <div class="text-xs text-gray-600 mt-2">
+              Estado: <span class="text-green-600 font-bold">Sin paquete asignado</span>
+            </div>
+          `;
+        } else {
+          // Extraer número del código QR
+          let qrNumber = '000';
+          if (this.codigoQR) {
+            const match = this.codigoQR.match(/\d+/);
+            qrNumber = match ? match[0].padStart(3, '0') : '000';
+          }
+          
+          qrInfoModal.innerHTML = `
+            <div class="font-medium mb-1">
+              <i class="fas fa-qrcode text-blue-600 mr-1"></i>
+              QR: <span class="font-mono">${this.codigoQR}</span>
+            </div>
+            <div class="font-medium mb-1">
+              <i class="fas fa-user text-blue-600 mr-1"></i>
+              Nombre: <span class="font-semibold">Nuevo QR</span>
+            </div>
+            <div class="font-medium mb-1">
+              <i class="fas fa-hashtag text-green-600 mr-1"></i>
+              ID: <span class="font-semibold">${qrNumber}</span>
+            </div>
+            <div class="text-xs text-gray-600 mt-2">
+              Estado: <span class="text-green-600 font-bold">Nuevo QR - Se creará en el sistema</span>
+            </div>
+          `;
+        }
+        
+        document.getElementById('paqueteSeleccionado').innerText = 'P' + id;
+        document.getElementById('precioPaquete').innerText = `Costo: $${price.toLocaleString()} - ${turns} turnos`;
+        document.getElementById('modalConfirmacion').classList.remove('hidden');
+      },
+
+      cerrarModal: function() {
+        document.getElementById('modalConfirmacion').classList.add('hidden');
+      },
+
+    confirmarIngreso: async function() {
+  if (!this.paqueteTemp || !this.codigoQR) {
+    this.mostrarAlerta('Error: Datos incompletos', 'error');
+    return;
+  }
+
+  // Verificar una última vez que el QR no tenga paquete
+  if (this.qrInfoData && this.qrInfoData.tiene_paquete) {
+    this.mostrarAlerta('❌ Error: Este QR ya tiene un paquete asignado', 'error');
+    this.cerrarModal();
+    return;
+  }
+
+  // Mostrar loading
+  document.getElementById('loading').classList.remove('hidden');
+  this.cerrarModal();
+
+  try {
+    // 1. PRIMERO asignar el paquete
+    const response = await fetch('/api/asignar-paquete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        codigo_qr: this.codigoQR,
+        paquete_id: this.paqueteTemp.id
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // 2. ⚠️ **REGISTRAR VENTA REAL** (solo aquí se registra como venta)
+      await fetch('/api/registrar-venta', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          qr_code: this.codigoQR,
+          paquete_id: this.paqueteTemp.id,
+          precio: this.paqueteTemp.price
+        })
+      });
+      
+      // 3. Guardar en historial normal (sin marcar como venta)
+      await fetch('/api/guardar-qr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          qr_code: this.codigoQR,
+          es_venta_real: false  // No es venta aquí, ya se registró arriba
+        })
+      });
+      
+      this.mostrarAlerta('✅ ' + result.message, 'success');
+      
+      // 4. ⚠️ **ACTUALIZAR CONTADORES GLOBALMENTE**
+      // Enviar mensaje a local.html para que actualice
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ 
+          type: 'ACTUALIZAR_VENTAS',
+          source: 'package.html'
+        }, '*');
+      }
+      
+      // También actualizar directamente si estamos en la misma ventana
+      setTimeout(() => {
+        // Forzar recarga de contadores
+        fetch(`/api/ventas-dia?fecha=${new Date().toISOString().split('T')[0]}`)
+          .then(res => res.json())
+          .then(data => {
+            console.log("💰 Ventas actualizadas:", data);
+            // Podrías mostrar una notificación o algo
+          });
+      }, 500);
+      
+      // Limpiar formulario
+      document.getElementById('codigoQR').value = '';
+      document.getElementById('qrInputInfo').classList.add('hidden');
+      document.getElementById('qrInfo').classList.add('hidden');
+      document.getElementById('qrInfo').innerHTML = '';
+      this.codigoQR = '';
+      this.qrInfoData = null;
+      
+      // Resetear estado de paquetes
+      this.actualizarEstadoPaquetes(false);
+      
+    } else if (result.error === true) {
+      // Error específico: QR ya tiene paquete
+      this.mostrarAlerta('❌ ' + result.message, 'error');
+      
+      // Actualizar información del QR
+      const qrData = await this.verificarQR(this.codigoQR);
+      if (qrData && qrData.tiene_paquete) {
+        this.actualizarEstadoPaquetes(true);
+      }
+      
+    } else {
+      this.mostrarAlerta('❌ Error: ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    this.mostrarAlerta('❌ Error de conexión: ' + error.message, 'error');
+  } finally {
+    document.getElementById('loading').classList.add('hidden');
+  }
+},
+
+      // Funcionalidad del escáner QR
+      toggleScanner: async function() {
+        if (this.scannerActivo) {
+          // Si ya está activo, detener el escáner
+          try {
+            await this.html5QrCode.stop();
+            this.scannerActivo = false;
+            document.getElementById('reader').classList.add('hidden');
+            document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+            return;
+          } catch (error) {
+            console.error("Error deteniendo escáner:", error);
+          }
+        }
+
+        try {
+          // Mostrar contenedor
+          document.getElementById('reader').classList.remove('hidden');
+
+          this.html5QrCode = new Html5Qrcode("reader");
+          await this.html5QrCode.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 }
+            },
+            async (qrCodeMessage) => {
+              document.getElementById('codigoQR').value = qrCodeMessage;
+              this.html5QrCode.stop();
               this.scannerActivo = false;
               document.getElementById('reader').classList.add('hidden');
               document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-              return;
-            } catch (error) {
-              console.error("Error deteniendo escáner:", error);
+              
+              // Verificar el QR inmediatamente después de escanear
+              await this.verificarQR(qrCodeMessage);
+            },
+            errorMessage => {
+              console.log("Error escaneando:", errorMessage);
             }
-          }
-
-          try {
-            // Mostrar contenedor
-            document.getElementById('reader').classList.remove('hidden');
-
-            this.html5QrCode = new Html5Qrcode("reader");
-            await this.html5QrCode.start(
-              { facingMode: "environment" },
-              {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-              },
-              async (qrCodeMessage) => {
-                document.getElementById('codigoQR').value = qrCodeMessage;
-                this.html5QrCode.stop();
-                this.scannerActivo = false;
-                document.getElementById('reader').classList.add('hidden');
-                document.getElementById('scanner-text').innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-                
-                // Verificar el QR inmediatamente después de escanear
-                await this.verificarQR(qrCodeMessage);
-              },
-              errorMessage => {
-                console.log("Error escaneando:", errorMessage);
-              }
-            );
-            this.scannerActivo = true;
-            document.getElementById('scanner-text').innerHTML = '<i class="fas fa-stop mr-2"></i>Detener Escaneo';
-          } catch (error) {
-            console.error("Error accediendo a la cámara:", error);
-            this.mostrarAlerta("Error accediendo a la cámara: " + error, 'error');
-          }
-        },
-
-        mostrarAlerta: function(mensaje, tipo) {
-          // Toast notification
-          const toast = document.createElement('div');
-          toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            tipo === 'error' ? 'bg-red-500' : 
-            tipo === 'success' ? 'bg-green-500' : 
-            'bg-yellow-500'
-          } text-white`;
-          toast.innerHTML = `
-            <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
-            ${mensaje}
-          `;
-          document.body.appendChild(toast);
-          
-          setTimeout(() => {
-            toast.remove();
-          }, 3000);
+          );
+          this.scannerActivo = true;
+          document.getElementById('scanner-text').innerHTML = '<i class="fas fa-stop mr-2"></i>Detener Escaneo';
+        } catch (error) {
+          console.error("Error accediendo a la cámara:", error);
+          this.mostrarAlerta("Error accediendo a la cámara: " + error, 'error');
         }
-      };
+      },
 
-      // Inicializar la aplicación cuando el DOM esté listo
-      document.addEventListener('DOMContentLoaded', function() {
-        PackageApp.init();
-      });
-    </script>
-  </body>
+      mostrarAlerta: function(mensaje, tipo) {
+        // Toast notification
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+          tipo === 'error' ? 'bg-red-500' : 
+          tipo === 'success' ? 'bg-green-500' : 
+          'bg-yellow-500'
+        } text-white`;
+        toast.innerHTML = `
+          <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+          ${mensaje}
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.remove();
+        }, 3000);
+      }
+    };
+
+    // Inicializar la aplicación cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+      PackageApp.init();
+    });
+  </script>
+</body>
 </html>

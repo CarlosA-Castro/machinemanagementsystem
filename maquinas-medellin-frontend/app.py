@@ -657,11 +657,13 @@ def guardar_qr():
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
         local = session.get('user_local', 'El Mekatiadero')
+        
+        es_venta_real = data.get('es_venta_real', False)  # False por defecto
 
         if not qr_code:
             return jsonify({'error': 'QR vacío'}), 400
 
-        print(f"💾 Guardando QR en historial: {qr_code} por usuario {user_name}")
+        print(f"💾 Guardando QR en historial: {qr_code} por usuario {user_name}, es_venta_real: {es_venta_real}")
 
         connection = get_db_connection()
         if not connection:
@@ -672,10 +674,12 @@ def guardar_qr():
         # Usar hora actual de Colombia
         hora_colombia = get_colombia_time()
         
-        # Buscar si el QR tiene un nombre asociado
-        cursor.execute("SELECT qr_name FROM QRCode WHERE code = %s", (qr_code,))
+        # Buscar si el QR tiene un nombre asociado y si tiene paquete
+        cursor.execute("SELECT qr_name, turnPackageId FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         qr_name = qr_data['qr_name'] if qr_data and 'qr_name' in qr_data else None
+        
+        es_venta = es_venta_real and qr_data and qr_data['turnPackageId'] is not None and qr_data['turnPackageId'] != 1
         
         cursor.execute("""
             INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
@@ -683,47 +687,14 @@ def guardar_qr():
         """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_name))
         connection.commit()
 
-        return jsonify({'success': True, 'message': 'QR guardado en historial', 'qr_name': qr_name})
+        return jsonify({
+            'success': True, 
+            'message': 'QR guardado en historial', 
+            'qr_name': qr_name,
+            'es_venta': es_venta
+        })
     except Exception as e:
         print(f"❌ Error guardando QR en historial: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# Consultar historial general de QR (últimos 20)
-@app.route('/api/historial-completo', methods=['GET'])
-def historial_completo():
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
-        cursor = get_db_cursor(connection)
-        cursor.execute("""
-            SELECT qr_code, user_id, user_name, local, fecha_hora, qr_name
-            FROM QRHistory 
-            ORDER BY fecha_hora DESC 
-            LIMIT 20
-        """)
-        historial = cursor.fetchall()
-        
-        # Formatear fechas con zona horaria Colombia
-        for item in historial:
-            if item['fecha_hora']:
-                fecha_colombia = parse_db_datetime(item['fecha_hora'])
-                item['fecha_hora'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
-                item['fecha_formateada'] = fecha_colombia.strftime('%d/%m/%Y')
-                item['hora_formateada'] = fecha_colombia.strftime('%H:%M:%S')
-        
-        return jsonify(historial)
-    except Exception as e:
-        print(f"❌ Error obteniendo historial completo: {e}")
         sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
@@ -883,14 +854,18 @@ def contador_global_vendidos():
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
-        # Contar QR que tienen un paquete asignado (vendidos)
+        # Contar QR que tienen un paquete asignado (vendidos) y no son el paquete por defecto
         cursor.execute("""
             SELECT COUNT(*) as total_qr 
             FROM QRCode 
             WHERE turnPackageId IS NOT NULL 
-            AND turnPackageId != 1  -- Excluir el paquete por defecto si existe
+            AND turnPackageId != 1  -- Excluir el paquete por defecto
+            AND turnPackageId IS NOT NULL
         """)
         resultado = cursor.fetchone()
+        
+        print(f"📊 Total QR vendidos (con paquete): {resultado['total_qr']}")
+        
         return jsonify({'total_qr': resultado['total_qr']})
     except Exception as e:
         print(f"❌ Error obteniendo contador global vendidos: {e}")
@@ -903,41 +878,210 @@ def contador_global_vendidos():
             connection.close()
 
 # Modificar la ruta existente de historial QR para incluir precio
-@app.route('/api/historial-qr/<qr_code>', methods=['GET'])
-def historial_qr(qr_code):
+@app.route('/api/historial-completo', methods=['GET'])
+def obtener_historial_completo():
+    """Obtener historial completo de QR escaneados por el usuario actual - VERSIÓN CORREGIDA"""
     connection = None
     cursor = None
     try:
+        if not session.get('logged_in'):
+            return jsonify({'error': 'No autenticado'}), 401
+        
+        user_id = session.get('user_id')
+        local = session.get('user_local', 'El Mekatiadero')
+        
         connection = get_db_connection()
         if not connection:
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
+        
+        if session.get('user_role') == 'admin':
+            cursor.execute("""
+                SELECT 
+                    h.id,
+                    h.qr_code,
+                    h.user_name,
+                    h.qr_name,
+                    h.fecha_hora,
+                    qr.turnPackageId,
+                    tp.name as package_name,
+                    tp.price as precio_paquete,
+                    ut.turns_remaining
+                FROM QRHistory h
+                LEFT JOIN QRCode qr ON qr.code = h.qr_code
+                LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
+                LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+                WHERE h.local = %s
+                ORDER BY h.fecha_hora DESC
+                LIMIT 100
+            """, (local,))
+        else:
+            cursor.execute("""
+                SELECT 
+                    h.id,
+                    h.qr_code,
+                    h.user_name,
+                    h.qr_name,
+                    h.fecha_hora,
+                    qr.turnPackageId,
+                    tp.name as package_name,
+                    tp.price as precio_paquete,
+                    ut.turns_remaining
+                FROM QRHistory h
+                LEFT JOIN QRCode qr ON qr.code = h.qr_code
+                LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
+                LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+                WHERE h.user_id = %s OR h.local = %s
+                ORDER BY h.fecha_hora DESC
+                LIMIT 50
+            """, (user_id, local))
+        
+        historial = cursor.fetchall()
+        
+        # Formatear fechas para el frontend
+        for item in historial:
+            if item['fecha_hora']:
+                try:
+                    fecha_colombia = parse_db_datetime(item['fecha_hora'])
+                    item['fecha_hora'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                except Exception as e:
+                    print(f"⚠️ Error formateando fecha: {e}")
+                    # Si hay error, dejar el formato original pero asegurar string
+                    item['fecha_hora'] = str(item['fecha_hora'])
+           
+            item['es_venta'] = item['turnPackageId'] is not None and item['turnPackageId'] != 1
+        
+        print(f"✅ Historial obtenido: {len(historial)} registros")
+        return jsonify(historial)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo historial completo: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# Historial específico de un QR
+@app.route('/api/historial-qr/<qr_code>', methods=['GET'])
+def obtener_historial_qr(qr_code):
+    """Obtener historial específico de un código QR"""
+    connection = None
+    cursor = None
+    try:
+        if not session.get('logged_in'):
+            return jsonify({'error': 'No autenticado'}), 401
+        
+        print(f"🔍 Obteniendo historial para QR: {qr_code}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
         cursor.execute("""
-            SELECT h.id, h.qr_code, h.fecha_hora, h.user_name, h.qr_name,
-                   tp.name as package_name, tp.price as precio_paquete, 
-                   ut.turns_remaining
+            SELECT 
+                h.id,
+                h.qr_code,
+                h.user_name,
+                h.qr_name,
+                h.fecha_hora,
+                qr.turnPackageId,
+                tp.name as package_name,
+                tp.price as precio_paquete,
+                ut.turns_remaining
             FROM QRHistory h
-            LEFT JOIN QRCode q ON q.code = h.qr_code
-            LEFT JOIN UserTurns ut ON ut.qr_code_id = q.id
-            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            LEFT JOIN QRCode qr ON qr.code = h.qr_code
+            LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
+            LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
             WHERE h.qr_code = %s
             ORDER BY h.fecha_hora DESC
-            LIMIT 10
+            LIMIT 20
         """, (qr_code,))
         
-        resultados = cursor.fetchall()
+        historial = cursor.fetchall()
         
-        # Formatear fechas con zona horaria Colombia
-        for item in resultados:
+        # Formatear fechas para el frontend
+        for item in historial:
             if item['fecha_hora']:
-                fecha_colombia = parse_db_datetime(item['fecha_hora'])
-                item['fecha_hora'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
-                item['fecha_formateada'] = fecha_colombia.strftime('%d/%m/%Y %H:%M:%S')
+                try:
+                    fecha_colombia = parse_db_datetime(item['fecha_hora'])
+                    item['fecha_hora'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                except Exception as e:
+                    print(f"⚠️ Error formateando fecha: {e}")
+                    item['fecha_hora'] = str(item['fecha_hora'])
+           
+            item['es_venta'] = item['turnPackageId'] is not None and item['turnPackageId'] != 1
         
-        return jsonify(resultados)
+        print(f"✅ Historial obtenido para {qr_code}: {len(historial)} registros")
+        
+        if not historial:
+            return jsonify({'message': 'No hay historial para este QR', 'qr_code': qr_code})
+        
+        return jsonify(historial)
+        
     except Exception as e:
-        print(f"❌ Error consultando historial: {e}")
+        print(f"❌ Error obteniendo historial del QR: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@app.route('/api/registrar-venta', methods=['POST'])
+def registrar_venta():
+    """Registrar una venta REAL (solo desde package.html)"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        qr_code = data.get('qr_code')
+        paquete_id = data.get('paquete_id')
+        precio = data.get('precio')
+        
+        if not qr_code or not paquete_id:
+            return jsonify({'error': 'Datos incompletos'}), 400
+        
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Usuario')
+        local = session.get('user_local', 'El Mekatiadero')
+        
+        print(f"💰 REGISTRANDO VENTA REAL: QR={qr_code}, Paquete={paquete_id}, Precio={precio}")
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Usar hora actual de Colombia
+        hora_colombia = get_colombia_time()
+        
+        # 1. Guardar en historial ESPECIAL para ventas
+        cursor.execute("""
+            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+            VALUES (%s, %s, %s, %s, %s, 
+                    (SELECT qr_name FROM QRCode WHERE code = %s LIMIT 1),
+                    TRUE)
+        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_code))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Venta registrada correctamente',
+            'timestamp': hora_colombia.strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+    except Exception as e:
+        print(f"❌ Error registrando venta: {e}")
         sentry_sdk.capture_exception(e)
         return jsonify({'error': str(e)}), 500
     finally:
@@ -959,7 +1103,8 @@ def ventas_dia():
             return jsonify({'error': 'Error de conexión a la base de datos'}), 500
             
         cursor = get_db_cursor(connection)
-        # Contar ventas del día (QR vendidos con paquete) y calcular el valor total
+        
+        
         cursor.execute("""
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
@@ -969,9 +1114,15 @@ def ventas_dia():
             JOIN TurnPackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            AND qr.turnPackageId != 1  -- Excluir el paquete por defecto
+            -- ⚠️ FILTRAMOS POR USUARIO QUE ASIGNÓ EL PAQUETE (opcional)
+            -- AND qh.user_id IN (SELECT id FROM Users WHERE role = 'cajero' OR role = 'admin')
         """, (fecha,))
+        
         resultado = cursor.fetchone()
+        
+        print(f"📊 Ventas del día {fecha}: {resultado['total_ventas']} ventas, valor: {resultado['valor_total']}")
+        
         return jsonify({
             'total_ventas': resultado['total_ventas'] or 0,
             'valor_total': float(resultado['valor_total'] or 0)
@@ -1309,8 +1460,7 @@ def obtener_ventas():
 @app.route('/api/exportar-ventas')
 def exportar_ventas():
     """Exporta reporte de ventas en CSV"""
-    # Esta función generaría un CSV con los datos de ventas
-    # Por simplicidad, aquí solo redirige a los datos JSON
+ 
     fecha = request.args.get('fecha', datetime.now().strftime('%Y-%m-%d'))
     return redirect(f'/api/ventas?fecha={fecha}')
     
