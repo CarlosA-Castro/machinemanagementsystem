@@ -38,7 +38,6 @@ sentry_sdk.init(
     environment="development"
 )
 
-# ============================================================
 # Configuración del logger
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -1149,9 +1148,10 @@ def test_sentry_activo():
     # Falla maquina
 @app.route('/api/reportar-falla-maquina', methods=['POST'])
 def reportar_falla_maquina():
-    """Reportar falla de máquina sin devolver turnos"""
+    """Reportar falla de máquina y marcarla en mantenimiento"""
     connection = None
     cursor = None
+
     try:
         data = request.get_json()
         machine_id = data.get('machine_id')
@@ -1166,29 +1166,48 @@ def reportar_falla_maquina():
             return jsonify({'error': 'Usuario no autenticado'}), 401
 
         connection = get_db_connection()
-        if not connection:
-            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
-            
         cursor = get_db_cursor(connection)
 
-        # Insertar en tabla ErrorReport que ya existe
+        # 🔎 Validar usuario
+        cursor.execute("SELECT id FROM user WHERE id = %s", (user_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Usuario inválido'}), 400
+
+        # 🔎 Validar máquina
+        cursor.execute("SELECT id FROM machine WHERE id = %s", (machine_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Máquina no encontrada'}), 404
+
+        # 🔒 Transacción
+        connection.start_transaction()
+
+        # 1️⃣ Insertar reporte de falla
         cursor.execute("""
-            INSERT INTO ErrorReport 
+            INSERT INTO ErrorReport
             (machineId, userId, description, reportedAt, isResolved)
             VALUES (%s, %s, %s, NOW(), FALSE)
         """, (machine_id, user_id, description))
-        
+
+        # 2️⃣ Cambiar estado de la máquina a mantenimiento
+        cursor.execute("""
+            UPDATE machine
+            SET status = 'mantenimiento'
+            WHERE id = %s
+        """, (machine_id,))
+
         connection.commit()
 
         return jsonify({
             'success': True,
-            'message': f'Falla reportada en {machine_name}. El equipo de mantenimiento ha sido notificado.'
+            'message': f'Falla reportada en {machine_name}. La máquina fue puesta en mantenimiento.'
         })
-        
+
     except Exception as e:
+        if connection:
+            connection.rollback()
         print(f"❌ Error reportando falla de máquina: {e}")
-        sentry_sdk.capture_exception(e)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
     finally:
         if cursor:
             cursor.close()
