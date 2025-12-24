@@ -739,39 +739,70 @@
             },
 
             resolverReporteActual: async function() {
-                if (!this.maquinaReportesActual) {
-                    this.mostrarAlerta('No hay máquina seleccionada', 'error');
-                    return;
-                }
-                
-                const comentarios = document.getElementById('comentariosResolucion').value.trim();
-                
-                try {
-                    const response = await fetch(`/api/reportes/${this.maquinaReportesActual}/resolver`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            comentarios: comentarios || 'Resuelto por administrador'
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok && result.success) {
-                        this.cerrarModalReportes();
-                        this.cargarMaquinas(); // Recargar lista
-                        this.mostrarAlerta('Reporte resuelto y máquina reactivada', 'success');
-                    } else {
-                        throw new Error(result.error || 'Error al resolver reporte');
-                    }
-                } catch (error) {
-                    console.error('Error resolviendo reporte:', error);
-                    this.mostrarAlerta('Error al resolver el reporte: ' + error.message, 'error');
-                }
+    if (!this.maquinaReportesActual) {
+        this.mostrarAlerta('No hay máquina seleccionada', 'error');
+        return;
+    }
+    
+    const comentarios = document.getElementById('comentariosResolucion').value.trim();
+    
+    try {
+        // Obtener el primer reporte no resuelto
+        const response = await fetch(`/api/maquinas/${this.maquinaReportesActual}/reportes`);
+        const reportes = await response.json();
+        
+        if (!reportes || reportes.length === 0) {
+            this.mostrarAlerta('No hay reportes para resolver', 'warning');
+            return;
+        }
+        
+        // Encontrar el primer reporte no resuelto
+        const reporteNoResuelto = reportes.find(r => !r.isResolved);
+        
+        if (!reporteNoResuelto) {
+            this.mostrarAlerta('Todos los reportes ya están resueltos', 'info');
+            return;
+        }
+        
+        // Intentar con la ruta principal
+        let resolveResponse = await fetch(`/api/reportes/${reporteNoResuelto.id}/resolver`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             },
-
+            body: JSON.stringify({
+                comentarios: comentarios || 'Resuelto por administrador'
+            })
+        });
+        
+        // Si falla, intentar con la versión simple
+        if (!resolveResponse.ok) {
+            console.log('Intentando ruta simple...');
+            resolveResponse = await fetch(`/api/reportes-simple/${reporteNoResuelto.id}/resolver`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    comentarios: comentarios || 'Resuelto por administrador'
+                })
+            });
+        }
+        
+        const result = await resolveResponse.json();
+        
+        if (resolveResponse.ok && result.success) {
+            this.cerrarModalReportes();
+            this.cargarMaquinas(); // Recargar lista
+            this.mostrarAlerta(result.message || 'Reporte resuelto y máquina reactivada', 'success');
+        } else {
+            throw new Error(result.error || 'Error al resolver reporte');
+        }
+    } catch (error) {
+        console.error('Error resolviendo reporte:', error);
+        this.mostrarAlerta('Error: ' + error.message, 'error');
+    }
+},
             actualizarEstadisticas: function() {
                 const total = this.maquinas.length;
                 const activas = this.maquinas.filter(m => m.status === 'activa').length;

@@ -462,49 +462,55 @@
     }
 
     async function confirmarFalla() {
-      const descripcion = document.getElementById("descripcionFalla").value.trim();
-      const tipoProblema = document.getElementById("tipoProblema").value;
+    const descripcion = document.getElementById("descripcionFalla").value.trim();
+    const tipoProblema = document.getElementById("tipoProblema").value;
 
-      if (!descripcion) {
+    if (!descripcion) {
         mostrarAlerta('❌ Por favor, describa el problema', 'error');
         return;
-      }
+    }
 
-      try {
-        // Mostrar loading
-        mostrarAlerta('<div class="loading mr-2"></div> Reportando falla...', 'info');
+    try {
+        mostrarAlerta('<div class="loading mr-2"></div> Reportando falla y reparando base de datos...', 'info');
         
-        const response = await fetch('/api/reportar-falla-maquina', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: JSON.stringify({
-            machine_id: maquinaIdActual,
-            machine_name: maquinaActual,
-            description: descripcion,
-            problem_type: tipoProblema
-          })
+        // Primero reparar la BD
+        await fetch('/api/reparar-bd-temporal', {
+            method: 'GET',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        
+        // Luego reportar la falla
+        const response = await fetch('/api/reportar-falla-funcional', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                machine_id: maquinaIdActual,
+                machine_name: maquinaActual,
+                description: descripcion,
+                problem_type: tipoProblema
+            })
         });
 
         const result = await response.json();
 
         if (response.ok && result.success) {
-          const estadoTexto = tipoProblema === 'mantenimiento' ? 'mantenimiento' : 'fuera de servicio';
-          mostrarAlerta(`✅ ${result.message}`, 'success');
+            mostrarAlerta(`✅ ${result.message}`, 'success');
+            console.log(`Reporte ID: ${result.report_id}`);
         } else {
-          throw new Error(result.error || result.details || 'Error desconocido');
+            throw new Error(result.error || 'Error desconocido');
         }
-      } catch (error) {
+    } catch (error) {
         console.error('Error:', error);
-        mostrarAlerta('❌ Error al reportar la falla: ' + error.message, 'error');
-      }
-      
-      cerrarModal();
+        mostrarAlerta('❌ Error: ' + error.message, 'error');
     }
+    
+    cerrarModal();
+}
 
-    function mostrarAlerta(mensaje, tipo) {
+function mostrarAlerta(mensaje, tipo) {
       const toast = document.createElement('div');
       toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
         tipo === 'error' ? 'bg-red-500' : 

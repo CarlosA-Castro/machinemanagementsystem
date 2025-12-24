@@ -154,14 +154,18 @@
             </div>
 
             <!-- Estadísticas rápidas -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 <div class="glass-card text-center">
                     <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
                     <div class="text-sm text-gray-600">Total Usuarios</div>
                 </div>
                 <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-green-600" id="total-admins">0</div>
-                    <div class="text-sm text-gray-600">Administradores</div>
+                    <div class="text-2xl font-bold text-green-600" id="total-activos">0</div>
+                    <div class="text-sm text-gray-600">Usuarios Activos</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div>
+                    <div class="text-sm text-gray-600">Usuarios Inactivos</div>
                 </div>
                 <div class="glass-card text-center">
                     <div class="text-2xl font-bold text-purple-600" id="total-cajeros">0</div>
@@ -185,6 +189,13 @@
                         <input type="text" id="buscarUsuario" placeholder="Buscar por nombre, email o rol..." 
                                class="w-full border border-gray-300 rounded-lg p-3" 
                                onkeyup="UsuariosApp.filtrarUsuarios()">
+                    </div>
+                    <div>
+                        <select id="filtroEstado" class="border border-gray-300 rounded-lg p-3" onchange="UsuariosApp.filtrarUsuarios()">
+                            <option value="">Todos los estados</option>
+                            <option value="activo">Activos</option>
+                            <option value="inactivo">Inactivos</option>
+                        </select>
                     </div>
                     <div>
                         <select id="filtroRol" class="border border-gray-300 rounded-lg p-3" onchange="UsuariosApp.filtrarUsuarios()">
@@ -266,6 +277,17 @@
                             <option value="admin">Administrador</option>
                             <option value="cajero">Cajero</option>
                             <option value="admin_restaurante">Administrador Restaurante</option>
+                        </select>
+                    </div>
+
+                    <!-- Estado (solo en edición) -->
+                    <div id="estadoContainer" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-toggle-on mr-2"></i>Estado
+                        </label>
+                        <select id="isActive" class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                            <option value="true">Activo</option>
+                            <option value="false">Inactivo</option>
                         </select>
                     </div>
 
@@ -417,6 +439,12 @@
                     if (usuario.role === 'admin') colorRol = 'bg-red-100 text-red-800';
                     if (usuario.role === 'cajero') colorRol = 'bg-blue-100 text-blue-800';
                     if (usuario.role === 'admin_restaurante') colorRol = 'bg-green-100 text-green-800';
+                    
+                    // Determinar estado del usuario
+                    const isActive = usuario.isActive !== false; // Por defecto activo si no está definido
+                    const estadoTexto = isActive ? 'Activo' : 'Inactivo';
+                    const estadoColor = isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    const estadoIcon = isActive ? 'fa-check-circle' : 'fa-times-circle';
 
                     html += `
                         <tr class="user-row border-b border-gray-200">
@@ -430,8 +458,8 @@
                             <td class="p-3">${creadoPor}</td>
                             <td class="p-3 text-sm">${fechaCreacion.toLocaleDateString()}</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                    Activo
+                                <span class="px-2 py-1 rounded-full text-xs ${estadoColor}">
+                                    <i class="fas ${estadoIcon} mr-1"></i>${estadoTexto}
                                 </span>
                             </td>
                             <td class="p-3 text-center">
@@ -440,6 +468,11 @@
                                             class="text-blue-600 hover:text-blue-800 btn-touch"
                                             title="Editar usuario">
                                         <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name}')" 
+                                            class="${isActive ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'} btn-touch"
+                                            title="${isActive ? 'Inhabilitar usuario' : 'Habilitar usuario'}">
+                                        <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
                                     </button>
                                     <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name}')" 
                                             class="text-red-600 hover:text-red-800 btn-touch"
@@ -466,11 +499,15 @@
 
             actualizarEstadisticas: function(usuarios) {
                 const total = usuarios.length;
+                const activos = usuarios.filter(u => u.isActive !== false).length;
+                const inactivos = usuarios.filter(u => u.isActive === false).length;
                 const admins = usuarios.filter(u => u.role === 'admin').length;
                 const cajeros = usuarios.filter(u => u.role === 'cajero').length;
                 const restaurante = usuarios.filter(u => u.role === 'admin_restaurante').length;
 
                 document.getElementById('total-usuarios').textContent = total;
+                document.getElementById('total-activos').textContent = activos;
+                document.getElementById('total-inactivos').textContent = inactivos;
                 document.getElementById('total-admins').textContent = admins;
                 document.getElementById('total-cajeros').textContent = cajeros;
                 document.getElementById('total-restaurante').textContent = restaurante;
@@ -478,17 +515,20 @@
 
             filtrarUsuarios: function() {
                 const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
+                const filtroEstado = document.getElementById('filtroEstado').value;
                 const filtroRol = document.getElementById('filtroRol').value;
                 const filas = document.querySelectorAll('#tablaUsuarios tr');
 
                 filas.forEach(fila => {
                     const nombre = fila.cells[1]?.textContent.toLowerCase() || '';
                     const rol = fila.cells[2]?.textContent.toLowerCase() || '';
+                    const estado = fila.cells[5]?.textContent.toLowerCase() || '';
                     
                     const coincideBusqueda = nombre.includes(busqueda);
+                    const coincideEstado = !filtroEstado || estado.includes(filtroEstado);
                     const coincideRol = !filtroRol || rol.includes(filtroRol);
 
-                    fila.style.display = (coincideBusqueda && coincideRol) ? '' : 'none';
+                    fila.style.display = (coincideBusqueda && coincideEstado && coincideRol) ? '' : 'none';
                 });
             },
 
@@ -496,6 +536,7 @@
                 document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario';
                 document.getElementById('formUsuario').reset();
                 document.getElementById('usuarioId').value = '';
+                document.getElementById('estadoContainer').classList.add('hidden'); // Ocultar estado en creación
                 document.getElementById('modalUsuario').classList.remove('hidden');
                 document.getElementById('modalUsuario').classList.add('flex');
             },
@@ -520,6 +561,10 @@
                     document.getElementById('rol').value = usuario.role;
                     document.getElementById('local').value = usuario.local || 'El Mekatiadero';
                     document.getElementById('notas').value = usuario.notes || '';
+                    
+                    // Mostrar y configurar estado solo en edición
+                    document.getElementById('estadoContainer').classList.remove('hidden');
+                    document.getElementById('isActive').value = usuario.isActive !== false ? 'true' : 'false';
 
                     document.getElementById('modalUsuario').classList.remove('hidden');
                     document.getElementById('modalUsuario').classList.add('flex');
@@ -528,6 +573,34 @@
                     console.error('Error cargando usuario:', error);
                     this.mostrarError('Error al cargar el usuario');
                 });
+            },
+
+            cambiarEstadoUsuario: function(id, isActive, nombre) {
+                const nuevoEstado = !isActive;
+                const accion = nuevoEstado ? 'habilitar' : 'inhabilitar';
+                
+                if (confirm(`¿Estás seguro de que deseas ${accion} al usuario "${nombre}"?`)) {
+                    fetch(`/api/usuarios/${id}/estado`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ isActive: nuevoEstado })
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                        return response.json();
+                    })
+                    .then(data => {
+                        this.mostrarAlerta(`Usuario ${accion}do correctamente`, 'success');
+                        this.cargarUsuarios();
+                    })
+                    .catch(error => {
+                        console.error(`Error ${accion}do usuario:`, error);
+                        this.mostrarError(`Error al ${accion} el usuario`);
+                    });
+                }
             },
 
             guardarUsuario: function(event) {
@@ -547,6 +620,11 @@
                 const password = document.getElementById('password').value;
                 if (password) {
                     datos.password = password;
+                }
+
+                // Solo incluir estado en edición
+                if (esEdicion) {
+                    datos.isActive = document.getElementById('isActive').value === 'true';
                 }
 
                 const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
@@ -623,6 +701,9 @@
                 // Restaurar requerimiento de password
                 document.getElementById('password').required = true;
                 document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
+                
+                // Ocultar campo de estado
+                document.getElementById('estadoContainer').classList.add('hidden');
             },
 
             actualizarLista: function() {
