@@ -115,6 +115,96 @@
       }
     }
     
+    /* Estilos para los botones de paquete (igual que en package.html) */
+    .btnPaquete {
+      background-color: #e5e7eb;
+      color: #374151;
+      padding: 1rem 0.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    
+    .btnPaquete:hover, .btnPaquete:active {
+      background-color: #93c5fd;
+      transform: translateY(-2px);
+      border-color: #3b82f6;
+    }
+    
+    .btnPaquete.disabled {
+      background-color: #d1d5db;
+      color: #9ca3af;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .btnPaquete.disabled:hover {
+      background-color: #d1d5db;
+      transform: none;
+      border-color: transparent;
+    }
+    
+    .paquete-info {
+      font-size: 0.75rem;
+      margin-top: 0.4rem;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.2;
+    }
+    
+    /* Responsive para el grid de paquetes */
+    @media (max-width: 1024px) {
+      #paquetes-container-selector {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.75rem !important;
+      }
+      
+      .btnPaquete {
+        padding: 0.75rem 0.25rem;
+        min-height: 80px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #paquetes-container-selector {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+      }
+      
+      .btnPaquete {
+        font-size: 0.9rem;
+        min-height: 75px;
+      }
+      
+      .paquete-info {
+        font-size: 0.7rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #paquetes-container-selector {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+      }
+      
+      .btnPaquete {
+        padding: 0.5rem 0.25rem;
+        min-height: 70px;
+        font-size: 0.85rem;
+      }
+      
+      .paquete-info {
+        font-size: 0.65rem;
+      }
+    }
+    
     /* Responsive para tablets y móviles */
     @media (max-width: 1024px) {
       .flex.h-screen {
@@ -218,16 +308,12 @@
           <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-home mr-2"></i>Home
           </a>
-          <a href="/package" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
-            <i class="fas fa-box mr-2"></i>Paquete
-          </a>
           <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-exclamation-triangle mr-2"></i>Falla Paq.
           </a>
           <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-cogs mr-2"></i>Falla Máq.
           </a>
-          
           <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-chart-line mr-2"></i>Ventas
           </a>
@@ -396,22 +482,98 @@
 
   <!-- Modal para generar QR -->
   <div id="modalGeneradorQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-4 lg:p-6">
-        <h2 class="text-xl font-bold mb-4"><i class="fas fa-qrcode mr-2"></i>Generar Código QR</h2>
-        
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad de QR a generar:</label>
-            <input type="number" id="cantidadQR" min="1" max="100" value="1" 
-                  class="w-full border border-gray-300 rounded-lg p-3 text-base">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-4 lg:p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="fas fa-qrcode text-blue-600"></i>Generar Códigos QR con Paquete
+            </h2>
+            <button onclick="LocalApp.cerrarModalGenerador()" 
+                    class="text-gray-500 hover:text-gray-700 text-xl btn-touch">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
         
-        <div id="vistaPreviaQR" class="mb-4 p-4 border border-gray-300 rounded-lg hidden">
-            <p class="text-sm text-gray-600 mb-2">Vista previa:</p>
-            <div id="qrPreview" class="mx-auto"></div>
-            <p id="previewText" class="text-center text-sm mt-2"></p>
+        <!-- Paso 1: Configuración básica -->
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 1: Configuración básica</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-hashtag mr-1"></i>Cantidad de QR a generar:
+                    </label>
+                    <input type="number" id="cantidadQR" min="1" max="100" value="1" 
+                          class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-user mr-1"></i>Nombre para el QR:
+                    </label>
+                    <input type="text" id="nombreQR" placeholder="Ej: Cliente Restaurante" 
+                          class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                </div>
+            </div>
         </div>
         
-        <div class="flex flex-col lg:flex-row gap-3 justify-between">
+        <!-- Paso 2: Selección de paquete -->
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 2: Seleccionar paquete</h3>
+            
+            <!-- Botón para abrir selector de paquetes -->
+            <div class="mb-4">
+                <button onclick="LocalApp.abrirSelectorPaquetes()" 
+                        class="w-full bg-blue-100 hover:bg-blue-200 border-2 border-blue-300 border-dashed text-blue-700 py-4 rounded-lg font-semibold flex items-center justify-center gap-2 btn-touch transition-colors">
+                    <i class="fas fa-tags text-blue-600"></i>
+                    <span id="paqueteSeleccionadoTexto">Haz clic para seleccionar un paquete</span>
+                </button>
+                <input type="hidden" id="paqueteIdSeleccionado" value="">
+                <input type="hidden" id="paquetePrecioSeleccionado" value="">
+                <input type="hidden" id="paqueteTurnosSeleccionado" value="">
+            </div>
+            
+            <!-- Información del paquete seleccionado (se mostrará cuando se seleccione) -->
+            <div id="infoPaqueteSeleccionado" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="font-bold text-lg text-green-800">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Paquete seleccionado
+                        </h4>
+                        <div class="mt-2 space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-gray-700">Nombre:</span>
+                                <span id="infoPaqueteNombre" class="font-bold text-blue-600"></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-gray-700">Precio:</span>
+                                <span id="infoPaquetePrecio" class="font-bold text-green-600"></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-gray-700">Turnos:</span>
+                                <span id="infoPaqueteTurnos" class="font-bold text-purple-600"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="LocalApp.deseleccionarPaquete()" 
+                            class="text-red-500 hover:text-red-700 btn-touch p-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Paso 3: Vista previa -->
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 3: Vista previa</h3>
+            <div id="vistaPreviaQR" class="p-4 border-2 border-dashed border-gray-300 rounded-lg hidden">
+                <p class="text-sm text-gray-600 mb-3">Vista previa del primer QR:</p>
+                <div id="qrPreview" class="mx-auto mb-4"></div>
+                <div id="previewText" class="text-center text-sm space-y-1"></div>
+            </div>
+        </div>
+        
+        <!-- Botones de acción -->
+        <div class="flex flex-col lg:flex-row gap-3 justify-between pt-4 border-t border-gray-200">
             <button onclick="LocalApp.generarVistaPrevia()" 
                     class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 btn-touch flex-1">
                 <i class="fas fa-eye mr-2"></i>Vista Previa
@@ -432,9 +594,48 @@
     </div>
   </div>
 
+  <!-- Modal para seleccionar paquete (IGUAL que en package.html) -->
+  <div id="modalSelectorPaquetes" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl p-6 max-w-5xl w-full max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold flex items-center gap-2 text-gray-800">
+                <i class="fas fa-tags text-green-600"></i> Seleccione el paquete:
+            </h3>
+            <button onclick="LocalApp.cerrarSelectorPaquetes()" 
+                    class="text-gray-500 hover:text-gray-700 text-xl btn-touch">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <p class="text-sm text-gray-600 mb-6 text-center">
+            Seleccione el paquete que desea asignar a los códigos QR
+        </p>
+        
+        <!-- Grid de paquetes (igual que en package.html) -->
+        <div id="paquetes-container-selector" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <!-- Paquetes se cargarán aquí dinámicamente -->
+            <div class="text-center py-8">
+                <div class="loading mx-auto mb-2"></div>
+                <p class="text-gray-600">Cargando paquetes...</p>
+            </div>
+        </div>
+        
+        <div class="mt-6 pt-6 border-t border-gray-200 flex justify-center">
+            <button onclick="LocalApp.cerrarSelectorPaquetes()" 
+                    class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium btn-touch">
+                <i class="fas fa-times mr-2"></i>Cancelar
+            </button>
+        </div>
+    </div>
+  </div>
+
   <script>
     // Namespace para evitar conflictos
     const LocalApp = {
+      // Variables
+      paquetesData: [],
+      paqueteSeleccionado: null,
+      
       init: function() {
         // Configuración de partículas MEJORADA (más visibles)
         particlesJS('particles-js', {
@@ -1107,7 +1308,7 @@ cargarHistorialQR: function() {
     rows[i].getElementsByTagName('td')[0].textContent = i;
   }
 
-  // 
+  // Guardar en historial como escaneo (no venta)
   fetch("/api/guardar-qr", {
     method: "POST",
     headers: { 
@@ -1116,7 +1317,7 @@ cargarHistorialQR: function() {
     },
     body: JSON.stringify({ 
       qr_code: codigo,
-      es_venta_real: false  // 
+      es_venta_real: false  // Solo escaneo informativo
     })
   })
   .then(res => {
@@ -1277,13 +1478,136 @@ cargarHistorialQR: function() {
         this.isScannerInitializing = false;
       },
 
-      // Funciones para generar QR en PDF
+      // ==================== FUNCIONES PARA GENERAR QR CON PAQUETE ====================
+
+      // Funciones para manejar paquetes
+      abrirSelectorPaquetes: function() {
+        document.getElementById('modalSelectorPaquetes').classList.remove('hidden');
+        document.getElementById('modalSelectorPaquetes').classList.add('flex');
+        
+        // Cargar paquetes si aún no se han cargado
+        if (!this.paquetesData || this.paquetesData.length === 0) {
+            this.cargarPaquetesParaSelector();
+        } else {
+            this.renderizarPaquetesEnSelector(this.paquetesData);
+        }
+      },
+
+      cerrarSelectorPaquetes: function() {
+        document.getElementById('modalSelectorPaquetes').classList.add('hidden');
+        document.getElementById('modalSelectorPaquetes').classList.remove('flex');
+      },
+
+      cargarPaquetesParaSelector: function() {
+        const container = document.getElementById('paquetes-container-selector');
+        container.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando paquetes...</p></div>';
+        
+        fetch('/api/paquetes', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(paquetes => {
+            this.paquetesData = paquetes;
+            this.renderizarPaquetesEnSelector(paquetes);
+        })
+        .catch(err => {
+            console.error("❌ Error cargando paquetes:", err);
+            container.innerHTML = `
+                <div class="col-span-full text-center py-8">
+                    <div class="text-red-500 mb-2">
+                        <i class="fas fa-exclamation-triangle text-2xl"></i>
+                    </div>
+                    <p class="text-gray-600">Error al cargar los paquetes</p>
+                    <button onclick="LocalApp.cargarPaquetesParaSelector()" 
+                            class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        <i class="fas fa-sync-alt mr-2"></i>Reintentar
+                    </button>
+                </div>
+            `;
+        });
+      },
+
+      renderizarPaquetesEnSelector: function(paquetes) {
+        const container = document.getElementById('paquetes-container-selector');
+        container.innerHTML = '';
+        
+        paquetes.forEach(paquete => {
+            const button = document.createElement('button');
+            button.className = 'btnPaquete btn-touch';
+            button.id = `selector-paquete-${paquete.id}`;
+            button.innerHTML = `
+                <div class="font-bold text-lg">P${paquete.id}</div>
+                <div class="paquete-info">
+                    <div class="font-semibold text-green-600">${paquete.turns} turnos</div>
+                    <div class="font-semibold text-blue-600">$${paquete.price.toLocaleString('es-CO')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${paquete.name}</div>
+                </div>
+            `;
+            button.onclick = () => this.seleccionarPaquete(paquete);
+            container.appendChild(button);
+        });
+        
+        console.log(`✅ ${paquetes.length} paquetes cargados en selector`);
+      },
+
+      seleccionarPaquete: function(paquete) {
+        // Guardar información del paquete seleccionado
+        this.paqueteSeleccionado = paquete;
+        
+        // Actualizar campos ocultos
+        document.getElementById('paqueteIdSeleccionado').value = paquete.id;
+        document.getElementById('paquetePrecioSeleccionado').value = paquete.price;
+        document.getElementById('paqueteTurnosSeleccionado').value = paquete.turns;
+        
+        // Actualizar texto del botón
+        document.getElementById('paqueteSeleccionadoTexto').innerHTML = `
+            <span class="font-bold">P${paquete.id}</span> - ${paquete.name}
+        `;
+        
+        // Mostrar información del paquete seleccionado
+        document.getElementById('infoPaqueteSeleccionado').classList.remove('hidden');
+        document.getElementById('infoPaqueteNombre').textContent = `P${paquete.id} - ${paquete.name}`;
+        document.getElementById('infoPaquetePrecio').textContent = `$${paquete.price.toLocaleString('es-CO')}`;
+        document.getElementById('infoPaqueteTurnos').textContent = `${paquete.turns} turnos`;
+        
+        // Cerrar el selector
+        this.cerrarSelectorPaquetes();
+        
+        console.log(`✅ Paquete seleccionado: P${paquete.id} - ${paquete.name}`);
+      },
+
+      deseleccionarPaquete: function() {
+        this.paqueteSeleccionado = null;
+        
+        // Limpiar campos
+        document.getElementById('paqueteIdSeleccionado').value = '';
+        document.getElementById('paquetePrecioSeleccionado').value = '';
+        document.getElementById('paqueteTurnosSeleccionado').value = '';
+        
+        // Restaurar texto del botón
+        document.getElementById('paqueteSeleccionadoTexto').textContent = 'Haz clic para seleccionar un paquete';
+        
+        // Ocultar información del paquete
+        document.getElementById('infoPaqueteSeleccionado').classList.add('hidden');
+        
+        // Limpiar vista previa si existe
+        document.getElementById('vistaPreviaQR').classList.add('hidden');
+        document.getElementById('qrPreview').innerHTML = '';
+        
+        console.log("❌ Paquete deseleccionado");
+      },
+
       mostrarModalGenerador: function() {
         document.getElementById('modalGeneradorQR').classList.remove('hidden');
         document.getElementById('modalGeneradorQR').classList.add('flex');
         document.getElementById('vistaPreviaQR').classList.add('hidden');
+        
         // Limpiar campos
         document.getElementById('nombreQR').value = '';
+        document.getElementById('cantidadQR').value = '1';
+        this.deseleccionarPaquete();
       },
 
       cerrarModalGenerador: function() {
@@ -1294,10 +1618,28 @@ cargarHistorialQR: function() {
       generarVistaPrevia: function() {
         const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
         const nombre = document.getElementById('nombreQR').value.trim();
+        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
         
-        // Validar que el nombre no esté vacío
+        // Validaciones
         if (!nombre) {
             this.mostrarAlerta("❌ El nombre es obligatorio", "error");
+            return;
+        }
+        
+        if (!paqueteId) {
+            this.mostrarAlerta("❌ Debes seleccionar un paquete", "error");
+            return;
+        }
+        
+        if (cantidad < 1 || cantidad > 100) {
+            this.mostrarAlerta("❌ La cantidad debe estar entre 1 y 100", "error");
+            return;
+        }
+        
+        // Obtener información del paquete seleccionado
+        const paquete = this.paquetesData?.find(p => p.id == paqueteId);
+        if (!paquete) {
+            this.mostrarAlerta("❌ Error: Paquete no encontrado", "error");
             return;
         }
         
@@ -1309,51 +1651,88 @@ cargarHistorialQR: function() {
         // Limpiar vista previa anterior
         document.getElementById('qrPreview').innerHTML = '';
         
-        // Generar QR de vista previa MÁS GRANDE
+        // Generar QR de vista previa
         new QRCode(document.getElementById('qrPreview'), {
             text: codigoEjemplo,
-            width: 200, // Más grande para vista previa
-            height: 200,
+            width: 180,
+            height: 180,
             correctLevel: QRCode.CorrectLevel.H
         });
         
         // Mostrar información de vista previa
         document.getElementById('previewText').innerHTML = `
-            <strong>Nombre:</strong> ${nombre}<br>
-            <strong>Código:</strong> ${codigoEjemplo}<br>
-            <small class="text-gray-600">Tamaño real en PDF: 35x35mm</small>
+            <div class="font-bold text-gray-800">${nombre}</div>
+            <div class="text-gray-600 font-mono">${codigoEjemplo}</div>
+            <div class="text-sm text-gray-500">
+                <div>Paquete: <span class="font-semibold">P${paquete.id} - ${paquete.name}</span></div>
+                <div>Precio: <span class="font-semibold text-green-600">$${paquete.price.toLocaleString('es-CO')}</span></div>
+                <div>Turnos: <span class="font-semibold text-blue-600">${paquete.turns}</span></div>
+                <div class="mt-2 text-xs">Se generarán ${cantidad} códigos QR con este paquete</div>
+            </div>
         `;
         
         document.getElementById('vistaPreviaQR').classList.remove('hidden');
       },
 
-      generarPDF: function() {
+      validarFormulario: function() {
         const nombre = document.getElementById('nombreQR').value.trim();
-        if (!this.validarFormulario(nombre)) return;
+        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
+        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
         
-        this.generarDocumento(nombre, 'pdf');
-      },
-
-      enviarWhatsApp: function() {
-        const nombre = document.getElementById('nombreQR').value.trim();
-        if (!this.validarFormulario(nombre)) return;
-        
-        this.generarDocumento(nombre, 'whatsapp');
-      },
-
-      validarFormulario: function(nombre) {
         if (!nombre) {
             this.mostrarAlerta("❌ El nombre es obligatorio", "error");
             return false;
         }
+        
+        if (!paqueteId) {
+            this.mostrarAlerta("❌ Debes seleccionar un paquete", "error");
+            return false;
+        }
+        
+        if (cantidad < 1 || cantidad > 100) {
+            this.mostrarAlerta("❌ La cantidad debe estar entre 1 y 100", "error");
+            return false;
+        }
+        
         return true;
       },
 
-      generarDocumento: function(nombre, tipo) {
+      generarPDF: function() {
+        if (!this.validarFormulario()) return;
+        
+        const nombre = document.getElementById('nombreQR').value.trim();
+        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
+        
+        // Obtener información completa del paquete
+        const paquete = this.paquetesData?.find(p => p.id == paqueteId);
+        if (!paquete) {
+            this.mostrarAlerta("❌ Error: Paquete no encontrado", "error");
+            return;
+        }
+        
+        this.generarDocumento(nombre, 'pdf', paquete);
+      },
+
+      enviarWhatsApp: function() {
+        if (!this.validarFormulario()) return;
+        
+        const nombre = document.getElementById('nombreQR').value.trim();
+        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
+        
+        const paquete = this.paquetesData?.find(p => p.id == paqueteId);
+        if (!paquete) {
+            this.mostrarAlerta("❌ Error: Paquete no encontrado", "error");
+            return;
+        }
+        
+        this.generarDocumento(nombre, 'whatsapp', paquete);
+      },
+
+      generarDocumento: function(nombre, tipo, paquete) {
         const { jsPDF } = window.jspdf;
         const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
-
-        // Configuración para papel de 58mm 
+        
+        // Configuración para papel de 58mm
         const anchoPapel = 58; // mm
         const altoPapel = 80; // mm 
         
@@ -1382,15 +1761,15 @@ cargarHistorialQR: function() {
         
         const generarQRRecursivo = (i = 1) => {
             if (i > cantidad) {
-                // Guardar los QR con el nombre
-                this.guardarMultiplesQRS(codigosGenerados, nombre);
+                // Guardar los QR CON EL PAQUETE ASIGNADO
+                this.guardarMultiplesQRSConPaquete(codigosGenerados, nombre, paquete);
                 
                 if (tipo === 'pdf') {
-                    doc.save(`codigos-qr-${nombre}.pdf`);
-                    this.mostrarAlerta("✅ PDF generado exitosamente", "success");
+                    doc.save(`codigos-qr-${nombre}-P${paquete.id}.pdf`);
+                    this.mostrarAlerta(`✅ ${cantidad} QR generados con el paquete P${paquete.id}`, "success");
                 } else {
                     // Pasar los códigos generados a la función de WhatsApp
-                    this.compartirWhatsApp(doc, nombre, codigosGenerados);
+                    this.compartirWhatsApp(doc, nombre, codigosGenerados, paquete);
                 }
                 
                 this.cerrarModalGenerador();
@@ -1416,7 +1795,7 @@ cargarHistorialQR: function() {
             const tempDiv = document.createElement('div');
             new QRCode(tempDiv, {
                 text: codigoQR,
-                width: 300, // Tamaño más grande para mejor calidad
+                width: 300,
                 height: 300,
                 correctLevel: QRCode.CorrectLevel.H
             });
@@ -1428,11 +1807,11 @@ cargarHistorialQR: function() {
                     img.src = canvas.toDataURL('image/png');
                     img.onload = () => {
                         // Calcular posiciones centradas
-                        const anchoQR = 35; // mm - más grande
-                        const altoQR = 35;  // mm
+                        const anchoQR = 35;
+                        const altoQR = 35;
                         
                         const xCentrado = (anchoPapel - anchoQR) / 2;
-                        const yQR = 10; // Posición Y para el QR
+                        const yQR = 10;
                         
                         // Agregar QR centrado al PDF
                         doc.addImage(img, 'PNG', xCentrado, yQR, anchoQR, altoQR);
@@ -1445,22 +1824,34 @@ cargarHistorialQR: function() {
                         const textoNombre = `Nombre: ${nombre}`;
                         const textoCodigo = `Código: ${codigoQR}`;
                         const textoID = `ID: ${numero}`;
+                        const textoPaquete = `Paquete: P${paquete.id}`;
+                        const textoPrecio = `Precio: $${paquete.price.toLocaleString('es-CO')}`;
+                        const textoTurnos = `Turnos: ${paquete.turns}`;
                         
                         const anchoTextoNombre = doc.getTextWidth(textoNombre);
                         const anchoTextoCodigo = doc.getTextWidth(textoCodigo);
                         const anchoTextoID = doc.getTextWidth(textoID);
+                        const anchoTextoPaquete = doc.getTextWidth(textoPaquete);
+                        const anchoTextoPrecio = doc.getTextWidth(textoPrecio);
+                        const anchoTextoTurnos = doc.getTextWidth(textoTurnos);
                         
                         const xTextoNombre = (anchoPapel - anchoTextoNombre) / 2;
                         const xTextoCodigo = (anchoPapel - anchoTextoCodigo) / 2;
                         const xTextoID = (anchoPapel - anchoTextoID) / 2;
+                        const xTextoPaquete = (anchoPapel - anchoTextoPaquete) / 2;
+                        const xTextoPrecio = (anchoPapel - anchoTextoPrecio) / 2;
+                        const xTextoTurnos = (anchoPapel - anchoTextoTurnos) / 2;
                         
                         doc.text(textoNombre, xTextoNombre, yQR + altoQR + 8);
                         doc.text(textoCodigo, xTextoCodigo, yQR + altoQR + 12);
                         doc.text(textoID, xTextoID, yQR + altoQR + 16);
+                        doc.text(textoPaquete, xTextoPaquete, yQR + altoQR + 20);
+                        doc.text(textoPrecio, xTextoPrecio, yQR + altoQR + 24);
+                        doc.text(textoTurnos, xTextoTurnos, yQR + altoQR + 28);
                         
                         // Agregar línea separadora
                         doc.setLineWidth(0.5);
-                        doc.line(5, yQR + altoQR + 18, anchoPapel - 5, yQR + altoQR + 18);
+                        doc.line(5, yQR + altoQR + 30, anchoPapel - 5, yQR + altoQR + 30);
                         
                         // Información adicional más pequeña
                         doc.setFontSize(6);
@@ -1468,7 +1859,7 @@ cargarHistorialQR: function() {
                         const textoInfo = "Máquinas Medellín - Presentar para canjear";
                         const anchoTextoInfo = doc.getTextWidth(textoInfo);
                         const xTextoInfo = (anchoPapel - anchoTextoInfo) / 2;
-                        doc.text(textoInfo, xTextoInfo, yQR + altoQR + 22);
+                        doc.text(textoInfo, xTextoInfo, yQR + altoQR + 34);
 
                         setTimeout(() => generarQRRecursivo(i + 1), 100);
                     };
@@ -1479,17 +1870,68 @@ cargarHistorialQR: function() {
         generarQRRecursivo(1);
       },
 
+      guardarMultiplesQRSConPaquete: function(codigos, nombre, paquete) {
+        const loading = document.createElement('div');
+        loading.innerHTML = `
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 text-center">
+                    <div class="loading mx-auto mb-4"></div>
+                    <p>Asignando paquete y guardando QR...</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loading);
+        
+        fetch("/api/guardar-multiples-qr-con-paquete", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({ 
+                qr_codes: codigos,
+                nombre: nombre,
+                paquete_id: paquete.id,
+                paquete_nombre: `P${paquete.id} - ${paquete.name}`,
+                paquete_precio: paquete.price,
+                paquete_turns: paquete.turns
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Error en la respuesta del servidor');
+            return res.json();
+        })
+        .then(data => {
+            document.body.removeChild(loading);
+            
+            if (data.success) {
+                this.mostrarAlerta(`✅ ${data.message}`, "success");
+                // Recargar el historial después de guardar
+                this.cargarHistorialQR();
+                // Actualizar contadores
+                this.actualizarContadores();
+            } else {
+                this.mostrarAlerta(" Error al guardar los QR: " + (data.error || 'Error desconocido'), "error");
+            }
+        })
+        .catch(err => {
+            document.body.removeChild(loading);
+            console.error("Error guardando QRs con paquete:", err);
+            this.mostrarAlerta(" Error de conexión al guardar los QR", "error");
+        });
+      },
+
       // función compartir WhatsApp
-      compartirWhatsApp: function(doc, nombre, codigosGenerados) {
+      compartirWhatsApp: function(doc, nombre, codigosGenerados, paquete) {
         try {
             if (codigosGenerados.length > 0) {
                 const primerCodigo = codigosGenerados[0];
                 
-                // Crear contenedor temporal para el QR MÁS GRANDE
+                // Crear contenedor temporal para el QR
                 const tempDiv = document.createElement('div');
                 new QRCode(tempDiv, {
                     text: primerCodigo,
-                    width: 400, // Más grande para mejor calidad
+                    width: 400,
                     height: 400,
                     correctLevel: QRCode.CorrectLevel.H
                 });
@@ -1501,7 +1943,7 @@ cargarHistorialQR: function() {
                         const qrDataUrl = canvas.toDataURL('image/png');
                         
                         // Mostrar modal para ingresar número
-                        this.mostrarModalNumeroWhatsApp(qrDataUrl, nombre, primerCodigo);
+                        this.mostrarModalNumeroWhatsApp(qrDataUrl, nombre, primerCodigo, paquete);
                     }
                 }, 500);
             }
@@ -1511,7 +1953,7 @@ cargarHistorialQR: function() {
         }
       },
 
-      mostrarModalNumeroWhatsApp: function(qrDataUrl, nombre, codigo) {
+      mostrarModalNumeroWhatsApp: function(qrDataUrl, nombre, codigo, paquete) {
         const modal = document.createElement('div');
         modal.innerHTML = `
             <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1522,7 +1964,10 @@ cargarHistorialQR: function() {
                     
                     <div class="mb-4 text-center">
                         <p class="text-sm text-gray-700 mb-3">
-                            <strong>QR para: ${nombre}</strong>
+                            <strong>QR para: ${nombre}</strong><br>
+                            <strong>Paquete: P${paquete.id} - ${paquete.name}</strong><br>
+                            <strong>Precio: $${paquete.price.toLocaleString('es-CO')}</strong><br>
+                            <strong>Turnos: ${paquete.turns}</strong>
                         </p>
                         <img src="${qrDataUrl}" alt="QR Code" class="mx-auto w-40 h-40 border-2 border-green-400 rounded-lg">
                         <p class="text-center font-mono text-lg font-bold mt-2">${codigo}</p>
@@ -1542,7 +1987,7 @@ cargarHistorialQR: function() {
                     </div>
                     
                     <div class="space-y-3">
-                        <button onclick="LocalApp.enviarWhatsAppConNumero('${qrDataUrl.replace(/'/g, "\\'")}', '${nombre}', '${codigo}')" 
+                        <button onclick="LocalApp.enviarWhatsAppConNumero('${qrDataUrl.replace(/'/g, "\\'")}', '${nombre}', '${codigo}', ${JSON.stringify(paquete)})" 
                                 class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 btn-touch font-semibold">
                             <i class="fab fa-whatsapp mr-2"></i>Enviar WhatsApp
                         </button>
@@ -1563,12 +2008,12 @@ cargarHistorialQR: function() {
         document.body.appendChild(modal);
       },
 
-      enviarWhatsAppConNumero: function(qrDataUrl, nombre, codigo) {
+      enviarWhatsAppConNumero: function(qrDataUrl, nombre, codigo, paquete) {
         const numeroInput = document.getElementById('numeroWhatsApp');
         const numero = numeroInput ? numeroInput.value.trim() : '';
         
-        // Crear mensaje
-        const mensaje = `¡Hola! 🎮\n\nTu código QR para Máquinas Medellín:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
+        // Crear mensaje con información del paquete
+        const mensaje = `¡Hola! 🎮\n\nTu código QR para Máquinas Medellín:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n• Paquete: P${paquete.id} - ${paquete.name}\n• Precio: $${paquete.price.toLocaleString('es-CO')}\n• Turnos: ${paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
         
         // Primero descargar el QR
         this.descargarQR(qrDataUrl, nombre, codigo);
@@ -1577,7 +2022,7 @@ cargarHistorialQR: function() {
         let whatsappUrl;
         
         if (numero) {
-            // Validar formato del número (eliminar espacios, +, etc.)
+            // Validar formato del número
             const numeroLimpio = numero.replace(/[\s+()-]/g, '');
             
             if (/^[0-9]{10,15}$/.test(numeroLimpio)) {
@@ -1592,7 +2037,7 @@ cargarHistorialQR: function() {
                 return;
             }
         } else {
-            // Enviar sin número específico (usuario elige contacto)
+            // Enviar sin número específico
             if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                 whatsappUrl = `whatsapp://send?text=${encodeURIComponent(mensaje)}`;
             } else {
@@ -1630,40 +2075,6 @@ cargarHistorialQR: function() {
             console.error("Error descargando QR:", error);
             return false;
         }
-      },
-
-      guardarMultiplesQRS: function(codigos, nombre) {
-        fetch("/api/guardar-multiples-qr", {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
-            },
-            body: JSON.stringify({ 
-                qr_codes: codigos,
-                nombre: nombre
-            })
-        })
-        .then(res => {
-            if (!res.ok) throw new Error('Error en la respuesta del servidor');
-            return res.json();
-        })
-        .then(data => {
-            console.log("QRs guardados:", data);
-            if (data.success) {
-                this.mostrarAlerta(`✅ ${data.message}`, "success");
-                // Recargar el historial después de guardar
-                this.cargarHistorialQR();
-                // Actualizar contadores
-                this.actualizarContadores();
-            } else {
-                this.mostrarAlerta(" Error al guardar los QR: " + (data.error || 'Error desconocido'), "error");
-            }
-        })
-        .catch(err => {
-            console.error("Error guardando QRs:", err);
-            this.mostrarAlerta(" Error de conexión al guardar los QR", "error");
-        });
       },
 
       mostrarAlerta: function(mensaje, tipo) {

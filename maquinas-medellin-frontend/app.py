@@ -130,6 +130,7 @@ def get_db_cursor(connection):
 
 # Crear tablas si no existen (solo una vez al inicio)
 def create_tables():
+    
     connection = None
     cursor = None
     try:
@@ -702,6 +703,144 @@ def guardar_qr():
         if connection:
             connection.close()
 
+# En app.py, agrega esta nueva ruta:
+
+@app.route('/api/guardar-multiples-qr-con-paquete', methods=['POST'])
+def guardar_multiples_qr_con_paquete():
+    """Guardar múltiples QR con paquete asignado desde el inicio"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        qr_codes = data.get('qr_codes', [])
+        nombre = data.get('nombre', '')
+        paquete_id = data.get('paquete_id')
+        paquete_nombre = data.get('paquete_nombre', '')
+        paquete_precio = data.get('paquete_precio', 0)
+        paquete_turns = data.get('paquete_turns', 0)
+        
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Usuario')
+        local = session.get('user_local', 'El Mekatiadero')
+
+        if not qr_codes:
+            return jsonify({'error': 'Lista de QR vacía'}), 400
+        
+        if not paquete_id:
+            return jsonify({'error': 'Paquete no especificado'}), 400
+        
+        print(f"💾 Guardando {len(qr_codes)} QR con paquete {paquete_nombre} y nombre: {nombre}")
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+
+        # Usar hora actual de Colombia
+        hora_colombia = get_colombia_time()
+        fecha_hora_str = format_datetime_for_db(hora_colombia)
+
+        qrs_creados = 0
+        qrs_actualizados = 0
+        
+        for qr_code in qr_codes:
+            cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+            qr_existente = cursor.fetchone()
+            
+            if not qr_existente:
+                print(f"➕ Insertando nuevo QR con paquete: {qr_code}")
+                cursor.execute("""
+                    INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (qr_code, paquete_turns, 1, paquete_id, nombre))
+                
+                qr_id = cursor.lastrowid
+                
+                # Crear registro en UserTurns
+                cursor.execute("""
+                    INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
+                    VALUES (%s, %s, %s, %s)
+                """, (qr_id, paquete_turns, paquete_turns, paquete_id))
+                
+                qrs_creados += 1
+            else:
+                print(f"⚠️ QR ya existe: {qr_code}. Verificando si puede actualizarse.")
+                qr_id = qr_existente['id']
+                
+                # Verificar si el QR ya tiene un paquete asignado
+                cursor.execute("SELECT turnPackageId FROM QRCode WHERE id = %s", (qr_id,))
+                qr_info = cursor.fetchone()
+                
+                if qr_info['turnPackageId'] is not None and qr_info['turnPackageId'] != 1:
+                    print(f"⚠️ QR {qr_code} ya tiene un paquete asignado. Saltando...")
+                    continue
+                
+                # Actualizar el QR existente con el nuevo paquete
+                cursor.execute("""
+                    UPDATE QRCode 
+                    SET remainingTurns = %s, turnPackageId = %s, qr_name = %s
+                    WHERE id = %s
+                """, (paquete_turns, paquete_id, nombre, qr_id))
+                
+                # Actualizar o crear UserTurns
+                cursor.execute("SELECT id FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+                user_turns_existente = cursor.fetchone()
+                
+                if user_turns_existente:
+                    cursor.execute("""
+                        UPDATE UserTurns 
+                        SET turns_remaining = %s, total_turns = %s, package_id = %s
+                        WHERE qr_code_id = %s
+                    """, (paquete_turns, paquete_turns, paquete_id, qr_id))
+                else:
+                    cursor.execute("""
+                        INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
+                        VALUES (%s, %s, %s, %s)
+                    """, (qr_id, paquete_turns, paquete_turns, paquete_id))
+                
+                qrs_actualizados += 1
+            
+            # Registrar en historial como VENTA
+            cursor.execute("""
+                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre))
+
+        connection.commit()
+        
+        total_qrs = qrs_creados + qrs_actualizados
+        mensaje = f'{total_qrs} QR generados y asignados al paquete "{paquete_nombre}"'
+        
+        if qrs_actualizados > 0:
+            mensaje += f' ({qrs_actualizados} actualizados)'
+        
+        print(f"✅ {mensaje}")
+
+        return jsonify({
+            'success': True, 
+            'message': mensaje,
+            'count': total_qrs,
+            'nombre': nombre,
+            'paquete': paquete_nombre,
+            'precio': paquete_precio,
+            'turns': paquete_turns,
+            'creados': qrs_creados,
+            'actualizados': qrs_actualizados
+        })
+        
+    except Exception as e:
+        print(f"❌ Error guardando múltiples QR con paquete: {e}")
+        sentry_sdk.capture_exception(e)
+        if connection:
+            connection.rollback()
+        return jsonify({'error': str(e), 'message': 'Error al guardar los códigos QR con paquete'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 # Agregar QR generados en lote al historial
 @app.route('/api/guardar-multiples-qr', methods=['POST'])
 def guardar_multiples_qr():
@@ -854,16 +993,19 @@ def contador_global_vendidos():
             
         cursor = get_db_cursor(connection)
         # Contar QR que tienen un paquete asignado (vendidos) y no son el paquete por defecto
+        # También excluir los QR que tienen paquete pero 0 turnos (no son ventas reales)
         cursor.execute("""
             SELECT COUNT(*) as total_qr 
-            FROM QRCode 
-            WHERE turnPackageId IS NOT NULL 
-            AND turnPackageId != 1  -- Excluir el paquete por defecto
-            AND turnPackageId IS NOT NULL
+            FROM QRCode qr
+            JOIN UserTurns ut ON ut.qr_code_id = qr.id
+            WHERE qr.turnPackageId IS NOT NULL 
+            AND qr.turnPackageId != 1  -- Excluir el paquete por defecto
+            AND ut.turns_remaining > 0  -- Solo QR con turnos disponibles (ventas reales)
+            AND qr.isActive = 1
         """)
         resultado = cursor.fetchone()
         
-        print(f"📊 Total QR vendidos (con paquete): {resultado['total_qr']}")
+        print(f"📊 Total QR vendidos (con paquete y turnos): {resultado['total_qr']}")
         
         return jsonify({'total_qr': resultado['total_qr']})
     except Exception as e:
@@ -1157,6 +1299,7 @@ def reportar_falla_maquina():
         machine_id = data.get('machine_id')
         machine_name = data.get('machine_name')
         description = data.get('description', 'Falla reportada sin descripción adicional')
+        problem_type = data.get('problem_type', 'mantenimiento')  # Nuevo campo: 'mantenimiento' o 'fuera_servicio'
         user_id = session.get('user_id')
 
         if not machine_id or not machine_name:
@@ -1169,44 +1312,68 @@ def reportar_falla_maquina():
         cursor = get_db_cursor(connection)
 
         # 🔎 Validar usuario
-        cursor.execute("SELECT id FROM user WHERE id = %s", (user_id,))
+        cursor.execute("SELECT id FROM Users WHERE id = %s", (user_id,))
         if not cursor.fetchone():
             return jsonify({'error': 'Usuario inválido'}), 400
 
         # 🔎 Validar máquina
-        cursor.execute("SELECT id FROM machine WHERE id = %s", (machine_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id, name FROM Machine WHERE id = %s", (machine_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
             return jsonify({'error': 'Máquina no encontrada'}), 404
 
         # 🔒 Transacción
         connection.start_transaction()
 
-        # 1️⃣ Insertar reporte de falla
-        cursor.execute("""
-            INSERT INTO ErrorReport
-            (machineId, userId, description, reportedAt, isResolved)
-            VALUES (%s, %s, %s, NOW(), FALSE)
-        """, (machine_id, user_id, description))
+        # Verificar si la columna problem_type existe en la tabla
+        try:
+            # Intentar insertar con problem_type si la columna existe
+            cursor.execute("""
+                INSERT INTO ErrorReport 
+                (machineId, userId, description, reportedAt, isResolved, problem_type)
+                VALUES (%s, %s, %s, NOW(), FALSE, %s)
+            """, (machine_id, user_id, description, problem_type))
+        except mysql.connector.Error as e:
+            # Si falla por columna desconocida, intentar sin problem_type
+            if 'Unknown column' in str(e) and 'problem_type' in str(e):
+                print("⚠️ Columna problem_type no existe, insertando sin ella")
+                cursor.execute("""
+                    INSERT INTO ErrorReport 
+                    (machineId, userId, description, reportedAt, isResolved)
+                    VALUES (%s, %s, %s, NOW(), FALSE)
+                """, (machine_id, user_id, description))
+            else:
+                raise e  # Relanzar si es otro error
 
-        # 2️⃣ Cambiar estado de la máquina a mantenimiento
+        error_report_id = cursor.lastrowid
+
+        # 2️⃣ Cambiar estado de la máquina según el tipo de problema
+        nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
+        
         cursor.execute("""
-            UPDATE machine
-            SET status = 'mantenimiento'
+            UPDATE Machine 
+            SET status = %s, 
+                errorNote = %s
             WHERE id = %s
-        """, (machine_id,))
+        """, (nuevo_estado, description, machine_id))
 
         connection.commit()
 
         return jsonify({
             'success': True,
-            'message': f'Falla reportada en {machine_name}. La máquina fue puesta en mantenimiento.'
+            'message': f'Falla reportada en {maquina["name"]}. La máquina fue puesta en {nuevo_estado}.',
+            'machine_id': machine_id,
+            'new_status': nuevo_estado,
+            'error_report_id': error_report_id,
+            'problem_type': problem_type
         })
 
     except Exception as e:
         if connection:
             connection.rollback()
         print(f"❌ Error reportando falla de máquina: {e}")
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': 'Error interno del servidor', 'details': str(e)}), 500
 
     finally:
         if cursor:
@@ -2740,6 +2907,190 @@ def mostrar_gestion_maquinas():
     return render_template('admin/maquinas/gestionmaquinas.html',
                            nombre_usuario=session.get('user_name', 'Administrador'),
                            local_usuario=session.get('user_local', 'Sistema'))
+
+# ==================== API PARA OBTENER REPORTES DE FALLAS ====================
+
+@app.route('/api/maquinas/<int:maquina_id>/reportes', methods=['GET'])
+def obtener_reportes_maquina(maquina_id):
+    """Obtener todos los reportes de fallas de una máquina"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Primero verificar si la columna problem_type existe
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'ErrorReport' AND COLUMN_NAME = 'problem_type'
+        """)
+        tiene_problem_type = cursor.fetchone() is not None
+        
+        # Construir consulta dinámica
+        if tiene_problem_type:
+            query = """
+                SELECT 
+                    er.id,
+                    er.description,
+                    er.problem_type,
+                    er.reportedAt,
+                    er.isResolved,
+                    u.name as reportado_por,
+                    c.confirmation_status,
+                    c.comments as comentarios_admin,
+                    c.confirmation_date,
+                    admin.name as confirmado_por
+                FROM ErrorReport er
+                JOIN Users u ON er.userId = u.id
+                LEFT JOIN Confirmation c ON er.id = c.fault_report_id
+                LEFT JOIN Users admin ON c.admin_id = admin.id
+                WHERE er.machineId = %s
+                ORDER BY er.reportedAt DESC
+            """
+        else:
+            query = """
+                SELECT 
+                    er.id,
+                    er.description,
+                    'mantenimiento' as problem_type,  -- Valor por defecto
+                    er.reportedAt,
+                    er.isResolved,
+                    u.name as reportado_por,
+                    c.confirmation_status,
+                    c.comments as comentarios_admin,
+                    c.confirmation_date,
+                    admin.name as confirmado_por
+                FROM ErrorReport er
+                JOIN Users u ON er.userId = u.id
+                LEFT JOIN Confirmation c ON er.id = c.fault_report_id
+                LEFT JOIN Users admin ON c.admin_id = admin.id
+                WHERE er.machineId = %s
+                ORDER BY er.reportedAt DESC
+            """
+        
+        cursor.execute(query, (maquina_id,))
+        reportes = cursor.fetchall()
+        
+        # Formatear fechas
+        for reporte in reportes:
+            if reporte['reportedAt']:
+                try:
+                    fecha_colombia = parse_db_datetime(reporte['reportedAt'])
+                    reporte['reportedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    reporte['reportedAt'] = str(reporte['reportedAt'])
+            if reporte['confirmation_date']:
+                try:
+                    fecha_colombia = parse_db_datetime(reporte['confirmation_date'])
+                    reporte['confirmation_date'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    reporte['confirmation_date'] = str(reporte['confirmation_date'])
+        
+        return jsonify(reportes)
+        
+    except Exception as e:
+        print(f"❌ Error obteniendo reportes de máquina: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+# ==================== API PARA RESOLVER REPORTE ====================
+
+@app.route('/api/reportes/<int:reporte_id>/resolver', methods=['POST'])
+def resolver_reporte(reporte_id):
+    """Marcar un reporte como resuelto"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        comentarios = data.get('comentarios', '')
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'Usuario no autenticado'}), 401
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'Error de conexión a la base de datos'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener información del reporte
+        cursor.execute("SELECT machineId FROM ErrorReport WHERE id = %s", (reporte_id,))
+        reporte = cursor.fetchone()
+        
+        if not reporte:
+            return jsonify({'error': 'Reporte no encontrado'}), 404
+        
+        machine_id = reporte['machineId']
+        
+        # Verificar si la columna resolved_at existe
+        cursor.execute("""
+            SELECT COLUMN_NAME 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'ErrorReport' AND COLUMN_NAME = 'resolved_at'
+        """)
+        tiene_resolved_at = cursor.fetchone() is not None
+        
+        # Iniciar transacción
+        connection.start_transaction()
+        
+        # 1. Marcar reporte como resuelto
+        if tiene_resolved_at:
+            cursor.execute("""
+                UPDATE ErrorReport 
+                SET isResolved = TRUE,
+                    resolved_at = NOW()
+                WHERE id = %s
+            """, (reporte_id,))
+        else:
+            cursor.execute("""
+                UPDATE ErrorReport 
+                SET isResolved = TRUE
+                WHERE id = %s
+            """, (reporte_id,))
+        
+        # 2. Crear confirmación de resolución
+        cursor.execute("""
+            INSERT INTO Confirmation 
+            (fault_report_id, admin_id, confirmation_status, comments)
+            VALUES (%s, %s, 'resuelta', %s)
+        """, (reporte_id, user_id, comentarios))
+        
+        # 3. Cambiar estado de la máquina a activa si está en mantenimiento
+        cursor.execute("""
+            UPDATE Machine 
+            SET status = 'activa',
+                errorNote = ''
+            WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
+        """, (machine_id,))
+        
+        connection.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Reporte marcado como resuelto y máquina reactivada',
+            'machine_id': machine_id
+        })
+        
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        print(f"❌ Error resolviendo reporte: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # ==================== FUNCIONES AUXILIARES ====================
 

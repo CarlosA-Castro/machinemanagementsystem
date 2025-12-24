@@ -430,414 +430,579 @@
         </div>
     </div>
 
-    <script>
-        const MaquinaManager = {
-    maquinas: [],
-    propietarios: [],
-    locales: [],
-    maquinasFiltradas: [],
-
-    init: function() {
-        // Configurar partículas
-        particlesJS('particles-js', {
-            particles: {
-                number: { value: 40, density: { enable: true, value_area: 600 } },
-                color: { value: '#3b82f6' },
-                shape: { type: 'circle' },
-                opacity: { value: 0.2, random: true },
-                size: { value: 2, random: true },
-                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
-                move: { enable: true, speed: 0.5, direction: 'none', random: true }
-            },
-            interactivity: {
-                detect_on: 'canvas',
-                events: {
-                    onhover: { enable: true, mode: 'grab' },
-                    onclick: { enable: true, mode: 'push' },
-                    resize: true
-                }
-            }
-        });
-
-        // Configurar fecha actual
-        const ahora = new Date();
-        const opciones = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        document.getElementById('fechaActual').textContent = 
-            ahora.toLocaleDateString('es-ES', opciones);
-        
-        // Cargar datos iniciales
-        this.cargarDatosIniciales();
-        
-        console.log("Gestión de Máquinas inicializada");
-    },
-
-    cargarDatosIniciales: function() {
-        this.cargarMaquinas();
-        this.cargarPropietarios();
-        this.cargarLocales();
-        this.inicializarGraficos();
-    },
-
-    cargarMaquinas: async function() {
-        try {
-            const response = await fetch('/api/maquinas');
-            if (response.ok) {
-                this.maquinas = await response.json();
-                this.maquinasFiltradas = [...this.maquinas];
-                this.actualizarListaMaquinas();
-                this.actualizarEstadisticas();
-                this.actualizarGraficos();
-            } else {
-                throw new Error('Error al cargar máquinas');
-            }
-        } catch (error) {
-            console.error('Error cargando máquinas:', error);
-            this.mostrarAlerta('Error al cargar las máquinas', 'error');
-        }
-    },
-
-    cargarPropietarios: async function() {
-        try {
-            const response = await fetch('/api/propietarios');
-            if (response.ok) {
-                this.propietarios = await response.json();
-            }
-        } catch (error) {
-            console.error('Error cargando propietarios:', error);
-        }
-    },
-
-    cargarLocales: async function() {
-        try {
-            const response = await fetch('/api/locales');
-            if (response.ok) {
-                this.locales = await response.json();
-                this.actualizarSelectLocales();
-            }
-        } catch (error) {
-            console.error('Error cargando locales:', error);
-        }
-    },
-
-    actualizarSelectLocales: function() {
-        const select = document.getElementById('localId');
-        select.innerHTML = '<option value="">Seleccionar local</option>';
-        
-        this.locales.forEach(local => {
-            const option = document.createElement('option');
-            option.value = local.id;
-            option.textContent = local.name;
-            select.appendChild(option);
-        });
-    },
-
-    actualizarListaMaquinas: function() {
-        const tbody = document.getElementById('tabla-maquinas');
-        const contador = document.getElementById('contador-maquinas');
-        
-        if (this.maquinasFiltradas.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center py-8 text-gray-500">
-                        <i class="fas fa-search mb-2 text-2xl"></i>
-                        <p>No se encontraron máquinas</p>
-                    </td>
-                </tr>
-            `;
-            contador.textContent = '0 máquinas';
-            return;
-        }
-        
-        let html = '';
-        this.maquinasFiltradas.forEach(maquina => {
-            const estadoClass = `status-badge status-${maquina.status}`;
-            const estadoText = maquina.status === 'activa' ? 'Activa' : 
-                             maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
+    <!-- Modal para ver reportes de máquina -->
+    <div id="modalReportes" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="glass-card max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">
+                    <i class="fas fa-exclamation-triangle mr-2 text-yellow-600"></i>
+                    Reportes de Falla - <span id="nombreMaquinaReportes"></span>
+                </h3>
+                <button onclick="MaquinaManager.cerrarModalReportes()" class="text-gray-500 hover:text-gray-700 btn-touch">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
             
-            // Obtener información real de propietarios
-            const infoPropietarios = this.obtenerInfoPropietarios(maquina.propietarios);
+            <div id="listaReportes" class="space-y-4 mb-6">
+                <!-- Los reportes se cargarán aquí -->
+            </div>
             
-            html += `
-                <tr class="border-b border-gray-100 hover:bg-gray-50 machine-card">
-                    <td class="py-3 px-4 text-sm text-gray-600">${maquina.id}</td>
-                    <td class="py-3 px-4">
-                        <div class="font-medium text-gray-800">${maquina.name}</div>
-                    </td>
-                    <td class="py-3 px-4 text-sm text-gray-600 capitalize">${maquina.type}</td>
-                    <td class="py-3 px-4">
-                        <span class="${estadoClass}">${estadoText}</span>
-                    </td>
-                    <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
-                    <td class="py-3 px-4 text-sm text-gray-600">${infoPropietarios}</td>
-                    <td class="py-3 px-4 text-sm text-gray-600">${maquina.porcentaje_restaurante || 35}%</td>
-                    <td class="py-3 px-4 text-sm text-center">
-                        <div class="flex justify-center space-x-2">
-                            <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        tbody.innerHTML = html;
-        contador.textContent = `${this.maquinasFiltradas.length} máquina(s)`;
-    },
-
-    obtenerInfoPropietarios: function(propietarios) {
-        if (!propietarios || propietarios.length === 0) {
-            return "Sin propietarios";
-        }
-        
-        // Ordenar por porcentaje (mayor a menor)
-        const propietariosOrdenados = [...propietarios].sort((a, b) => b.porcentaje_propiedad - a.porcentaje_propiedad);
-        
-        const info = propietariosOrdenados.map(prop => 
-            `${prop.nombre} (${prop.porcentaje_propiedad}%)`
-        );
-        
-        return info.join(', ');
-    },
-
-    actualizarEstadisticas: function() {
-        const total = this.maquinas.length;
-        const activas = this.maquinas.filter(m => m.status === 'activa').length;
-        const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
-        const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
-        
-        document.getElementById('total-maquinas').textContent = total;
-        document.getElementById('maquinas-activas').textContent = activas;
-        document.getElementById('maquinas-mantenimiento').textContent = mantenimiento;
-        document.getElementById('maquinas-inactivas').textContent = inactivas;
-    },
-
-    actualizarGraficos: function() {
-        // Gráfico de estado de máquinas
-        const activas = this.maquinas.filter(m => m.status === 'activa').length;
-        const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
-        const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
-        
-        if (this.chartEstado) {
-            this.chartEstado.data.datasets[0].data = [activas, mantenimiento, inactivas];
-            this.chartEstado.update();
-        }
-
-        // Gráfico de distribución por tipo
-        const tipos = {};
-        this.maquinas.forEach(maquina => {
-            tipos[maquina.type] = (tipos[maquina.type] || 0) + 1;
-        });
-
-        if (this.chartTipos) {
-            this.chartTipos.data.labels = Object.keys(tipos);
-            this.chartTipos.data.datasets[0].data = Object.values(tipos);
-            this.chartTipos.update();
-        }
-    },
-
-    filtrarMaquinas: function() {
-        const busqueda = document.getElementById('filtroBusqueda').value.toLowerCase();
-        const estado = document.getElementById('filtroEstado').value;
-        const tipo = document.getElementById('filtroTipo').value;
-        
-        this.maquinasFiltradas = this.maquinas.filter(maquina => {
-            const coincideBusqueda = maquina.name.toLowerCase().includes(busqueda);
-            const coincideEstado = estado === 'todos' || maquina.status === estado;
-            const coincideTipo = tipo === 'todos' || maquina.type === tipo;
-            
-            return coincideBusqueda && coincideEstado && coincideTipo;
-        });
-        
-        this.actualizarListaMaquinas();
-    },
-
-    limpiarFiltros: function() {
-        document.getElementById('filtroBusqueda').value = '';
-        document.getElementById('filtroEstado').value = 'todos';
-        document.getElementById('filtroTipo').value = 'todos';
-        this.maquinasFiltradas = [...this.maquinas];
-        this.actualizarListaMaquinas();
-        this.mostrarAlerta('Filtros limpiados', 'success');
-    },
-
-    mostrarModalCrear: function() {
-        document.getElementById('modalTitulo').textContent = 'Nueva Máquina';
-        document.getElementById('maquinaId').value = '';
-        document.getElementById('formMaquina').reset();
-        this.cargarPropietariosEnModal();
-        document.getElementById('modalMaquina').classList.remove('hidden');
-    },
-
-    editarMaquina: function(id) {
-        const maquina = this.maquinas.find(m => m.id === id);
-        if (!maquina) return;
-        
-        document.getElementById('modalTitulo').textContent = 'Editar Máquina';
-        document.getElementById('maquinaId').value = maquina.id;
-        document.getElementById('nombre').value = maquina.name;
-        document.getElementById('tipo').value = maquina.type;
-        document.getElementById('estado').value = maquina.status;
-        document.getElementById('localId').value = maquina.location_id;
-        document.getElementById('errorNote').value = maquina.errorNote || '';
-        document.getElementById('porcentajeRestaurante').value = maquina.porcentaje_restaurante || 35;
-        
-        this.cargarPropietariosEnModal(maquina.id);
-        document.getElementById('modalMaquina').classList.remove('hidden');
-    },
-
-    cargarPropietariosEnModal: function(maquinaId = null) {
-        const container = document.getElementById('propietarios-container');
-        let html = '';
-        
-        // Obtener los propietarios actuales de la máquina si estamos editando
-        let propietariosActuales = [];
-        if (maquinaId) {
-            const maquina = this.maquinas.find(m => m.id === maquinaId);
-            if (maquina && maquina.propietarios) {
-                propietariosActuales = maquina.propietarios;
-            }
-        }
-        
-        this.propietarios.forEach(propietario => {
-            // Buscar el porcentaje actual del propietario
-            const propietarioActual = propietariosActuales.find(p => p.id === propietario.id);
-            const porcentaje = propietarioActual ? propietarioActual.porcentaje_propiedad : 0;
-            
-            html += `
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span class="font-medium text-gray-800">${propietario.nombre}</span>
-                    <div class="flex items-center space-x-3">
-                        <input type="number" 
-                               class="w-20 border border-gray-300 rounded p-2 text-sm" 
-                               value="${porcentaje}" 
-                               min="0" max="100" step="0.01"
-                               onchange="MaquinaManager.validarPorcentajes()">
-                        <span class="text-gray-600 text-sm">%</span>
+            <div class="border-t border-gray-200 pt-4">
+                <h4 class="font-medium text-gray-800 mb-3">Resolver Reporte Actual</h4>
+                <div class="space-y-3">
+                    <textarea id="comentariosResolucion" rows="3" 
+                              class="w-full border border-gray-300 rounded-lg p-3" 
+                              placeholder="Comentarios sobre la resolución..."></textarea>
+                    <div class="flex justify-end">
+                        <button onclick="MaquinaManager.resolverReporteActual()" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 btn-touch">
+                            <i class="fas fa-check-circle mr-2"></i>Marcar como Resuelto
+                        </button>
                     </div>
                 </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-    },
+            </div>
+        </div>
+    </div>
 
-    validarPorcentajes: function() {
-        // Validar que la suma de porcentajes sea 100%
-        const inputs = document.querySelectorAll('#propietarios-container input');
-        let total = 0;
-        
-        inputs.forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
-        
-        if (Math.abs(total - 100) > 0.01) {
-            this.mostrarAlerta(`La suma de porcentajes es ${total.toFixed(2)}%. Debe ser exactamente 100%`, 'warning');
-            return false;
-        }
-        
-        return true;
-    },
+    <script>
+        const MaquinaManager = {
+            maquinas: [],
+            propietarios: [],
+            locales: [],
+            maquinasFiltradas: [],
+            maquinaReportesActual: null,
+            maquinaReportesNombre: '',
 
-    guardarMaquina: async function(event) {
-        event.preventDefault();
-        
-        if (!this.validarPorcentajes()) {
-            return;
-        }
-        
-        const formData = {
-            id: document.getElementById('maquinaId').value,
-            name: document.getElementById('nombre').value,
-            type: document.getElementById('tipo').value,
-            status: document.getElementById('estado').value,
-            location_id: document.getElementById('localId').value,
-            errorNote: document.getElementById('errorNote').value,
-            porcentaje_restaurante: document.getElementById('porcentajeRestaurante').value
-        };
-        
-        try {
-            const url = formData.id ? `/api/maquinas/${formData.id}` : '/api/maquinas';
-            const method = formData.id ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            if (response.ok) {
-                this.cerrarModal();
-                this.cargarMaquinas();
-                this.mostrarAlerta('Máquina guardada correctamente', 'success');
-            } else {
-                throw new Error('Error al guardar la máquina');
-            }
-        } catch (error) {
-            console.error('Error guardando máquina:', error);
-            this.mostrarAlerta('Error al guardar la máquina', 'error');
-        }
-    },
+            init: function() {
+                // Configurar partículas
+                particlesJS('particles-js', {
+                    particles: {
+                        number: { value: 40, density: { enable: true, value_area: 600 } },
+                        color: { value: '#3b82f6' },
+                        shape: { type: 'circle' },
+                        opacity: { value: 0.2, random: true },
+                        size: { value: 2, random: true },
+                        line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                        move: { enable: true, speed: 0.5, direction: 'none', random: true }
+                    },
+                    interactivity: {
+                        detect_on: 'canvas',
+                        events: {
+                            onhover: { enable: true, mode: 'grab' },
+                            onclick: { enable: true, mode: 'push' },
+                            resize: true
+                        }
+                    }
+                });
 
-    eliminarMaquina: async function(id) {
-        if (!confirm('¿Estás seguro de que quieres eliminar esta máquina?')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/maquinas/${id}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                this.cargarMaquinas();
-                this.mostrarAlerta('Máquina eliminada correctamente', 'success');
-            } else {
-                throw new Error('Error al eliminar la máquina');
-            }
-        } catch (error) {
-            console.error('Error eliminando máquina:', error);
-            this.mostrarAlerta('Error al eliminar la máquina', 'error');
-        }
-    },
-
-    cerrarModal: function() {
-        document.getElementById('modalMaquina').classList.add('hidden');
-    },
-
-    actualizarTodo: function() {
-        this.cargarDatosIniciales();
-        this.mostrarAlerta('Datos actualizados completamente', 'success');
-    },
-
-    inicializarGraficos: function() {
-        // Gráfico de estado de máquinas
-        const ctxEstado = document.getElementById('chartEstado').getContext('2d');
-        this.chartEstado = new Chart(ctxEstado, {
-            type: 'doughnut',
-            data: {
-                labels: ['Activas', 'Mantenimiento', 'Inactivas'],
-                datasets: [{
-                    data: [0, 0, 0],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
-                }]
+                // Configurar fecha actual
+                const ahora = new Date();
+                const opciones = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                document.getElementById('fechaActual').textContent = 
+                    ahora.toLocaleDateString('es-ES', opciones);
+                
+                // Cargar datos iniciales
+                this.cargarDatosIniciales();
+                
+                console.log("Gestión de Máquinas inicializada");
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
+
+            cargarDatosIniciales: function() {
+                this.cargarMaquinas();
+                this.cargarPropietarios();
+                this.cargarLocales();
+                this.inicializarGraficos();
+            },
+
+            cargarMaquinas: async function() {
+                try {
+                    const response = await fetch('/api/maquinas');
+                    if (response.ok) {
+                        this.maquinas = await response.json();
+                        this.maquinasFiltradas = [...this.maquinas];
+                        this.actualizarListaMaquinas();
+                        this.actualizarEstadisticas();
+                        this.actualizarGraficos();
+                    } else {
+                        throw new Error('Error al cargar máquinas');
+                    }
+                } catch (error) {
+                    console.error('Error cargando máquinas:', error);
+                    this.mostrarAlerta('Error al cargar las máquinas', 'error');
+                }
+            },
+
+            cargarPropietarios: async function() {
+                try {
+                    const response = await fetch('/api/propietarios');
+                    if (response.ok) {
+                        this.propietarios = await response.json();
+                    }
+                } catch (error) {
+                    console.error('Error cargando propietarios:', error);
+                }
+            },
+
+            cargarLocales: async function() {
+                try {
+                    const response = await fetch('/api/locales');
+                    if (response.ok) {
+                        this.locales = await response.json();
+                        this.actualizarSelectLocales();
+                    }
+                } catch (error) {
+                    console.error('Error cargando locales:', error);
+                }
+            },
+
+            actualizarSelectLocales: function() {
+                const select = document.getElementById('localId');
+                select.innerHTML = '<option value="">Seleccionar local</option>';
+                
+                this.locales.forEach(local => {
+                    const option = document.createElement('option');
+                    option.value = local.id;
+                    option.textContent = local.name;
+                    select.appendChild(option);
+                });
+            },
+
+            actualizarListaMaquinas: function() {
+                const tbody = document.getElementById('tabla-maquinas');
+                const contador = document.getElementById('contador-maquinas');
+                
+                if (this.maquinasFiltradas.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center py-8 text-gray-500">
+                                <i class="fas fa-search mb-2 text-2xl"></i>
+                                <p>No se encontraron máquinas</p>
+                            </td>
+                        </tr>
+                    `;
+                    contador.textContent = '0 máquinas';
+                    return;
+                }
+                
+                let html = '';
+                this.maquinasFiltradas.forEach(maquina => {
+                    const estadoClass = `status-badge status-${maquina.status}`;
+                    const estadoText = maquina.status === 'activa' ? 'Activa' : 
+                                     maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
+                    
+                    // Obtener información real de propietarios
+                    const infoPropietarios = this.obtenerInfoPropietarios(maquina.propietarios);
+                    
+                    html += `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 machine-card">
+                            <td class="py-3 px-4 text-sm text-gray-600">${maquina.id}</td>
+                            <td class="py-3 px-4">
+                                <div class="font-medium text-gray-800">${maquina.name}</div>
+                                ${maquina.errorNote ? `<div class="text-xs text-red-600 mt-1">${maquina.errorNote.substring(0, 50)}${maquina.errorNote.length > 50 ? '...' : ''}</div>` : ''}
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600 capitalize">${maquina.type}</td>
+                            <td class="py-3 px-4">
+                                <span class="${estadoClass}">${estadoText}</span>
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
+                            <td class="py-3 px-4 text-sm text-gray-600">${infoPropietarios}</td>
+                            <td class="py-3 px-4 text-sm text-gray-600">${maquina.porcentaje_restaurante || 35}%</td>
+                            <td class="py-3 px-4 text-sm text-center">
+                                <div class="flex justify-center space-x-2">
+                                    <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="MaquinaManager.verReportes(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                                            class="text-yellow-600 hover:text-yellow-800 btn-touch" title="Ver Reportes">
+                                        <i class="fas fa-clipboard-list"></i>
+                                    </button>
+                                    <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = html;
+                contador.textContent = `${this.maquinasFiltradas.length} máquina(s)`;
+            },
+
+            obtenerInfoPropietarios: function(propietarios) {
+                if (!propietarios || propietarios.length === 0) {
+                    return "Sin propietarios";
+                }
+                
+                // Ordenar por porcentaje (mayor a menor)
+                const propietariosOrdenados = [...propietarios].sort((a, b) => b.porcentaje_propiedad - a.porcentaje_propiedad);
+                
+                const info = propietariosOrdenados.map(prop => 
+                    `${prop.nombre} (${prop.porcentaje_propiedad}%)`
+                );
+                
+                return info.join(', ');
+            },
+
+            verReportes: async function(maquinaId, maquinaNombre) {
+                try {
+                    this.maquinaReportesNombre = maquinaNombre;
+                    document.getElementById('nombreMaquinaReportes').textContent = maquinaNombre;
+                    document.getElementById('comentariosResolucion').value = '';
+                    
+                    const response = await fetch(`/api/maquinas/${maquinaId}/reportes`);
+                    
+                    if (response.ok) {
+                        const reportes = await response.json();
+                        this.mostrarReportesModal(reportes, maquinaId);
+                    } else {
+                        throw new Error('Error al cargar reportes');
+                    }
+                } catch (error) {
+                    console.error('Error cargando reportes:', error);
+                    this.mostrarAlerta('Error al cargar los reportes', 'error');
+                }
+            },
+
+            mostrarReportesModal: function(reportes, maquinaId) {
+                const container = document.getElementById('listaReportes');
+                
+                if (!reportes || reportes.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-check-circle text-green-500 text-3xl mb-3"></i>
+                            <p>No hay reportes de falla para esta máquina</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    reportes.forEach((reporte, index) => {
+                        const isActive = index === 0 && !reporte.isResolved;
+                        const statusClass = reporte.isResolved ? 'border-green-200 bg-green-50' : 
+                                           'border-yellow-200 bg-yellow-50';
+                        const statusText = reporte.isResolved ? 'Resuelto' : 'Pendiente';
+                        const statusColor = reporte.isResolved ? 'text-green-600' : 'text-yellow-600';
+                        const tipoProblema = reporte.problem_type === 'mantenimiento' ? 'Mantenimiento' : 'Fuera de Servicio';
+                        
+                        html += `
+                            <div class="border rounded-lg p-4 ${statusClass} ${isActive ? 'border-2 border-blue-400' : ''}">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <span class="font-medium text-gray-800">${tipoProblema}</span>
+                                        <span class="ml-2 px-2 py-1 text-xs rounded-full ${statusColor} bg-white">
+                                            ${statusText}
+                                        </span>
+                                    </div>
+                                    <span class="text-sm text-gray-500">${reporte.reportedAt || 'Sin fecha'}</span>
+                                </div>
+                                
+                                <p class="text-gray-700 mb-3">${reporte.description || 'Sin descripción'}</p>
+                                
+                                <div class="text-sm text-gray-600">
+                                    <div class="flex justify-between">
+                                        <span>Reportado por: ${reporte.reportado_por || 'Sistema'}</span>
+                                        ${reporte.confirmation_status ? 
+                                            `<span>Confirmado: ${reporte.confirmation_status}</span>` : 
+                                            ''}
+                                    </div>
+                                    ${reporte.comentarios_admin ? 
+                                        `<div class="mt-2 p-2 bg-gray-100 rounded">
+                                            <strong>Comentarios Admin:</strong> ${reporte.comentarios_admin}
+                                        </div>` : 
+                                        ''}
+                                    ${reporte.confirmado_por ? 
+                                        `<div class="mt-1 text-xs">
+                                            Confirmado por: ${reporte.confirmado_por}
+                                        </div>` : 
+                                        ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                    this.maquinaReportesActual = maquinaId;
+                }
+                
+                document.getElementById('modalReportes').classList.remove('hidden');
+            },
+
+            cerrarModalReportes: function() {
+                document.getElementById('modalReportes').classList.add('hidden');
+                this.maquinaReportesActual = null;
+                this.maquinaReportesNombre = '';
+            },
+
+            resolverReporteActual: async function() {
+                if (!this.maquinaReportesActual) {
+                    this.mostrarAlerta('No hay máquina seleccionada', 'error');
+                    return;
+                }
+                
+                const comentarios = document.getElementById('comentariosResolucion').value.trim();
+                
+                try {
+                    const response = await fetch(`/api/reportes/${this.maquinaReportesActual}/resolver`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            comentarios: comentarios || 'Resuelto por administrador'
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        this.cerrarModalReportes();
+                        this.cargarMaquinas(); // Recargar lista
+                        this.mostrarAlerta('Reporte resuelto y máquina reactivada', 'success');
+                    } else {
+                        throw new Error(result.error || 'Error al resolver reporte');
+                    }
+                } catch (error) {
+                    console.error('Error resolviendo reporte:', error);
+                    this.mostrarAlerta('Error al resolver el reporte: ' + error.message, 'error');
+                }
+            },
+
+            actualizarEstadisticas: function() {
+                const total = this.maquinas.length;
+                const activas = this.maquinas.filter(m => m.status === 'activa').length;
+                const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
+                const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
+                
+                document.getElementById('total-maquinas').textContent = total;
+                document.getElementById('maquinas-activas').textContent = activas;
+                document.getElementById('maquinas-mantenimiento').textContent = mantenimiento;
+                document.getElementById('maquinas-inactivas').textContent = inactivas;
+            },
+
+            actualizarGraficos: function() {
+                // Gráfico de estado de máquinas
+                const activas = this.maquinas.filter(m => m.status === 'activa').length;
+                const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
+                const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
+                
+                if (this.chartEstado) {
+                    this.chartEstado.data.datasets[0].data = [activas, mantenimiento, inactivas];
+                    this.chartEstado.update();
+                }
+
+                // Gráfico de distribución por tipo
+                const tipos = {};
+                this.maquinas.forEach(maquina => {
+                    tipos[maquina.type] = (tipos[maquina.type] || 0) + 1;
+                });
+
+                if (this.chartTipos) {
+                    this.chartTipos.data.labels = Object.keys(tipos);
+                    this.chartTipos.data.datasets[0].data = Object.values(tipos);
+                    this.chartTipos.update();
+                }
+            },
+
+            filtrarMaquinas: function() {
+                const busqueda = document.getElementById('filtroBusqueda').value.toLowerCase();
+                const estado = document.getElementById('filtroEstado').value;
+                const tipo = document.getElementById('filtroTipo').value;
+                
+                this.maquinasFiltradas = this.maquinas.filter(maquina => {
+                    const coincideBusqueda = maquina.name.toLowerCase().includes(busqueda);
+                    const coincideEstado = estado === 'todos' || maquina.status === estado;
+                    const coincideTipo = tipo === 'todos' || maquina.type === tipo;
+                    
+                    return coincideBusqueda && coincideEstado && coincideTipo;
+                });
+                
+                this.actualizarListaMaquinas();
+            },
+
+            limpiarFiltros: function() {
+                document.getElementById('filtroBusqueda').value = '';
+                document.getElementById('filtroEstado').value = 'todos';
+                document.getElementById('filtroTipo').value = 'todos';
+                this.maquinasFiltradas = [...this.maquinas];
+                this.actualizarListaMaquinas();
+                this.mostrarAlerta('Filtros limpiados', 'success');
+            },
+
+            mostrarModalCrear: function() {
+                document.getElementById('modalTitulo').textContent = 'Nueva Máquina';
+                document.getElementById('maquinaId').value = '';
+                document.getElementById('formMaquina').reset();
+                document.getElementById('porcentajeRestaurante').value = '35.00';
+                this.cargarPropietariosEnModal();
+                document.getElementById('modalMaquina').classList.remove('hidden');
+            },
+
+            editarMaquina: function(id) {
+                const maquina = this.maquinas.find(m => m.id === id);
+                if (!maquina) return;
+                
+                document.getElementById('modalTitulo').textContent = 'Editar Máquina';
+                document.getElementById('maquinaId').value = maquina.id;
+                document.getElementById('nombre').value = maquina.name;
+                document.getElementById('tipo').value = maquina.type;
+                document.getElementById('estado').value = maquina.status;
+                document.getElementById('localId').value = maquina.location_id;
+                document.getElementById('errorNote').value = maquina.errorNote || '';
+                document.getElementById('porcentajeRestaurante').value = maquina.porcentaje_restaurante || 35;
+                
+                this.cargarPropietariosEnModal(maquina.id);
+                document.getElementById('modalMaquina').classList.remove('hidden');
+            },
+
+            cargarPropietariosEnModal: function(maquinaId = null) {
+                const container = document.getElementById('propietarios-container');
+                let html = '';
+                
+                // Obtener los propietarios actuales de la máquina si estamos editando
+                let propietariosActuales = [];
+                if (maquinaId) {
+                    const maquina = this.maquinas.find(m => m.id === maquinaId);
+                    if (maquina && maquina.propietarios) {
+                        propietariosActuales = maquina.propietarios;
+                    }
+                }
+                
+                this.propietarios.forEach(propietario => {
+                    // Buscar el porcentaje actual del propietario
+                    const propietarioActual = propietariosActuales.find(p => p.id === propietario.id);
+                    const porcentaje = propietarioActual ? propietarioActual.porcentaje_propiedad : 0;
+                    
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-medium text-gray-800">${propietario.nombre}</span>
+                            <div class="flex items-center space-x-3">
+                                <input type="number" 
+                                       class="w-20 border border-gray-300 rounded p-2 text-sm" 
+                                       value="${porcentaje}" 
+                                       min="0" max="100" step="0.01"
+                                       onchange="MaquinaManager.validarPorcentajes()">
+                                <span class="text-gray-600 text-sm">%</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            },
+
+            validarPorcentajes: function() {
+                // Validar que la suma de porcentajes sea 100%
+                const inputs = document.querySelectorAll('#propietarios-container input');
+                let total = 0;
+                
+                inputs.forEach(input => {
+                    total += parseFloat(input.value) || 0;
+                });
+                
+                if (Math.abs(total - 100) > 0.01) {
+                    this.mostrarAlerta(`La suma de porcentajes es ${total.toFixed(2)}%. Debe ser exactamente 100%`, 'warning');
+                    return false;
+                }
+                
+                return true;
+            },
+
+            guardarMaquina: async function(event) {
+                event.preventDefault();
+                
+                if (!this.validarPorcentajes()) {
+                    return;
+                }
+                
+                const formData = {
+                    id: document.getElementById('maquinaId').value,
+                    name: document.getElementById('nombre').value,
+                    type: document.getElementById('tipo').value,
+                    status: document.getElementById('estado').value,
+                    location_id: document.getElementById('localId').value,
+                    errorNote: document.getElementById('errorNote').value,
+                    porcentaje_restaurante: document.getElementById('porcentajeRestaurante').value
+                };
+                
+                try {
+                    const url = formData.id ? `/api/maquinas/${formData.id}` : '/api/maquinas';
+                    const method = formData.id ? 'PUT' : 'POST';
+                    
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        this.cerrarModal();
+                        this.cargarMaquinas();
+                        this.mostrarAlerta('Máquina guardada correctamente', 'success');
+                    } else {
+                        throw new Error('Error al guardar la máquina');
+                    }
+                } catch (error) {
+                    console.error('Error guardando máquina:', error);
+                    this.mostrarAlerta('Error al guardar la máquina', 'error');
+                }
+            },
+
+            eliminarMaquina: async function(id) {
+                if (!confirm('¿Estás seguro de que quieres eliminar esta máquina?')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/maquinas/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.cargarMaquinas();
+                        this.mostrarAlerta('Máquina eliminada correctamente', 'success');
+                    } else {
+                        throw new Error('Error al eliminar la máquina');
+                    }
+                } catch (error) {
+                    console.error('Error eliminando máquina:', error);
+                    this.mostrarAlerta('Error al eliminar la máquina', 'error');
+                }
+            },
+
+            cerrarModal: function() {
+                document.getElementById('modalMaquina').classList.add('hidden');
+            },
+
+            actualizarTodo: function() {
+                this.cargarDatosIniciales();
+                this.mostrarAlerta('Datos actualizados completamente', 'success');
+            },
+
+            inicializarGraficos: function() {
+                // Gráfico de estado de máquinas
+                const ctxEstado = document.getElementById('chartEstado').getContext('2d');
+                this.chartEstado = new Chart(ctxEstado, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Activas', 'Mantenimiento', 'Inactivas'],
+                        datasets: [{
+                            data: [0, 0, 0],
+                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
                     }
                 }
             }
