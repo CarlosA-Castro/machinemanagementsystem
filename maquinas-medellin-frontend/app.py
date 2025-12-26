@@ -12,7 +12,7 @@ from logging.handlers import RotatingFileHandler
 from functools import lru_cache, wraps
 
 # ==================== CONFIGURACIÓN DE ZONA HORARIA ====================
-# Configurar la zona horaria de Colombia
+
 COLOMBIA_TZ = pytz.timezone('America/Bogota')
 
 def get_colombia_time():
@@ -97,7 +97,7 @@ class MessageService:
                 cursor.execute(query, (message_code, language_code))
                 message = cursor.fetchone()
                 
-                # Fallback a español si no se encuentra en el idioma solicitado
+                # Fallback a español 
                 if not message and language_code != 'es':
                     cursor.execute("""
                         SELECT message_code, message_type, message_text, language_code
@@ -333,10 +333,10 @@ except Exception as e:
     traceback.print_exc()
     connection_pool = None
 
-# Función para obtener conexión CON ZONA HORARIA
+# Función para obtener conexión CON zona horaria
 def get_db_connection():
     try:
-        # Conexión directa sin pool (para debugging)
+        # Conexión directa sin pool para debugging
         connection = mysql.connector.connect(
             host="localhost",
             user="root",
@@ -365,7 +365,6 @@ def get_db_cursor(connection):
 
 # Crear tablas si no existen (solo una vez al inicio)
 def create_tables():
-    
     connection = None
     cursor = None
     try:
@@ -375,31 +374,40 @@ def create_tables():
             
         cursor = get_db_cursor(connection)
         
-        # Crear tabla de mensajes del sistema si no existe
+        # Crear tabla GlobalCounter si no existe
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS system_messages (
+            CREATE TABLE IF NOT EXISTS GlobalCounter (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                message_code VARCHAR(50) UNIQUE NOT NULL,
-                message_type ENUM('error', 'success', 'warning', 'info') NOT NULL,
-                message_text TEXT NOT NULL,
-                language_code VARCHAR(10) DEFAULT 'es',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_message_code (message_code),
-                INDEX idx_message_type (message_type)
+                counter_type VARCHAR(50) NOT NULL UNIQUE,
+                counter_value INT NOT NULL DEFAULT 0,
+                description VARCHAR(255),
+                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_counter_type (counter_type)
             )
         """)
         
+        # Inicializar contador si no existe
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS QRHistory (
+            INSERT IGNORE INTO GlobalCounter (counter_type, counter_value, description) 
+            VALUES ('QR_CODE', 0, 'Contador para códigos QR (formato QR0001, QR0002, etc.)')
+        """)
+        
+        # Crear tabla ContadorDiario si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ContadorDiario (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                qr_code VARCHAR(255) NOT NULL,
-                user_id INT NULL,
-                user_name VARCHAR(100) NULL,
-                local VARCHAR(100) NOT NULL,
-                fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP
+                fecha DATE NOT NULL UNIQUE,
+                qr_vendidos INT DEFAULT 0,
+                valor_ventas DECIMAL(10, 2) DEFAULT 0,
+                qr_escaneados INT DEFAULT 0,
+                turnos_utilizados INT DEFAULT 0,
+                fallas_reportadas INT DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_fecha (fecha)
             )
         """)
+        
         connection.commit()
         app.logger.info("✅ Tablas verificadas/creadas")
         return True
@@ -460,8 +468,7 @@ def procesar_login():
             session.modified = True
             
             app.logger.info(f"✅ Usuario {usuario['name']} inició sesión")
-            
-            # ENVIAR LA ESTRUCTURA QUE ESPERA EL FRONTEND
+    
             return jsonify({
                 'valido': True,
                 'nombre': usuario.get("name", "Usuario"),
@@ -561,6 +568,369 @@ def redirect_login():
     return redirect('/')
 
 # ==================== APIS PARA QR Y PAQUETES ====================
+
+def generar_codigo_qr():
+    """Generar código QR con formato QR0001, QR0002, etc. usando contador global"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return None
+            
+        cursor = get_db_cursor(connection)
+        
+        connection.start_transaction()
+        
+        cursor.execute("""
+            SELECT counter_value FROM GlobalCounter 
+            WHERE counter_type = 'QR_CODE' 
+            FOR UPDATE
+        """)
+        
+        resultado = cursor.fetchone()
+        
+        if not resultado:
+            # Si no existe el contador, crearlo
+            cursor.execute("""
+                INSERT INTO GlobalCounter (counter_type, counter_value, description) 
+                VALUES ('QR_CODE', 1, 'Contador para códigos QR')
+            """)
+            nuevo_numero = 1
+        else:
+            # Incrementar el contador
+            nuevo_numero = resultado['counter_value'] + 1
+            cursor.execute("""
+                UPDATE GlobalCounter 
+                SET counter_value = %s 
+                WHERE counter_type = 'QR_CODE'
+            """, (nuevo_numero,))
+        
+        # Formatear con 4 dígitos
+        nuevo_codigo = f"QR{nuevo_numero:04d}"  
+        
+        # Obtener información del usuario actual para el historial
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Sistema')
+        local = session.get('user_local', 'El Mekatiadero')
+        hora_colombia = get_colombia_time()
+        fecha_hora_str = format_datetime_for_db(hora_colombia)
+        
+        # Insertar en la tabla QRCode
+        cursor.execute("""
+            INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (nuevo_codigo, 0, 1, 1, ''))
+        
+        # Registrar automáticamente en el historial
+        cursor.execute("""
+            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, ''))
+        
+        connection.commit()
+        
+        app.logger.info(f"Generado código QR: {nuevo_codigo} (contador: {nuevo_numero}) por {user_name}")
+        
+        return nuevo_codigo
+        
+    except Exception as e:
+        app.logger.error(f"Error generando código QR: {e}")
+        if connection:
+            connection.rollback()
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# función para generar múltiples QR con 4 cifras
+def generar_codigos_qr_lote(cantidad, nombre=""):
+    """Generar múltiples códigos QR con 4 cifras usando contador global"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return []
+            
+        cursor = get_db_cursor(connection)
+        
+        connection.start_transaction()
+        
+        cursor.execute("""
+            SELECT counter_value FROM GlobalCounter 
+            WHERE counter_type = 'QR_CODE' 
+            FOR UPDATE
+        """)
+        
+        resultado = cursor.fetchone()
+        
+        if not resultado:
+            # Si no existe el contador, crearlo
+            cursor.execute("""
+                INSERT INTO GlobalCounter (counter_type, counter_value, description) 
+                VALUES ('QR_CODE', %s, 'Contador para códigos QR')
+            """, (cantidad,))
+            numero_inicial = 1
+            numero_final = cantidad
+        else:
+            # Tomar el valor actual y calcular el rango
+            numero_inicial = resultado['counter_value'] + 1
+            numero_final = resultado['counter_value'] + cantidad
+            
+            # Actualizar el contador
+            cursor.execute("""
+                UPDATE GlobalCounter 
+                SET counter_value = %s 
+                WHERE counter_type = 'QR_CODE'
+            """, (numero_final,))
+        
+        codigos_generados = []
+        
+        # Obtener información del usuario actual para el historial
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Sistema')
+        local = session.get('user_local', 'El Mekatiadero')
+        hora_colombia = get_colombia_time()
+        fecha_hora_str = format_datetime_for_db(hora_colombia)
+        
+        # Generar todos los códigos
+        for i in range(numero_inicial, numero_final + 1):
+            nuevo_codigo = f"QR{i:04d}"
+            codigos_generados.append(nuevo_codigo)
+            
+            # Insertar en la tabla QRCode
+            cursor.execute("""
+                INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (nuevo_codigo, 0, 1, 1, nombre))
+            
+            # Registrar automáticamente en el historial
+            cursor.execute("""
+                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
+        
+        connection.commit()
+        
+        app.logger.info(f"Generados {cantidad} códigos QR: desde QR{numero_inicial:04d} hasta QR{numero_final:04d} por {user_name}")
+        
+        return codigos_generados
+        
+    except Exception as e:
+        app.logger.error(f"Error generando códigos QR en lote: {e}")
+        if connection:
+            connection.rollback()
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/contador-qr/estado', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+def obtener_estado_contador():
+    """Obtener el estado actual del contador de QR"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener el valor actual del contador
+        cursor.execute("""
+            SELECT 
+                gc.counter_value,
+                gc.description,
+                gc.last_updated,
+                COUNT(qc.id) as total_qr_registrados
+            FROM GlobalCounter gc
+            LEFT JOIN QRCode qc ON qc.code REGEXP '^QR[0-9]+$'
+            WHERE gc.counter_type = 'QR_CODE'
+        """)
+        
+        resultado = cursor.fetchone()
+        
+        if not resultado:
+            return api_response('E002', http_status=404, data={'message': 'Contador no encontrado'})
+        
+        # Determinar el próximo código disponible
+        proximo_numero = resultado['counter_value'] + 1
+        proximo_codigo = f"QR{proximo_numero:04d}"
+        
+        return api_response(
+            'S001',
+            status='success',
+            data={
+                'contador_actual': resultado['counter_value'],
+                'proximo_codigo': proximo_codigo,
+                'descripcion': resultado['description'],
+                'ultima_actualizacion': resultado['last_updated'].isoformat() if resultado['last_updated'] else None,
+                'total_qr_registrados': resultado['total_qr_registrados']
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estado del contador: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/contador-qr/reiniciar', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['nuevo_valor'])
+def reiniciar_contador():
+    """Reiniciar el contador de QR (solo administradores)"""
+    try:
+        data = request.get_json()
+        nuevo_valor = int(data['nuevo_valor'])
+        
+        if nuevo_valor < 0:
+            return api_response('E005', http_status=400, data={'message': 'El valor no puede ser negativo'})
+        
+        connection = None
+        cursor = None
+        try:
+            connection = get_db_connection()
+            if not connection:
+                return api_response('E006', http_status=500)
+                
+            cursor = get_db_cursor(connection)
+            
+            # Actualizar el contador
+            cursor.execute("""
+                UPDATE GlobalCounter 
+                SET counter_value = %s 
+                WHERE counter_type = 'QR_CODE'
+            """, (nuevo_valor,))
+            
+            connection.commit()
+            
+            # Verificar el nuevo valor
+            cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
+            resultado = cursor.fetchone()
+            
+            app.logger.warning(f"Contador QR reiniciado a {nuevo_valor} por usuario {session.get('user_name')}")
+            
+            return api_response(
+                'S003',
+                status='success',
+                data={
+                    'nuevo_valor': resultado['counter_value'] if resultado else nuevo_valor,
+                    'proximo_codigo': f"QR{(resultado['counter_value'] + 1 if resultado else nuevo_valor + 1):04d}",
+                    'timestamp': get_colombia_time().isoformat()
+                }
+            )
+            
+        except Exception as e:
+            app.logger.error(f"Error reiniciando contador: {e}")
+            if connection:
+                connection.rollback()
+            return api_response('E001', http_status=500)
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+                
+    except ValueError:
+        return api_response('E005', http_status=400, data={'message': 'Valor inválido'})
+
+def get_next_qr_number():
+    """Obtener el próximo número de QR disponible"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return None
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
+        resultado = cursor.fetchone()
+        
+        if resultado:
+            return resultado['counter_value'] + 1
+        else:
+            # Si no existe, empezar desde 1
+            return 1
+            
+    except Exception as e:
+        app.logger.error(f"Error obteniendo próximo número QR: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/generar-qr', methods=['POST'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+@validate_required_fields(['cantidad'])
+def generar_qr():
+    """Generar nuevos códigos QR con 4 cifras"""
+    try:
+        data = request.get_json()
+        cantidad = int(data['cantidad'])
+        nombre = data.get('nombre', '')
+        
+        if cantidad <= 0 or cantidad > 100:
+            return api_response(
+                'E005', 
+                http_status=400, 
+                data={'message': 'Cantidad debe estar entre 1 y 100'}
+            )
+        
+        codigos_generados = generar_codigos_qr_lote(cantidad, nombre)
+        
+        if not codigos_generados:
+            return api_response('E001', http_status=500)
+        
+        app.logger.info(f"Generados {len(codigos_generados)} códigos QR: {codigos_generados}")
+        
+        return api_response(
+            'S002',
+            status='success',
+            data={
+                'codigos': codigos_generados,
+                'cantidad': len(codigos_generados),
+                'nombre': nombre,
+                'formato': 'QRXXXX (4 dígitos)'
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error generando QR: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/obtener-siguiente-qr', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+def obtener_siguiente_qr():
+    """Obtener el siguiente código QR disponible"""
+    siguiente_codigo = generar_codigo_qr()
+    
+    if not siguiente_codigo:
+        return api_response('E001', http_status=500)
+    
+    return api_response(
+        'S001',
+        status='success',
+        data={'siguiente_codigo': siguiente_codigo}
+    )
 
 @app.route('/api/paquetes', methods=['GET'])
 @handle_api_errors
@@ -918,6 +1288,7 @@ def guardar_qr():
         cursor = get_db_cursor(connection)
 
         hora_colombia = get_colombia_time()
+        fecha_hora_str = format_datetime_for_db(hora_colombia)
         
         cursor.execute("SELECT qr_name, turnPackageId FROM QRCode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
@@ -925,20 +1296,28 @@ def guardar_qr():
         
         es_venta = es_venta_real and qr_data and qr_data['turnPackageId'] is not None and qr_data['turnPackageId'] != 1
         
+        # Insertar en historial
         cursor.execute("""
-            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_name))
+            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (qr_code, user_id, user_name, local, fecha_hora_str, qr_name, es_venta_real))
+        
         connection.commit()
+        
+        # Si es una venta real, actualizar el contador diario
+        if es_venta_real:
+            actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
 
-        app.logger.info(f"QR guardado en historial: {qr_code} por {user_name}")
+        app.logger.info(f"QR guardado en historial: {qr_code} por {user_name} (venta: {es_venta_real})")
         
         return api_response(
             'S006',
             status='success',
             data={
                 'qr_name': qr_name,
-                'es_venta': es_venta
+                'es_venta': es_venta,
+                'es_venta_real': es_venta_real,
+                'timestamp': hora_colombia.strftime('%Y-%m-%d %H:%M:%S')
             }
         )
     except Exception as e:
@@ -967,6 +1346,7 @@ def guardar_multiples_qr_con_paquete():
         paquete_nombre = data.get('paquete_nombre', '')
         paquete_precio = data.get('paquete_precio', 0)
         paquete_turns = data.get('paquete_turns', 0)
+        es_venta_real = data.get('es_venta_real', True) 
         
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
@@ -1039,12 +1419,17 @@ def guardar_multiples_qr_con_paquete():
                 
                 qrs_actualizados += 1
             
+            # Registrar en historial marcando si es venta real
             cursor.execute("""
-                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre))
+                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre, es_venta_real))
 
         connection.commit()
+        
+        # Si es una venta real, actualizar el contador diario
+        if es_venta_real and qr_codes:
+            actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
         
         total_qrs = qrs_creados + qrs_actualizados
         
@@ -1060,7 +1445,8 @@ def guardar_multiples_qr_con_paquete():
                 'precio': paquete_precio,
                 'turns': paquete_turns,
                 'creados': qrs_creados,
-                'actualizados': qrs_actualizados
+                'actualizados': qrs_actualizados,
+                'es_venta_real': es_venta_real
             }
         )
         
@@ -1088,6 +1474,8 @@ def guardar_multiples_qr():
         data = request.get_json()
         qr_codes = data['qr_codes']
         nombre = data.get('nombre', '')
+        es_venta_real = data.get('es_venta_real', False)
+        
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
         local = session.get('user_local', 'El Mekatiadero')
@@ -1117,12 +1505,18 @@ def guardar_multiples_qr():
                     UPDATE QRCode SET qr_name = %s WHERE code = %s
                 """, (nombre, qr_code))
             
+            # Registrar en historial
             cursor.execute("""
-                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre))
+                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre, es_venta_real))
 
         connection.commit()
+        
+        # Si es una venta real, actualizar el contador diario
+        if es_venta_real and qr_codes:
+            actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
+        
         app.logger.info(f"{len(qr_codes)} QR guardados con nombre: {nombre}")
 
         return api_response(
@@ -1130,7 +1524,8 @@ def guardar_multiples_qr():
             status='success',
             data={
                 'count': len(qr_codes),
-                'nombre': nombre
+                'nombre': nombre,
+                'es_venta_real': es_venta_real
             }
         )
         
@@ -1139,6 +1534,92 @@ def guardar_multiples_qr():
         sentry_sdk.capture_exception(e)
         if connection:
             connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/estadisticas/tiempo-real', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_estadisticas_tiempo_real():
+    """Obtener estadísticas en tiempo real (sin cache)"""
+    connection = None
+    cursor = None
+    try:
+        fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # QR vendidos hoy (con paquetes)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT qh.qr_code) as vendidos_hoy,
+                   COALESCE(SUM(tp.price), 0) as valor_hoy
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) = %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+        """, (fecha,))
+        
+        ventas = cursor.fetchone()
+        
+        # QR escaneados hoy (todos)
+        cursor.execute("""
+            SELECT COUNT(*) as escaneados_hoy
+            FROM QRHistory
+            WHERE DATE(fecha_hora) = %s
+        """, (fecha,))
+        
+        escaneados = cursor.fetchone()
+        
+        # Turnos utilizados hoy
+        cursor.execute("""
+            SELECT COUNT(*) as turnos_hoy
+            FROM TurnUsage
+            WHERE DATE(usedAt) = %s
+        """, (fecha,))
+        
+        turnos = cursor.fetchone()
+        
+        # QR generados hoy (nuevos)
+        cursor.execute("""
+            SELECT COUNT(*) as qr_generados_hoy
+            FROM QRCode
+            WHERE DATE(createdAt) = %s
+        """, (fecha,))
+        
+        generados = cursor.fetchone()
+        
+        # Contador global actual
+        cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
+        contador_qr = cursor.fetchone()
+        
+        return jsonify({
+            'fecha': fecha,
+            'ventas': {
+                'vendidos': ventas['vendidos_hoy'] or 0,
+                'valor': float(ventas['valor_hoy'] or 0)
+            },
+            'escaneados': escaneados['escaneados_hoy'] or 0,
+            'turnos': turnos['turnos_hoy'] or 0,
+            'generados': generados['qr_generados_hoy'] or 0,
+            'contador_qr_actual': contador_qr['counter_value'] if contador_qr else 0,
+            'proximo_qr': f"QR{(contador_qr['counter_value'] + 1 if contador_qr else 1):04d}",
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas tiempo real: {e}")
+        sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
     finally:
         if cursor:
@@ -1635,7 +2116,7 @@ def mostrar_reportes():
                          hora_actual=hora_colombia.strftime('%H:%M:%S'),
                          fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
-@app.route('/admin/mensajes')
+@app.route('/admin/mensajes/gestionmensajes')
 @require_login(['admin'])
 def mostrar_gestion_mensajes():
     """Mostrar gestión de mensajes"""
@@ -3196,6 +3677,637 @@ def mostrar_lista_locales():
 def mostrar_inventario_maquinas():
     """Redirigir a la gestión de máquinas"""
     return redirect(url_for('mostrar_gestion_maquinas'))
+
+# ==================== APIS PARA CONTADORES GLOBALES ====================
+
+@app.route('/api/contador-global-vendidos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_contador_global_vendidos():
+    """Obtener contador global de QR vendidos (con paquetes)"""
+    connection = None
+    cursor = None
+    try:
+        fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener QR vendidos (con paquetes) hoy
+        cursor.execute("""
+            SELECT COUNT(DISTINCT qh.qr_code) as total_vendidos
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            WHERE DATE(qh.fecha_hora) = %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+        """, (fecha,))
+        
+        resultado = cursor.fetchone()
+        
+        # Obtener total de ventas del día
+        cursor.execute("""
+            SELECT COALESCE(SUM(tp.price), 0) as valor_total
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) = %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+        """, (fecha,))
+        
+        ventas_resultado = cursor.fetchone()
+        
+        app.logger.info(f"Contador global vendidos: {resultado['total_vendidos'] or 0} QR vendidos hoy")
+        
+        return jsonify({
+            'total_vendidos': resultado['total_vendidos'] or 0,
+            'valor_total': float(ventas_resultado['valor_total'] or 0),
+            'fecha': fecha,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo contador global vendidos: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/contador-global-escaneados', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_contador_global_escaneados():
+    """Obtener contador global de QR escaneados (todos)"""
+    connection = None
+    cursor = None
+    try:
+        fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener total QR escaneados hoy
+        cursor.execute("""
+            SELECT COUNT(*) as total_escaneados
+            FROM QRHistory
+            WHERE DATE(fecha_hora) = %s
+        """, (fecha,))
+        
+        resultado = cursor.fetchone()
+        
+        # Obtener desglose por tipo
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN 1 END) as con_paquete,
+                COUNT(CASE WHEN qr.turnPackageId IS NULL OR qr.turnPackageId = 1 THEN 1 END) as sin_paquete
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            WHERE DATE(qh.fecha_hora) = %s
+        """, (fecha,))
+        
+        desglose = cursor.fetchone()
+        
+        app.logger.info(f"Contador global escaneados: {resultado['total_escaneados'] or 0} QR escaneados hoy")
+        
+        return jsonify({
+            'total_escaneados': resultado['total_escaneados'] or 0,
+            'con_paquete': desglose['con_paquete'] or 0,
+            'sin_paquete': desglose['sin_paquete'] or 0,
+            'fecha': fecha,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo contador global escaneados: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/contador-global-turnos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_contador_global_turnos():
+    """Obtener contador global de turnos utilizados"""
+    connection = None
+    cursor = None
+    try:
+        fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener turnos utilizados hoy
+        cursor.execute("""
+            SELECT COUNT(*) as turnos_utilizados
+            FROM TurnUsage
+            WHERE DATE(usedAt) = %s
+        """, (fecha,))
+        
+        resultado = cursor.fetchone()
+        
+        # Obtener turnos por máquina
+        cursor.execute("""
+            SELECT 
+                m.name as maquina_nombre,
+                COUNT(tu.id) as turnos
+            FROM TurnUsage tu
+            JOIN Machine m ON tu.machineId = m.id
+            WHERE DATE(tu.usedAt) = %s
+            GROUP BY m.id, m.name
+            ORDER BY turnos DESC
+        """, (fecha,))
+        
+        por_maquina = cursor.fetchall()
+        
+        app.logger.info(f"Contador global turnos: {resultado['turnos_utilizados'] or 0} turnos utilizados hoy")
+        
+        return jsonify({
+            'turnos_utilizados': resultado['turnos_utilizados'] or 0,
+            'por_maquina': por_maquina,
+            'fecha': fecha,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo contador global turnos: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/contador-global-resumen', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_contador_global_resumen():
+    """Obtener resumen completo de contadores globales"""
+    connection = None
+    cursor = None
+    try:
+        fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. QR vendidos y valor
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT qh.qr_code) as total_vendidos,
+                COALESCE(SUM(tp.price), 0) as valor_total
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) = %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+        """, (fecha,))
+        
+        ventas = cursor.fetchone()
+        
+        # 2. QR escaneados total
+        cursor.execute("""
+            SELECT COUNT(*) as total_escaneados
+            FROM QRHistory
+            WHERE DATE(fecha_hora) = %s
+        """, (fecha,))
+        
+        escaneados = cursor.fetchone()
+        
+        # 3. Turnos utilizados
+        cursor.execute("""
+            SELECT COUNT(*) as turnos_utilizados
+            FROM TurnUsage
+            WHERE DATE(usedAt) = %s
+        """, (fecha,))
+        
+        turnos = cursor.fetchone()
+        
+        # 4. Fallas reportadas
+        cursor.execute("""
+            SELECT COUNT(*) as fallas_reportadas
+            FROM MachineFailures
+            WHERE DATE(reported_at) = %s
+        """, (fecha,))
+        
+        fallas = cursor.fetchone()
+        
+        # 5. Reportes de máquinas
+        cursor.execute("""
+            SELECT COUNT(*) as reportes_maquinas
+            FROM ErrorReport
+            WHERE DATE(reportedAt) = %s
+        """, (fecha,))
+        
+        reportes = cursor.fetchone()
+        
+        app.logger.info(f"Resumen global: {ventas['total_vendidos'] or 0} vendidos, {turnos['turnos_utilizados'] or 0} turnos")
+        
+        return jsonify({
+            'fecha': fecha,
+            'ventas': {
+                'total_vendidos': ventas['total_vendidos'] or 0,
+                'valor_total': float(ventas['valor_total'] or 0)
+            },
+            'escaneados': {
+                'total_escaneados': escaneados['total_escaneados'] or 0
+            },
+            'turnos': {
+                'turnos_utilizados': turnos['turnos_utilizados'] or 0
+            },
+            'fallas': {
+                'fallas_reportadas': fallas['fallas_reportadas'] or 0
+            },
+            'reportes': {
+                'reportes_maquinas': reportes['reportes_maquinas'] or 0
+            },
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo resumen global: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA ESTADÍSTICAS HISTÓRICAS ====================
+
+@app.route('/api/estadisticas/rango-fechas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_estadisticas_rango_fechas():
+    """Obtener estadísticas por rango de fechas"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Estadísticas por día en el rango
+        cursor.execute("""
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                COUNT(DISTINCT qh.qr_code) as total_escaneados,
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as vendidos,
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_ventas,
+                COUNT(tu.id) as turnos_utilizados
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = h.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN TurnUsage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            GROUP BY DATE(qh.fecha_hora)
+            ORDER BY fecha DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        estadisticas = cursor.fetchall()
+        
+        # Totales del rango
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT qh.qr_code) as total_escaneados,
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as total_vendidos,
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as total_valor_ventas,
+                COUNT(DISTINCT tu.id) as total_turnos_utilizados
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN TurnUsage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        
+        totales = cursor.fetchone()
+        
+        # Máquinas más utilizadas en el rango
+        cursor.execute("""
+            SELECT 
+                m.name as maquina_nombre,
+                COUNT(tu.id) as turnos_utilizados
+            FROM TurnUsage tu
+            JOIN Machine m ON tu.machineId = m.id
+            WHERE DATE(tu.usedAt) BETWEEN %s AND %s
+            GROUP BY m.id, m.name
+            ORDER BY turnos_utilizados DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin))
+        
+        maquinas_populares = cursor.fetchall()
+        
+        # Paquetes más vendidos en el rango
+        cursor.execute("""
+            SELECT 
+                tp.name as paquete_nombre,
+                COUNT(DISTINCT qh.qr_code) as veces_vendido,
+                SUM(tp.price) as valor_total
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            GROUP BY tp.id, tp.name
+            ORDER BY veces_vendido DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin))
+        
+        paquetes_populares = cursor.fetchall()
+        
+        app.logger.info(f"Estadísticas rango {fecha_inicio} a {fecha_fin}: {totales['total_vendidos'] or 0} vendidos")
+        
+        return jsonify({
+            'rango': {
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin
+            },
+            'estadisticas_por_dia': estadisticas,
+            'totales': {
+                'total_escaneados': totales['total_escaneados'] or 0,
+                'total_vendidos': totales['total_vendidos'] or 0,
+                'total_valor_ventas': float(totales['total_valor_ventas'] or 0),
+                'total_turnos_utilizados': totales['total_turnos_utilizados'] or 0
+            },
+            'maquinas_populares': maquinas_populares,
+            'paquetes_populares': paquetes_populares,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas por rango: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/resumen', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_resumen_dashboard():
+    """Obtener resumen para dashboard/panel de control"""
+    connection = None
+    cursor = None
+    try:
+        fecha_hoy = get_colombia_time().strftime('%Y-%m-%d')
+        fecha_ayer = (get_colombia_time() - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Estadísticas de hoy
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as vendidos_hoy,
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_hoy
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) = %s
+        """, (fecha_hoy,))
+        
+        hoy = cursor.fetchone()
+        
+        # Turnos utilizados hoy
+        cursor.execute("SELECT COUNT(*) as turnos_hoy FROM TurnUsage WHERE DATE(usedAt) = %s", (fecha_hoy,))
+        turnos_hoy = cursor.fetchone()
+        
+        # Estadísticas de ayer
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as vendidos_ayer,
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_ayer
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) = %s
+        """, (fecha_ayer,))
+        
+        ayer = cursor.fetchone()
+        
+        # Turnos utilizados ayer
+        cursor.execute("SELECT COUNT(*) as turnos_ayer FROM TurnUsage WHERE DATE(usedAt) = %s", (fecha_ayer,))
+        turnos_ayer = cursor.fetchone()
+        
+        # Máquinas activas/inactivas
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN status = 'activa' THEN 1 END) as maquinas_activas,
+                COUNT(CASE WHEN status = 'mantenimiento' THEN 1 END) as maquinas_mantenimiento,
+                COUNT(CASE WHEN status = 'inactiva' THEN 1 END) as maquinas_inactivas,
+                COUNT(*) as total_maquinas
+            FROM Machine
+        """)
+        
+        maquinas = cursor.fetchone()
+        
+        # Reportes pendientes
+        cursor.execute("""
+            SELECT COUNT(*) as reportes_pendientes
+            FROM ErrorReport
+            WHERE isResolved = FALSE
+        """)
+        
+        reportes = cursor.fetchone()
+        
+        # Últimas ventas (5)
+        cursor.execute("""
+            SELECT 
+                qh.qr_code,
+                qh.user_name,
+                qh.fecha_hora,
+                tp.name as paquete_nombre,
+                tp.price as precio
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            ORDER BY qh.fecha_hora DESC
+            LIMIT 5
+        """)
+        
+        ultimas_ventas = cursor.fetchall()
+        
+        # Formatear fechas
+        for venta in ultimas_ventas:
+            if venta['fecha_hora']:
+                try:
+                    fecha_colombia = parse_db_datetime(venta['fecha_hora'])
+                    venta['fecha_hora'] = fecha_colombia.strftime('%H:%M')
+                    venta['fecha_completa'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                except Exception as e:
+                    app.logger.warning(f"Error formateando fecha: {e}")
+                    venta['fecha_hora'] = str(venta['fecha_hora'])
+                    venta['fecha_completa'] = str(venta['fecha_hora'])
+        
+        app.logger.info(f"Dashboard: {hoy['vendidos_hoy'] or 0} vendidos hoy")
+        
+        return jsonify({
+            'hoy': {
+                'fecha': fecha_hoy,
+                'vendidos': hoy['vendidos_hoy'] or 0,
+                'valor': float(hoy['valor_hoy'] or 0),
+                'turnos': turnos_hoy['turnos_hoy'] or 0
+            },
+            'ayer': {
+                'fecha': fecha_ayer,
+                'vendidos': ayer['vendidos_ayer'] or 0,
+                'valor': float(ayer['valor_ayer'] or 0),
+                'turnos': turnos_ayer['turnos_ayer'] or 0
+            },
+            'maquinas': {
+                'activas': maquinas['maquinas_activas'] or 0,
+                'mantenimiento': maquinas['maquinas_mantenimiento'] or 0,
+                'inactivas': maquinas['maquinas_inactivas'] or 0,
+                'total': maquinas['total_maquinas'] or 0
+            },
+            'reportes': {
+                'pendientes': reportes['reportes_pendientes'] or 0
+            },
+            'ultimas_ventas': ultimas_ventas,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo resumen dashboard: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== FUNCIÓN PARA ACTUALIZAR CONTADORES DIARIOS ====================
+
+def actualizar_contador_diario(fecha=None):
+    """Actualizar o crear registro de contador diario"""
+    if fecha is None:
+        fecha = get_colombia_time().strftime('%Y-%m-%d')
+    
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return False
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si existe tabla ContadorDiario, si no crearla
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ContadorDiario (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                fecha DATE NOT NULL UNIQUE,
+                qr_vendidos INT DEFAULT 0,
+                valor_ventas DECIMAL(10, 2) DEFAULT 0,
+                qr_escaneados INT DEFAULT 0,
+                turnos_utilizados INT DEFAULT 0,
+                fallas_reportadas INT DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_fecha (fecha)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        
+        cursor.execute("""
+            INSERT INTO ContadorDiario (fecha, qr_vendidos, valor_ventas, qr_escaneados, turnos_utilizados, fallas_reportadas)
+            SELECT 
+                %s as fecha,
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as qr_vendidos,
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_ventas,
+                COUNT(DISTINCT qh.qr_code) as qr_escaneados,
+                COUNT(DISTINCT tu.id) as turnos_utilizados,
+                COUNT(DISTINCT mf.id) as fallas_reportadas
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN TurnUsage tu ON DATE(tu.usedAt) = %s
+            LEFT JOIN MachineFailures mf ON DATE(mf.reported_at) = %s
+            WHERE DATE(qh.fecha_hora) = %s
+            ON DUPLICATE KEY UPDATE
+                qr_vendidos = VALUES(qr_vendidos),
+                valor_ventas = VALUES(valor_ventas),
+                qr_escaneados = VALUES(qr_escaneados),
+                turnos_utilizados = VALUES(turnos_utilizados),
+                fallas_reportadas = VALUES(fallas_reportadas),
+                updated_at = NOW()
+        """, (fecha, fecha, fecha, fecha))
+        
+        connection.commit()
+        app.logger.info(f"Contador diario actualizado para {fecha}")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"Error actualizando contador diario: {e}")
+        if connection:
+            connection.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== RUTA PARA ACTUALIZAR CONTADOR DIARIO ====================
+
+@app.route('/api/actualizar-contador-diario', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def api_actualizar_contador_diario():
+    """Forzar actualización del contador diario"""
+    try:
+        data = request.get_json()
+        fecha = data.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        resultado = actualizar_contador_diario(fecha)
+        
+        if resultado:
+            return api_response('S003', status='success', data={
+                'mensaje': f'Contador diario actualizado para {fecha}',
+                'fecha': fecha
+            })
+        else:
+            return api_response('E001', http_status=500, data={'mensaje': 'Error actualizando contador'})
+            
+    except Exception as e:
+        app.logger.error(f"Error en API de actualización contador diario: {e}")
+        return api_response('E001', http_status=500)
 
 # ==================== INICIAR SERVIDOR ====================
 

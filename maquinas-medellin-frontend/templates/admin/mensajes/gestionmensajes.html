@@ -1,226 +1,619 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Gestión de Mensajes - Sistema Máquinas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
     <style>
-        body { background-color: #f8f9fa; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .message-card { transition: transform 0.2s; }
-        .message-card:hover { transform: translateY(-2px); }
-        .badge-error { background-color: #dc3545; }
-        .badge-success { background-color: #198754; }
-        .badge-warning { background-color: #ffc107; color: #000; }
-        .badge-info { background-color: #0dcaf0; }
-        .code-badge { font-family: monospace; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-touch:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-touch:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Badges personalizados */
+        .badge-error {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .badge-success {
+            background-color: #198754;
+            color: white;
+        }
+        
+        .badge-warning {
+            background-color: #ffc107;
+            color: #000;
+        }
+        
+        .badge-info {
+            background-color: #0dcaf0;
+            color: white;
+        }
+        
+        .code-badge {
+            font-family: monospace;
+        }
+        
+        /* Hover para filas de tabla */
+        .message-row:hover {
+            background-color: #f3f4f6;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .flex.h-screen {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+            
+            aside {
+                width: 100% !important;
+                order: 2;
+            }
+            
+            main {
+                order: 1;
+                padding: 1rem !important;
+            }
+            
+            .sidebar-nav {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+            
+            .sidebar-nav a {
+                flex: 1;
+                min-width: 120px;
+                text-align: center;
+                padding: 0.75rem 0.5rem !important;
+            }
+            
+            .user-info {
+                text-align: center;
+                padding: 1rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .grid-cols-1 {
+                grid-template-columns: 1fr !important;
+            }
+            
+            table {
+                font-size: 0.875rem;
+            }
+            
+            th, td {
+                padding: 0.5rem !important;
+            }
+            
+            h1 {
+                font-size: 1.5rem !important;
+            }
+            
+            .text-3xl {
+                font-size: 1.25rem !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .btn-touch {
+                padding: 1rem !important;
+                font-size: 1rem !important;
+            }
+            
+            .modal-content {
+                margin: 1rem !important;
+                padding: 1rem !important;
+            }
+        }
     </style>
 </head>
-<body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-dark header mb-4">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/admin">
-                <i class="bi bi-chat-square-text"></i> Gestión de Mensajes
-            </a>
-            <div class="d-flex align-items-center">
-                <span class="text-white me-3">{{ nombre_usuario }}</span>
-                <a href="/admin" class="btn btn-outline-light btn-sm">
-                    <i class="bi bi-arrow-left"></i> Volver
+
+<body class="bg-[#f4f1eb] text-gray-900 font-sans relative">
+
+    <div id="particles-js"></div>
+
+    <div class="flex flex-col lg:flex-row min-h-screen">
+
+        <!-- Barra lateral responsive -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-gamepad mr-2"></i>Máquinas Medellín
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/ventas/reportes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-bar mr-2"></i>Reportes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                      <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Mensajes
+                    </a>
+                    <a href="/admin/ventas/liquidaciones" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Información de usuario CON HORA ACTUAL -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
+                <div class="mb-2 text-xs text-gray-400">
+                    <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+                    <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+                    Rol: {{ session.get('user_role', 'Usuario') }}
+                </div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
                 </a>
             </div>
-        </div>
-    </nav>
+        </aside>
 
-    <div class="container">
-        <!-- Filtros -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Tipo</label>
-                        <select id="filtroTipo" class="form-select">
-                            <option value="">Todos</option>
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+            <h1 class="text-2xl lg:text-3xl font-bold mb-2">Gestión de Mensajes</h1>
+            <p class="mb-4 lg:mb-6 text-base lg:text-lg"><i class="fas fa-comments mr-2"></i>Sistema de mensajes de error, éxito, advertencia e información</p>
+
+            <!-- Tarjetas de estadísticas -->
+            <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    
+                    <!-- Errores -->
+                    <div>
+                        <h2 class="text-lg lg:text-xl font-bold mb-2">
+                            <i class="fas fa-exclamation-triangle mr-2 text-red-500"></i>Errores
+                        </h2>
+                        <p class="text-gray-600 mb-2 text-sm lg:text-base">
+                            Mensajes de error del sistema:
+                        </p>
+                        <div id="contadorErrores" class="text-2xl lg:text-3xl font-bold text-red-600">0</div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Para problemas críticos
+                        </p>
+                    </div>
+                    
+                    <!-- Éxitos -->
+                    <div>
+                        <h2 class="text-lg lg:text-xl font-bold mb-2">
+                            <i class="fas fa-check-circle mr-2 text-green-500"></i>Éxitos
+                        </h2>
+                        <p class="text-gray-600 mb-2 text-sm lg:text-base">
+                            Mensajes de éxito:
+                        </p>
+                        <div id="contadorExitos" class="text-2xl lg:text-3xl font-bold text-green-600">0</div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Operaciones completadas
+                        </p>
+                    </div>
+                    
+                    <!-- Advertencias -->
+                    <div>
+                        <h2 class="text-lg lg:text-xl font-bold mb-2">
+                            <i class="fas fa-exclamation-circle mr-2 text-yellow-500"></i>Advertencias
+                        </h2>
+                        <p class="text-gray-600 mb-2 text-sm lg:text-base">
+                            Mensajes de advertencia:
+                        </p>
+                        <div id="contadorAdvertencias" class="text-2xl lg:text-3xl font-bold text-yellow-600">0</div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Atención requerida
+                        </p>
+                    </div>
+                    
+                    <!-- Información -->
+                    <div>
+                        <h2 class="text-lg lg:text-xl font-bold mb-2">
+                            <i class="fas fa-info-circle mr-2 text-blue-500"></i>Información
+                        </h2>
+                        <p class="text-gray-600 mb-2 text-sm lg:text-base">
+                            Mensajes informativos:
+                        </p>
+                        <div id="contadorInfo" class="text-2xl lg:text-3xl font-bold text-blue-600">0</div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Información general
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Indicador de estado -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between text-xs text-gray-600">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                            <span>Sistema de mensajes activo</span>
+                        </div>
+                        <div>
+                            <span id="ultimaActualizacion">Última actualización: -</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros y búsqueda -->
+            <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
+                <h2 class="text-lg lg:text-xl font-bold mb-4">
+                    <i class="fas fa-filter mr-2"></i>Filtros de Búsqueda
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Mensaje</label>
+                        <select id="filtroTipo" class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                            <option value="">Todos los tipos</option>
                             <option value="error">Error</option>
                             <option value="success">Éxito</option>
                             <option value="warning">Advertencia</option>
                             <option value="info">Información</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Idioma</label>
-                        <select id="filtroIdioma" class="form-select">
-                            <option value="">Todos</option>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Idioma</label>
+                        <select id="filtroIdioma" class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                            <option value="">Todos los idiomas</option>
                             <option value="es">Español</option>
                             <option value="en">Inglés</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Buscar</label>
-                        <input type="text" id="filtroBusqueda" class="form-control" placeholder="Código o texto...">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" onclick="mostrarModalCrear()">
-                            <i class="bi bi-plus-circle"></i> Nuevo
-                        </button>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar mensaje</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="filtroBusqueda" 
+                                   class="flex-1 border border-gray-300 rounded-lg p-3 text-base" 
+                                   placeholder="Buscar por código o texto...">
+                            <button onclick="mostrarModalCrear()" 
+                                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded btn-touch">
+                                <i class="fas fa-plus-circle mr-2"></i>Nuevo
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Tabla de mensajes -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Mensajes del Sistema</h5>
-                <span class="badge bg-secondary" id="contadorMensajes">Cargando...</span>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+            <!-- Tabla de mensajes -->
+            <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg lg:text-xl font-bold">
+                        <i class="fas fa-list mr-2"></i>Lista de Mensajes del Sistema
+                    </h2>
+                    <span class="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full" id="contadorMensajes">
+                        <i class="fas fa-spinner fa-spin mr-1"></i>Cargando...
+                    </span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-200 text-left uppercase tracking-wider">
                             <tr>
-                                <th>Código</th>
-                                <th>Tipo</th>
-                                <th>Idioma</th>
-                                <th>Texto</th>
-                                <th>Actualizado</th>
-                                <th>Acciones</th>
+                                <th class="p-2 lg:p-3">Código</th>
+                                <th class="p-2 lg:p-3">Tipo</th>
+                                <th class="p-2 lg:p-3">Idioma</th>
+                                <th class="p-2 lg:p-3">Texto</th>
+                                <th class="p-2 lg:p-3">Actualizado</th>
+                                <th class="p-2 lg:p-3 text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tablaMensajes">
+                        <tbody id="tablaMensajes" class="text-gray-800">
                             <!-- Los mensajes se cargarán aquí -->
+                            <tr>
+                                <td colspan="6" class="text-center py-8">
+                                    <div class="loading mx-auto mb-2"></div>
+                                    <p class="text-gray-600">Cargando mensajes...</p>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-        </div>
-
-        <!-- Estadísticas -->
-        <div class="row mt-4">
-            <div class="col-md-3">
-                <div class="card bg-danger text-white">
-                    <div class="card-body">
-                        <h5><i class="bi bi-exclamation-triangle"></i> Errores</h5>
-                        <h3 id="contadorErrores">0</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <h5><i class="bi bi-check-circle"></i> Éxitos</h5>
-                        <h3 id="contadorExitos">0</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-warning">
-                    <div class="card-body">
-                        <h5><i class="bi bi-exclamation-circle"></i> Advertencias</h5>
-                        <h3 id="contadorAdvertencias">0</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <h5><i class="bi bi-info-circle"></i> Información</h5>
-                        <h3 id="contadorInfo">0</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
 
-    <!-- Modal para crear/editar -->
-    <div class="modal fade" id="modalMensaje" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalTitulo">Nuevo Mensaje</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Modal para crear/editar mensaje -->
+    <div id="modalMensaje" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-4 lg:p-6 max-h-[90vh] overflow-y-auto modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold flex items-center gap-2" id="modalTitulo">
+                    <i class="fas fa-plus-circle text-blue-600"></i>Nuevo Mensaje
+                </h2>
+                <button onclick="cerrarModal()" 
+                        class="text-gray-500 hover:text-gray-700 text-xl btn-touch">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="formMensaje">
+                <input type="hidden" id="mensajeId">
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-hashtag mr-1"></i>Código *
+                        </label>
+                        <input type="text" id="messageCode" class="w-full border border-gray-300 rounded-lg p-3 text-base" 
+                               required pattern="[A-Z][0-9]{3}" 
+                               placeholder="Ej: E001">
+                        <p class="text-xs text-gray-500 mt-1">Letra + 3 números (ej: E001, S002)</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-tag mr-1"></i>Tipo *
+                        </label>
+                        <select id="messageType" class="w-full border border-gray-300 rounded-lg p-3 text-base" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="error">Error</option>
+                            <option value="success">Éxito</option>
+                            <option value="warning">Advertencia</option>
+                            <option value="info">Información</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-language mr-1"></i>Idioma *
+                        </label>
+                        <select id="languageCode" class="w-full border border-gray-300 rounded-lg p-3 text-base" required>
+                            <option value="es">Español</option>
+                            <option value="en">Inglés</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <form id="formMensaje">
-                        <input type="hidden" id="mensajeId">
-                        
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Código *</label>
-                                <input type="text" id="messageCode" class="form-control" required 
-                                       pattern="[A-Z][0-9]{3}" title="Formato: Letra seguida de 3 números (ej: E001)">
-                                <small class="text-muted">Formato: Letra + 3 números (ej: E001, S002)</small>
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <label class="form-label">Tipo *</label>
-                                <select id="messageType" class="form-select" required>
-                                    <option value="">Seleccionar...</option>
-                                    <option value="error">Error</option>
-                                    <option value="success">Éxito</option>
-                                    <option value="warning">Advertencia</option>
-                                    <option value="info">Información</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <label class="form-label">Idioma *</label>
-                                <select id="languageCode" class="form-select" required>
-                                    <option value="es">Español</option>
-                                    <option value="en">Inglés</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-12">
-                                <label class="form-label">Texto del Mensaje *</label>
-                                <textarea id="messageText" class="form-control" rows="4" required></textarea>
-                                <small class="text-muted">
-                                    Puedes usar variables como {nombre}, {id}, etc. Ej: "Usuario {nombre} no encontrado"
-                                </small>
-                            </div>
-                            
-                            <div class="col-12">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6>Vista previa:</h6>
-                                        <div id="vistaPrevia" class="p-3 border rounded bg-white">
-                                            El mensaje aparecerá aquí...
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-comment mr-1"></i>Texto del Mensaje *
+                    </label>
+                    <textarea id="messageText" class="w-full border border-gray-300 rounded-lg p-3 text-base" 
+                              rows="4" required placeholder="Ingrese el texto del mensaje..."></textarea>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        Usa variables como {nombre}, {id}, {fecha}. Ej: "Usuario {nombre} no encontrado"
+                    </p>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700">
+                        <i class="fas fa-eye mr-2"></i>Vista Previa
+                    </h3>
+                    <div id="vistaPrevia" class="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                        <div class="text-center text-gray-500">
+                            <i class="fas fa-comment text-2xl mb-2"></i>
+                            <p>El mensaje aparecerá aquí...</p>
                         </div>
-                    </form>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="guardarMensaje()">Guardar</button>
+                
+                <div class="flex gap-3 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="cerrarModal()" 
+                            class="flex-1 bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 btn-touch font-semibold">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                    <button type="button" onclick="guardarMensaje()" 
+                            class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 btn-touch font-semibold">
+                        <i class="fas fa-save mr-2"></i>Guardar Mensaje
+                    </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+
+        // Configuración de partículas 
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 80, density: { enable: true, value_area: 800 } },
+                color: { value: '#3b82f6' },
+                shape: { type: 'circle' },
+                opacity: { 
+                    value: 0.5,
+                    random: true,
+                    anim: { enable: true, speed: 1, opacity_min: 0.1, sync: false }
+                },
+                size: { 
+                    value: 3, 
+                    random: true,
+                    anim: { enable: true, speed: 2, size_min: 0.1, sync: false }
+                },
+                line_linked: { 
+                    enable: true, 
+                    distance: 150, 
+                    color: '#3b82f6', 
+                    opacity: 0.4, 
+                    width: 1 
+                },
+                move: { 
+                    enable: true, 
+                    speed: 1.5, 
+                    direction: 'none', 
+                    random: true,
+                    straight: false,
+                    out_mode: 'out',
+                    bounce: false
+                }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                },
+                modes: {
+                    grab: { distance: 180, line_linked: { opacity: 0.8 } },
+                    push: { particles_nb: 4 }
+                }
+            },
+            retina_detect: true
+        });
+
         let mensajes = [];
         
+        // Función para actualizar la hora en tiempo real 
+        function actualizarHora() {
+            const ahora = new Date();
+            const opciones = { 
+                timeZone: 'America/Bogota',
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            
+            const opcionesFecha = {
+                timeZone: 'America/Bogota',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            };
+            
+            const hora = ahora.toLocaleTimeString('es-CO', opciones);
+            const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+            
+            // Actualizar en sidebar
+            const horaSidebar = document.getElementById('horaActualSidebar');
+            const fechaSidebar = document.getElementById('fechaActualSidebar');
+            
+            if (horaSidebar) horaSidebar.textContent = hora;
+            if (fechaSidebar) fechaSidebar.textContent = fecha;
+        }
+        
+        // Actualizar timestamp
+        function actualizarTimestamp() {
+            const ahora = new Date();
+            const hora = ahora.toLocaleTimeString('es-CO', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('ultimaActualizacion').textContent = `Última actualización: ${hora}`;
+        }
+        
         // Cargar mensajes al iniciar
-        document.addEventListener('DOMContentLoaded', cargarMensajes);
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarMensajes();
+            actualizarHora();
+            setInterval(actualizarHora, 1000);
+            actualizarTimestamp();
+            setInterval(actualizarTimestamp, 30000); // Actualizar cada 30 segundos
+        });
         
         async function cargarMensajes() {
             try {
+                const tabla = document.getElementById('tablaMensajes');
+                tabla.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <div class="loading mx-auto mb-2"></div>
+                            <p class="text-gray-600">Cargando mensajes...</p>
+                        </td>
+                    </tr>
+                `;
+                
                 const response = await fetch('/api/mensajes');
                 if (!response.ok) throw new Error('Error al cargar mensajes');
                 
                 mensajes = await response.json();
                 mostrarMensajes();
                 actualizarEstadisticas();
+                mostrarAlerta('✅ Mensajes cargados correctamente', 'success');
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al cargar mensajes');
+                mostrarAlerta('❌ Error al cargar mensajes', 'error');
+                
+                const tabla = document.getElementById('tablaMensajes');
+                tabla.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <div class="text-red-500">
+                                <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                                <p class="mb-2">Error al cargar los mensajes</p>
+                                <button onclick="cargarMensajes()" 
+                                        class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                    <i class="fas fa-sync-alt mr-2"></i>Reintentar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
             }
         }
         
@@ -239,61 +632,123 @@
                 return true;
             });
             
-            tabla.innerHTML = '';
-            
-            filtrados.forEach(mensaje => {
-                const tipoClase = {
-                    'error': 'badge-error',
-                    'success': 'badge-success',
-                    'warning': 'badge-warning',
-                    'info': 'badge-info'
-                }[mensaje.message_type] || 'badge-secondary';
-                
-                const fila = document.createElement('tr');
-                fila.innerHTML = `
-                    <td><span class="badge code-badge bg-dark">${mensaje.message_code}</span></td>
-                    <td><span class="badge ${tipoClase}">${mensaje.message_type}</span></td>
-                    <td><span class="badge bg-primary">${mensaje.language_code}</span></td>
-                    <td>${mensaje.message_text}</td>
-                    <td><small class="text-muted">${mensaje.updated_at || 'Nunca'}</small></td>
-                    <td>
-                        <button class="btn btn-sm btn-warning me-1" onclick="editarMensaje(${mensaje.id})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="eliminarMensaje(${mensaje.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
+            if (filtrados.length === 0) {
+                tabla.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <div class="text-gray-500">
+                                <i class="fas fa-inbox text-2xl mb-3"></i>
+                                <p class="mb-1">No se encontraron mensajes</p>
+                                <small>Intenta con otros filtros o crea un nuevo mensaje</small>
+                            </div>
+                        </td>
+                    </tr>
                 `;
-                tabla.appendChild(fila);
-            });
+            } else {
+                tabla.innerHTML = '';
+                
+                filtrados.forEach(mensaje => {
+                    const tipoClase = {
+                        'error': 'badge-error',
+                        'success': 'badge-success',
+                        'warning': 'badge-warning',
+                        'info': 'badge-info'
+                    }[mensaje.message_type] || 'badge-secondary';
+                    
+                    const iconoTipo = {
+                        'error': 'fa-times-circle',
+                        'success': 'fa-check-circle',
+                        'warning': 'fa-exclamation-circle',
+                        'info': 'fa-info-circle'
+                    }[mensaje.message_type] || 'fa-comment';
+                    
+                    // Formatear fecha
+                    const fecha = mensaje.updated_at ? new Date(mensaje.updated_at) : null;
+                    const fechaFormateada = fecha ? 
+                        `${fecha.toLocaleDateString('es-CO')} ${fecha.toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'})}` : 
+                        'Nunca';
+                    
+                    const fila = document.createElement('tr');
+                    fila.className = 'message-row border-b border-gray-100 hover:bg-gray-50';
+                    fila.innerHTML = `
+                        <td class="p-3 font-mono text-sm font-bold">${mensaje.message_code}</td>
+                        <td class="p-3">
+                            <span class="badge ${tipoClase} px-3 py-1 rounded-full text-xs">
+                                <i class="fas ${iconoTipo} mr-1"></i>${mensaje.message_type}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">
+                                <i class="fas ${mensaje.language_code === 'es' ? 'fa-language' : 'fa-globe-americas'} mr-1"></i>
+                                ${mensaje.language_code.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <div class="max-w-xs truncate" title="${mensaje.message_text}">
+                                ${mensaje.message_text}
+                            </div>
+                        </td>
+                        <td class="p-3 text-sm text-gray-500">${fechaFormateada}</td>
+                        <td class="p-3 text-center">
+                            <div class="flex justify-center space-x-2">
+                                <button onclick="editarMensaje(${mensaje.id})" 
+                                        class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
+                                    <i class="fas fa-edit mr-1"></i>Editar
+                                </button>
+                                <button onclick="eliminarMensaje(${mensaje.id})"
+                                        class="text-red-600 hover:text-red-800 text-xs btn-touch px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition">
+                                    <i class="fas fa-trash mr-1"></i>Eliminar
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tabla.appendChild(fila);
+                });
+            }
             
-            document.getElementById('contadorMensajes').textContent = `${filtrados.length} mensajes`;
+            const contador = document.getElementById('contadorMensajes');
+            contador.textContent = `${filtrados.length} mensajes`;
+            contador.className = filtroTipo || filtroIdioma || filtroBusqueda ? 
+                'bg-yellow-100 text-yellow-800 text-sm font-medium px-3 py-1 rounded-full' :
+                'bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-full';
         }
         
         function actualizarEstadisticas() {
             const tipos = ['error', 'success', 'warning', 'info'];
             tipos.forEach(tipo => {
                 const count = mensajes.filter(m => m.message_type === tipo).length;
-                document.getElementById(`contador${tipo.charAt(0).toUpperCase() + tipo.slice(1)}s`).textContent = count;
+                const elemento = document.getElementById(`contador${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`);
+                if (elemento) {
+                    elemento.textContent = count;
+                }
             });
         }
         
         function mostrarModalCrear() {
-            document.getElementById('modalTitulo').textContent = 'Nuevo Mensaje';
+            document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-plus-circle text-blue-600"></i>Nuevo Mensaje';
             document.getElementById('formMensaje').reset();
             document.getElementById('mensajeId').value = '';
-            document.getElementById('vistaPrevia').textContent = 'El mensaje aparecerá aquí...';
+            document.getElementById('vistaPrevia').innerHTML = `
+                <div class="text-center text-gray-500">
+                    <i class="fas fa-comment text-2xl mb-2"></i>
+                    <p>El mensaje aparecerá aquí...</p>
+                </div>
+            `;
             
-            const modal = new bootstrap.Modal(document.getElementById('modalMensaje'));
-            modal.show();
+            document.getElementById('modalMensaje').classList.remove('hidden');
+            document.getElementById('modalMensaje').classList.add('flex');
+        }
+        
+        function cerrarModal() {
+            document.getElementById('modalMensaje').classList.add('hidden');
+            document.getElementById('modalMensaje').classList.remove('flex');
         }
         
         async function editarMensaje(id) {
             const mensaje = mensajes.find(m => m.id === id);
             if (!mensaje) return;
             
-            document.getElementById('modalTitulo').textContent = 'Editar Mensaje';
+            document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-edit text-blue-600"></i>Editar Mensaje';
             document.getElementById('mensajeId').value = mensaje.id;
             document.getElementById('messageCode').value = mensaje.message_code;
             document.getElementById('messageType').value = mensaje.message_type;
@@ -302,8 +757,8 @@
             
             actualizarVistaPrevia();
             
-            const modal = new bootstrap.Modal(document.getElementById('modalMensaje'));
-            modal.show();
+            document.getElementById('modalMensaje').classList.remove('hidden');
+            document.getElementById('modalMensaje').classList.add('flex');
         }
         
         async function guardarMensaje() {
@@ -324,6 +779,12 @@
             const url = mensajeId ? `/api/mensajes/${mensajeId}` : '/api/mensajes';
             const method = mensajeId ? 'PUT' : 'POST';
             
+            // Mostrar loading en el botón
+            const btnGuardar = document.querySelector('#formMensaje button[type="button"]:last-child');
+            const originalContent = btnGuardar.innerHTML;
+            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+            btnGuardar.disabled = true;
+            
             try {
                 const response = await fetch(url, {
                     method: method,
@@ -336,46 +797,99 @@
                     throw new Error(error.message || 'Error al guardar');
                 }
                 
-                // Cerrar modal y recargar
-                bootstrap.Modal.getInstance(document.getElementById('modalMensaje')).hide();
+                mostrarAlerta(mensajeId ? '✅ Mensaje actualizado correctamente' : '✅ Mensaje creado correctamente', 'success');
+                
+                cerrarModal();
                 await cargarMensajes();
                 
-                alert(mensajeId ? 'Mensaje actualizado' : 'Mensaje creado');
             } catch (error) {
                 console.error('Error:', error);
-                alert(`Error: ${error.message}`);
+                mostrarAlerta(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                btnGuardar.innerHTML = originalContent;
+                btnGuardar.disabled = false;
             }
         }
         
         async function eliminarMensaje(id) {
-            if (!confirm('¿Estás seguro de eliminar este mensaje?')) return;
+            if (!confirm('¿Estás seguro de eliminar este mensaje? Esta acción no se puede deshacer.')) return;
             
             try {
                 const response = await fetch(`/api/mensajes/${id}`, {method: 'DELETE'});
                 if (!response.ok) throw new Error('Error al eliminar');
                 
                 await cargarMensajes();
-                alert('Mensaje eliminado');
+                mostrarAlerta('✅ Mensaje eliminado correctamente', 'success');
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al eliminar mensaje');
+                mostrarAlerta('❌ Error al eliminar el mensaje', 'error');
             }
         }
         
         function actualizarVistaPrevia() {
             const texto = document.getElementById('messageText').value;
             const tipo = document.getElementById('messageType').value;
+            const codigo = document.getElementById('messageCode').value;
             
             const clase = {
-                'error': 'text-danger',
-                'success': 'text-success',
-                'warning': 'text-warning',
-                'info': 'text-info'
-            }[tipo] || '';
+                'error': 'border-red-200 bg-red-50',
+                'success': 'border-green-200 bg-green-50',
+                'warning': 'border-yellow-200 bg-yellow-50',
+                'info': 'border-blue-200 bg-blue-50'
+            }[tipo] || 'border-gray-200 bg-gray-50';
+            
+            const icono = {
+                'error': 'fa-times-circle text-red-500',
+                'success': 'fa-check-circle text-green-500',
+                'warning': 'fa-exclamation-circle text-yellow-500',
+                'info': 'fa-info-circle text-blue-500'
+            }[tipo] || 'fa-comment text-gray-500';
             
             const vista = document.getElementById('vistaPrevia');
-            vista.className = `p-3 border rounded bg-white ${clase}`;
-            vista.textContent = texto || 'El mensaje aparecerá aquí...';
+            
+            if (texto) {
+                vista.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <i class="fas ${icono} text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="font-mono text-sm bg-gray-800 text-white px-2 py-1 rounded">${codigo || 'CODE'}</span>
+                                <span class="text-xs text-gray-500">${tipo || 'tipo'}</span>
+                            </div>
+                            <p class="text-gray-800">${texto}</p>
+                            <div class="mt-3 text-xs text-gray-500">
+                                <i class="fas fa-clock mr-1"></i>${new Date().toLocaleTimeString('es-CO')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                vista.className = `p-4 border-2 rounded-lg ${clase}`;
+            } else {
+                vista.innerHTML = `
+                    <div class="text-center text-gray-500">
+                        <i class="fas fa-comment text-2xl mb-2"></i>
+                        <p>El mensaje aparecerá aquí...</p>
+                    </div>
+                `;
+                vista.className = 'p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50';
+            }
+        }
+        
+        function mostrarAlerta(mensaje, tipo) {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                tipo === 'error' ? 'bg-red-500' : tipo === 'success' ? 'bg-green-500' : 'bg-yellow-500'
+            } text-white`;
+            toast.innerHTML = `<i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} mr-2"></i> ${mensaje}`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 5000);
         }
         
         // Event listeners para filtros
@@ -384,6 +898,23 @@
         document.getElementById('filtroBusqueda').addEventListener('input', mostrarMensajes);
         document.getElementById('messageText').addEventListener('input', actualizarVistaPrevia);
         document.getElementById('messageType').addEventListener('change', actualizarVistaPrevia);
+        document.getElementById('messageCode').addEventListener('input', actualizarVistaPrevia);
+        
+        // Limpiar filtros con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const filtroTipo = document.getElementById('filtroTipo');
+                const filtroIdioma = document.getElementById('filtroIdioma');
+                const filtroBusqueda = document.getElementById('filtroBusqueda');
+                
+                if (filtroTipo.value || filtroIdioma.value || filtroBusqueda.value) {
+                    filtroTipo.value = '';
+                    filtroIdioma.value = '';
+                    filtroBusqueda.value = '';
+                    mostrarMensajes();
+                }
+            }
+        });
     </script>
 </body>
 </html>
