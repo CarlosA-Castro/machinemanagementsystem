@@ -2158,10 +2158,12 @@ def obtener_usuarios():
                 'id': usuario['id'],
                 'name': usuario['name'],
                 'role': usuario['role'],
+                'local': usuario.get('local', 'El Mekatiadero'),
                 'createdBy': usuario['createdBy'],
                 'creador': {'name': usuario['creador_nombre']} if usuario['creador_nombre'] else None,
                 'createdAt': usuario['createdAt'],
-                'notes': usuario['notes']
+                'notes': usuario['notes'],
+                'isActive': usuario.get('isActive', True)  # Por defecto activo si no existe
             })
         
         return jsonify(usuarios_formateados)
@@ -3464,8 +3466,652 @@ def recargar_cache_mensajes():
     except Exception as e:
         app.logger.error(f"Error recargando cache: {e}")
         return api_response('E001', http_status=500)
+    
+@app.route('/api/mensajes/buscar', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def buscar_mensajes():
+    """Buscar mensajes con filtros"""
+    connection = None
+    cursor = None
+    try:
+        query = request.args.get('q', '').strip()
+        tipo = request.args.get('tipo', '')
+        idioma = request.args.get('idioma', '')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Construir consulta dinámica
+        condiciones = []
+        parametros = []
+        
+        if query:
+            condiciones.append("(message_code LIKE %s OR message_text LIKE %s)")
+            parametros.append(f"%{query}%")
+            parametros.append(f"%{query}%")
+        
+        if tipo and tipo != 'todos':
+            condiciones.append("message_type = %s")
+            parametros.append(tipo)
+        
+        if idioma and idioma != 'todos':
+            condiciones.append("language_code = %s")
+            parametros.append(idioma)
+        
+        where_clause = " WHERE " + " AND ".join(condiciones) if condiciones else ""
+        
+        sql = f"""
+            SELECT id, message_code, message_type, message_text, language_code,
+                   created_at, updated_at
+            FROM system_messages
+            {where_clause}
+            ORDER BY message_code, language_code
+        """
+        
+        cursor.execute(sql, parametros)
+        mensajes = cursor.fetchall()
+        
+        # Formatear fechas
+        for mensaje in mensajes:
+            if mensaje['created_at']:
+                fecha_colombia = parse_db_datetime(mensaje['created_at'])
+                mensaje['created_at'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+            if mensaje['updated_at']:
+                fecha_colombia = parse_db_datetime(mensaje['updated_at'])
+                mensaje['updated_at'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify({
+            'resultados': mensajes,
+            'total': len(mensajes),
+            'parametros': {
+                'query': query,
+                'tipo': tipo,
+                'idioma': idioma
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error buscando mensajes: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
-# ==================== RUTAS DE DEBUG Y HEALTH CHECK ====================
+@app.route('/api/mensajes/validar-codigo/<codigo>', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def validar_codigo_mensaje(codigo):
+    """Validar si un código de mensaje está disponible"""
+    connection = None
+    cursor = None
+    try:
+        import re
+        
+        # Validar formato
+        if not re.match(r'^[A-Z][0-9]{3}$', codigo):
+            return jsonify({
+                'valido': False,
+                'mensaje': 'Formato inválido. Debe ser letra mayúscula seguida de 3 números (ej: E001)'
+            })
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({
+                'valido': False,
+                'mensaje': 'Error de conexión a la base de datos'
+            })
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si existe en español
+        cursor.execute("""
+            SELECT language_code, message_type, message_text
+            FROM system_messages
+            WHERE message_code = %s
+        """, (codigo,))
+        
+        mensajes = cursor.fetchall()
+        
+        if not mensajes:
+            return jsonify({
+                'valido': True,
+                'disponible': True,
+                'mensaje': 'Código disponible para todos los idiomas'
+            })
+        
+        # Determinar idiomas disponibles
+        idiomas_existentes = [m['language_code'] for m in mensajes]
+        idiomas_disponibles = ['es', 'en']
+        idiomas_faltantes = [idioma for idioma in idiomas_disponibles if idioma not in idiomas_existentes]
+        
+        if not idiomas_faltantes:
+            return jsonify({
+                'valido': True,
+                'disponible': False,
+                'mensaje': f'Código ya existe en todos los idiomas (es, en)',
+                'detalles': mensajes
+            })
+        
+        return jsonify({
+            'valido': True,
+            'disponible': True,
+            'mensaje': f'Código disponible para idiomas: {", ".join(idiomas_faltantes)}',
+            'idiomas_faltantes': idiomas_faltantes,
+            'detalles': mensajes
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error validando código: {e}")
+        return jsonify({
+            'valido': False,
+            'mensaje': f'Error interno: {str(e)}'
+        })
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA DASHBOARD ====================
+
+@app.route('/api/dashboard/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_estadisticas_dashboard():
+    """Obtener estadísticas principales para el dashboard"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. Ingresos totales en el período
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(tp.price), 0) as ingresos_totales,
+                COUNT(DISTINCT qh.qr_code) as paquetes_vendidos
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+        """, (fecha_inicio, fecha_fin))
+        
+        ingresos = cursor.fetchone()
+        
+        # 2. Máquinas activas vs total
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN status = 'activa' THEN 1 END) as maquinas_activas,
+                COUNT(*) as maquinas_totales
+            FROM Machine
+        """)
+        
+        maquinas = cursor.fetchone()
+        
+        # 3. Ticket promedio
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN COUNT(DISTINCT qh.qr_code) > 0 THEN 
+                        COALESCE(SUM(tp.price), 0) / COUNT(DISTINCT qh.qr_code)
+                    ELSE 0 
+                END as ticket_promedio
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+        """, (fecha_inicio, fecha_fin))
+        
+        ticket = cursor.fetchone()
+        
+        # 4. Comparación con período anterior para tendencias
+        fecha_inicio_anterior = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
+        fecha_fin_anterior = (datetime.strptime(fecha_fin, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
+        
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(tp.price), 0) as ingresos_anterior,
+                COUNT(DISTINCT qh.qr_code) as paquetes_anterior
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+        """, (fecha_inicio_anterior, fecha_fin_anterior))
+        
+        anterior = cursor.fetchone()
+        
+        # Calcular tendencias porcentuales
+        ingresos_actual = float(ingresos['ingresos_totales'] or 0)
+        ingresos_previo = float(anterior['ingresos_anterior'] or 0)
+        
+        paquetes_actual = ingresos['paquetes_vendidos'] or 0
+        paquetes_previo = anterior['paquetes_anterior'] or 0
+        
+        tendencia_ingresos = 0
+        if ingresos_previo > 0:
+            tendencia_ingresos = ((ingresos_actual - ingresos_previo) / ingresos_previo) * 100
+        
+        tendencia_paquetes = 0
+        if paquetes_previo > 0:
+            tendencia_paquetes = ((paquetes_actual - paquetes_previo) / paquetes_previo) * 100
+        
+        app.logger.info(f"Dashboard stats: {ingresos_actual} ingresos, {paquetes_actual} paquetes")
+        
+        return jsonify({
+            'ingresos_totales': ingresos_actual,
+            'paquetes_vendidos': paquetes_actual,
+            'maquinas_activas': maquinas['maquinas_activas'] or 0,
+            'maquinas_totales': maquinas['maquinas_totales'] or 0,
+            'ticket_promedio': float(ticket['ticket_promedio'] or 0),
+            'tendencias': {
+                'ingresos': round(tendencia_ingresos, 1),
+                'paquetes': round(tendencia_paquetes, 1)
+            },
+            'rango_fechas': {
+                'inicio': fecha_inicio,
+                'fin': fecha_fin
+            },
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas dashboard: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/graficas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_graficas_dashboard():
+    """Obtener datos para gráficas del dashboard"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. Evolución de ventas por día
+        cursor.execute("""
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                COUNT(DISTINCT qh.qr_code) as ventas,
+                COALESCE(SUM(tp.price), 0) as ingresos
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY DATE(qh.fecha_hora)
+            ORDER BY fecha
+        """, (fecha_inicio, fecha_fin))
+        
+        evolucion_data = cursor.fetchall()
+        
+        evolucion_ventas = {
+            'labels': [str(item['fecha']) for item in evolucion_data],
+            'data': [float(item['ingresos']) for item in evolucion_data]
+        }
+        
+        # 2. Ventas por paquete
+        cursor.execute("""
+            SELECT 
+                tp.name as paquete,
+                COUNT(DISTINCT qh.qr_code) as cantidad,
+                SUM(tp.price) as ingresos
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY tp.id, tp.name
+            ORDER BY ingresos DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin))
+        
+        paquetes_data = cursor.fetchall()
+        
+        ventas_paquetes = {
+            'labels': [item['paquete'] for item in paquetes_data],
+            'data': [item['cantidad'] for item in paquetes_data]
+        }
+        
+        # 3. Rendimiento por máquina
+        cursor.execute("""
+            SELECT 
+                m.name as maquina,
+                COUNT(DISTINCT qh.qr_code) as ventas,
+                COALESCE(SUM(tp.price), 0) as ingresos,
+                COUNT(DISTINCT tu.id) as usos
+            FROM Machine m
+            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) BETWEEN %s AND %s
+            LEFT JOIN QRHistory qh ON DATE(qh.fecha_hora) BETWEEN %s AND %s
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE qh.fecha_hora IS NOT NULL
+            GROUP BY m.id, m.name
+            ORDER BY ingresos DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
+        
+        maquinas_data = cursor.fetchall()
+        
+        rendimiento_maquinas = {
+            'labels': [item['maquina'] for item in maquinas_data],
+            'data': [float(item['ingresos']) for item in maquinas_data]
+        }
+        
+        # 4. Estado de máquinas
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN status = 'activa' THEN 1 END) as activas,
+                COUNT(CASE WHEN status = 'mantenimiento' THEN 1 END) as mantenimiento,
+                COUNT(CASE WHEN status = 'inactiva' THEN 1 END) as inactivas
+            FROM Machine
+        """)
+        
+        estado_data = cursor.fetchone()
+        
+        estado_maquinas = [
+            estado_data['activas'] or 0,
+            estado_data['mantenimiento'] or 0,
+            estado_data['inactivas'] or 0
+        ]
+        
+        return jsonify({
+            'evolucion_ventas': evolucion_ventas,
+            'ventas_paquetes': ventas_paquetes,
+            'rendimiento_maquinas': rendimiento_maquinas,
+            'estado_maquinas': estado_maquinas,
+            'rango_fechas': {
+                'inicio': fecha_inicio,
+                'fin': fecha_fin
+            },
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo gráficas dashboard: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/top-maquinas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_top_maquinas():
+    """Obtener top 5 máquinas por rendimiento"""
+    connection = None
+    cursor = None
+    try:
+        fecha_hoy = get_colombia_time().strftime('%Y-%m-%d')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                m.name as nombre,
+                COUNT(DISTINCT qh.qr_code) as ventas,
+                COALESCE(SUM(tp.price), 0) as ingresos,
+                COUNT(DISTINCT tu.id) as usos
+            FROM Machine m
+            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = %s
+            LEFT JOIN QRHistory qh ON DATE(qh.fecha_hora) = %s
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE qh.fecha_hora IS NOT NULL
+            GROUP BY m.id, m.name
+            ORDER BY ingresos DESC
+            LIMIT 5
+        """, (fecha_hoy, fecha_hoy))
+        
+        top_maquinas = cursor.fetchall()
+        
+        # Formatear respuesta
+        maquinas_formateadas = []
+        for maquina in top_maquinas:
+            maquinas_formateadas.append({
+                'nombre': maquina['nombre'],
+                'ventas': maquina['ventas'] or 0,
+                'ingresos': float(maquina['ingresos'] or 0),
+                'usos': maquina['usos'] or 0
+            })
+        
+        return jsonify(maquinas_formateadas)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo top máquinas: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/dashboard/ventas-recientes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_ventas_recientes():
+    """Obtener las últimas 5 ventas"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                qh.qr_code,
+                qh.user_name,
+                qh.fecha_hora,
+                tp.name as paquete,
+                tp.price as precio
+            FROM QRHistory qh
+            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            ORDER BY qh.fecha_hora DESC
+            LIMIT 5
+        """)
+        
+        ventas = cursor.fetchall()
+        
+        # Formatear respuesta
+        ventas_formateadas = []
+        for venta in ventas:
+            # Formatear fecha/hora
+            fecha_hora = venta['fecha_hora']
+            if fecha_hora:
+                try:
+                    fecha_colombia = parse_db_datetime(fecha_hora)
+                    hora_formateada = fecha_colombia.strftime('%H:%M')
+                    fecha_formateada = fecha_colombia.strftime('%Y-%m-%d')
+                except Exception as e:
+                    app.logger.warning(f"Error formateando fecha: {e}")
+                    hora_formateada = str(fecha_hora)
+                    fecha_formateada = str(fecha_hora)
+            else:
+                hora_formateada = "N/A"
+                fecha_formateada = "N/A"
+            
+            ventas_formateadas.append({
+                'qr_code': venta['qr_code'],
+                'usuario': venta['user_name'],
+                'paquete': venta['paquete'] or 'Sin paquete',
+                'precio': float(venta['precio'] or 0),
+                'hora': hora_formateada,
+                'fecha': fecha_formateada
+            })
+        
+        return jsonify(ventas_formateadas)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ventas recientes: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA CAMBIAR ESTADO DE USUARIOS ====================
+
+@app.route('/api/usuarios/<int:usuario_id>/estado', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['isActive'])
+def cambiar_estado_usuario(usuario_id):
+    """Cambiar estado activo/inactivo de un usuario"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        is_active = data['isActive']
+        
+        if usuario_id == session.get('user_id'):
+            return api_response('U005', http_status=400, data={
+                'message': 'No puedes cambiar tu propio estado'
+            })
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el usuario existe
+        cursor.execute("SELECT name FROM Users WHERE id = %s", (usuario_id,))
+        usuario = cursor.fetchone()
+        if not usuario:
+            return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
+        
+        # Actualizar estado
+        cursor.execute("""
+            UPDATE Users 
+            SET isActive = %s,
+                updatedAt = NOW()
+            WHERE id = %s
+        """, (is_active, usuario_id))
+        
+        connection.commit()
+        
+        app.logger.info(f"Estado de usuario cambiado: {usuario['name']} (ID: {usuario_id}, Activo: {is_active})")
+        
+        return api_response('S003', status='success', data={
+            'isActive': is_active,
+            'message': f'Usuario {"activado" if is_active else "desactivado"} correctamente'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error cambiando estado de usuario: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA ESTADÍSTICAS DE USUARIOS ====================
+
+@app.route('/api/usuarios/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_estadisticas_usuarios():
+    """Obtener estadísticas de usuarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener conteos por rol y estado
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN isActive = TRUE OR isActive IS NULL THEN 1 END) as activos,
+                COUNT(CASE WHEN isActive = FALSE THEN 1 END) as inactivos,
+                COUNT(CASE WHEN role = 'admin' THEN 1 END) as admins,
+                COUNT(CASE WHEN role = 'cajero' THEN 1 END) as cajeros,
+                COUNT(CASE WHEN role = 'admin_restaurante' THEN 1 END) as admin_restaurante
+            FROM Users
+        """)
+        
+        estadisticas = cursor.fetchone()
+        
+        return jsonify({
+            'total': estadisticas['total'] or 0,
+            'activos': estadisticas['activos'] or 0,
+            'inactivos': estadisticas['inactivos'] or 0,
+            'admins': estadisticas['admins'] or 0,
+            'cajeros': estadisticas['cajeros'] or 0,
+            'admin_restaurante': estadisticas['admin_restaurante'] or 0,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas de usuarios: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+# ==================== RUTAS DE DEBUG ====================
 
 @app.route('/debug/session')
 def debug_session():

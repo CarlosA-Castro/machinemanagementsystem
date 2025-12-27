@@ -184,7 +184,7 @@
                     <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-store mr-2"></i>Ir al Local
                     </a>
-                    <a href="/admin" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
                     </a>
                     <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -202,7 +202,7 @@
                     <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-store mr-2"></i>Locales
                     </a>
-                      <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                      <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg bg-blue-600 text-white transition">
                         <i class="fas fa-store mr-2"></i>Mensajes
                     </a>
                     <a href="/admin/ventas/liquidaciones" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -577,45 +577,58 @@
         });
         
         async function cargarMensajes() {
-            try {
-                const tabla = document.getElementById('tablaMensajes');
-                tabla.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-8">
-                            <div class="loading mx-auto mb-2"></div>
-                            <p class="text-gray-600">Cargando mensajes...</p>
-                        </td>
-                    </tr>
-                `;
-                
-                const response = await fetch('/api/mensajes');
-                if (!response.ok) throw new Error('Error al cargar mensajes');
-                
-                mensajes = await response.json();
-                mostrarMensajes();
-                actualizarEstadisticas();
-                mostrarAlerta('✅ Mensajes cargados correctamente', 'success');
-            } catch (error) {
-                console.error('Error:', error);
-                mostrarAlerta('❌ Error al cargar mensajes', 'error');
-                
-                const tabla = document.getElementById('tablaMensajes');
-                tabla.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-8">
-                            <div class="text-red-500">
-                                <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
-                                <p class="mb-2">Error al cargar los mensajes</p>
-                                <button onclick="cargarMensajes()" 
-                                        class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                    <i class="fas fa-sync-alt mr-2"></i>Reintentar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }
-        }
+    try {
+        const tabla = document.getElementById('tablaMensajes');
+        tabla.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-8">
+                    <div class="loading mx-auto mb-2"></div>
+                    <p class="text-gray-600">Cargando mensajes...</p>
+                </td>
+            </tr>
+        `;
+        
+        const response = await fetch('/api/mensajes');
+        if (!response.ok) throw new Error('Error al cargar mensajes');
+        
+        mensajes = await response.json();
+        
+        // Verificar que los mensajes se cargaron correctamente
+        console.log('Mensajes cargados:', mensajes);
+        console.log('Cantidad total:', mensajes.length);
+        
+        // Mostrar estadísticas por tipo
+        mensajes.forEach(m => {
+            console.log(`Mensaje ${m.message_code}: tipo=${m.message_type}, idioma=${m.language_code}`);
+        });
+        
+        mostrarMensajes();
+        actualizarEstadisticas();
+        mostrarAlerta('✅ Mensajes cargados correctamente', 'success');
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('❌ Error al cargar mensajes', 'error');
+        
+        const tabla = document.getElementById('tablaMensajes');
+        tabla.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-8">
+                    <div class="text-red-500">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                        <p class="mb-2">Error al cargar los mensajes</p>
+                        <button onclick="cargarMensajes()" 
+                                class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            <i class="fas fa-sync-alt mr-2"></i>Reintentar
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        
+        // Aún así intentar actualizar estadísticas (con array vacío)
+        actualizarEstadisticas();
+    }
+}
         
         function mostrarMensajes() {
             const tabla = document.getElementById('tablaMensajes');
@@ -714,15 +727,38 @@
         }
         
         function actualizarEstadisticas() {
-            const tipos = ['error', 'success', 'warning', 'info'];
-            tipos.forEach(tipo => {
-                const count = mensajes.filter(m => m.message_type === tipo).length;
-                const elemento = document.getElementById(`contador${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`);
-                if (elemento) {
-                    elemento.textContent = count;
-                }
-            });
+    if (!mensajes || mensajes.length === 0) {
+        // Si no hay mensajes, mostrar 0
+        ['Error', 'Exito', 'Advertencia', 'Info'].forEach(tipo => {
+            const elemento = document.getElementById(`contador${tipo}`);
+            if (elemento) {
+                elemento.textContent = '0';
+            }
+        });
+        return;
+    }
+    
+    // Contar mensajes por tipo
+    const contadores = {
+        error: 0,
+        success: 0,
+        warning: 0,
+        info: 0
+    };
+    
+    mensajes.forEach(mensaje => {
+        const tipo = mensaje.message_type;
+        if (contadores.hasOwnProperty(tipo)) {
+            contadores[tipo]++;
         }
+    });
+    
+    // Actualizar los contadores en la interfaz
+    document.getElementById('contadorErrores').textContent = contadores.error;
+    document.getElementById('contadorExitos').textContent = contadores.success;
+    document.getElementById('contadorAdvertencias').textContent = contadores.warning;
+    document.getElementById('contadorInfo').textContent = contadores.info;
+}
         
         function mostrarModalCrear() {
             document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-plus-circle text-blue-600"></i>Nuevo Mensaje';

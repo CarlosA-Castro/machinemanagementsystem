@@ -616,56 +616,68 @@
     },
 
     cargarEstadisticasPrincipales: async function() {
-        try {
-            const params = new URLSearchParams({
-                fecha_inicio: this.fechaInicio,
-                fecha_fin: this.fechaFin
-            });
+    try {
+        const params = new URLSearchParams({
+            fecha_inicio: this.fechaInicio,
+            fecha_fin: this.fechaFin
+        });
+        
+        console.log('📊 Cargando estadísticas desde:', `/api/dashboard/estadisticas?${params}`);
+        
+        const response = await fetch(`/api/dashboard/estadisticas?${params}`);
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📊 Datos recibidos:', data);
             
-            const response = await fetch(`/api/dashboard/estadisticas?${params}`);
-            if (response.ok) {
-                const data = await response.json();
-                
-                // Actualizar estadísticas
-                document.getElementById('ingresos-totales').textContent = 
-                    this.formatearMoneda(data.ingresos_totales || 0);
-                document.getElementById('paquetes-vendidos').textContent = 
-                    data.paquetes_vendidos || 0;
-                document.getElementById('maquinas-activas').textContent = 
-                    `${data.maquinas_activas || 0}/${data.maquinas_totales || 0}`;
-                document.getElementById('ticket-promedio').textContent = 
-                    this.formatearMoneda(data.ticket_promedio || 0);
-                
-                // Actualizar tendencias
-                this.actualizarTendencias(data.tendencias || {});
-                
-                // Actualizar porcentaje de máquinas activas
-                const porcentaje = data.maquinas_totales > 0 ? 
-                    Math.round((data.maquinas_activas / data.maquinas_totales) * 100) : 0;
-                document.getElementById('porcentaje-activas').textContent = `${porcentaje}%`;
-                
-            }
-        } catch (error) {
-            console.error('Error cargando estadísticas:', error);
+            // Actualizar estadísticas
+            document.getElementById('ingresos-totales').textContent = 
+                this.formatearMoneda(data.ingresos_totales || 0);
+            document.getElementById('paquetes-vendidos').textContent = 
+                data.paquetes_vendidos || 0;
+            document.getElementById('maquinas-activas').textContent = 
+                `${data.maquinas_activas || 0}/${data.maquinas_totales || 0}`;
+            document.getElementById('ticket-promedio').textContent = 
+                this.formatearMoneda(data.ticket_promedio || 0);
+            
+            // Actualizar tendencias
+            this.actualizarTendencias(data.tendencias || {});
+            
+            // Actualizar porcentaje de máquinas activas
+            const porcentaje = data.maquinas_totales > 0 ? 
+                Math.round((data.maquinas_activas / data.maquinas_totales) * 100) : 0;
+            document.getElementById('porcentaje-activas').textContent = `${porcentaje}%`;
+            
+        } else {
+            console.error('❌ Error en respuesta:', response.status, response.statusText);
+            this.mostrarAlerta('Error cargando estadísticas', 'error');
         }
-    },
+    } catch (error) {
+        console.error('❌ Error cargando estadísticas:', error);
+        this.mostrarAlerta('Error de conexión', 'error');
+    }
+},
 
     cargarDatosGraficas: async function() {
-        try {
-            const params = new URLSearchParams({
-                fecha_inicio: this.fechaInicio,
-                fecha_fin: this.fechaFin
-            });
-            
-            const response = await fetch(`/api/dashboard/graficas?${params}`);
-            if (response.ok) {
-                const data = await response.json();
-                this.actualizarTodasGraficas(data);
-            }
-        } catch (error) {
-            console.error('Error cargando gráficas:', error);
+    try {
+        const params = new URLSearchParams({
+            fecha_inicio: this.fechaInicio,
+            fecha_fin: this.fechaFin
+        });
+        
+        console.log('📈 Cargando gráficas desde:', `/api/dashboard/graficas?${params}`);
+        
+        const response = await fetch(`/api/dashboard/graficas?${params}`);
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📈 Datos de gráficas recibidos:', data);
+            this.actualizarTodasGraficas(data);
+        } else {
+            console.error('❌ Error en respuesta de gráficas:', response.status);
         }
-    },
+    } catch (error) {
+        console.error('❌ Error cargando gráficas:', error);
+    }
+},
 
     actualizarTodasGraficas: function(data) {
         // Gráfico de evolución de ventas

@@ -156,29 +156,33 @@
                 </div>
             </div>
 
-            <!-- Estadísticas rápidas -->
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
-                    <div class="text-sm text-gray-600">Total Usuarios</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-green-600" id="total-activos">0</div>
-                    <div class="text-sm text-gray-600">Usuarios Activos</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div>
-                    <div class="text-sm text-gray-600">Usuarios Inactivos</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-purple-600" id="total-cajeros">0</div>
-                    <div class="text-sm text-gray-600">Cajeros</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-orange-600" id="total-restaurante">0</div>
-                    <div class="text-sm text-gray-600">Admin Restaurante</div>
-                </div>
-            </div>
+<!-- Estadísticas rápidas -->
+<div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+    <div class="glass-card text-center">
+        <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
+        <div class="text-sm text-gray-600">Total Usuarios</div>
+    </div>
+    <div class="glass-card text-center">
+        <div class="text-2xl font-bold text-green-600" id="total-activos">0</div>
+        <div class="text-sm text-gray-600">Usuarios Activos</div>
+    </div>
+    <div class="glass-card text-center">
+        <div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div>
+        <div class="text-sm text-gray-600">Usuarios Inactivos</div>
+    </div>
+    <div class="glass-card text-center">
+        <div class="text-2xl font-bold text-purple-600" id="total-admins">0</div>
+        <div class="text-sm text-gray-600">Administradores</div>
+    </div>
+    <div class="glass-card text-center">
+        <div class="text-2xl font-bold text-orange-600" id="total-cajeros">0</div>
+        <div class="text-sm text-gray-600">Cajeros</div>
+    </div>
+    <div class="glass-card text-center">
+        <div class="text-2xl font-bold text-teal-600" id="total-restaurante">0</div>
+        <div class="text-sm text-gray-600">Admin Restaurante</div>
+    </div>
+</div>
 
             <!-- Tabla de usuarios -->
             <div class="glass-card">
@@ -386,6 +390,7 @@
                 console.log("Gestión de Usuarios inicializada");
             },
 
+            
             configurarFechaActual: function() {
                 const ahora = new Date();
                 const opciones = { 
@@ -398,214 +403,132 @@
                     ahora.toLocaleDateString('es-ES', opciones);
             },
 
-            cargarUsuarios: function() {
-                fetch('/api/usuarios', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                    return response.json();
-                })
-                .then(data => {
-                    this.mostrarUsuarios(data);
-                    this.actualizarEstadisticas(data);
-                })
-                .catch(error => {
-                    console.error('Error cargando usuarios:', error);
-                    this.mostrarError('Error al cargar los usuarios');
+cargarUsuarios: function() {
+    console.log('📋 Cargando usuarios...');
+    
+    // Mostrar loading
+    const tbody = document.getElementById('tablaUsuarios');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="p-4 text-center">
+                <div class="loading mx-auto mb-2"></div>
+                <p class="text-gray-600">Cargando usuarios...</p>
+            </td>
+        </tr>
+    `;
+    
+    fetch('/api/usuarios', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error('❌ Error en respuesta:', response.status, response.statusText);
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Usuarios cargados:', data.length);
+        this.mostrarUsuarios(data);
+        this.cargarEstadisticas();
+    })
+    .catch(error => {
+        console.error('❌ Error cargando usuarios:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="p-4 text-center text-red-500">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Error al cargar los usuarios: ${error.message}
+                    <button onclick="UsuariosApp.cargarUsuarios()" 
+                            class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        <i class="fas fa-sync-alt mr-2"></i>Reintentar
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+},
+
+cargarEstadisticas: function() {
+    console.log('📊 Cargando estadísticas...');
+    
+    fetch('/api/usuarios/estadisticas', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error('❌ Error en estadísticas:', response.status);
+            return {};
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Estadísticas recibidas:', data);
+        this.actualizarEstadisticas(data);
+    })
+    .catch(error => {
+        console.error('❌ Error cargando estadísticas:', error);
+        // Usar valores por defecto si falla
+        this.actualizarEstadisticas({
+            total: 0,
+            activos: 0,
+            inactivos: 0,
+            admins: 0,
+            cajeros: 0,
+            admin_restaurante: 0
+        });
+    });
+},
+
+actualizarEstadisticas: function(estadisticas) {
+    document.getElementById('total-usuarios').textContent = estadisticas.total || 0;
+    document.getElementById('total-activos').textContent = estadisticas.activos || 0;
+    document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
+    // CORRECCIÓN: Cambiar 'admins' a 'administradores' o viceversa
+    document.getElementById('total-admins').textContent = estadisticas.admins || 0;
+    document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
+    document.getElementById('total-restaurante').textContent = estadisticas.admin_restaurante || 0;
+},
+
+// Corrige la función cambiarEstadoUsuario
+cambiarEstadoUsuario: function(id, isActive, nombre) {
+    const nuevoEstado = !isActive;
+    const accion = nuevoEstado ? 'habilitar' : 'inhabilitar';
+    
+    if (confirm(`¿Estás seguro de que deseas ${accion} al usuario "${nombre}"?`)) {
+        console.log(`🔄 Cambiando estado usuario ${id}: ${isActive} -> ${nuevoEstado}`);
+        
+        fetch(`/api/usuarios/${id}/estado`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ isActive: nuevoEstado })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || `Error ${response.status}`);
                 });
-            },
-
-            mostrarUsuarios: function(usuarios) {
-                const tbody = document.getElementById('tablaUsuarios');
-                
-                if (!usuarios || usuarios.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="p-4 text-center text-gray-500">
-                                No hay usuarios registrados
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-
-                let html = '';
-                usuarios.forEach(usuario => {
-                    const fechaCreacion = new Date(usuario.createdAt);
-                    const creadoPor = usuario.creador ? usuario.creador.name : 'Sistema';
-                    
-                    // Determinar color del badge según el rol
-                    let colorRol = 'bg-gray-100 text-gray-800';
-                    if (usuario.role === 'admin') colorRol = 'bg-red-100 text-red-800';
-                    if (usuario.role === 'cajero') colorRol = 'bg-blue-100 text-blue-800';
-                    if (usuario.role === 'admin_restaurante') colorRol = 'bg-green-100 text-green-800';
-                    
-                    // Determinar estado del usuario
-                    const isActive = usuario.isActive !== false; // Por defecto activo si no está definido
-                    const estadoTexto = isActive ? 'Activo' : 'Inactivo';
-                    const estadoColor = isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                    const estadoIcon = isActive ? 'fa-check-circle' : 'fa-times-circle';
-
-                    html += `
-                        <tr class="user-row border-b border-gray-200">
-                            <td class="p-3 font-mono text-sm">${usuario.id}</td>
-                            <td class="p-3 font-medium">${usuario.name}</td>
-                            <td class="p-3">
-                                <span class="px-2 py-1 rounded-full text-xs ${colorRol}">
-                                    ${this.formatearRol(usuario.role)}
-                                </span>
-                            </td>
-                            <td class="p-3">${creadoPor}</td>
-                            <td class="p-3 text-sm">${fechaCreacion.toLocaleDateString()}</td>
-                            <td class="p-3">
-                                <span class="px-2 py-1 rounded-full text-xs ${estadoColor}">
-                                    <i class="fas ${estadoIcon} mr-1"></i>${estadoTexto}
-                                </span>
-                            </td>
-                            <td class="p-3 text-center">
-                                <div class="flex justify-center space-x-2">
-                                    <button onclick="UsuariosApp.editarUsuario(${usuario.id})" 
-                                            class="text-blue-600 hover:text-blue-800 btn-touch"
-                                            title="Editar usuario">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name}')" 
-                                            class="${isActive ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'} btn-touch"
-                                            title="${isActive ? 'Inhabilitar usuario' : 'Habilitar usuario'}">
-                                        <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
-                                    </button>
-                                    <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name}')" 
-                                            class="text-red-600 hover:text-red-800 btn-touch"
-                                            title="Eliminar usuario">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                });
-
-                tbody.innerHTML = html;
-            },
-
-            formatearRol: function(rol) {
-                const roles = {
-                    'admin': 'Administrador',
-                    'cajero': 'Cajero',
-                    'admin_restaurante': 'Admin Restaurante'
-                };
-                return roles[rol] || rol;
-            },
-
-            actualizarEstadisticas: function(usuarios) {
-                const total = usuarios.length;
-                const activos = usuarios.filter(u => u.isActive !== false).length;
-                const inactivos = usuarios.filter(u => u.isActive === false).length;
-                const admins = usuarios.filter(u => u.role === 'admin').length;
-                const cajeros = usuarios.filter(u => u.role === 'cajero').length;
-                const restaurante = usuarios.filter(u => u.role === 'admin_restaurante').length;
-
-                document.getElementById('total-usuarios').textContent = total;
-                document.getElementById('total-activos').textContent = activos;
-                document.getElementById('total-inactivos').textContent = inactivos;
-                document.getElementById('total-admins').textContent = admins;
-                document.getElementById('total-cajeros').textContent = cajeros;
-                document.getElementById('total-restaurante').textContent = restaurante;
-            },
-
-            filtrarUsuarios: function() {
-                const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
-                const filtroEstado = document.getElementById('filtroEstado').value;
-                const filtroRol = document.getElementById('filtroRol').value;
-                const filas = document.querySelectorAll('#tablaUsuarios tr');
-
-                filas.forEach(fila => {
-                    const nombre = fila.cells[1]?.textContent.toLowerCase() || '';
-                    const rol = fila.cells[2]?.textContent.toLowerCase() || '';
-                    const estado = fila.cells[5]?.textContent.toLowerCase() || '';
-                    
-                    const coincideBusqueda = nombre.includes(busqueda);
-                    const coincideEstado = !filtroEstado || estado.includes(filtroEstado);
-                    const coincideRol = !filtroRol || rol.includes(filtroRol);
-
-                    fila.style.display = (coincideBusqueda && coincideEstado && coincideRol) ? '' : 'none';
-                });
-            },
-
-            mostrarModalCrear: function() {
-                document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario';
-                document.getElementById('formUsuario').reset();
-                document.getElementById('usuarioId').value = '';
-                document.getElementById('estadoContainer').classList.add('hidden'); // Ocultar estado en creación
-                document.getElementById('modalUsuario').classList.remove('hidden');
-                document.getElementById('modalUsuario').classList.add('flex');
-            },
-
-            editarUsuario: function(id) {
-                fetch(`/api/usuarios/${id}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                    return response.json();
-                })
-                .then(usuario => {
-                    document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-edit mr-2 text-blue-600"></i>Editar Usuario';
-                    document.getElementById('usuarioId').value = usuario.id;
-                    document.getElementById('nombre').value = usuario.name;
-                    document.getElementById('password').value = ''; // No mostrar contraseña actual
-                    document.getElementById('password').required = false; // Hacer opcional en edición
-                    document.getElementById('passwordHelp').textContent = 'Dejar vacío para mantener la contraseña actual';
-                    document.getElementById('rol').value = usuario.role;
-                    document.getElementById('local').value = usuario.local || 'El Mekatiadero';
-                    document.getElementById('notas').value = usuario.notes || '';
-                    
-                    // Mostrar y configurar estado solo en edición
-                    document.getElementById('estadoContainer').classList.remove('hidden');
-                    document.getElementById('isActive').value = usuario.isActive !== false ? 'true' : 'false';
-
-                    document.getElementById('modalUsuario').classList.remove('hidden');
-                    document.getElementById('modalUsuario').classList.add('flex');
-                })
-                .catch(error => {
-                    console.error('Error cargando usuario:', error);
-                    this.mostrarError('Error al cargar el usuario');
-                });
-            },
-
-            cambiarEstadoUsuario: function(id, isActive, nombre) {
-                const nuevoEstado = !isActive;
-                const accion = nuevoEstado ? 'habilitar' : 'inhabilitar';
-                
-                if (confirm(`¿Estás seguro de que deseas ${accion} al usuario "${nombre}"?`)) {
-                    fetch(`/api/usuarios/${id}/estado`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({ isActive: nuevoEstado })
-                    })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                        return response.json();
-                    })
-                    .then(data => {
-                        this.mostrarAlerta(`Usuario ${accion}do correctamente`, 'success');
-                        this.cargarUsuarios();
-                    })
-                    .catch(error => {
-                        console.error(`Error ${accion}do usuario:`, error);
-                        this.mostrarError(`Error al ${accion} el usuario`);
-                    });
-                }
-            },
-
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('✅ Estado cambiado:', data);
+            this.mostrarAlerta(`Usuario ${accion}do correctamente`, 'success');
+            this.cargarUsuarios(); // Recargar la lista completa
+        })
+        .catch(error => {
+            console.error(`❌ Error ${accion}do usuario:`, error);
+            this.mostrarError(`Error al ${accion} el usuario: ${error.message}`);
+        });
+    }
+},
             guardarUsuario: function(event) {
                 event.preventDefault();
                 
