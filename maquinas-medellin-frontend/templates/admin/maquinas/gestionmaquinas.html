@@ -434,35 +434,16 @@
     </div>
 
     <!-- Modal para ver reportes de máquina -->
-    <div id="modalReportes" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="glass-card max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold text-gray-800">
-                    <i class="fas fa-exclamation-triangle mr-2 text-yellow-600"></i>
-                    Reportes de Falla - <span id="nombreMaquinaReportes"></span>
-                </h3>
-                <button onclick="MaquinaManager.cerrarModalReportes()" class="text-gray-500 hover:text-gray-700 btn-touch">
+    <div id="reportesModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full m-4 max-h-[90vh] overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-xl font-semibold">Reportes de Falla</h2>
+                <button onclick="cerrarModal('reportesModal')" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
-            <div id="listaReportes" class="space-y-4 mb-6">
-                <!-- Los reportes se cargarán aquí -->
-            </div>
-            
-            <div class="border-t border-gray-200 pt-4">
-                <h4 class="font-medium text-gray-800 mb-3">Resolver Reporte Actual</h4>
-                <div class="space-y-3">
-                    <textarea id="comentariosResolucion" rows="3" 
-                              class="w-full border border-gray-300 rounded-lg p-3" 
-                              placeholder="Comentarios sobre la resolución..."></textarea>
-                    <div class="flex justify-end">
-                        <button onclick="MaquinaManager.resolverReporteActual()" 
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 btn-touch">
-                            <i class="fas fa-check-circle mr-2"></i>Marcar como Resuelto
-                        </button>
-                    </div>
-                </div>
+            <div class="p-4" id="reportesContenido">
+                <!-- Contenido dinámico se insertará aquí -->
             </div>
         </div>
     </div>
@@ -620,7 +601,7 @@
                                     <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="MaquinaManager.verReportes(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                                    <button onclick="verReportes(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
                                             class="text-yellow-600 hover:text-yellow-800 btn-touch" title="Ver Reportes">
                                         <i class="fas fa-clipboard-list"></i>
                                     </button>
@@ -652,160 +633,6 @@
                 return info.join(', ');
             },
 
-            verReportes: async function(maquinaId, maquinaNombre) {
-                try {
-                    this.maquinaReportesNombre = maquinaNombre;
-                    document.getElementById('nombreMaquinaReportes').textContent = maquinaNombre;
-                    document.getElementById('comentariosResolucion').value = '';
-                    
-                    const response = await fetch(`/api/maquinas/${maquinaId}/reportes`);
-                    
-                    if (response.ok) {
-                        const reportes = await response.json();
-                        this.mostrarReportesModal(reportes, maquinaId);
-                    } else {
-                        throw new Error('Error al cargar reportes');
-                    }
-                } catch (error) {
-                    console.error('Error cargando reportes:', error);
-                    this.mostrarAlerta('Error al cargar los reportes', 'error');
-                }
-            },
-
-            mostrarReportesModal: function(reportes, maquinaId) {
-                const container = document.getElementById('listaReportes');
-                
-                if (!reportes || reportes.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-check-circle text-green-500 text-3xl mb-3"></i>
-                            <p>No hay reportes de falla para esta máquina</p>
-                        </div>
-                    `;
-                } else {
-                    let html = '';
-                    reportes.forEach((reporte, index) => {
-                        const isActive = index === 0 && !reporte.isResolved;
-                        const statusClass = reporte.isResolved ? 'border-green-200 bg-green-50' : 
-                                           'border-yellow-200 bg-yellow-50';
-                        const statusText = reporte.isResolved ? 'Resuelto' : 'Pendiente';
-                        const statusColor = reporte.isResolved ? 'text-green-600' : 'text-yellow-600';
-                        const tipoProblema = reporte.problem_type === 'mantenimiento' ? 'Mantenimiento' : 'Fuera de Servicio';
-                        
-                        html += `
-                            <div class="border rounded-lg p-4 ${statusClass} ${isActive ? 'border-2 border-blue-400' : ''}">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <span class="font-medium text-gray-800">${tipoProblema}</span>
-                                        <span class="ml-2 px-2 py-1 text-xs rounded-full ${statusColor} bg-white">
-                                            ${statusText}
-                                        </span>
-                                    </div>
-                                    <span class="text-sm text-gray-500">${reporte.reportedAt || 'Sin fecha'}</span>
-                                </div>
-                                
-                                <p class="text-gray-700 mb-3">${reporte.description || 'Sin descripción'}</p>
-                                
-                                <div class="text-sm text-gray-600">
-                                    <div class="flex justify-between">
-                                        <span>Reportado por: ${reporte.reportado_por || 'Sistema'}</span>
-                                        ${reporte.confirmation_status ? 
-                                            `<span>Confirmado: ${reporte.confirmation_status}</span>` : 
-                                            ''}
-                                    </div>
-                                    ${reporte.comentarios_admin ? 
-                                        `<div class="mt-2 p-2 bg-gray-100 rounded">
-                                            <strong>Comentarios Admin:</strong> ${reporte.comentarios_admin}
-                                        </div>` : 
-                                        ''}
-                                    ${reporte.confirmado_por ? 
-                                        `<div class="mt-1 text-xs">
-                                            Confirmado por: ${reporte.confirmado_por}
-                                        </div>` : 
-                                        ''}
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    container.innerHTML = html;
-                    this.maquinaReportesActual = maquinaId;
-                }
-                
-                document.getElementById('modalReportes').classList.remove('hidden');
-            },
-
-            cerrarModalReportes: function() {
-                document.getElementById('modalReportes').classList.add('hidden');
-                this.maquinaReportesActual = null;
-                this.maquinaReportesNombre = '';
-            },
-
-            resolverReporteActual: async function() {
-    if (!this.maquinaReportesActual) {
-        this.mostrarAlerta('No hay máquina seleccionada', 'error');
-        return;
-    }
-    
-    const comentarios = document.getElementById('comentariosResolucion').value.trim();
-    
-    try {
-        // Obtener el primer reporte no resuelto
-        const response = await fetch(`/api/maquinas/${this.maquinaReportesActual}/reportes`);
-        const reportes = await response.json();
-        
-        if (!reportes || reportes.length === 0) {
-            this.mostrarAlerta('No hay reportes para resolver', 'warning');
-            return;
-        }
-        
-        // Encontrar el primer reporte no resuelto
-        const reporteNoResuelto = reportes.find(r => !r.isResolved);
-        
-        if (!reporteNoResuelto) {
-            this.mostrarAlerta('Todos los reportes ya están resueltos', 'info');
-            return;
-        }
-        
-        // Intentar con la ruta principal
-        let resolveResponse = await fetch(`/api/reportes/${reporteNoResuelto.id}/resolver`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                comentarios: comentarios || 'Resuelto por administrador'
-            })
-        });
-        
-        // Si falla, intentar con la versión simple
-        if (!resolveResponse.ok) {
-            console.log('Intentando ruta simple...');
-            resolveResponse = await fetch(`/api/reportes-simple/${reporteNoResuelto.id}/resolver`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    comentarios: comentarios || 'Resuelto por administrador'
-                })
-            });
-        }
-        
-        const result = await resolveResponse.json();
-        
-        if (resolveResponse.ok && result.success) {
-            this.cerrarModalReportes();
-            this.cargarMaquinas(); // Recargar lista
-            this.mostrarAlerta(result.message || 'Reporte resuelto y máquina reactivada', 'success');
-        } else {
-            throw new Error(result.error || 'Error al resolver reporte');
-        }
-    } catch (error) {
-        console.error('Error resolviendo reporte:', error);
-        this.mostrarAlerta('Error: ' + error.message, 'error');
-    }
-},
             actualizarEstadisticas: function() {
                 const total = this.maquinas.length;
                 const activas = this.maquinas.filter(m => m.status === 'activa').length;
@@ -1106,6 +933,203 @@
         setTimeout(() => toast.remove(), 4000);
     }
 };
+
+// Función para ver reportes de una máquina
+function verReportes(maquinaId, maquinaNombre) {
+    fetch(`/api/maquinas/${maquinaId}/reportes`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Datos recibidos para reportes:', data); // Para depuración
+            
+            // Verificar la estructura de la respuesta
+            if (data.reportes && Array.isArray(data.reportes)) {
+                mostrarReportesModal(maquinaId, maquinaNombre, data.reportes);
+            } else if (Array.isArray(data)) {
+                // Si la respuesta es directamente un array
+                mostrarReportesModal(maquinaId, maquinaNombre, data);
+            } else {
+                console.error('Estructura de datos inesperada:', data);
+                throw new Error('Estructura de datos inesperada en la respuesta');
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando reportes:', error);
+            mostrarAlerta('Error cargando reportes: ' + error.message, 'error');
+        });
+}
+
+// Función para mostrar el modal de reportes
+function mostrarReportesModal(maquinaId, maquinaNombre, reportes) {
+    const modal = document.getElementById('reportesModal');
+    const contenido = document.getElementById('reportesContenido');
+    
+    let html = `
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Reportes de: ${maquinaNombre}</h3>
+                <span class="text-sm text-gray-500">Total: ${reportes.length}</span>
+            </div>
+            
+            <div class="overflow-y-auto max-h-96">
+    `;
+    
+    if (reportes.length === 0) {
+        html += `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-clipboard-check text-4xl mb-2"></i>
+                <p>No hay reportes para esta máquina</p>
+            </div>
+        `;
+    } else {
+        // Crear la tabla de reportes
+        html += `
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reportado por</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+        `;
+        
+        reportes.forEach((reporte, index) => {
+            // Asegurar que tenemos los campos necesarios
+            const fecha = reporte.reportedAt || reporte.fecha || 'N/A';
+            const usuario = reporte.user_name || reporte.usuario || 'Desconocido';
+            const descripcion = reporte.description || reporte.descripcion || 'Sin descripción';
+            const estado = reporte.isResolved ? 
+                '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Resuelto</span>' : 
+                '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Pendiente</span>';
+            
+            html += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 text-sm">${fecha}</td>
+                    <td class="px-4 py-2 text-sm">${usuario}</td>
+                    <td class="px-4 py-2 text-sm">${descripcion}</td>
+                    <td class="px-4 py-2 text-sm">${estado}</td>
+                    <td class="px-4 py-2 text-sm">
+                        ${!reporte.isResolved ? 
+                            `<button onclick="resolverReporte(${reporte.id}, ${maquinaId})" 
+                                     class="text-blue-600 hover:text-blue-800 text-sm">
+                                <i class="fas fa-check-circle mr-1"></i>Resolver
+                            </button>` : 
+                            `<span class="text-gray-400 text-sm">Resuelto</span>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+            </table>
+        `;
+    }
+    
+    html += `
+            </div>
+            
+            <div class="flex justify-end pt-4 border-t">
+                <button onclick="cerrarModal('reportesModal')" 
+                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    contenido.innerHTML = html;
+    modal.classList.remove('hidden');
+}
+
+// Función para resolver un reporte
+function resolverReporte(reporteId, maquinaId) {
+    const comentarios = prompt('Ingrese comentarios sobre la resolución (opcional):');
+    
+    // Validar que el comentario no sea null (si el usuario cancela)
+    if (comentarios === null) {
+        mostrarAlerta('Operación cancelada por el usuario', 'info');
+        return;
+    }
+    
+    console.log(`Enviando resolución para reporte ${reporteId} con comentarios: ${comentarios}`);
+    
+    fetch(`/api/reportes/${reporteId}/resolver`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            comentarios: comentarios || ''
+        })
+    })
+    .then(response => {
+        console.log(`Respuesta del servidor: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+            // Intentar obtener detalles del error
+            return response.json().then(errData => {
+                throw new Error(`Error ${response.status}: ${errData.message || response.statusText}`);
+            }).catch(() => {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Reporte resuelto correctamente:', data);
+        mostrarAlerta('Reporte resuelto correctamente', 'success');
+        
+        // Recargar los reportes después de un breve delay
+        setTimeout(() => {
+            // Cerrar el modal actual
+            cerrarModal('reportesModal');
+            // Volver a abrir con datos actualizados
+            verReportes(maquinaId, document.getElementById('reportesModal').querySelector('h3').textContent.replace('Reportes de: ', ''));
+        }, 1500);
+    })
+    .catch(error => {
+        console.error('Error resolviendo reporte:', error);
+        mostrarAlerta('Error resolviendo reporte: ' + error.message, 'error');
+    });
+}
+
+// Función para mostrar alertas
+function mostrarAlerta(mensaje, tipo) {
+    const alerta = document.createElement('div');
+    alerta.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+        tipo === 'error' ? 'bg-red-500' : 
+        tipo === 'success' ? 'bg-green-500' : 
+        'bg-blue-500'
+    } text-white max-w-md`;
+    alerta.innerHTML = `
+        <div class="flex items-center">
+            ${tipo === 'success' ? '<i class="fas fa-check-circle mr-2"></i>' : 
+              tipo === 'error' ? '<i class="fas fa-times-circle mr-2"></i>' : 
+              '<i class="fas fa-info-circle mr-2"></i>'}
+            <span>${mensaje}</span>
+        </div>
+    `;
+    document.body.appendChild(alerta);
+    
+    setTimeout(() => {
+        alerta.remove();
+    }, 4000);
+}
+
+// Función para cerrar modales
+function cerrarModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {

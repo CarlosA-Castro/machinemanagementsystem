@@ -605,46 +605,57 @@
     },
 
     cargarDatosVentas: function() {
-        const rango = document.getElementById('filtroRango').value;
-        let fechaInicio, fechaFin;
+    const rango = document.getElementById('filtroRango').value;
+    let fechaInicio, fechaFin;
 
-        if (rango === 'personalizado') {
-            fechaInicio = document.getElementById('filtroFechaInicio').value;
-            fechaFin = document.getElementById('filtroFechaFin').value;
-        } else {
-            fechaInicio = document.getElementById('filtroFechaInicio').value;
-            fechaFin = document.getElementById('filtroFechaFin').value;
+    if (rango === 'personalizado') {
+        fechaInicio = document.getElementById('filtroFechaInicio').value;
+        fechaFin = document.getElementById('filtroFechaFin').value;
+    } else {
+        fechaInicio = document.getElementById('filtroFechaInicio').value;
+        fechaFin = document.getElementById('filtroFechaFin').value;
+    }
+
+    console.log(`📊 Cargando ventas desde ${fechaInicio} hasta ${fechaFin}`);
+
+    // Mostrar loading
+    document.getElementById('cargandoVentas').classList.remove('hidden');
+    document.getElementById('tablaVentas').innerHTML = '';
+
+    fetch(`/api/ventas?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
         }
-
-        console.log(`📊 Cargando ventas desde ${fechaInicio} hasta ${fechaFin}`);
-
-        // Mostrar loading
-        document.getElementById('cargandoVentas').classList.remove('hidden');
-        document.getElementById('tablaVentas').innerHTML = '';
-
-        fetch(`/api/ventas?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+    })
+    .then(response => {
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('La ruta /api/ventas no existe. Verifica tu backend.');
             }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            this.mostrarDatos(data);
-        })
-        .catch(error => {
-            console.error('Error cargando ventas:', error);
-            this.mostrarError('Error al cargar los datos de ventas: ' + error.message);
-            document.getElementById('cargandoVentas').classList.add('hidden');
-        });
-    },
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status && data.status === 'error') {
+            throw new Error(data.message || 'Error en la respuesta del servidor');
+        }
+        this.mostrarDatos(data);
+    })
+    .catch(error => {
+        console.error('Error cargando ventas:', error);
+        this.mostrarError('Error al cargar los datos de ventas: ' + error.message);
+        document.getElementById('cargandoVentas').classList.add('hidden');
+        document.getElementById('tablaVentas').innerHTML = `
+            <tr>
+                <td colspan="8" class="p-4 text-center text-red-500">
+                    ❌ Error: ${error.message}<br>
+                    <small>Verifica que la ruta /api/ventas esté implementada en el backend</small>
+                </td>
+            </tr>
+        `;
+    });
+},
 
     mostrarDatos: function(data) {
         console.log('📈 Datos recibidos:', data);

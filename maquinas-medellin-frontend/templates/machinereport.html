@@ -471,16 +471,10 @@
     }
 
     try {
-        mostrarAlerta('<div class="loading mr-2"></div> Reportando falla y reparando base de datos...', 'info');
+        mostrarAlerta('<div class="loading mr-2"></div> Reportando falla...', 'info');
         
-        // Primero reparar la BD
-        await fetch('/api/reparar-bd-temporal', {
-            method: 'GET',
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        });
-        
-        // Luego reportar la falla
-        const response = await fetch('/api/reportar-falla-funcional', {
+        // Usar el endpoint correcto con todos los campos necesarios
+        const response = await fetch('/api/reportar-falla-maquina', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -488,23 +482,31 @@
             },
             body: JSON.stringify({
                 machine_id: maquinaIdActual,
-                machine_name: maquinaActual,
+                machine_name: maquinaActual,  // AÑADIR ESTE CAMPO
                 description: descripcion,
                 problem_type: tipoProblema
             })
         });
 
         const result = await response.json();
+        console.log('Respuesta del servidor:', result);  // Para depuración
 
-        if (response.ok && result.success) {
-            mostrarAlerta(`✅ ${result.message}`, 'success');
-            console.log(`Reporte ID: ${result.report_id}`);
+        if (response.ok) {
+            // Verificar diferentes formatos de respuesta
+            if (result.status === 'success' || result.success === true) {
+                mostrarAlerta(`✅ ${result.message || 'Falla reportada correctamente'}`, 'success');
+                console.log(`Reporte ID: ${result.data?.error_report_id}`);
+            } else {
+                // Si no tiene status='success', mostrar el mensaje de error
+                throw new Error(result.message || 'Error al reportar la falla');
+            }
         } else {
-            throw new Error(result.error || 'Error desconocido');
+            // Si la respuesta HTTP no es OK
+            throw new Error(result.message || `Error ${response.status}: ${response.statusText}`);
         }
     } catch (error) {
         console.error('Error:', error);
-        mostrarAlerta('❌ Error: ' + error.message, 'error');
+        mostrarAlerta(`❌ ${error.message}`, 'error');
     }
     
     cerrarModal();

@@ -356,55 +356,58 @@
     </div>
 
     <script>
-        const UsuariosApp = {
-            usuarioAEliminar: null,
+       const UsuariosApp = {
+    usuarioAEliminar: null,
+    usuariosOriginales: null,
 
-            init: function() {
-                // Configurar partículas
-                particlesJS('particles-js', {
-                    particles: {
-                        number: { value: 40, density: { enable: true, value_area: 600 } },
-                        color: { value: '#3b82f6' },
-                        shape: { type: 'circle' },
-                        opacity: { value: 0.2, random: true },
-                        size: { value: 2, random: true },
-                        line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
-                        move: { enable: true, speed: 0.5, direction: 'none', random: true }
-                    },
-                    interactivity: {
-                        detect_on: 'canvas',
-                        events: {
-                            onhover: { enable: true, mode: 'grab' },
-                            onclick: { enable: true, mode: 'push' },
-                            resize: true
-                        }
-                    }
-                });
-
-                // Configurar fecha actual
-                this.configurarFechaActual();
-                
-                // Cargar usuarios
-                this.cargarUsuarios();
-                
-                console.log("Gestión de Usuarios inicializada");
+    init: function() {
+        // Configurar partículas
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 40, density: { enable: true, value_area: 600 } },
+                color: { value: '#3b82f6' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.2, random: true },
+                size: { value: 2, random: true },
+                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                move: { enable: true, speed: 0.5, direction: 'none', random: true }
             },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                }
+            }
+        });
 
-            
-            configurarFechaActual: function() {
-                const ahora = new Date();
-                const opciones = { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                };
-                document.getElementById('fechaActual').textContent = 
-                    ahora.toLocaleDateString('es-ES', opciones);
-            },
+        // Configurar fecha actual
+        this.configurarFechaActual();
+        
+        // Cargar usuarios
+        this.cargarUsuarios();
+        
+        console.log("Gestión de Usuarios inicializada");
+    },
 
-cargarUsuarios: function() {
+    configurarFechaActual: function() {
+        const ahora = new Date();
+        const opciones = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        document.getElementById('fechaActual').textContent = 
+            ahora.toLocaleDateString('es-ES', opciones);
+    },
+
+    cargarUsuarios: function() {
     console.log('📋 Cargando usuarios...');
+    
+    // Guardar referencia a 'this'
+    const self = this;
     
     // Mostrar loading
     const tbody = document.getElementById('tablaUsuarios');
@@ -419,10 +422,14 @@ cargarUsuarios: function() {
     
     fetch('/api/usuarios', {
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        },
+        credentials: 'same-origin'
     })
     .then(response => {
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
             console.error('❌ Error en respuesta:', response.status, response.statusText);
             throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -430,9 +437,13 @@ cargarUsuarios: function() {
         return response.json();
     })
     .then(data => {
-        console.log('✅ Usuarios cargados:', data.length);
-        this.mostrarUsuarios(data);
-        this.cargarEstadisticas();
+        console.log('✅ Usuarios cargados:', data);
+        console.log('✅ Cantidad:', data.length);
+        console.log('✅ Primer usuario:', data[0]);
+        
+        // Usar 'self' en lugar de 'this'
+        self.mostrarUsuarios(data);
+        self.cargarEstadisticas();
     })
     .catch(error => {
         console.error('❌ Error cargando usuarios:', error);
@@ -451,56 +462,310 @@ cargarUsuarios: function() {
     });
 },
 
-cargarEstadisticas: function() {
-    console.log('📊 Cargando estadísticas...');
-    
-    fetch('/api/usuarios/estadisticas', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    mostrarUsuarios: function(usuarios) {
+        const tbody = document.getElementById('tablaUsuarios');
+        
+        if (!usuarios || usuarios.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="p-4 text-center text-gray-500">
+                        <i class="fas fa-users-slash text-2xl mb-2"></i><br>
+                        No hay usuarios registrados
+                    </td>
+                </tr>
+            `;
+            return;
         }
-    })
-    .then(response => {
-        if (!response.ok) {
-            console.error('❌ Error en estadísticas:', response.status);
-            return {};
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('📊 Estadísticas recibidas:', data);
-        this.actualizarEstadisticas(data);
-    })
-    .catch(error => {
-        console.error('❌ Error cargando estadísticas:', error);
-        // Usar valores por defecto si falla
-        this.actualizarEstadisticas({
-            total: 0,
-            activos: 0,
-            inactivos: 0,
-            admins: 0,
-            cajeros: 0,
-            admin_restaurante: 0
+
+        let html = '';
+        usuarios.forEach(usuario => {
+            // Determinar clase de estado
+            let estadoClase = 'bg-green-100 text-green-800';
+            let estadoTexto = 'Activo';
+            let estadoIcono = 'fa-check-circle';
+            
+            // Verificar si el usuario está activo
+            const isActive = usuario.isActive !== false;
+            
+            if (!isActive) {
+                estadoClase = 'bg-red-100 text-red-800';
+                estadoTexto = 'Inactivo';
+                estadoIcono = 'fa-times-circle';
+            }
+
+            // Traducir rol a español
+            let rolTexto = usuario.role;
+            switch(usuario.role) {
+                case 'admin': rolTexto = 'Administrador'; break;
+                case 'cajero': rolTexto = 'Cajero'; break;
+                case 'admin_restaurante': rolTexto = 'Admin Restaurante'; break;
+            }
+
+            // Formatear fecha de creación
+            let fechaCreacion = 'N/A';
+            if (usuario.createdAt) {
+                try {
+                    const fecha = new Date(usuario.createdAt);
+                    fechaCreacion = fecha.toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                } catch (e) {
+                    fechaCreacion = String(usuario.createdAt);
+                }
+            }
+
+            // Creador
+            const creador = usuario.creador ? usuario.creador.name : 'Sistema';
+
+            html += `
+                <tr class="user-row border-b border-gray-200 hover:bg-gray-50">
+                    <td class="p-3 text-sm font-mono">${usuario.id}</td>
+                    <td class="p-3 font-medium">
+                        <div class="flex items-center">
+                            <i class="fas fa-user-circle mr-2 text-gray-400"></i>
+                            <span>${usuario.name}</span>
+                        </div>
+                        ${usuario.notes ? `<div class="text-xs text-gray-500 mt-1">${usuario.notes}</div>` : ''}
+                    </td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRolClase(usuario.role)}">
+                            <i class="fas ${this.getRolIcono(usuario.role)} mr-1"></i>
+                            ${rolTexto}
+                        </span>
+                    </td>
+                    <td class="p-3 text-sm">${creador}</td>
+                    <td class="p-3 text-sm">${fechaCreacion}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 rounded-full text-xs ${estadoClase}">
+                            <i class="fas ${estadoIcono} mr-1"></i>
+                            ${estadoTexto}
+                        </span>
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="flex justify-center space-x-2">
+                            <button onclick="UsuariosApp.editarUsuario(${usuario.id})" 
+                                    class="text-blue-600 hover:text-blue-800 btn-touch" 
+                                    title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name.replace(/'/g, "\\'")}')" 
+                                    class="${isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} btn-touch"
+                                    title="${isActive ? 'Inhabilitar' : 'Habilitar'}">
+                                <i class="fas ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                            </button>
+                            <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" 
+                                    class="text-red-600 hover:text-red-800 btn-touch"
+                                    title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
         });
-    });
-},
 
-actualizarEstadisticas: function(estadisticas) {
-    document.getElementById('total-usuarios').textContent = estadisticas.total || 0;
-    document.getElementById('total-activos').textContent = estadisticas.activos || 0;
-    document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
-    // CORRECCIÓN: Cambiar 'admins' a 'administradores' o viceversa
-    document.getElementById('total-admins').textContent = estadisticas.admins || 0;
-    document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
-    document.getElementById('total-restaurante').textContent = estadisticas.admin_restaurante || 0;
-},
+        tbody.innerHTML = html;
+        this.usuariosOriginales = usuarios;
+    },
 
-// Corrige la función cambiarEstadoUsuario
-cambiarEstadoUsuario: function(id, isActive, nombre) {
+    getRolClase: function(rol) {
+        switch(rol) {
+            case 'admin': return 'bg-purple-100 text-purple-800';
+            case 'cajero': return 'bg-blue-100 text-blue-800';
+            case 'admin_restaurante': return 'bg-teal-100 text-teal-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    },
+
+    getRolIcono: function(rol) {
+        switch(rol) {
+            case 'admin': return 'fa-user-shield';
+            case 'cajero': return 'fa-cash-register';
+            case 'admin_restaurante': return 'fa-store';
+            default: return 'fa-user';
+        }
+    },
+
+    cargarEstadisticas: function() {
+        console.log('📊 Cargando estadísticas...');
+        
+        fetch('/api/usuarios/estadisticas', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                console.error('❌ Error en estadísticas:', response.status);
+                return {};
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('📊 Estadísticas recibidas:', data);
+            this.actualizarEstadisticas(data);
+        })
+        .catch(error => {
+            console.error('❌ Error cargando estadísticas:', error);
+            this.actualizarEstadisticas({
+                total: 0,
+                activos: 0,
+                inactivos: 0,
+                admins: 0,
+                cajeros: 0,
+                admin_restaurante: 0
+            });
+        });
+    },
+
+    actualizarEstadisticas: function(estadisticas) {
+        document.getElementById('total-usuarios').textContent = estadisticas.total || 0;
+        document.getElementById('total-activos').textContent = estadisticas.activos || 0;
+        document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
+        document.getElementById('total-admins').textContent = estadisticas.admins || 0;
+        document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
+        document.getElementById('total-restaurante').textContent = estadisticas.admin_restaurante || 0;
+    },
+
+    filtrarUsuarios: function() {
+        if (!this.usuariosOriginales) return;
+
+        const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
+        const filtroEstado = document.getElementById('filtroEstado').value;
+        const filtroRol = document.getElementById('filtroRol').value;
+
+        const usuariosFiltrados = this.usuariosOriginales.filter(usuario => {
+            // Filtro de búsqueda
+            const coincideBusqueda = !busqueda || 
+                usuario.name.toLowerCase().includes(busqueda) ||
+                usuario.role.toLowerCase().includes(busqueda) ||
+                (usuario.notes && usuario.notes.toLowerCase().includes(busqueda));
+
+            // Filtro de estado
+            let coincideEstado = true;
+            if (filtroEstado === 'activo') {
+                coincideEstado = usuario.isActive !== false;
+            } else if (filtroEstado === 'inactivo') {
+                coincideEstado = usuario.isActive === false;
+            }
+
+            // Filtro de rol
+            const coincideRol = !filtroRol || usuario.role === filtroRol;
+
+            return coincideBusqueda && coincideEstado && coincideRol;
+        });
+
+        this.mostrarUsuarios(usuariosFiltrados);
+    },
+
+    mostrarModalCrear: function() {
+        document.getElementById('modalTitulo').innerHTML = `
+            <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
+        `;
+        
+        document.getElementById('formUsuario').reset();
+        document.getElementById('usuarioId').value = '';
+        
+        document.getElementById('password').required = true;
+        document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
+        document.getElementById('estadoContainer').classList.add('hidden');
+        
+        document.getElementById('modalUsuario').classList.remove('hidden');
+        document.getElementById('modalUsuario').classList.add('flex');
+    },
+
+    editarUsuario: function(id) {
+        console.log('📝 Editando usuario ID:', id);
+        
+        const usuario = this.usuariosOriginales.find(u => u.id === id);
+        if (!usuario) {
+            this.mostrarError('Usuario no encontrado');
+            return;
+        }
+
+        document.getElementById('modalTitulo').innerHTML = `
+            <i class="fas fa-user-edit mr-2 text-blue-600"></i>Editar Usuario
+        `;
+        
+        document.getElementById('usuarioId').value = usuario.id;
+        document.getElementById('nombre').value = usuario.name || '';
+        document.getElementById('rol').value = usuario.role || '';
+        document.getElementById('local').value = usuario.local || 'El Mekatiadero';
+        document.getElementById('notas').value = usuario.notes || '';
+        
+        document.getElementById('isActive').value = usuario.isActive !== false ? 'true' : 'false';
+        document.getElementById('estadoContainer').classList.remove('hidden');
+        
+        document.getElementById('password').required = false;
+        document.getElementById('passwordHelp').textContent = 'Dejar en blanco para mantener la contraseña actual';
+        
+        document.getElementById('modalUsuario').classList.remove('hidden');
+        document.getElementById('modalUsuario').classList.add('flex');
+    },
+
+    guardarUsuario: function(event) {
+        event.preventDefault();
+        
+        const usuarioId = document.getElementById('usuarioId').value;
+        const esEdicion = !!usuarioId;
+
+        const datos = {
+            name: document.getElementById('nombre').value,
+            role: document.getElementById('rol').value,
+            local: document.getElementById('local').value,
+            notes: document.getElementById('notas').value
+        };
+
+        const password = document.getElementById('password').value;
+        if (password) {
+            datos.password = password;
+        }
+
+        if (esEdicion) {
+            datos.isActive = document.getElementById('isActive').value === 'true';
+        }
+
+        const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
+        const method = esEdicion ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(datos)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Error en la respuesta del servidor');
+            return response.json();
+        })
+        .then(data => {
+            this.mostrarAlerta(
+                esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 
+                'success'
+            );
+            this.cerrarModal();
+            this.cargarUsuarios();
+        })
+        .catch(error => {
+            console.error('Error guardando usuario:', error);
+            this.mostrarError('Error al guardar el usuario');
+        });
+    },
+
+    cambiarEstadoUsuario: function(id, isActive, nombre) {
     const nuevoEstado = !isActive;
     const accion = nuevoEstado ? 'habilitar' : 'inhabilitar';
     
     if (confirm(`¿Estás seguro de que deseas ${accion} al usuario "${nombre}"?`)) {
         console.log(`🔄 Cambiando estado usuario ${id}: ${isActive} -> ${nuevoEstado}`);
+        
+        // Guardar referencia a 'this'
+        const self = this;
         
         fetch(`/api/usuarios/${id}/estado`, {
             method: 'PUT',
@@ -508,164 +773,114 @@ cambiarEstadoUsuario: function(id, isActive, nombre) {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
+            credentials: 'same-origin',
             body: JSON.stringify({ isActive: nuevoEstado })
         })
         .then(response => {
+            console.log('Response status:', response.status);
+            
             if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || `Error ${response.status}`);
+                return response.text().then(text => {
+                    console.error('Error response:', text);
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
                 });
             }
             return response.json();
         })
         .then(data => {
             console.log('✅ Estado cambiado:', data);
-            this.mostrarAlerta(`Usuario ${accion}do correctamente`, 'success');
-            this.cargarUsuarios(); // Recargar la lista completa
+            self.mostrarAlerta(`Usuario ${accion}do correctamente`, 'success');
+            self.cargarUsuarios();  // Usar 'self' en lugar de 'this'
         })
         .catch(error => {
             console.error(`❌ Error ${accion}do usuario:`, error);
-            this.mostrarError(`Error al ${accion} el usuario: ${error.message}`);
+            self.mostrarError(`Error al ${accion} el usuario: ${error.message}`);
         });
     }
 },
-            guardarUsuario: function(event) {
-                event.preventDefault();
-                
-                const usuarioId = document.getElementById('usuarioId').value;
-                const esEdicion = !!usuarioId;
 
-                const datos = {
-                    name: document.getElementById('nombre').value,
-                    role: document.getElementById('rol').value,
-                    local: document.getElementById('local').value,
-                    notes: document.getElementById('notas').value
-                };
+    eliminarUsuario: function(id, nombre) {
+        this.usuarioAEliminar = id;
+        document.getElementById('mensajeConfirmacion').textContent = 
+            `¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
+        document.getElementById('modalConfirmar').classList.remove('hidden');
+        document.getElementById('modalConfirmar').classList.add('flex');
+    },
 
-                // Solo incluir password si se proporcionó uno nuevo
-                const password = document.getElementById('password').value;
-                if (password) {
-                    datos.password = password;
-                }
+    confirmarEliminar: function() {
+        if (!this.usuarioAEliminar) return;
 
-                // Solo incluir estado en edición
-                if (esEdicion) {
-                    datos.isActive = document.getElementById('isActive').value === 'true';
-                }
-
-                const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
-                const method = esEdicion ? 'PUT' : 'POST';
-
-                fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify(datos)
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                    return response.json();
-                })
-                .then(data => {
-                    this.mostrarAlerta(
-                        esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 
-                        'success'
-                    );
-                    this.cerrarModal();
-                    this.cargarUsuarios();
-                })
-                .catch(error => {
-                    console.error('Error guardando usuario:', error);
-                    this.mostrarError('Error al guardar el usuario');
-                });
-            },
-
-            eliminarUsuario: function(id, nombre) {
-                this.usuarioAEliminar = id;
-                document.getElementById('mensajeConfirmacion').textContent = 
-                    `¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
-                document.getElementById('modalConfirmar').classList.remove('hidden');
-                document.getElementById('modalConfirmar').classList.add('flex');
-            },
-
-            confirmarEliminar: function() {
-                if (!this.usuarioAEliminar) return;
-
-                fetch(`/api/usuarios/${this.usuarioAEliminar}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                    return response.json();
-                })
-                .then(data => {
-                    this.mostrarAlerta('Usuario eliminado correctamente', 'success');
-                    this.cancelarEliminar();
-                    this.cargarUsuarios();
-                })
-                .catch(error => {
-                    console.error('Error eliminando usuario:', error);
-                    this.mostrarError('Error al eliminar el usuario');
-                });
-            },
-
-            cancelarEliminar: function() {
-                this.usuarioAEliminar = null;
-                document.getElementById('modalConfirmar').classList.add('hidden');
-                document.getElementById('modalConfirmar').classList.remove('flex');
-            },
-
-            cerrarModal: function() {
-                document.getElementById('modalUsuario').classList.add('hidden');
-                document.getElementById('modalUsuario').classList.remove('flex');
-                
-                // Restaurar requerimiento de password
-                document.getElementById('password').required = true;
-                document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
-                
-                // Ocultar campo de estado
-                document.getElementById('estadoContainer').classList.add('hidden');
-            },
-
-            actualizarLista: function() {
-                this.cargarUsuarios();
-                this.mostrarAlerta('Lista de usuarios actualizada', 'success');
-            },
-
-            mostrarAlerta: function(mensaje, tipo) {
-                const toast = document.createElement('div');
-                toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                    tipo === 'error' ? 'bg-red-500' : 
-                    tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
-                } text-white max-w-md`;
-                toast.innerHTML = `
-                    <div class="flex items-center">
-                        <i class="fas fa-${
-                            tipo === 'success' ? 'check-circle' : 
-                            tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
-                        } mr-2"></i>
-                        <span>${mensaje}</span>
-                    </div>
-                `;
-                document.body.appendChild(toast);
-                
-                setTimeout(() => toast.remove(), 4000);
-            },
-
-            mostrarError: function(mensaje) {
-                this.mostrarAlerta(mensaje, 'error');
+        fetch(`/api/usuarios/${this.usuarioAEliminar}`, {
+            method: 'DELETE',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             }
-        };
-
-        // Inicializar cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            UsuariosApp.init();
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Error en la respuesta del servidor');
+            return response.json();
+        })
+        .then(data => {
+            this.mostrarAlerta('Usuario eliminado correctamente', 'success');
+            this.cancelarEliminar();
+            this.cargarUsuarios();
+        })
+        .catch(error => {
+            console.error('Error eliminando usuario:', error);
+            this.mostrarError('Error al eliminar el usuario');
         });
+    },
+
+    cancelarEliminar: function() {
+        this.usuarioAEliminar = null;
+        document.getElementById('modalConfirmar').classList.add('hidden');
+        document.getElementById('modalConfirmar').classList.remove('flex');
+    },
+
+    cerrarModal: function() {
+        document.getElementById('modalUsuario').classList.add('hidden');
+        document.getElementById('modalUsuario').classList.remove('flex');
+        
+        document.getElementById('password').required = true;
+        document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
+        
+        document.getElementById('estadoContainer').classList.add('hidden');
+    },
+
+    actualizarLista: function() {
+        this.cargarUsuarios();
+        this.mostrarAlerta('Lista de usuarios actualizada', 'success');
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    tipo === 'success' ? 'check-circle' : 
+                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 4000);
+    },
+
+    mostrarError: function(mensaje) {
+        this.mostrarAlerta(mensaje, 'error');
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    UsuariosApp.init();
+});
     </script>
 </body>
 </html>

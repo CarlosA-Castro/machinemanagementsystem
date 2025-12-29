@@ -391,6 +391,20 @@ def create_tables():
             INSERT IGNORE INTO GlobalCounter (counter_type, counter_value, description) 
             VALUES ('QR_CODE', 0, 'Contador para códigos QR (formato QR0001, QR0002, etc.)')
         """)
+        # Crear tabla ResolucionReportes si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ResolucionReportes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                error_report_id INT NOT NULL,
+                admin_id INT NOT NULL,
+                comentarios TEXT,
+                fecha_resolucion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (error_report_id) REFERENCES ErrorReport(id),
+                FOREIGN KEY (admin_id) REFERENCES Users(id),
+                INDEX idx_error_report (error_report_id),
+                INDEX idx_admin (admin_id)
+            )
+        """)
         
         # Crear tabla ContadorDiario si no existe
         cursor.execute("""
@@ -1885,6 +1899,226 @@ def ventas_dia():
         if connection:
             connection.close()
 
+@app.route('/api/ventas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_ventas():
+    """Obtener ventas con datos completos para el panel de ventas"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. Obtener ventas detalladas
+        cursor.execute("""
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                TIME(qh.fecha_hora) as hora,
+                qh.qr_code,
+                qh.qr_name,
+                tp.name as paquete,
+                tp.price as precio,
+                tp.turns as turnos,
+                qh.user_name as vendedor,
+                'Completada' as estado
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            ORDER BY qh.fecha_hora DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas = cursor.fetchall()
+        
+        # 2. Estadísticas generales
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT qh.qr_code) as total_paquetes,
+                COALESCE(SUM(tp.price), 0) as total_ventas,
+                CASE 
+                    WHEN COUNT(DISTINCT qh.qr_code) > 0 THEN 
+                        COALESCE(SUM(tp.price), 0) / COUNT(DISTINCT qh.qr_code)
+                    ELSE 0 
+                END as ticket_promedio
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+        """, (fecha_inicio, fecha_fin))
+        
+        estadisticas_data = cursor.fetchone()
+        
+        # 3. Ventas por paquete para gráfico
+        cursor.execute("""
+            SELECT 
+                tp.name as paquete,
+                COUNT(DISTINCT qh.qr_code) as cantidad
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY tp.id, tp.name
+            ORDER BY cantidad DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas_por_paquete = cursor.fetchall()
+        
+        # 4. Ventas por hora para gráfico
+        cursor.execute("""
+            SELECT 
+                HOUR(qh.fecha_hora) as hora,
+                COUNT(DISTINCT qh.qr_code) as cantidad
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY HOUR(qh.fecha_hora)
+            ORDER BY hora
+        """, (fecha_inicio, fecha_fin))
+        
+        ventas_por_hora = cursor.fetchall()
+        
+        # 5. Calcular tendencias vs ayer
+        fecha_inicio_ayer = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        fecha_fin_ayer = (datetime.strptime(fecha_fin, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT qh.qr_code) as paquetes_ayer,
+                COALESCE(SUM(tp.price), 0) as ventas_ayer
+            FROM QRHistory qh
+            JOIN QRCode qr ON qr.code = qh.qr_code
+            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+        """, (fecha_inicio_ayer, fecha_fin_ayer))
+        
+        ayer_data = cursor.fetchone()
+        
+        # Calcular porcentajes de tendencia
+        total_ventas_hoy = float(estadisticas_data['total_ventas'] or 0)
+        total_ventas_ayer = float(ayer_data['ventas_ayer'] or 0)
+        
+        total_paquetes_hoy = estadisticas_data['total_paquetes'] or 0
+        total_paquetes_ayer = ayer_data['paquetes_ayer'] or 0
+        
+        tendencia_ventas = 0
+        if total_ventas_ayer > 0:
+            tendencia_ventas = ((total_ventas_hoy - total_ventas_ayer) / total_ventas_ayer) * 100
+        
+        tendencia_paquetes = 0
+        if total_paquetes_ayer > 0:
+            tendencia_paquetes = ((total_paquetes_hoy - total_paquetes_ayer) / total_paquetes_ayer) * 100
+        
+        # Calcular eficiencia (conversión de ventas)
+        # Esto es solo un ejemplo - ajusta según tu lógica de negocio
+        eficiencia = 85  # Por defecto
+        
+        # Preparar datos para gráficos
+        graficos = {
+            'paquetes': {
+                'labels': [item['paquete'] for item in ventas_por_paquete],
+                'data': [item['cantidad'] for item in ventas_por_paquete]
+            },
+            'evolucion': {
+                'labels': [f"{item['hora']}:00" for item in ventas_por_hora],
+                'data': [item['cantidad'] for item in ventas_por_hora],
+                'tipo': 'horas'
+            }
+        }
+        
+        # Formatear fechas en las ventas
+        ventas_formateadas = []
+        for venta in ventas:
+            ventas_formateadas.append({
+                'fecha': str(venta['fecha']),
+                'hora': str(venta['hora'])[:5] if venta['hora'] else '00:00',
+                'paquete': venta['paquete'],
+                'qr_nombre': venta['qr_name'] or 'Sin nombre',
+                'precio': float(venta['precio']),
+                'turnos': venta['turnos'],
+                'vendedor': venta['vendedor'],
+                'estado': venta['estado']
+            })
+        
+        app.logger.info(f"Ventas obtenidas: {len(ventas_formateadas)} registros")
+        
+        return jsonify({
+            'ventas': ventas_formateadas,
+            'estadisticas': {
+                'total_ventas': total_ventas_hoy,
+                'total_paquetes': total_paquetes_hoy,
+                'ticket_promedio': float(estadisticas_data['ticket_promedio'] or 0),
+                'tendencia_ventas': round(tendencia_ventas, 1),
+                'tendencia_paquetes': round(tendencia_paquetes, 1),
+                'eficiencia': eficiencia
+            },
+            'graficos': graficos,
+            'rango_fechas': {
+                'inicio': fecha_inicio,
+                'fin': fecha_fin
+            },
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ventas: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/exportar-ventas-pdf', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def exportar_ventas_pdf():
+    """Exportar ventas como PDF"""
+    try:
+        # Por ahora, simplemente redirigir a la API de ventas
+        # En una implementación real, aquí generarías un PDF
+        
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        app.logger.info(f"Exportando ventas a PDF: {fecha_inicio} - {fecha_fin}")
+        
+        # Por ahora, devolver un mensaje informativo
+        # En producción, implementar generación real de PDF con reportlab o similar
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Función de exportación PDF en desarrollo',
+            'rango_fechas': f'{fecha_inicio} a {fecha_fin}',
+            'sugerencia': 'Implementar con reportlab o weasyprint'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error exportando PDF: {e}")
+        return api_response('E001', http_status=500)
+
 # ==================== APIS PARA REPORTES DE FALLAS ====================
 
 @app.route('/api/reportar-falla-maquina', methods=['POST'])
@@ -1974,75 +2208,185 @@ def resolver_reporte(reporte_id):
     connection = None
     cursor = None
     try:
+        app.logger.info(f"=== INICIANDO RESOLUCIÓN DE REPORTE {reporte_id} ===")
+        
         data = request.get_json()
         comentarios = data.get('comentarios', '')
         user_id = session.get('user_id')
         
+        app.logger.info(f"Datos recibidos: comentarios='{comentarios}', user_id={user_id}")
+        
         if not user_id:
-            return api_response('A004', http_status=401)
+            app.logger.error("Usuario no autenticado")
+            return api_response('E003', http_status=401)
         
-        connection = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="",
-            database="maquinasmedellin",
-            port=3306
-        )
-        cursor = connection.cursor(dictionary=True)
+        connection = get_db_connection()
+        if not connection:
+            app.logger.error("No se pudo conectar a la BD")
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
         
-        # Obtener información del reporte
-        cursor.execute("SELECT machineId FROM ErrorReport WHERE id = %s", (reporte_id,))
+        # Verificar que el reporte existe
+        cursor.execute("SELECT id FROM ErrorReport WHERE id = %s", (reporte_id,))
+        reporte_existe = cursor.fetchone()
+        
+        if not reporte_existe:
+            app.logger.error(f"Reporte {reporte_id} no encontrado")
+            return api_response('M007', http_status=404, data={'message': 'Reporte no encontrado'})
+        
+        # Obtener información completa del reporte
+        cursor.execute("""
+            SELECT er.*, m.name as machine_name, m.id as machine_id
+            FROM ErrorReport er
+            LEFT JOIN Machine m ON er.machineId = m.id
+            WHERE er.id = %s
+        """, (reporte_id,))
+        
         reporte = cursor.fetchone()
+        app.logger.info(f"Reporte encontrado: {reporte}")
         
         if not reporte:
-            return api_response('M007', http_status=404)
+            app.logger.error(f"Error al obtener datos del reporte {reporte_id}")
+            return api_response('M007', http_status=404, data={'message': 'Reporte no encontrado'})
         
         machine_id = reporte['machineId']
+        machine_name = reporte['machine_name']
+        
+        app.logger.info(f"Máquina asociada: id={machine_id}, nombre={machine_name}")
         
         # Iniciar transacción
         connection.start_transaction()
         
-        # 1. Marcar reporte como resuelto
-        cursor.execute("""
-            UPDATE ErrorReport 
-            SET isResolved = TRUE
-            WHERE id = %s
-        """, (reporte_id,))
-        
-        # 2. Crear confirmación de resolución
-        cursor.execute("""
-            INSERT INTO Confirmation 
-            (fault_report_id, admin_id, confirmation_status, comments)
-            VALUES (%s, %s, 'resuelta', %s)
-        """, (reporte_id, user_id, comentarios))
-        
-        # 3. Cambiar estado de la máquina a activa
-        cursor.execute("""
-            UPDATE Machine 
-            SET status = 'activa',
-                errorNote = ''
-            WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
-        """, (machine_id,))
-        
-        connection.commit()
-        
-        app.logger.info(f"Reporte {reporte_id} resuelto por usuario {user_id}")
-        
-        return api_response(
-            'S009',
-            status='success',
-            data={
-                'machine_id': machine_id,
-                'reporte_id': reporte_id
-            }
-        )
-        
-    except Exception as e:
-        if connection:
+        try:
+            # 1. Marcar reporte como resuelto en ErrorReport
+            app.logger.info("Actualizando ErrorReport...")
+            # Verificar columnas disponibles
+            cursor.execute("SHOW COLUMNS FROM ErrorReport LIKE 'resolved%'")
+            columnas_resolved = cursor.fetchall()
+            app.logger.info(f"Columnas resolved en ErrorReport: {columnas_resolved}")
+            
+            # Usar el nombre correcto de la columna
+            query_update_er = """
+                UPDATE ErrorReport 
+                SET isResolved = TRUE
+                """
+            
+            # Agregar resolved_at si existe
+            if any('resolved_at' in col.values() for col in columnas_resolved):
+                query_update_er += ", resolved_at = NOW()"
+            
+            query_update_er += " WHERE id = %s"
+            
+            cursor.execute(query_update_er, (reporte_id,))
+            app.logger.info(f"ErrorReport actualizado: {cursor.rowcount} filas afectadas")
+            
+            # 2. Crear registro en confirmation_logs
+            app.logger.info("Insertando en confirmation_logs...")
+            
+            # Verificar si existe la tabla confirmation_logs
+            cursor.execute("SHOW TABLES LIKE 'confirmation_logs'")
+            tabla_existe = cursor.fetchone()
+            
+            if tabla_existe:
+                # Verificar estructura de confirmation_logs
+                cursor.execute("DESCRIBE confirmation_logs")
+                estructura_logs = cursor.fetchall()
+                app.logger.info(f"Estructura confirmation_logs: {estructura_logs}")
+                
+                # Insertar usando los nombres de columna correctos
+                cursor.execute("""
+                    INSERT INTO confirmation_logs 
+                    (fault_report_id, admin_id, confirmation_status, comments)
+                    VALUES (%s, %s, %s, %s)
+                """, (reporte_id, user_id, 'resuelta', comentarios))
+                app.logger.info(f"Registro creado en confirmation_logs con ID: {cursor.lastrowid}")
+            else:
+                app.logger.warning("Tabla confirmation_logs no existe")
+                # Crear tabla si no existe
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS confirmation_logs (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        fault_report_id INT NOT NULL,
+                        admin_id INT NOT NULL,
+                        confirmation_status ENUM('confirmada','rechazada','resuelta') NOT NULL,
+                        comments TEXT,
+                        confirmation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_fault_report (fault_report_id),
+                        INDEX idx_admin (admin_id)
+                    )
+                """)
+                cursor.execute("""
+                    INSERT INTO confirmation_logs 
+                    (fault_report_id, admin_id, confirmation_status, comments)
+                    VALUES (%s, %s, %s, %s)
+                """, (reporte_id, user_id, 'resuelta', comentarios))
+                app.logger.info("Tabla confirmation_logs creada y registro insertado")
+            
+            # 3. Cambiar estado de la máquina si es necesario
+            if machine_id:
+                app.logger.info(f"Actualizando estado de máquina {machine_id}...")
+                
+                # Solo cambiar a activa si estaba en mantenimiento o inactiva
+                cursor.execute("""
+                    UPDATE Machine 
+                    SET status = 'activa'
+                    WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
+                """, (machine_id,))
+                
+                if cursor.rowcount > 0:
+                    app.logger.info(f"Máquina {machine_id} cambiada a estado 'activa'")
+                else:
+                    app.logger.info(f"Máquina {machine_id} no cambió de estado (ya estaba activa o no aplica)")
+            
+            connection.commit()
+            app.logger.info(f"=== REPORTE {reporte_id} RESUELTO EXITOSAMENTE ===")
+            
+            return api_response(
+                'S009',
+                status='success',
+                data={
+                    'machine_id': machine_id,
+                    'reporte_id': reporte_id,
+                    'machine_name': machine_name
+                }
+            )
+            
+        except Exception as trans_error:
+            app.logger.error(f"Error en transacción: {trans_error}", exc_info=True)
             connection.rollback()
-        app.logger.error(f"Error resolviendo reporte: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
+            raise trans_error
+            
+    except Exception as e:
+        app.logger.error(f"Error resolviendo reporte: {e}", exc_info=True)
+        return api_response('E001', http_status=500, data={'error_detail': str(e)})
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/debug/errorreport-estructura', methods=['GET'])
+def debug_errorreport_estructura():
+    """Verificar estructura de ErrorReport"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("DESCRIBE ErrorReport")
+        estructura = cursor.fetchall()
+        
+        cursor.execute("DESCRIBE confirmation_logs")
+        estructura_logs = cursor.fetchall()
+        
+        return jsonify({
+            'ErrorReport': estructura,
+            'confirmation_logs': estructura_logs
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
     finally:
         if cursor:
             cursor.close()
@@ -2129,17 +2473,16 @@ def mostrar_gestion_mensajes():
 
 # ==================== APIS PARA GESTIÓN DE USUARIOS ====================
 
-@app.route('/api/usuarios', methods=['GET'])
-@handle_api_errors
+@app.route('/debug/usuarios')
 @require_login(['admin'])
-def obtener_usuarios():
-    """Obtener todos los usuarios"""
+def debug_usuarios():
+    """Debug: Ver usuarios en formato crudo"""
     connection = None
     cursor = None
     try:
         connection = get_db_connection()
         if not connection:
-            return api_response('E006', http_status=500)
+            return jsonify({'error': 'No connection'}), 500
             
         cursor = get_db_cursor(connection)
         
@@ -2152,8 +2495,62 @@ def obtener_usuarios():
         
         usuarios = cursor.fetchall()
         
+        # Convertir datetime a string
+        usuarios_formateados = []
+        for u in usuarios:
+            usuario_dict = dict(u)
+            for key, value in usuario_dict.items():
+                if hasattr(value, 'isoformat'):
+                    usuario_dict[key] = value.isoformat()
+            usuarios_formateados.append(usuario_dict)
+        
+        return jsonify({
+            'count': len(usuarios_formateados),
+            'data': usuarios_formateados
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+            
+@app.route('/api/usuarios', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_usuarios():
+    """Obtener todos los usuarios"""
+    app.logger.info(f"API Usuarios llamada por: {session.get('user_name')}")
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                u.*, 
+                creador.name as creador_nombre,
+                COALESCE(u.isActive, TRUE) as isActive  -- Si no existe, usar TRUE por defecto
+            FROM Users u
+            LEFT JOIN Users creador ON u.createdBy = creador.id
+            ORDER BY u.createdAt DESC
+        """)
+        
+        usuarios = cursor.fetchall()
+        
         usuarios_formateados = []
         for usuario in usuarios:
+            # Asegurar que isActive existe
+            is_active = usuario.get('isActive', True)
+            if is_active is None:
+                is_active = True
+                
             usuarios_formateados.append({
                 'id': usuario['id'],
                 'name': usuario['name'],
@@ -2161,9 +2558,9 @@ def obtener_usuarios():
                 'local': usuario.get('local', 'El Mekatiadero'),
                 'createdBy': usuario['createdBy'],
                 'creador': {'name': usuario['creador_nombre']} if usuario['creador_nombre'] else None,
-                'createdAt': usuario['createdAt'],
-                'notes': usuario['notes'],
-                'isActive': usuario.get('isActive', True)  # Por defecto activo si no existe
+                'createdAt': usuario['createdAt'].isoformat() if usuario.get('createdAt') else None,
+                'notes': usuario.get('notes', ''),
+                'isActive': is_active
             })
         
         return jsonify(usuarios_formateados)
@@ -2177,6 +2574,7 @@ def obtener_usuarios():
             cursor.close()
         if connection:
             connection.close()
+
 
 @app.route('/api/usuarios/<int:usuario_id>', methods=['GET'])
 @handle_api_errors
@@ -4007,7 +4405,7 @@ def obtener_ventas_recientes():
 @app.route('/api/usuarios/<int:usuario_id>/estado', methods=['PUT'])
 @handle_api_errors
 @require_login(['admin'])
-@validate_required_fields(['isActive'])
+#@validate_required_fields(['isActive'])
 def cambiar_estado_usuario(usuario_id):
     """Cambiar estado activo/inactivo de un usuario"""
     connection = None
@@ -4954,6 +5352,463 @@ def api_actualizar_contador_diario():
     except Exception as e:
         app.logger.error(f"Error en API de actualización contador diario: {e}")
         return api_response('E001', http_status=500)
+
+# ==================== APIS PARA REPARACIÓN DE BD TEMPORAL ====================
+
+@app.route('/api/reparar-bd-temporal', methods=['GET'])
+@handle_api_errors
+def reparar_bd_temporal():
+    """Reparar tablas temporales si es necesario"""
+    try:
+        # Esto es solo un placeholder - ajusta según tus necesidades
+        create_tables()  # Recrear tablas si no existen
+        
+        return api_response(
+            'S001',
+            status='success',
+            data={'message': 'Base de datos verificada correctamente'}
+        )
+    except Exception as e:
+        app.logger.error(f"Error reparando BD: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/reportar-falla-funcional', methods=['POST'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+@validate_required_fields(['machine_id', 'description'])
+def reportar_falla_funcional():
+    """Alternativa simplificada para reportar falla"""
+    # Reutilizar la función existente
+    return reportar_falla_maquina()
+
+# ==================== APIS PARA PROPIETARIOS ====================
+
+@app.route('/api/propietarios', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_propietarios():
+    """Obtener todos los propietarios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT * FROM Propietarios 
+            ORDER BY nombre
+        """)
+        
+        propietarios = cursor.fetchall()
+        
+        # Formatear respuesta
+        propietarios_formateados = []
+        for prop in propietarios:
+            propietarios_formateados.append({
+                'id': prop['id'],
+                'nombre': prop['nombre'],
+                'telefono': prop.get('telefono', ''),
+                'email': prop.get('email', ''),
+                'notas': prop.get('notas', '')
+            })
+        
+        return jsonify(propietarios_formateados)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo propietarios: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/propietarios/<int:propietario_id>', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_propietario(propietario_id):
+    """Obtener un propietario específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT * FROM Propietarios WHERE id = %s", (propietario_id,))
+        propietario = cursor.fetchone()
+        
+        if not propietario:
+            return api_response('E002', http_status=404, data={'propietario_id': propietario_id})
+        
+        # Obtener máquinas asociadas
+        cursor.execute("""
+            SELECT m.id, m.name, mp.porcentaje_propiedad
+            FROM MaquinaPropietario mp
+            JOIN Machine m ON mp.maquina_id = m.id
+            WHERE mp.propietario_id = %s
+        """, (propietario_id,))
+        
+        maquinas = cursor.fetchall()
+        
+        return jsonify({
+            'id': propietario['id'],
+            'nombre': propietario['nombre'],
+            'telefono': propietario.get('telefono', ''),
+            'email': propietario.get('email', ''),
+            'notas': propietario.get('notas', ''),
+            'maquinas': maquinas
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo propietario: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/propietarios', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['nombre'])
+def crear_propietario():
+    """Crear un nuevo propietario"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        nombre = data['nombre']
+        telefono = data.get('telefono', '')
+        email = data.get('email', '')
+        notas = data.get('notas', '')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si ya existe
+        cursor.execute("SELECT id FROM Propietarios WHERE nombre = %s", (nombre,))
+        if cursor.fetchone():
+            return api_response('E007', http_status=400, data={'message': 'Propietario ya existe'})
+        
+        # Crear propietario
+        cursor.execute("""
+            INSERT INTO Propietarios (nombre, telefono, email, notas)
+            VALUES (%s, %s, %s, %s)
+        """, (nombre, telefono, email, notas))
+        
+        connection.commit()
+        
+        app.logger.info(f"Propietario creado: {nombre}")
+        
+        return api_response(
+            'S002',
+            status='success',
+            data={'propietario_id': cursor.lastrowid}
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error creando propietario: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/propietarios/<int:propietario_id>', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['nombre'])
+def actualizar_propietario(propietario_id):
+    """Actualizar un propietario existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        nombre = data['nombre']
+        telefono = data.get('telefono', '')
+        email = data.get('email', '')
+        notas = data.get('notas', '')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT id FROM Propietarios WHERE id = %s", (propietario_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'propietario_id': propietario_id})
+        
+        # Verificar nombre duplicado
+        cursor.execute("SELECT id FROM Propietarios WHERE nombre = %s AND id != %s", (nombre, propietario_id))
+        if cursor.fetchone():
+            return api_response('E007', http_status=400, data={'message': 'Nombre de propietario ya existe'})
+        
+        # Actualizar
+        cursor.execute("""
+            UPDATE Propietarios 
+            SET nombre = %s, telefono = %s, email = %s, notas = %s
+            WHERE id = %s
+        """, (nombre, telefono, email, notas, propietario_id))
+        
+        connection.commit()
+        
+        app.logger.info(f"Propietario actualizado: {nombre} (ID: {propietario_id})")
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error actualizando propietario: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/propietarios/<int:propietario_id>', methods=['DELETE'])
+@handle_api_errors
+@require_login(['admin'])
+def eliminar_propietario(propietario_id):
+    """Eliminar un propietario"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT nombre FROM Propietarios WHERE id = %s", (propietario_id,))
+        propietario = cursor.fetchone()
+        if not propietario:
+            return api_response('E002', http_status=404, data={'propietario_id': propietario_id})
+        
+        # Verificar si tiene máquinas asociadas
+        cursor.execute("SELECT COUNT(*) as count FROM MaquinaPropietario WHERE propietario_id = %s", (propietario_id,))
+        maquinas_count = cursor.fetchone()['count']
+        
+        if maquinas_count > 0:
+            return api_response(
+                'W006',
+                status='warning',
+                http_status=400,
+                data={
+                    'message': f'Propietario tiene {maquinas_count} máquinas asociadas',
+                    'maquinas_count': maquinas_count
+                }
+            )
+        
+        # Eliminar
+        cursor.execute("DELETE FROM Propietarios WHERE id = %s", (propietario_id,))
+        connection.commit()
+        
+        app.logger.info(f"Propietario eliminado: {propietario['nombre']} (ID: {propietario_id})")
+        
+        return api_response('S004', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error eliminando propietario: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA REPORTES DE MÁQUINAS ====================
+
+@app.route('/api/maquinas/<int:maquina_id>/reportes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_reportes_maquina(maquina_id):
+    """Obtener reportes de fallas de una máquina específica"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return api_response('M001', http_status=404, data={'machine_id': maquina_id})
+        
+        # Obtener reportes de la máquina
+        cursor.execute("""
+            SELECT 
+                er.id,
+                er.machineId,
+                er.userId,
+                er.description,
+                er.reportedAt,
+                er.isResolved,
+                u.name as user_name
+            FROM ErrorReport er
+            JOIN Users u ON er.userId = u.id
+            WHERE er.machineId = %s
+            ORDER BY er.reportedAt DESC
+        """, (maquina_id,))
+        
+        reportes = cursor.fetchall()
+        
+        # Formatear fechas
+        for reporte in reportes:
+            if reporte['reportedAt']:
+                fecha_colombia = parse_db_datetime(reporte['reportedAt'])
+                reporte['reportedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify({
+            'maquina_id': maquina_id,
+            'maquina_nombre': maquina['name'],
+            'reportes': reportes,
+            'total': len(reportes)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo reportes de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_estadisticas_maquina(maquina_id):
+    """Obtener estadísticas de una máquina"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT name, status FROM Machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return api_response('M001', http_status=404, data={'machine_id': maquina_id})
+        
+        # Estadísticas de uso
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_usos,
+                COUNT(DISTINCT DATE(usedAt)) as dias_con_usos,
+                MIN(usedAt) as primer_uso,
+                MAX(usedAt) as ultimo_uso
+            FROM TurnUsage
+            WHERE machineId = %s
+        """, (maquina_id,))
+        
+        uso_stats = cursor.fetchone()
+        
+        # Usos por día (últimos 30 días)
+        cursor.execute("""
+            SELECT 
+                DATE(usedAt) as fecha,
+                COUNT(*) as usos
+            FROM TurnUsage
+            WHERE machineId = %s 
+            AND usedAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY DATE(usedAt)
+            ORDER BY fecha DESC
+        """, (maquina_id,))
+        
+        usos_por_dia = cursor.fetchall()
+        
+        # Reportes de fallas
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_reportes,
+                COUNT(CASE WHEN isResolved = TRUE THEN 1 END) as reportes_resueltos,
+                COUNT(CASE WHEN isResolved = FALSE THEN 1 END) as reportes_pendientes
+            FROM ErrorReport
+            WHERE machineId = %s
+        """, (maquina_id,))
+        
+        reportes_stats = cursor.fetchone()
+        
+        # Últimos reportes (5)
+        cursor.execute("""
+            SELECT 
+                er.description,
+                er.reportedAt,
+                er.isResolved,
+                u.name as reportado_por
+            FROM ErrorReport er
+            JOIN Users u ON er.userId = u.id
+            WHERE er.machineId = %s
+            ORDER BY er.reportedAt DESC
+            LIMIT 5
+        """, (maquina_id,))
+        
+        ultimos_reportes = cursor.fetchall()
+        
+        # Formatear fechas
+        for reporte in ultimos_reportes:
+            if reporte['reportedAt']:
+                fecha_colombia = parse_db_datetime(reporte['reportedAt'])
+                reporte['reportedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify({
+            'maquina_id': maquina_id,
+            'maquina_nombre': maquina['name'],
+            'estado': maquina['status'],
+            'estadisticas': {
+                'uso': {
+                    'total_usos': uso_stats['total_usos'] or 0,
+                    'dias_con_usos': uso_stats['dias_con_usos'] or 0,
+                    'primer_uso': uso_stats['primer_uso'].isoformat() if uso_stats['primer_uso'] else None,
+                    'ultimo_uso': uso_stats['ultimo_uso'].isoformat() if uso_stats['ultimo_uso'] else None
+                },
+                'reportes': {
+                    'total': reportes_stats['total_reportes'] or 0,
+                    'resueltos': reportes_stats['reportes_resueltos'] or 0,
+                    'pendientes': reportes_stats['reportes_pendientes'] or 0
+                }
+            },
+            'usos_por_dia': usos_por_dia,
+            'ultimos_reportes': ultimos_reportes,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 # ==================== INICIAR SERVIDOR ====================
 
