@@ -5810,6 +5810,80 @@ def obtener_estadisticas_maquina(maquina_id):
         if connection:
             connection.close()
 
+# ==================== RUTAS PARA SOCIOS ====================
+
+@app.route('/socios')
+@require_login(['admin', 'socio'])
+def mostrar_panel_socio():
+    """Mostrar panel personalizado del socio"""
+    # Verificar si el usuario es socio o admin
+    if session.get('user_role') == 'socio':
+        # Cargar datos específicos del socio
+        socio_id = session.get('socio_id')
+    else:
+        # Admin viendo panel general
+        socio_id = request.args.get('socio_id')
+    
+    hora_colombia = get_colombia_time()
+    return render_template('socios.html',
+                         nombre_usuario=session.get('user_name', 'Socio'),
+                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+
+@app.route('/admin/inversores/gestionsocios')
+@require_login(['admin'])
+def mostrar_gestion_socios():
+    """Mostrar gestión completa de socios"""
+    hora_colombia = get_colombia_time()
+    return render_template('admin/inversores/gestionsocios.html',
+                         nombre_usuario=session.get('user_name', 'Administrador'),
+                         local_usuario=session.get('user_local', 'Sistema'),
+                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+
+# ==================== APIS ESPECÍFICAS PARA SOCIOS ====================
+
+@app.route('/api/socio/actual', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'socio'])
+def obtener_socio_actual():
+    """Obtener datos del socio actual (para su panel)"""
+    connection = None
+    cursor = None
+    try:
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        if user_role == 'socio':
+            # Buscar socio por user_id
+            cursor.execute("SELECT * FROM Socios WHERE user_id = %s", (user_id,))
+        else:
+            # Admin puede especificar socio
+            socio_id = request.args.get('socio_id')
+            cursor.execute("SELECT * FROM Socios WHERE id = %s", (socio_id,))
+        
+        socio = cursor.fetchone()
+        if not socio:
+            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
+        
+        return jsonify(socio)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo socio actual: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 # ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':

@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Socios - Admin</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .stat-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .dataTables_wrapper {
+            padding: 1rem 0;
+        }
+        
+        .dataTables_filter input {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            margin-left: 0.5rem;
+        }
+        
+        .dataTables_length select {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.25rem 2rem 0.25rem 0.5rem;
+        }
+        
+        table.dataTable {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        table.dataTable thead th {
+            background: #f8fafc;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        table.dataTable tbody td {
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        table.dataTable tbody tr:hover {
+            background-color: #f8fafc;
+        }
+        
+        .badge-estado {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-activo {
+            background: #10b981;
+            color: white;
+        }
+        
+        .badge-pendiente {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .badge-inactivo {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        
+        .form-control {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .machine-status {
+            transition: all 0.3s ease;
+        }
+        
+        .machine-status:hover {
+            transform: scale(1.02);
+        }
+        
+        @media (max-width: 1024px) {
+            .contenido {
+                padding: 1rem !important;
+            }
+            .glass-card {
+                padding: 1.25rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.75rem !important;
+            }
+            .stat-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .chart-container {
+                height: 300px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+    
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-user-cog mr-2"></i>Admin
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/ventas/reportes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-bar mr-2"></i>Reportes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                    <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-envelope mr-2"></i>Mensajes
+                    </a>
+                    <a href="/admin/ventas/liquidaciones" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
+                    </a>
+                    <a href="/admin/inversores/gestionsocios" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-user-tie mr-2"></i>Socios
+                    </a>
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">Sistema de Gestión</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
+            
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-user-tie mr-3 text-blue-600"></i>Gestión de Socios
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-user mr-2"></i>Bienvenido, <strong>{{ nombre_usuario }}</strong> | 
+                            <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span>
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="GestionSocios.exportarReporte()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-file-export mr-2"></i>Exportar
+                        </button>
+                        <button onclick="GestionSocios.mostrarModalNuevoSocio()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 btn-touch">
+                            <i class="fas fa-user-plus mr-2"></i>Nuevo Socio
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 stat-grid">
+                <!-- Total Socios -->
+                <div class="stat-card glass-card border-l-blue-500">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-users text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total Socios</p>
+                            <p id="total-socios" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Inversión Total -->
+                <div class="stat-card glass-card border-l-green-500">
+                    <div class="flex items-center">
+                        <div class="bg-green-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-hand-holding-usd text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Inversión Total</p>
+                            <p id="inversion-total" class="text-2xl font-bold text-gray-800">$0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pagos Pendientes -->
+                <div class="stat-card glass-card border-l-yellow-500">
+                    <div class="flex items-center">
+                        <div class="bg-yellow-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Pagos Pendientes</p>
+                            <p id="pagos-pendientes" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ROI Promedio -->
+                <div class="stat-card glass-card border-l-purple-500">
+                    <div class="flex items-center">
+                        <div class="bg-purple-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-percentage text-purple-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">ROI Promedio</p>
+                            <p id="roi-promedio" class="text-2xl font-bold text-gray-800">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="glass-card mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-filter mr-2 text-purple-600"></i>Filtros de Socios
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar socio:</label>
+                        <input type="text" id="busqueda-socios" placeholder="Nombre, documento, código..." 
+                               class="w-full border border-gray-300 rounded-lg p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
+                        <select id="filtro-estado" class="w-full border border-gray-300 rounded-lg p-3">
+                            <option value="">Todos los estados</option>
+                            <option value="activo">Activos</option>
+                            <option value="inactivo">Inactivos</option>
+                            <option value="pendiente_pago">Pendiente pago</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="GestionSocios.aplicarFiltros()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
+                            <i class="fas fa-search mr-2"></i>Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tabla de socios -->
+            <div class="glass-card">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Lista de Socios</h2>
+                    <button onclick="GestionSocios.actualizarDatos()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                        <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                    </button>
+                </div>
+                
+                <table id="tablaSocios" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Documento</th>
+                            <th>Inversión</th>
+                            <th>Cuota Anual</th>
+                            <th>Estado</th>
+                            <th>Vencimiento</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Los datos se cargarán vía DataTables -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Sección de reportes -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-chart-pie mr-2 text-blue-600"></i>Distribución por Estado
+                    </h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartEstados"></canvas>
+                    </div>
+                </div>
+                
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-chart-line mr-2 text-green-600"></i>Evolución de Socios
+                    </h3>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartEvolucion"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tercera fila: Información adicional -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <!-- Top Socios -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Socios por Inversión
+                    </h3>
+                    <div class="space-y-3" id="top-socios">
+                        <div class="text-center py-8">
+                            <div class="loading mx-auto mb-2"></div>
+                            <p class="text-gray-600">Cargando top socios...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Socios Recientes -->
+                <div class="glass-card">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-clock mr-2 text-blue-600"></i>Socios Recientes
+                    </h3>
+                    <div class="space-y-3" id="socios-recientes">
+                        <div class="text-center py-8">
+                            <div class="loading mx-auto mb-2"></div>
+                            <p class="text-gray-600">Cargando socios recientes...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+    
+    <!-- Modal para nuevo/editar socio -->
+    <div id="modalSocio" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800" id="modalTitulo">Nuevo Socio</h2>
+                <button onclick="GestionSocios.cerrarModal()" class="text-gray-500 hover:text-gray-700 text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="formSocio" onsubmit="return GestionSocios.guardarSocio(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nombre Completo *</label>
+                        <input type="text" name="nombre" required class="form-control">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Documento *</label>
+                        <input type="text" name="documento" required class="form-control">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo Documento</label>
+                        <select name="tipo_documento" class="form-control">
+                            <option value="CC">Cédula</option>
+                            <option value="CE">Cédula Extranjería</option>
+                            <option value="NIT">NIT</option>
+                            <option value="PASAPORTE">Pasaporte</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
+                        <input type="text" name="telefono" class="form-control">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" name="email" class="form-control">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Inscripción *</label>
+                        <input type="date" name="fecha_inscripcion" required class="form-control">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Cuota Anual *</label>
+                        <input type="number" name="cuota_anual" required step="0.01" class="form-control">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                        <select name="estado" class="form-control">
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                            <option value="pendiente_pago">Pendiente pago</option>
+                            <option value="suspendido">Suspendido</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Socio</label>
+                        <select name="tipo_socio" class="form-control">
+                            <option value="propietario">Propietario</option>
+                            <option value="inversionista">Inversionista</option>
+                            <option value="administrador">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Dirección</label>
+                    <textarea name="direccion" rows="3" class="form-control"></textarea>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Notas</label>
+                    <textarea name="notas" rows="2" class="form-control"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="GestionSocios.cerrarModal()" 
+                            class="px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-save mr-2"></i>Guardar Socio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal para detalles completos -->
+    <div id="modalDetalleCompleto" class="modal-overlay">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Detalles Completos del Socio</h2>
+                <button onclick="GestionSocios.cerrarModalDetalle()" class="text-gray-500 hover:text-gray-700 text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="detalle-completo-contenido">
+                <!-- Los detalles se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GestionSocios = {
+    dataTable: null,
+    socioActual: null,
+    charts: {},
+
+    init: function() {
+        console.log('📊 Inicializando gestión de socios...');
+        
+        // Configurar partículas
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 40, density: { enable: true, value_area: 600 } },
+                color: { value: '#3b82f6' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.2, random: true },
+                size: { value: 2, random: true },
+                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                move: { enable: true, speed: 0.5, direction: 'none', random: true }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                }
+            }
+        });
+        
+        // Configurar fecha actual
+        const ahora = new Date();
+        document.getElementById('fechaActual').textContent = 
+            ahora.toLocaleDateString('es-ES', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        
+        // Inicializar DataTable
+        this.inicializarDataTable();
+        
+        // Cargar estadísticas
+        this.cargarEstadisticas();
+        
+        // Inicializar gráficos
+        this.inicializarGraficos();
+        
+        // Cargar datos adicionales
+        this.cargarTopSocios();
+        this.cargarSociosRecientes();
+        
+        // Configurar búsqueda y filtros
+        this.configurarFiltros();
+    },
+
+    inicializarDataTable: function() {
+        this.dataTable = $('#tablaSocios').DataTable({
+            ajax: {
+                url: '/api/socios/completos',
+                dataSrc: ''
+            },
+            columns: [
+                { data: 'id' },
+                { data: 'codigo_socio' },
+                { data: 'nombre' },
+                { data: 'documento' },
+                { 
+                    data: 'inversion_total',
+                    render: function(data) {
+                        return GestionSocios.formatearMoneda(data || 0);
+                    }
+                },
+                { 
+                    data: 'cuota_anual',
+                    render: function(data) {
+                        return GestionSocios.formatearMoneda(data || 0);
+                    }
+                },
+                { 
+                    data: 'estado',
+                    render: function(data) {
+                        const estados = {
+                            'activo': { clase: 'badge-activo', texto: 'Activo' },
+                            'inactivo': { clase: 'badge-inactivo', texto: 'Inactivo' },
+                            'pendiente_pago': { clase: 'badge-pendiente', texto: 'Pendiente' },
+                            'suspendido': { clase: 'badge-inactivo', texto: 'Suspendido' }
+                        };
+                        const estado = estados[data] || estados['activo'];
+                        return `<span class="badge-estado ${estado.clase}">${estado.texto}</span>`;
+                    }
+                },
+                { 
+                    data: 'fecha_vencimiento',
+                    render: function(data) {
+                        if (!data) return '-';
+                        const fecha = new Date(data);
+                        const hoy = new Date();
+                        const dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+                        
+                        if (dias < 0) {
+                            return `<span class="text-red-600 font-medium">Vencido</span>`;
+                        } else if (dias < 30) {
+                            return `<span class="text-yellow-600 font-medium">${dias} días</span>`;
+                        } else {
+                            return fecha.toLocaleDateString('es-ES');
+                        }
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return `
+                            <div class="flex space-x-2">
+                                <button onclick="GestionSocios.verDetalleCompleto(${row.id})" 
+                                        class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="GestionSocios.editarSocio(${row.id})" 
+                                        class="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="GestionSocios.eliminarSocio(${row.id})" 
+                                        class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+            ],
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+            },
+            pageLength: 10,
+            responsive: true,
+            order: [[0, 'desc']]
+        });
+    },
+
+    cargarEstadisticas: async function() {
+        try {
+            const response = await fetch('/api/socios/estadisticas');
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                document.getElementById('total-socios').textContent = data.total_socios || 0;
+                document.getElementById('inversion-total').textContent = this.formatearMoneda(data.inversion_total || 0);
+                document.getElementById('pagos-pendientes').textContent = data.cuotas_pendientes || 0;
+                document.getElementById('roi-promedio').textContent = `${(data.roi_promedio || 0).toFixed(1)}%`;
+            }
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    },
+
+    inicializarGraficos: function() {
+        // Gráfico de distribución por estado
+        const ctxEstados = document.getElementById('chartEstados').getContext('2d');
+        this.charts.estados = new Chart(ctxEstados, {
+            type: 'doughnut',
+            data: {
+                labels: ['Activos', 'Inactivos', 'Pendientes', 'Suspendidos'],
+                datasets: [{
+                    data: [40, 10, 20, 5],
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#6b7280'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Gráfico de evolución
+        const ctxEvolucion = document.getElementById('chartEvolucion').getContext('2d');
+        this.charts.evolucion = new Chart(ctxEvolucion, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{
+                    label: 'Nuevos Socios',
+                    data: [5, 8, 12, 15, 18, 22, 25, 28, 30, 32, 35, 40],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    },
+
+    configurarFiltros: function() {
+        const busqueda = document.getElementById('busqueda-socios');
+        const filtroEstado = document.getElementById('filtro-estado');
+        
+        busqueda.addEventListener('keyup', () => {
+            this.dataTable.search(busqueda.value).draw();
+        });
+        
+        filtroEstado.addEventListener('change', () => {
+            this.dataTable.column(6).search(filtroEstado.value).draw();
+        });
+    },
+
+    aplicarFiltros: function() {
+        this.dataTable.search(document.getElementById('busqueda-socios').value).draw();
+        this.mostrarAlerta('Filtros aplicados correctamente', 'success');
+    },
+
+    cargarTopSocios: async function() {
+        try {
+            const response = await fetch('/api/socios/top');
+            const container = document.getElementById('top-socios');
+            
+            if (response.ok) {
+                const socios = await response.json();
+                
+                if (socios.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos de socios</p>';
+                    return;
+                }
+                
+                let html = '';
+                socios.slice(0, 5).forEach((socio, index) => {
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-lg">${medal}</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">${socio.nombre}</p>
+                                    <p class="text-xs text-gray-600">${socio.codigo_socio} - ${socio.tipo_socio}</p>
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium text-green-600">${this.formatearMoneda(socio.inversion_total || 0)}</span>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }
+        } catch (error) {
+            console.error('Error cargando top socios:', error);
+        }
+    },
+
+    cargarSociosRecientes: async function() {
+        try {
+            const response = await fetch('/api/socios/recientes');
+            const container = document.getElementById('socios-recientes');
+            
+            if (response.ok) {
+                const socios = await response.json();
+                
+                if (socios.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay socios recientes</p>';
+                    return;
+                }
+                
+                let html = '';
+                socios.slice(0, 5).forEach(socio => {
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-user text-blue-500"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">${socio.nombre}</p>
+                                    <p class="text-xs text-gray-600">${new Date(socio.fecha_inscripcion).toLocaleDateString('es-ES')}</p>
+                                </div>
+                            </div>
+                            <span class="badge-estado ${socio.estado === 'activo' ? 'badge-activo' : socio.estado === 'pendiente_pago' ? 'badge-pendiente' : 'badge-inactivo'}">
+                                ${socio.estado}
+                            </span>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            }
+        } catch (error) {
+            console.error('Error cargando socios recientes:', error);
+        }
+    },
+
+    mostrarModalNuevoSocio: function() {
+        const modal = document.getElementById('modalSocio');
+        const form = document.getElementById('formSocio');
+        const titulo = document.getElementById('modalTitulo');
+        
+        // Resetear formulario
+        form.reset();
+        form.dataset.modo = 'nuevo';
+        delete form.dataset.socioId;
+        
+        // Establecer valores por defecto
+        const hoy = new Date().toISOString().split('T')[0];
+        form.querySelector('[name="fecha_inscripcion"]').value = hoy;
+        form.querySelector('[name="estado"]').value = 'activo';
+        form.querySelector('[name="tipo_socio"]').value = 'propietario';
+        
+        titulo.textContent = 'Nuevo Socio';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    },
+
+    cerrarModal: function() {
+        const modal = document.getElementById('modalSocio');
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    },
+
+    editarSocio: async function(socioId) {
+        try {
+            const response = await fetch(`/api/socios/${socioId}`);
+            
+            if (response.ok) {
+                const socio = await response.json();
+                
+                const modal = document.getElementById('modalSocio');
+                const form = document.getElementById('formSocio');
+                const titulo = document.getElementById('modalTitulo');
+                
+                // Configurar formulario
+                form.dataset.modo = 'editar';
+                form.dataset.socioId = socioId;
+                
+                // Llenar campos
+                Object.keys(socio).forEach(key => {
+                    const input = form.querySelector(`[name="${key}"]`);
+                    if (input) {
+                        if (input.type === 'date' && socio[key]) {
+                            const date = new Date(socio[key]);
+                            input.value = date.toISOString().split('T')[0];
+                        } else {
+                            input.value = socio[key] || '';
+                        }
+                    }
+                });
+                
+                titulo.textContent = 'Editar Socio';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        } catch (error) {
+            console.error('Error cargando socio:', error);
+            this.mostrarAlerta('Error al cargar socio', 'error');
+        }
+    },
+
+    guardarSocio: async function(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        const modo = form.dataset.modo;
+        const socioId = form.dataset.socioId;
+        
+        try {
+            const url = modo === 'editar' ? `/api/socios/${socioId}` : '/api/socios';
+            const method = modo === 'editar' ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                this.cerrarModal();
+                this.actualizarDatos();
+                this.mostrarAlerta(
+                    modo === 'editar' ? 'Socio actualizado correctamente' : 'Socio creado correctamente',
+                    'success'
+                );
+            } else {
+                const error = await response.json();
+                throw new Error(error.message || 'Error al guardar');
+            }
+        } catch (error) {
+            console.error('Error guardando socio:', error);
+            this.mostrarAlerta(error.message || 'Error al guardar socio', 'error');
+        }
+    },
+
+    eliminarSocio: async function(socioId) {
+        if (!confirm('¿Está seguro de eliminar este socio? Esta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/socios/${socioId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.actualizarDatos();
+                this.mostrarAlerta('Socio eliminado correctamente', 'success');
+            } else {
+                throw new Error('Error al eliminar socio');
+            }
+        } catch (error) {
+            console.error('Error eliminando socio:', error);
+            this.mostrarAlerta('Error al eliminar socio', 'error');
+        }
+    },
+
+    actualizarDatos: function() {
+        this.dataTable.ajax.reload();
+        this.cargarEstadisticas();
+        this.cargarTopSocios();
+        this.cargarSociosRecientes();
+        this.mostrarAlerta('Datos actualizados correctamente', 'success');
+    },
+
+    verDetalleCompleto: async function(socioId) {
+        try {
+            const modal = document.getElementById('modalDetalleCompleto');
+            const contenido = document.getElementById('detalle-completo-contenido');
+            
+            // Mostrar loading
+            contenido.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="loading mx-auto mb-4"></div>
+                    <p class="text-gray-600">Cargando detalles del socio...</p>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Cargar datos completos
+            const [socioRes, maquinasRes, ingresosRes, pagosRes] = await Promise.all([
+                fetch(`/api/socios/${socioId}`),
+                fetch(`/api/socios/${socioId}/inversiones`),
+                fetch(`/api/socios/${socioId}/ingresos/ultimos`),
+                fetch(`/api/socios/${socioId}/pagos`)
+            ]);
+            
+            const socio = await socioRes.json();
+            const maquinas = await maquinasRes.json();
+            const ingresos = await ingresosRes.json();
+            const pagos = await pagosRes.json();
+            
+            this.renderizarDetalleCompleto(socio, maquinas, ingresos, pagos);
+        } catch (error) {
+            console.error('Error cargando detalles:', error);
+            contenido.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-red-500 mb-4">
+                        <i class="fas fa-exclamation-triangle text-3xl"></i>
+                    </div>
+                    <p class="text-red-600">Error al cargar los detalles</p>
+                </div>
+            `;
+        }
+    },
+
+    renderizarDetalleCompleto: function(socio, maquinas, ingresos, pagos) {
+        const contenido = document.getElementById('detalle-completo-contenido');
+        
+        // Calcular estadísticas
+        const totalInvertido = maquinas.reduce((sum, m) => sum + (parseFloat(m.inversion_inicial) || 0), 0);
+        const totalIngresos = ingresos.reduce((sum, i) => sum + (parseFloat(i.ganancia_neta) || 0), 0);
+        const roi = totalInvertido > 0 ? (totalIngresos / totalInvertido * 100).toFixed(1) : 0;
+        const pagosPendientes = pagos.filter(p => p.estado === 'pendiente').length;
+        
+        const html = `
+            <div class="space-y-6">
+                <!-- Información básica -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2">
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <div class="flex items-center mb-4">
+                                <div class="bg-blue-100 p-3 rounded-full mr-4">
+                                    <i class="fas fa-user-tie text-blue-600 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold">${socio.nombre}</h3>
+                                    <p class="text-gray-600">
+                                        ${socio.documento} | ${socio.codigo_socio} | ${socio.tipo_socio}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-600">Email</p>
+                                    <p class="font-medium">${socio.email || '-'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Teléfono</p>
+                                    <p class="font-medium">${socio.telefono || '-'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Inscripción</p>
+                                    <p class="font-medium">${new Date(socio.fecha_inscripcion).toLocaleDateString('es-ES')}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Vencimiento</p>
+                                    <p class="font-medium">${new Date(socio.fecha_vencimiento).toLocaleDateString('es-ES')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h4 class="text-lg font-bold mb-4">Estadísticas</h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <p class="text-sm text-gray-600">Inversión Total</p>
+                                    <p class="text-xl font-bold">${this.formatearMoneda(totalInvertido)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Ingresos Totales</p>
+                                    <p class="text-xl font-bold text-green-600">${this.formatearMoneda(totalIngresos)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">ROI</p>
+                                    <p class="text-xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}">${roi}%</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Pagos Pendientes</p>
+                                    <p class="text-xl font-bold ${pagosPendientes > 0 ? 'text-red-600' : 'text-green-600'}">${pagosPendientes}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Máquinas -->
+                <div>
+                    <h4 class="text-lg font-bold mb-4">Máquinas en Propiedad</h4>
+                    ${maquinas.length > 0 ? `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="py-3 px-4 text-left">Máquina</th>
+                                        <th class="py-3 px-4 text-left">Porcentaje</th>
+                                        <th class="py-3 px-4 text-left">Inversión</th>
+                                        <th class="py-3 px-4 text-left">Estado</th>
+                                        <th class="py-3 px-4 text-left">Adquisición</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${maquinas.map(m => `
+                                        <tr class="border-b">
+                                            <td class="py-3 px-4">${m.maquina_nombre}</td>
+                                            <td class="py-3 px-4">
+                                                <span class="badge-estado badge-activo">${parseFloat(m.porcentaje_propiedad).toFixed(1)}%</span>
+                                            </td>
+                                            <td class="py-3 px-4">${this.formatearMoneda(m.inversion_inicial)}</td>
+                                            <td class="py-3 px-4">
+                                                <span class="badge-estado ${m.estado_inversion === 'activa' ? 'badge-activo' : 'badge-inactivo'}">
+                                                    ${m.estado_inversion}
+                                                </span>
+                                            </td>
+                                            <td class="py-3 px-4">${new Date(m.fecha_adquisicion).toLocaleDateString('es-ES')}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-gamepad text-3xl mb-2"></i>
+                            <p>No tiene máquinas asignadas</p>
+                        </div>
+                    `}
+                </div>
+                
+                <!-- Últimos ingresos -->
+                <div>
+                    <h4 class="text-lg font-bold mb-4">Últimos Ingresos</h4>
+                    ${ingresos.length > 0 ? `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="py-3 px-4 text-left">Período</th>
+                                        <th class="py-3 px-4 text-left">Máquina</th>
+                                        <th class="py-3 px-4 text-left">Turnos</th>
+                                        <th class="py-3 px-4 text-left">Ingreso Bruto</th>
+                                        <th class="py-3 px-4 text-left">Ganancia</th>
+                                        <th class="py-3 px-4 text-left">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ingresos.map(i => `
+                                        <tr class="border-b">
+                                            <td class="py-3 px-4">${new Date(i.fecha_periodo).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</td>
+                                            <td class="py-3 px-4">${i.maquina_nombre || 'Todas'}</td>
+                                            <td class="py-3 px-4">${i.turnos_totales || 0}</td>
+                                            <td class="py-3 px-4">${this.formatearMoneda(i.ingresos_brutos || 0)}</td>
+                                            <td class="py-3 px-4 font-bold text-green-600">${this.formatearMoneda(i.ganancia_neta || 0)}</td>
+                                            <td class="py-3 px-4">
+                                                <span class="badge-estado ${i.liquidado ? 'badge-activo' : 'badge-pendiente'}">
+                                                    ${i.liquidado ? 'Liquidado' : 'Pendiente'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-coins text-3xl mb-2"></i>
+                            <p>No hay ingresos registrados</p>
+                        </div>
+                    `}
+                </div>
+                
+                <!-- Historial de pagos -->
+                <div>
+                    <h4 class="text-lg font-bold mb-4">Historial de Pagos</h4>
+                    ${pagos.length > 0 ? `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="py-3 px-4 text-left">Tipo</th>
+                                        <th class="py-3 px-4 text-left">Monto</th>
+                                        <th class="py-3 px-4 text-left">Fecha</th>
+                                        <th class="py-3 px-4 text-left">Vencimiento</th>
+                                        <th class="py-3 px-4 text-left">Método</th>
+                                        <th class="py-3 px-4 text-left">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${pagos.map(p => `
+                                        <tr class="border-b">
+                                            <td class="py-3 px-4">${p.tipo_pago.replace('_', ' ')}</td>
+                                            <td class="py-3 px-4">${this.formatearMoneda(p.monto)}</td>
+                                            <td class="py-3 px-4">${p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString('es-ES') : '-'}</td>
+                                            <td class="py-3 px-4">${new Date(p.fecha_vencimiento).toLocaleDateString('es-ES')}</td>
+                                            <td class="py-3 px-4">${p.metodo_pago || '-'}</td>
+                                            <td class="py-3 px-4">
+                                                <span class="badge-estado ${p.estado === 'pagado' ? 'badge-activo' : p.estado === 'pendiente' ? 'badge-pendiente' : 'badge-inactivo'}">
+                                                    ${p.estado}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-credit-card text-3xl mb-2"></i>
+                            <p>No hay pagos registrados</p>
+                        </div>
+                    `}
+                </div>
+                
+                <!-- Acciones administrativas -->
+                <div class="flex justify-end space-x-3 pt-6 border-t">
+                    <button onclick="GestionSocios.generarReporteSocio(${socio.id})" 
+                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-file-pdf mr-2"></i>Reporte PDF
+                    </button>
+                    <button onclick="GestionSocios.enviarRecordatorio(${socio.id})" 
+                            class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+                        <i class="fas fa-envelope mr-2"></i>Enviar Recordatorio
+                    </button>
+                    <button onclick="GestionSocios.agregarInversion(${socio.id})" 
+                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                        <i class="fas fa-plus mr-2"></i>Agregar Inversión
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        contenido.innerHTML = html;
+    },
+
+    cerrarModalDetalle: function() {
+        const modal = document.getElementById('modalDetalleCompleto');
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    },
+
+    exportarReporte: function() {
+        this.mostrarAlerta('Generando reporte de todos los socios...', 'info');
+        // Implementar exportación
+    },
+
+    generarReporteSocio: function(socioId) {
+        this.mostrarAlerta(`Generando reporte del socio ${socioId}...`, 'info');
+        // Implementar exportación individual
+    },
+
+    enviarRecordatorio: function(socioId) {
+        this.mostrarAlerta(`Enviando recordatorio al socio ${socioId}...`, 'info');
+        // Implementar envío de email
+    },
+
+    agregarInversion: function(socioId) {
+        this.mostrarAlerta(`Agregando inversión al socio ${socioId}...`, 'info');
+        // Implementar agregar inversión
+    },
+
+    formatearMoneda: function(valor) {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+        }).format(valor || 0);
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    tipo === 'success' ? 'check-circle' : 
+                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 4000);
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    GestionSocios.init();
+});
+    </script>
+</body>
+</html>
