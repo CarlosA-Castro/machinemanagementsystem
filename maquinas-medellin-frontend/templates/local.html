@@ -1616,37 +1616,42 @@ cargarHistorialQR: function() {
       },
 
       generarVistaPrevia: function() {
-        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
-        const nombre = document.getElementById('nombreQR').value.trim();
-        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
-        
-        // Validaciones
-        if (!nombre) {
-            this.mostrarAlerta("❌ El nombre es obligatorio", "error");
-            return;
+    const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+    const nombre = document.getElementById('nombreQR').value.trim();
+    const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
+    
+    // Validaciones
+    if (!nombre) {
+        this.mostrarAlerta("❌ El nombre es obligatorio", "error");
+        return;
+    }
+    
+    if (!paqueteId) {
+        this.mostrarAlerta("❌ Debes seleccionar un paquete", "error");
+        return;
+    }
+    
+    if (cantidad < 1 || cantidad > 100) {
+        this.mostrarAlerta("❌ La cantidad debe estar entre 1 y 100", "error");
+        return;
+    }
+    
+    // Obtener información del paquete seleccionado
+    const paquete = this.paquetesData?.find(p => p.id == paqueteId);
+    if (!paquete) {
+        this.mostrarAlerta("❌ Error: Paquete no encontrado", "error");
+        return;
+    }
+    
+    // Obtener el próximo código del backend
+    fetch('/api/obtener-siguiente-qr', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
         }
-        
-        if (!paqueteId) {
-            this.mostrarAlerta("❌ Debes seleccionar un paquete", "error");
-            return;
-        }
-        
-        if (cantidad < 1 || cantidad > 100) {
-            this.mostrarAlerta("❌ La cantidad debe estar entre 1 y 100", "error");
-            return;
-        }
-        
-        // Obtener información del paquete seleccionado
-        const paquete = this.paquetesData?.find(p => p.id == paqueteId);
-        if (!paquete) {
-            this.mostrarAlerta("❌ Error: Paquete no encontrado", "error");
-            return;
-        }
-        
-        // Generar código de ejemplo para vista previa
-        const ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
-        const numero = (ultimoNumero + 1).toString().padStart(3, '0');
-        const codigoEjemplo = `QR${numero}`;
+    })
+    .then(res => res.json())
+    .then(data => {
+        const codigoEjemplo = data.siguiente_codigo || 'QR0001';
         
         // Limpiar vista previa anterior
         document.getElementById('qrPreview').innerHTML = '';
@@ -1672,7 +1677,34 @@ cargarHistorialQR: function() {
         `;
         
         document.getElementById('vistaPreviaQR').classList.remove('hidden');
-      },
+    })
+    .catch(err => {
+        console.error("Error obteniendo siguiente QR:", err);
+        // Código de fallback
+        const codigoEjemplo = 'QR0001';
+        
+        document.getElementById('qrPreview').innerHTML = '';
+        new QRCode(document.getElementById('qrPreview'), {
+            text: codigoEjemplo,
+            width: 180,
+            height: 180,
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+        document.getElementById('previewText').innerHTML = `
+            <div class="font-bold text-gray-800">${nombre}</div>
+            <div class="text-gray-600 font-mono">${codigoEjemplo}</div>
+            <div class="text-sm text-gray-500">
+                <div>Paquete: <span class="font-semibold">P${paquete.id} - ${paquete.name}</span></div>
+                <div>Precio: <span class="font-semibold text-green-600">$${paquete.price.toLocaleString('es-CO')}</span></div>
+                <div>Turnos: <span class="font-semibold text-blue-600">${paquete.turns}</span></div>
+                <div class="mt-2 text-xs">Se generarán ${cantidad} códigos QR con este paquete</div>
+            </div>
+        `;
+        
+        document.getElementById('vistaPreviaQR').classList.remove('hidden');
+    });
+},
 
       validarFormulario: function() {
         const nombre = document.getElementById('nombreQR').value.trim();
@@ -1729,41 +1761,65 @@ cargarHistorialQR: function() {
       },
 
       generarDocumento: function(nombre, tipo, paquete) {
-        const { jsPDF } = window.jspdf;
-        const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+    const { jsPDF } = window.jspdf;
+    const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+    
+    // Configuración para papel de 58mm
+    const anchoPapel = 58; // mm
+    const altoPapel = 80; // mm 
+    
+    // Pantalla de carga
+    const loadingMessage = document.createElement('div');
+    loadingMessage.innerHTML = `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 text-center">
+                <div class="loading mx-auto mb-4"></div>
+                <p>${tipo === 'pdf' ? 'Generando QR...' : 'Preparando QR para WhatsApp...'}</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingMessage);
+    
+    // Solicitar al backend que genere los códigos QR con 4 dígitos
+    fetch('/api/generar-qr', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            cantidad: cantidad,
+            nombre: nombre,
+            paquete_id: paquete.id
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Error generando QR');
+        return res.json();
+    })
+    .then(data => {
+        if (data.status === 'error') {
+            throw new Error(data.message || 'Error generando QR');
+        }
         
-        // Configuración para papel de 58mm
-        const anchoPapel = 58; // mm
-        const altoPapel = 80; // mm 
+        const codigosGenerados = data.data?.codigos || [];
+        if (codigosGenerados.length === 0) {
+            throw new Error('No se generaron códigos QR');
+        }
         
+        console.log(`✅ Códigos generados por el backend:`, codigosGenerados);
+        
+        // Crear PDF con los códigos generados por el backend
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
             format: [anchoPapel, altoPapel]
         });
         
-        let codigosGenerados = [];
-
-        // Pantalla de carga
-        const loadingMessage = document.createElement('div');
-        loadingMessage.innerHTML = `
-            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg p-6 text-center">
-                    <div class="loading mx-auto mb-4"></div>
-                    <p>${tipo === 'pdf' ? 'Generando PDF...' : 'Preparando QR para WhatsApp...'}</p>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(loadingMessage);
-
-        // Obtener el último número utilizado desde localStorage
-        let ultimoNumero = parseInt(localStorage.getItem('ultimoNumeroQR')) || 0;
-        
-        const generarQRRecursivo = (i = 1) => {
-            if (i > cantidad) {
-                // Guardar los QR CON EL PAQUETE ASIGNADO
-                this.guardarMultiplesQRSConPaquete(codigosGenerados, nombre, paquete);
-                
+        // Función recursiva para generar páginas del PDF
+        const generarPaginaRecursiva = (i = 0) => {
+            if (i >= codigosGenerados.length) {
+                // Terminado
                 if (tipo === 'pdf') {
                     doc.save(`codigos-qr-${nombre}-P${paquete.id}.pdf`);
                     this.mostrarAlerta(`✅ ${cantidad} QR generados con el paquete P${paquete.id}`, "success");
@@ -1774,20 +1830,13 @@ cargarHistorialQR: function() {
                 
                 this.cerrarModalGenerador();
                 document.body.removeChild(loadingMessage);
-                
-                // Guardar el último número utilizado para la próxima generación
-                localStorage.setItem('ultimoNumeroQR', ultimoNumero.toString());
                 return;
             }
 
-            // Generar número secuencial único
-            ultimoNumero++;
-            const numero = ultimoNumero.toString().padStart(3, '0');
-            const codigoQR = `QR${numero}`;
-            codigosGenerados.push(codigoQR);
-
+            const codigoQR = codigosGenerados[i];
+            
             // Si no es el primer QR, agregar nueva página
-            if (i > 1) {
+            if (i > 0) {
                 doc.addPage();
             }
 
@@ -1819,6 +1868,9 @@ cargarHistorialQR: function() {
                         // Agregar información textual centrada
                         doc.setFontSize(8);
                         doc.setFont(undefined, 'bold');
+                        
+                        // Extraer número del código (quita "QR" y toma los últimos 4 dígitos)
+                        const numero = codigoQR.replace('QR', '');
                         
                         // Centrar texto
                         const textoNombre = `Nombre: ${nombre}`;
@@ -1861,97 +1913,106 @@ cargarHistorialQR: function() {
                         const xTextoInfo = (anchoPapel - anchoTextoInfo) / 2;
                         doc.text(textoInfo, xTextoInfo, yQR + altoQR + 34);
 
-                        setTimeout(() => generarQRRecursivo(i + 1), 100);
+                        // Generar siguiente página
+                        setTimeout(() => generarPaginaRecursiva(i + 1), 100);
                     };
                 }
             }, 200);
         };
 
-        generarQRRecursivo(1);
-      },
+        // Iniciar generación del PDF
+        generarPaginaRecursiva(0);
+        
+    })
+    .catch(err => {
+        console.error("Error generando códigos QR:", err);
+        document.body.removeChild(loadingMessage);
+        this.mostrarAlerta(`❌ ${err.message || 'Error generando códigos QR'}`, "error");
+    });
+},
 
       guardarMultiplesQRSConPaquete: function(codigos, nombre, paquete) {
-        const loading = document.createElement('div');
-        loading.innerHTML = `
-            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg p-6 text-center">
-                    <div class="loading mx-auto mb-4"></div>
-                    <p>Asignando paquete y guardando QR...</p>
-                </div>
+    const loading = document.createElement('div');
+    loading.innerHTML = `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 text-center">
+                <div class="loading mx-auto mb-4"></div>
+                <p>Asignando paquete y guardando QR...</p>
             </div>
-        `;
-        document.body.appendChild(loading);
+        </div>
+    `;
+    document.body.appendChild(loading);
+    
+    fetch("/api/guardar-multiples-qr-con-paquete", {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({ 
+            qr_codes: codigos,
+            nombre: nombre,
+            paquete_id: paquete.id,
+            paquete_nombre: `P${paquete.id} - ${paquete.name}`,
+            paquete_precio: paquete.price,
+            paquete_turns: paquete.turns,
+            es_venta_real: true  // Esto marca que es una venta real
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Error en la respuesta del servidor');
+        return res.json();
+    })
+    .then(data => {
+        document.body.removeChild(loading);
         
-        fetch("/api/guardar-multiples-qr-con-paquete", {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
-            },
-            body: JSON.stringify({ 
-                qr_codes: codigos,
-                nombre: nombre,
-                paquete_id: paquete.id,
-                paquete_nombre: `P${paquete.id} - ${paquete.name}`,
-                paquete_precio: paquete.price,
-                paquete_turns: paquete.turns
-            })
-        })
-        .then(res => {
-            if (!res.ok) throw new Error('Error en la respuesta del servidor');
-            return res.json();
-        })
-        .then(data => {
-            document.body.removeChild(loading);
-            
-            if (data.success) {
-                this.mostrarAlerta(`✅ ${data.message}`, "success");
-                // Recargar el historial después de guardar
-                this.cargarHistorialQR();
-                // Actualizar contadores
-                this.actualizarContadores();
-            } else {
-                this.mostrarAlerta(" Error al guardar los QR: " + (data.error || 'Error desconocido'), "error");
-            }
-        })
-        .catch(err => {
-            document.body.removeChild(loading);
-            console.error("Error guardando QRs con paquete:", err);
-            this.mostrarAlerta(" Error de conexión al guardar los QR", "error");
-        });
-      },
-
+        if (data.status === 'success') {
+            this.mostrarAlerta(`✅ ${data.data?.count || 'Todos'} QR generados y guardados con paquete P${paquete.id}`, "success");
+            // Recargar el historial después de guardar
+            this.cargarHistorialQR();
+            // Actualizar contadores
+            this.actualizarContadores();
+        } else {
+            this.mostrarAlerta("❌ Error al guardar los QR: " + (data.message || 'Error desconocido'), "error");
+        }
+    })
+    .catch(err => {
+        document.body.removeChild(loading);
+        console.error("Error guardando QRs con paquete:", err);
+        this.mostrarAlerta("❌ Error de conexión al guardar los QR: " + err.message, "error");
+    });
+},
       // función compartir WhatsApp
       compartirWhatsApp: function(doc, nombre, codigosGenerados, paquete) {
-        try {
-            if (codigosGenerados.length > 0) {
-                const primerCodigo = codigosGenerados[0];
-                
-                // Crear contenedor temporal para el QR
-                const tempDiv = document.createElement('div');
-                new QRCode(tempDiv, {
-                    text: primerCodigo,
-                    width: 400,
-                    height: 400,
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+    try {
+        if (codigosGenerados.length > 0) {
+            const primerCodigo = codigosGenerados[0];
+            
+            // Crear contenedor temporal para el QR
+            const tempDiv = document.createElement('div');
+            new QRCode(tempDiv, {
+                text: primerCodigo,
+                width: 400,
+                height: 400,
+                correctLevel: QRCode.CorrectLevel.H
+            });
 
-                setTimeout(() => {
-                    const canvas = tempDiv.querySelector('canvas');
-                    if (canvas) {
-                        // Convertir canvas a data URL
-                        const qrDataUrl = canvas.toDataURL('image/png');
-                        
-                        // Mostrar modal para ingresar número
-                        this.mostrarModalNumeroWhatsApp(qrDataUrl, nombre, primerCodigo, paquete);
-                    }
-                }, 500);
-            }
-        } catch (error) {
-            console.error("Error compartiendo por WhatsApp:", error);
-            this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error");
+            setTimeout(() => {
+                const canvas = tempDiv.querySelector('canvas');
+                if (canvas) {
+                    // Convertir canvas a data URL
+                    const qrDataUrl = canvas.toDataURL('image/png');
+                    
+                    // Mostrar modal para ingresar número
+                    this.mostrarModalNumeroWhatsApp(qrDataUrl, nombre, primerCodigo, paquete);
+                }
+            }, 500);
         }
-      },
+    } catch (error) {
+        console.error("Error compartiendo por WhatsApp:", error);
+        this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error");
+    }
+},
 
       mostrarModalNumeroWhatsApp: function(qrDataUrl, nombre, codigo, paquete) {
         const modal = document.createElement('div');

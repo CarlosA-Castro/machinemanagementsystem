@@ -50,6 +50,47 @@
             background-color: #f8fafc;
         }
         
+        .role-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .role-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sql-code {
+            font-family: 'Courier New', monospace;
+            background: #1a202c;
+            color: #68d391;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        
+        .copy-button {
+            transition: all 0.2s ease;
+        }
+        
+        .copy-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .bg-purple-100 { background-color: #f3e8ff; }
+        .bg-blue-100 { background-color: #dbeafe; }
+        .bg-teal-100 { background-color: #ccfbf1; }
+        .bg-pink-100 { background-color: #fce7f3; }
+        .bg-orange-100 { background-color: #ffedd5; }
+        .bg-green-100 { background-color: #dcfce7; }
+        
+        .text-purple-800 { color: #6b21a8; }
+        .text-blue-800 { color: #1e40af; }
+        .text-teal-800 { color: #115e59; }
+        .text-pink-800 { color: #9d174d; }
+        .text-orange-800 { color: #9a3412; }
+        .text-green-800 { color: #166534; }
+        
         @media (max-width: 1024px) {
             .contenido {
                 padding: 1rem !important;
@@ -155,37 +196,40 @@
                         <button onclick="UsuariosApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
                             <i class="fas fa-plus mr-2"></i>Nuevo Usuario
                         </button>
+                        <button onclick="RolesApp.mostrarModalCrearRol()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch">
+                            <i class="fas fa-user-tag mr-2"></i>Gestionar Roles
+                        </button>
                     </div>
                 </div>
             </div>
 
-<!-- Estadísticas rápidas -->
-<div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
-    <div class="glass-card text-center">
-        <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
-        <div class="text-sm text-gray-600">Total Usuarios</div>
-    </div>
-    <div class="glass-card text-center">
-        <div class="text-2xl font-bold text-green-600" id="total-activos">0</div>
-        <div class="text-sm text-gray-600">Usuarios Activos</div>
-    </div>
-    <div class="glass-card text-center">
-        <div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div>
-        <div class="text-sm text-gray-600">Usuarios Inactivos</div>
-    </div>
-    <div class="glass-card text-center">
-        <div class="text-2xl font-bold text-purple-600" id="total-admins">0</div>
-        <div class="text-sm text-gray-600">Administradores</div>
-    </div>
-    <div class="glass-card text-center">
-        <div class="text-2xl font-bold text-orange-600" id="total-cajeros">0</div>
-        <div class="text-sm text-gray-600">Cajeros</div>
-    </div>
-    <div class="glass-card text-center">
-        <div class="text-2xl font-bold text-teal-600" id="total-restaurante">0</div>
-        <div class="text-sm text-gray-600">Admin Restaurante</div>
-    </div>
-</div>
+            <!-- Estadísticas rápidas -->
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
+                    <div class="text-sm text-gray-600">Total Usuarios</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-green-600" id="total-activos">0</div>
+                    <div class="text-sm text-gray-600">Usuarios Activos</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div>
+                    <div class="text-sm text-gray-600">Usuarios Inactivos</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-purple-600" id="total-admins">0</div>
+                    <div class="text-sm text-gray-600">Administradores</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-orange-600" id="total-cajeros">0</div>
+                    <div class="text-sm text-gray-600">Cajeros</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-pink-600" id="total-socios">0</div>
+                    <div class="text-sm text-gray-600">Socios</div>
+                </div>
+            </div>
 
             <!-- Tabla de usuarios -->
             <div class="glass-card">
@@ -212,6 +256,7 @@
                             <option value="">Todos los roles</option>
                             <option value="admin">Administrador</option>
                             <option value="cajero">Cajero</option>
+                            <option value="socio">Socio</option>
                             <option value="admin_restaurante">Admin Restaurante</option>
                         </select>
                     </div>
@@ -286,6 +331,7 @@
                             <option value="">Seleccionar rol</option>
                             <option value="admin">Administrador</option>
                             <option value="cajero">Cajero</option>
+                            <option value="socio">Socio</option>
                             <option value="admin_restaurante">Administrador Restaurante</option>
                         </select>
                     </div>
@@ -354,6 +400,115 @@
                         class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
                     <i class="fas fa-times mr-2"></i>Cancelar
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para gestión de roles -->
+    <div id="modalRoles" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 modal-content max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4">
+                <i class="fas fa-user-tag mr-2 text-indigo-600"></i>Gestión de Roles del Sistema
+            </h2>
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">Roles Actuales del Sistema</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="rolesLista">
+                    <!-- Los roles se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+
+            <div class="border-t pt-4">
+                <h3 class="text-lg font-semibold mb-3">Crear Nuevo Rol</h3>
+                <form id="formRol" onsubmit="RolesApp.crearNuevoRol(event)">
+                    <div class="space-y-4">
+                        <!-- Nombre del Rol -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-user-tag mr-2"></i>Nombre del Rol *
+                            </label>
+                            <input type="text" id="nombreRol" required
+                                   class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                                   placeholder="Ej: supervisor, auditor, gerente">
+                            <p class="text-xs text-gray-500 mt-1">Usa solo letras minúsculas, sin espacios (se permiten guiones bajos)</p>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-align-left mr-2"></i>Descripción
+                            </label>
+                            <textarea id="descripcionRol" rows="2"
+                                      class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                                      placeholder="Describe las funciones y permisos de este rol..."></textarea>
+                        </div>
+
+                        <!-- Permisos -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-key mr-2"></i>Permisos Principales
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="permisoVer" class="h-4 w-4 text-blue-600 rounded">
+                                    <label for="permisoVer" class="ml-2 text-sm text-gray-700">Ver información</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="permisoCrear" class="h-4 w-4 text-blue-600 rounded">
+                                    <label for="permisoCrear" class="ml-2 text-sm text-gray-700">Crear registros</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="permisoEditar" class="h-4 w-4 text-blue-600 rounded">
+                                    <label for="permisoEditar" class="ml-2 text-sm text-gray-700">Editar registros</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="permisoEliminar" class="h-4 w-4 text-blue-600 rounded">
+                                    <label for="permisoEliminar" class="ml-2 text-sm text-gray-700">Eliminar registros</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="permisoReportes" class="h-4 w-4 text-blue-600 rounded">
+                                    <label for="permisoReportes" class="ml-2 text-sm text-gray-700">Generar reportes</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="permisoConfigurar" class="h-4 w-4 text-blue-600 rounded">
+                                    <label for="permisoConfigurar" class="ml-2 text-sm text-gray-700">Configurar sistema</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nivel de Acceso -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-shield-alt mr-2"></i>Nivel de Acceso *
+                            </label>
+                            <select id="nivelAcceso" required class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                                <option value="">Seleccionar nivel</option>
+                                <option value="bajo">Bajo (Solo lectura)</option>
+                                <option value="medio">Medio (Lectura y edición limitada)</option>
+                                <option value="alto">Alto (Casi todos los permisos)</option>
+                                <option value="administrador">Administrador (Todos los permisos)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 mt-6">
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 btn-touch">
+                            <i class="fas fa-plus-circle mr-2"></i>Crear Nuevo Rol
+                        </button>
+                        <button type="button" onclick="RolesApp.cerrarModal()" 
+                                class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
+                            <i class="fas fa-times mr-2"></i>Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="border-t mt-6 pt-4">
+                <h3 class="text-lg font-semibold mb-3">Información Técnica</h3>
+                <div class="text-sm text-gray-600 space-y-2">
+                    <p><i class="fas fa-info-circle mr-2"></i>Los roles definen los permisos y acceso de los usuarios en el sistema.</p>
+                    <p><i class="fas fa-database mr-2"></i>Los roles se almacenan en la base de datos y se asignan a los usuarios durante su creación o edición.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -501,6 +656,7 @@
             switch(usuario.role) {
                 case 'admin': rolTexto = 'Administrador'; break;
                 case 'cajero': rolTexto = 'Cajero'; break;
+                case 'socio': rolTexto = 'Socio'; break;
                 case 'admin_restaurante': rolTexto = 'Admin Restaurante'; break;
             }
 
@@ -578,6 +734,7 @@
             case 'admin': return 'bg-purple-100 text-purple-800';
             case 'cajero': return 'bg-blue-100 text-blue-800';
             case 'admin_restaurante': return 'bg-teal-100 text-teal-800';
+            case 'socio': return 'bg-pink-100 text-pink-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     },
@@ -587,6 +744,7 @@
             case 'admin': return 'fa-user-shield';
             case 'cajero': return 'fa-cash-register';
             case 'admin_restaurante': return 'fa-store';
+            case 'socio': return 'fa-user-tie';
             default: return 'fa-user';
         }
     },
@@ -619,7 +777,8 @@
                 inactivos: 0,
                 admins: 0,
                 cajeros: 0,
-                admin_restaurante: 0
+                admin_restaurante: 0,
+                socios: 0
             });
         });
     },
@@ -630,7 +789,7 @@
         document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
         document.getElementById('total-admins').textContent = estadisticas.admins || 0;
         document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
-        document.getElementById('total-restaurante').textContent = estadisticas.admin_restaurante || 0;
+        document.getElementById('total-socios').textContent = estadisticas.socios || 0;
     },
 
     filtrarUsuarios: function() {
@@ -880,9 +1039,407 @@
     }
 };
 
+const RolesApp = {
+    init: function() {
+        console.log("RolesApp inicializado");
+    },
+
+    mostrarModalCrearRol: function() {
+        document.getElementById('modalRoles').classList.remove('hidden');
+        document.getElementById('modalRoles').classList.add('flex');
+        this.cargarRolesSistema();
+    },
+
+    cerrarModal: function() {
+        document.getElementById('modalRoles').classList.add('hidden');
+        document.getElementById('modalRoles').classList.remove('flex');
+        document.getElementById('formRol').reset();
+    },
+
+    cargarRolesSistema: function() {
+        const rolesLista = document.getElementById('rolesLista');
+        
+        // Mostrar loading
+        rolesLista.innerHTML = `
+            <div class="col-span-4 text-center py-4">
+                <div class="loading mx-auto mb-2"></div>
+                <p class="text-gray-600">Cargando roles...</p>
+            </div>
+        `;
+        
+        // Cargar roles desde API
+        fetch('/api/roles/sistema', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                console.error('❌ Error cargando roles:', response.status);
+                this.mostrarRolesFallback();
+                return;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.roles && Array.isArray(data.roles)) {
+                this.mostrarRoles(data.roles);
+            } else {
+                this.mostrarRolesFallback();
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando roles:', error);
+            this.mostrarRolesFallback();
+        });
+    },
+
+    mostrarRoles: function(roles) {
+        const rolesLista = document.getElementById('rolesLista');
+        
+        if (!roles || roles.length === 0) {
+            rolesLista.innerHTML = `
+                <div class="col-span-4 text-center py-4">
+                    <i class="fas fa-exclamation-triangle text-2xl text-yellow-500 mb-2"></i>
+                    <p class="text-gray-600">No se encontraron roles en el sistema</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        roles.forEach(rol => {
+            const colorClass = `bg-${rol.color}-100 text-${rol.color}-800`;
+            
+            html += `
+                <div class="border rounded-lg p-4 ${colorClass} role-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-start">
+                            <i class="fas fa-${rol.icono} text-lg mr-2 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold">${rol.nombre}</h4>
+                                <p class="text-xs opacity-75">ID: ${rol.id}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded-full bg-white bg-opacity-75">
+                            ${rol.total_usuarios || 0} usuarios
+                        </span>
+                    </div>
+                    <p class="text-sm mb-3">${rol.descripcion || 'Sin descripción'}</p>
+                    <div class="text-xs text-gray-600">
+                        <i class="fas fa-users mr-1"></i> ${rol.total_usuarios || 0} usuarios asignados
+                    </div>
+                </div>
+            `;
+        });
+        
+        rolesLista.innerHTML = html;
+    },
+
+    mostrarRolesFallback: function() {
+        const rolesLista = document.getElementById('rolesLista');
+        
+        // Roles por defecto si la API falla
+        const roles = [
+            { 
+                id: 'admin', 
+                nombre: 'Administrador', 
+                descripcion: 'Acceso completo a todas las funciones del sistema',
+                color: 'purple',
+                icono: 'user-shield',
+                total_usuarios: 0
+            },
+            { 
+                id: 'cajero', 
+                nombre: 'Cajero', 
+                descripcion: 'Puede registrar ventas y gestionar códigos QR',
+                color: 'blue',
+                icono: 'cash-register',
+                total_usuarios: 0
+            },
+            { 
+                id: 'admin_restaurante', 
+                nombre: 'Admin Restaurante', 
+                descripcion: 'Gestión del restaurante y reportes específicos',
+                color: 'teal',
+                icono: 'store',
+                total_usuarios: 0
+            },
+            { 
+                id: 'socio', 
+                nombre: 'Socio', 
+                descripcion: 'Acceso a reportes financieros y estadísticas de inversión',
+                color: 'pink',
+                icono: 'user-tie',
+                total_usuarios: 0
+            }
+        ];
+        
+        let html = '';
+        roles.forEach(rol => {
+            const colorClass = `bg-${rol.color}-100 text-${rol.color}-800`;
+            
+            html += `
+                <div class="border rounded-lg p-4 ${colorClass} role-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-start">
+                            <i class="fas fa-${rol.icono} text-lg mr-2 mt-1"></i>
+                            <div>
+                                <h4 class="font-bold">${rol.nombre}</h4>
+                                <p class="text-xs opacity-75">ID: ${rol.id}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded-full bg-white bg-opacity-75">
+                            ${rol.total_usuarios} usuarios
+                        </span>
+                    </div>
+                    <p class="text-sm mb-3">${rol.descripcion}</p>
+                    <div class="text-xs text-gray-600">
+                        <i class="fas fa-users mr-1"></i> ${rol.total_usuarios} usuarios asignados
+                    </div>
+                </div>
+            `;
+        });
+        
+        rolesLista.innerHTML = html;
+    },
+
+    crearNuevoRol: function(event) {
+        event.preventDefault();
+        
+        const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
+        const descripcion = document.getElementById('descripcionRol').value.trim();
+        const nivelAcceso = document.getElementById('nivelAcceso').value;
+
+        // Validaciones
+        if (!nombreRol) {
+            this.mostrarError('El nombre del rol es requerido');
+            return;
+        }
+
+        // Validar formato del nombre
+        if (!/^[a-z_]+$/.test(nombreRol)) {
+            this.mostrarError('El nombre del rol solo puede contener letras minúsculas y guiones bajos (_)');
+            return;
+        }
+
+        if (nombreRol.length > 20) {
+            this.mostrarError('El nombre del rol no puede tener más de 20 caracteres');
+            return;
+        }
+
+        if (!nivelAcceso) {
+            this.mostrarError('Debes seleccionar un nivel de acceso');
+            return;
+        }
+
+        // Obtener permisos seleccionados
+        const permisos = [];
+        if (document.getElementById('permisoVer').checked) permisos.push('ver');
+        if (document.getElementById('permisoCrear').checked) permisos.push('crear');
+        if (document.getElementById('permisoEditar').checked) permisos.push('editar');
+        if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
+        if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
+        if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
+
+        // Crear objeto del nuevo rol
+        const nuevoRol = {
+            id: nombreRol,
+            nombre: nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace('_', ' '),
+            descripcion: descripcion || 'Sin descripción',
+            permisos: permisos,
+            nivelAcceso: nivelAcceso,
+            fechaCreacion: new Date().toISOString()
+        };
+
+        // Enviar a la API para generar SQL
+        fetch('/api/roles/agregar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ nuevo_rol: nombreRol })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.sql) {
+                this.mostrarInstruccionesSQL(nuevoRol, data.sql);
+            } else {
+                this.mostrarError('Error al generar SQL para el nuevo rol');
+            }
+        })
+        .catch(error => {
+            console.error('Error generando SQL:', error);
+            // Si falla la API, generar SQL localmente
+            const sql = this.generarSQLManual(nombreRol);
+            this.mostrarInstruccionesSQL(nuevoRol, sql);
+        });
+    },
+
+    generarSQLManual: function(nombreRol) {
+        // Roles base del sistema
+        const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
+        rolesBase.push(nombreRol);
+        return `ALTER TABLE Users MODIFY COLUMN role ENUM('${rolesBase.join("','")}') NOT NULL;`;
+    },
+
+    mostrarInstruccionesSQL: function(nuevoRol, sql) {
+        const detallesRol = `
+Nuevo Rol Creado:
+• ID: ${nuevoRol.id}
+• Nombre: ${nuevoRol.nombre}
+• Descripción: ${nuevoRol.descripcion}
+• Nivel de Acceso: ${nuevoRol.nivelAcceso}
+• Permisos: ${nuevoRol.permisos.join(', ') || 'Ninguno'}
+• Fecha: ${new Date().toLocaleDateString('es-ES')}
+
+Para agregar este rol a la base de datos, ejecuta el siguiente SQL en tu gestor de base de datos:
+
+${sql}
+
+Luego, recarga la página para ver el nuevo rol disponible en la lista de roles.
+        `;
+
+        // Crear modal con instrucciones
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6">
+                <h2 class="text-xl font-bold mb-4 text-green-600">
+                    <i class="fas fa-check-circle mr-2"></i>Rol Creado Exitosamente
+                </h2>
+                
+                <div class="mb-4 p-3 bg-green-50 rounded-lg">
+                    <p class="text-green-700"><i class="fas fa-info-circle mr-2"></i>El rol "${nuevoRol.nombre}" ha sido creado localmente.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h3 class="font-semibold mb-2">Detalles del Rol:</h3>
+                    <pre class="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-40">${detallesRol}</pre>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="font-semibold mb-2">Instrucción SQL:</h3>
+                    <div class="relative">
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-sm overflow-auto" id="sqlCode">${sql}</pre>
+                        <button onclick="RolesApp.copiarSQL()" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                            <i class="fas fa-copy mr-1"></i>Copiar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="RolesApp.cerrarInstrucciones(this)" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-check mr-2"></i>Entendido
+                    </button>
+                    <button onclick="RolesApp.guardarRolLocal('${nuevoRol.id}', ${JSON.stringify(nuevoRol).replace(/'/g, "\\'")})" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
+                        <i class="fas fa-save mr-2"></i>Guardar Localmente
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+    },
+
+    copiarSQL: function() {
+        const sqlCode = document.getElementById('sqlCode').textContent;
+        navigator.clipboard.writeText(sqlCode)
+            .then(() => {
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
+                btn.classList.remove('bg-blue-600');
+                btn.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('bg-green-600');
+                    btn.classList.add('bg-blue-600');
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Error al copiar:', err);
+                // Fallback para navegadores antiguos
+                const textArea = document.createElement('textarea');
+                textArea.value = sqlCode;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
+                btn.classList.remove('bg-blue-600');
+                btn.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('bg-green-600');
+                    btn.classList.add('bg-blue-600');
+                }, 2000);
+            });
+    },
+
+    cerrarInstrucciones: function(button) {
+        const modal = button.closest('.fixed');
+        if (modal) {
+            modal.remove();
+        }
+        this.cerrarModal();
+    },
+
+    guardarRolLocal: function(id, rolData) {
+        try {
+            // Guardar en localStorage
+            const rol = typeof rolData === 'string' ? JSON.parse(rolData) : rolData;
+            const rolesGuardados = JSON.parse(localStorage.getItem('rolesPersonalizados') || '{}');
+            rolesGuardados[id] = rol;
+            localStorage.setItem('rolesPersonalizados', JSON.stringify(rolesGuardados));
+            
+            // Mostrar mensaje de éxito
+            this.mostrarAlerta(`Rol "${rol.nombre}" guardado localmente`, 'success');
+            
+            // Cerrar modal de instrucciones
+            const modal = document.querySelector('.fixed.bg-black');
+            if (modal) modal.remove();
+            
+            this.cerrarModal();
+        } catch (error) {
+            console.error('Error guardando rol localmente:', error);
+            this.mostrarError('Error al guardar el rol localmente');
+        }
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 4000);
+    },
+
+    mostrarError: function(mensaje) {
+        this.mostrarAlerta(mensaje, 'error');
+    }
+};
+
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     UsuariosApp.init();
+    RolesApp.init();
 });
     </script>
 </body>

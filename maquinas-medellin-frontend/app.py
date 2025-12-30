@@ -10,6 +10,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 import logging
 from logging.handlers import RotatingFileHandler
 from functools import lru_cache, wraps
+import re
 
 # ==================== CONFIGURACIÓN DE ZONA HORARIA ====================
 
@@ -376,21 +377,21 @@ def create_tables():
         
         # Crear tabla GlobalCounter si no existe
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS GlobalCounter (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                counter_type VARCHAR(50) NOT NULL UNIQUE,
-                counter_value INT NOT NULL DEFAULT 0,
-                description VARCHAR(255),
-                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_counter_type (counter_type)
-            )
-        """)
+              CREATE TABLE IF NOT EXISTS GlobalCounter (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        counter_type VARCHAR(50) NOT NULL UNIQUE,
+        counter_value INT NOT NULL DEFAULT 0,
+        description VARCHAR(255),
+        last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_counter_type (counter_type)
+    )
+""")
         
         # Inicializar contador si no existe
         cursor.execute("""
-            INSERT IGNORE INTO GlobalCounter (counter_type, counter_value, description) 
-            VALUES ('QR_CODE', 0, 'Contador para códigos QR (formato QR0001, QR0002, etc.)')
-        """)
+              INSERT IGNORE INTO GlobalCounter (counter_type, counter_value, description) 
+    VALUES ('QR_CODE', 0, 'Contador para códigos QR (formato QR0001 a QR9999, se reinicia en 1)')
+""")
         # Crear tabla ResolucionReportes si no existe
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS ResolucionReportes (
@@ -483,12 +484,15 @@ def procesar_login():
             
             app.logger.info(f"✅ Usuario {usuario['name']} inició sesión")
     
+            # MODIFICACIÓN: Redirigir socios directamente a su interfaz
             return jsonify({
                 'valido': True,
                 'nombre': usuario.get("name", "Usuario"),
                 'role': usuario.get("role", "Cajero"),
                 'local': usuario.get("local", "El Mekatiadero"),
-                'user_id': usuario['id']
+                'user_id': usuario['id'],
+                # Agregar esta propiedad para el frontend
+                'redirect_to': 'socios' if usuario.get("role") == 'socio' else None
             })
         else:
             return jsonify({
@@ -584,7 +588,7 @@ def redirect_login():
 # ==================== APIS PARA QR Y PAQUETES ====================
 
 def generar_codigo_qr():
-    """Generar código QR con formato QR0001, QR0002, etc. usando contador global"""
+    """Generar código QR con formato QR0001, QR0002, etc. usando contador global con reinicio en 9999"""
     connection = None
     cursor = None
     try:
@@ -608,19 +612,25 @@ def generar_codigo_qr():
             # Si no existe el contador, crearlo
             cursor.execute("""
                 INSERT INTO GlobalCounter (counter_type, counter_value, description) 
-                VALUES ('QR_CODE', 1, 'Contador para códigos QR')
+                VALUES ('QR_CODE', 1, 'Contador para códigos QR (formato QR0001, QR0002, etc.)')
             """)
             nuevo_numero = 1
         else:
             # Incrementar el contador
             nuevo_numero = resultado['counter_value'] + 1
+            
+            # Reiniciar si llega a 9999
+            if nuevo_numero > 9999:
+                nuevo_numero = 1
+                app.logger.warning("Contador QR reiniciado a 1 (llegó al límite de 9999)")
+            
             cursor.execute("""
                 UPDATE GlobalCounter 
                 SET counter_value = %s 
                 WHERE counter_type = 'QR_CODE'
             """, (nuevo_numero,))
         
-        # Formatear con 4 dígitos
+        # Formatear con 4 dígitos (reinicia en 1 después de 9999)
         nuevo_codigo = f"QR{nuevo_numero:04d}"  
         
         # Obtener información del usuario actual para el historial
@@ -661,7 +671,7 @@ def generar_codigo_qr():
 
 # función para generar múltiples QR con 4 cifras
 def generar_codigos_qr_lote(cantidad, nombre=""):
-    """Generar múltiples códigos QR con 4 cifras usando contador global"""
+    """Generar múltiples códigos QR con 4 cifras usando contador global con manejo de reinicio"""
     connection = None
     cursor = None
     try:
@@ -694,12 +704,84 @@ def generar_codigos_qr_lote(cantidad, nombre=""):
             numero_inicial = resultado['counter_value'] + 1
             numero_final = resultado['counter_value'] + cantidad
             
-            # Actualizar el contador
-            cursor.execute("""
-                UPDATE GlobalCounter 
-                SET counter_value = %s 
-                WHERE counter_type = 'QR_CODE'
-            """, (numero_final,))
+            # Manejar el caso donde el rango excede 9999
+            if numero_final > 9999:
+                # Parte del rango antes de 9999
+                numeros_antes_reinicio = 9999 - numero_inicial + 1
+                # Parte del rango después del reinicio
+                numeros_despues_reinicio = cantidad - numeros_antes_reinicio
+                
+                # Configurar dos rangos
+                rango1_inicio = numero_inicial
+                rango1_final = 9999
+                rango2_inicio = 1
+                rango2_final = numeros_despues_reinicio
+                
+                numero_final = numero_final - 9999  # Esto será el nuevo valor para el contador
+                
+                # Actualizar el contador
+                cursor.execute("""
+                    UPDATE GlobalCounter 
+                    SET counter_value = %s 
+                    WHERE counter_type = 'QR_CODE'
+                """, (numero_final,))
+                
+                codigos_generados = []
+                
+                # Obtener información del usuario actual para el historial
+                user_id = session.get('user_id')
+                user_name = session.get('user_name', 'Sistema')
+                local = session.get('user_local', 'El Mekatiadero')
+                hora_colombia = get_colombia_time()
+                fecha_hora_str = format_datetime_for_db(hora_colombia)
+                
+                # Generar códigos del primer rango (hasta 9999)
+                for i in range(rango1_inicio, rango1_final + 1):
+                    nuevo_codigo = f"QR{i:04d}"
+                    codigos_generados.append(nuevo_codigo)
+                    
+                    # Insertar en la tabla QRCode
+                    cursor.execute("""
+                        INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (nuevo_codigo, 0, 1, 1, nombre))
+                    
+                    # Registrar automáticamente en el historial
+                    cursor.execute("""
+                        INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
+                
+                # Generar códigos del segundo rango (después del reinicio)
+                for i in range(rango2_inicio, rango2_final + 1):
+                    nuevo_codigo = f"QR{i:04d}"
+                    codigos_generados.append(nuevo_codigo)
+                    
+                    # Insertar en la tabla QRCode
+                    cursor.execute("""
+                        INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (nuevo_codigo, 0, 1, 1, nombre))
+                    
+                    # Registrar automáticamente en el historial
+                    cursor.execute("""
+                        INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
+                
+                connection.commit()
+                
+                app.logger.warning(f"Contador QR reiniciado automáticamente al generar lote grande. Generados {cantidad} códigos")
+                app.logger.info(f"Generados {cantidad} códigos QR: desde QR{rango1_inicio:04d} hasta QR{rango1_final:04d} y desde QR{rango2_inicio:04d} hasta QR{rango2_final:04d} por {user_name}")
+                
+                return codigos_generados
+            else:
+                # Actualizar el contador normalmente
+                cursor.execute("""
+                    UPDATE GlobalCounter 
+                    SET counter_value = %s 
+                    WHERE counter_type = 'QR_CODE'
+                """, (numero_final,))
         
         codigos_generados = []
         
@@ -748,7 +830,7 @@ def generar_codigos_qr_lote(cantidad, nombre=""):
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_estado_contador():
-    """Obtener el estado actual del contador de QR"""
+    """Obtener el estado actual del contador de QR con información de reinicio"""
     connection = None
     cursor = None
     try:
@@ -775,9 +857,19 @@ def obtener_estado_contador():
         if not resultado:
             return api_response('E002', http_status=404, data={'message': 'Contador no encontrado'})
         
-        # Determinar el próximo código disponible
+        # Determinar el próximo código disponible con manejo de reinicio
         proximo_numero = resultado['counter_value'] + 1
-        proximo_codigo = f"QR{proximo_numero:04d}"
+        if proximo_numero > 9999:
+            proximo_numero = 1
+            proximo_codigo = f"QR{proximo_numero:04d}"
+            reinicio_pendiente = True
+        else:
+            proximo_codigo = f"QR{proximo_numero:04d}"
+            reinicio_pendiente = False
+        
+        # Calcular códigos disponibles hasta el próximo reinicio
+        codigos_disponibles = 9999 - resultado['counter_value']
+        porcentaje_restante = (codigos_disponibles / 9999) * 100
         
         return api_response(
             'S001',
@@ -787,7 +879,12 @@ def obtener_estado_contador():
                 'proximo_codigo': proximo_codigo,
                 'descripcion': resultado['description'],
                 'ultima_actualizacion': resultado['last_updated'].isoformat() if resultado['last_updated'] else None,
-                'total_qr_registrados': resultado['total_qr_registrados']
+                'total_qr_registrados': resultado['total_qr_registrados'],
+                'limite_superior': 9999,
+                'codigos_disponibles': codigos_disponibles,
+                'porcentaje_restante': round(porcentaje_restante, 2),
+                'reinicio_pendiente': reinicio_pendiente,
+                'advertencia': reinicio_pendiente and '¡El contador se reiniciará en el próximo QR generado!'
             }
         )
         
@@ -810,8 +907,8 @@ def reiniciar_contador():
         data = request.get_json()
         nuevo_valor = int(data['nuevo_valor'])
         
-        if nuevo_valor < 0:
-            return api_response('E005', http_status=400, data={'message': 'El valor no puede ser negativo'})
+        if nuevo_valor < 0 or nuevo_valor > 9999:
+            return api_response('E005', http_status=400, data={'message': 'El valor debe estar entre 0 y 9999'})
         
         connection = None
         cursor = None
@@ -835,7 +932,7 @@ def reiniciar_contador():
             cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
             resultado = cursor.fetchone()
             
-            app.logger.warning(f"Contador QR reiniciado a {nuevo_valor} por usuario {session.get('user_name')}")
+            app.logger.warning(f"Contador QR reiniciado manualmente a {nuevo_valor} por usuario {session.get('user_name')}")
             
             return api_response(
                 'S003',
@@ -843,6 +940,7 @@ def reiniciar_contador():
                 data={
                     'nuevo_valor': resultado['counter_value'] if resultado else nuevo_valor,
                     'proximo_codigo': f"QR{(resultado['counter_value'] + 1 if resultado else nuevo_valor + 1):04d}",
+                    'limite_superior': 9999,
                     'timestamp': get_colombia_time().isoformat()
                 }
             )
@@ -901,11 +999,19 @@ def generar_qr():
         cantidad = int(data['cantidad'])
         nombre = data.get('nombre', '')
         
-        if cantidad <= 0 or cantidad > 100:
+        if cantidad <= 0 or cantidad > 1000:
             return api_response(
                 'E005', 
                 http_status=400, 
-                data={'message': 'Cantidad debe estar entre 1 y 100'}
+                data={'message': 'Cantidad debe estar entre 1 y 1000'}
+            )
+        
+        # Verificar que no se exceda el límite máximo
+        if cantidad > 9999:
+            return api_response(
+                'E005',
+                http_status=400,
+                data={'message': 'No se pueden generar más de 9999 códigos a la vez'}
             )
         
         codigos_generados = generar_codigos_qr_lote(cantidad, nombre)
@@ -913,7 +1019,7 @@ def generar_qr():
         if not codigos_generados:
             return api_response('E001', http_status=500)
         
-        app.logger.info(f"Generados {len(codigos_generados)} códigos QR: {codigos_generados}")
+        app.logger.info(f"Generados {len(codigos_generados)} códigos QR: {codigos_generados[:5]}...")  # Mostrar solo primeros 5
         
         return api_response(
             'S002',
@@ -922,7 +1028,8 @@ def generar_qr():
                 'codigos': codigos_generados,
                 'cantidad': len(codigos_generados),
                 'nombre': nombre,
-                'formato': 'QRXXXX (4 dígitos)'
+                'formato': 'QRXXXX (4 dígitos, de QR0001 a QR9999)',
+                'nota': 'El contador se reiniciará automáticamente al llegar a QR9999'
             }
         )
         
@@ -934,16 +1041,24 @@ def generar_qr():
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_siguiente_qr():
-    """Obtener el siguiente código QR disponible"""
+    """Obtener el siguiente código QR disponible con manejo de reinicio"""
     siguiente_codigo = generar_codigo_qr()
     
     if not siguiente_codigo:
         return api_response('E001', http_status=500)
     
+    # Extraer el número del código para saber si se reinició
+    numero_qr = int(siguiente_codigo[2:])
+    
     return api_response(
         'S001',
         status='success',
-        data={'siguiente_codigo': siguiente_codigo}
+        data={
+            'siguiente_codigo': siguiente_codigo,
+            'numero_qr': numero_qr,
+            'es_reinicio': numero_qr == 1,
+            'mensaje': '¡Contador reiniciado!' if numero_qr == 1 else None
+        }
     )
 
 @app.route('/api/paquetes', methods=['GET'])
@@ -2634,7 +2749,7 @@ def crear_usuario():
         if len(password) < 6:
             return api_response('U003', http_status=400)
         
-        if role not in ['admin', 'cajero', 'admin_restaurante']:
+        if role not in ['admin', 'cajero', 'admin_restaurante', 'socio']:
             return api_response('U004', http_status=400)
         
         connection = get_db_connection()
@@ -2690,7 +2805,7 @@ def actualizar_usuario(usuario_id):
         role = data['role']
         notes = data.get('notes')
         
-        if role not in ['admin', 'cajero', 'admin_restaurante']:
+        if role not in ['admin', 'cajero', 'admin_restaurante', 'socio']:
             return api_response('U004', http_status=400)
         
         connection = get_db_connection()
@@ -4482,7 +4597,8 @@ def obtener_estadisticas_usuarios():
                 COUNT(CASE WHEN isActive = FALSE THEN 1 END) as inactivos,
                 COUNT(CASE WHEN role = 'admin' THEN 1 END) as admins,
                 COUNT(CASE WHEN role = 'cajero' THEN 1 END) as cajeros,
-                COUNT(CASE WHEN role = 'admin_restaurante' THEN 1 END) as admin_restaurante
+                COUNT(CASE WHEN role = 'admin_restaurante' THEN 1 END) as admin_restaurante,
+                COUNT(CASE WHEN role = 'socio' THEN 1 END) as socios
             FROM Users
         """)
         
@@ -4495,6 +4611,7 @@ def obtener_estadisticas_usuarios():
             'admins': estadisticas['admins'] or 0,
             'cajeros': estadisticas['cajeros'] or 0,
             'admin_restaurante': estadisticas['admin_restaurante'] or 0,
+            'socios': estadisticas['socios'] or 0,
             'timestamp': get_colombia_time().isoformat()
         })
         
@@ -4507,7 +4624,6 @@ def obtener_estadisticas_usuarios():
             cursor.close()
         if connection:
             connection.close()
-
 
 # ==================== RUTAS DE DEBUG ====================
 
@@ -5803,6 +5919,202 @@ def obtener_estadisticas_maquina(maquina_id):
         
     except Exception as e:
         app.logger.error(f"Error obteniendo estadísticas de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA GESTIÓN DE ROLES ====================
+
+@app.route('/api/roles/sistema', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_roles_sistema():
+    """Obtener los roles actuales del sistema desde la definición de la tabla"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener definición de la columna role
+        cursor.execute("""
+            SELECT COLUMN_TYPE 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = 'Users' 
+            AND COLUMN_NAME = 'role'
+        """)
+        
+        resultado = cursor.fetchone()
+        
+        if not resultado:
+            return api_response('E002', http_status=404, data={'message': 'No se encontró la columna role'})
+        
+        # Extraer los valores del ENUM
+        enum_str = resultado['COLUMN_TYPE']
+        # El formato es: enum('valor1','valor2','valor3')
+        roles = enum_str.replace("enum('", "").replace("')", "").replace("'", "").split(',')
+        
+        # Descripciones de los roles
+        descripciones = {
+            'admin': 'Acceso completo a todas las funciones del sistema',
+            'cajero': 'Puede registrar ventas y gestionar códigos QR',
+            'admin_restaurante': 'Gestión del restaurante y reportes específicos',
+            'socio': 'Acceso a reportes financieros y estadísticas de inversión'
+        }
+        
+        # Nombres amigables
+        nombres = {
+            'admin': 'Administrador',
+            'cajero': 'Cajero',
+            'admin_restaurante': 'Administrador Restaurante',
+            'socio': 'Socio'
+        }
+        
+        # Colores para UI
+        colores = {
+            'admin': 'purple',
+            'cajero': 'blue',
+            'admin_restaurante': 'teal',
+            'socio': 'pink'
+        }
+        
+        # Iconos
+        iconos = {
+            'admin': 'user-shield',
+            'cajero': 'cash-register',
+            'admin_restaurante': 'store',
+            'socio': 'user-tie'
+        }
+        
+        roles_detallados = []
+        for rol in roles:
+            roles_detallados.append({
+                'id': rol,
+                'nombre': nombres.get(rol, rol.capitalize()),
+                'descripcion': descripciones.get(rol, 'Rol del sistema'),
+                'color': colores.get(rol, 'gray'),
+                'icono': iconos.get(rol, 'user'),
+                'total_usuarios': 0
+            })
+        
+        # Contar usuarios por rol
+        for rol_info in roles_detallados:
+            cursor.execute("SELECT COUNT(*) as count FROM Users WHERE role = %s", (rol_info['id'],))
+            count_result = cursor.fetchone()
+            rol_info['total_usuarios'] = count_result['count'] if count_result else 0
+        
+        return jsonify({
+            'roles': roles_detallados,
+            'total_roles': len(roles),
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo roles del sistema: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/roles/agregar-automatico', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def agregar_nuevo_rol_automatico():
+    """Agregar nuevo rol automáticamente (PELIGROSO - solo para desarrollo)"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        nuevo_rol = data.get('nuevo_rol', '').strip().lower()
+        
+        if not nuevo_rol:
+            return api_response('E005', http_status=400, data={'message': 'Nombre del rol requerido'})
+        
+        # Validar formato
+        if not re.match(r'^[a-z_]+$', nuevo_rol):
+            return api_response('E005', http_status=400, data={'message': 'Nombre inválido. Solo letras minúsculas y guiones bajos'})
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener definición de la columna role
+        cursor.execute("""
+            SELECT COLUMN_TYPE 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = 'Users' 
+            AND COLUMN_NAME = 'role'
+        """)
+        
+        resultado = cursor.fetchone()
+        
+        if not resultado:
+            return api_response('E002', http_status=404, data={'message': 'No se encontró la columna role'})
+        
+        # Extraer roles actuales
+        enum_str = resultado['COLUMN_TYPE']
+        roles_actuales = enum_str.replace("enum('", "").replace("')", "").replace("'", "").split(',')
+        
+        # Verificar si el rol ya existe
+        if nuevo_rol in roles_actuales:
+            return api_response('E007', http_status=400, data={'message': 'El rol ya existe'})
+        
+        # Agregar nuevo rol a la lista
+        roles_actuales.append(nuevo_rol)
+        
+        # Generar y ejecutar SQL automáticamente
+        sql = f"ALTER TABLE Users MODIFY COLUMN role ENUM('{','.join(roles_actuales)}') NOT NULL;"
+        
+        try:
+            cursor.execute(sql)
+            connection.commit()
+            
+            # Verificar que se aplicó
+            cursor.execute("""
+                SELECT COLUMN_TYPE 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'Users' 
+                AND COLUMN_NAME = 'role'
+            """)
+            
+            resultado_final = cursor.fetchone()
+            
+            return jsonify({
+                'success': True,
+                'sql_ejecutado': sql,
+                'nuevo_rol': nuevo_rol,
+                'roles_actuales': roles_actuales,
+                'message': f'Rol "{nuevo_rol}" agregado exitosamente a la base de datos',
+                'advertencia': 'Se modificó la estructura de la tabla. Asegúrate de tener un backup.'
+            })
+            
+        except mysql.connector.Error as db_error:
+            connection.rollback()
+            app.logger.error(f"Error SQL ejecutando ALTER TABLE: {db_error}")
+            return api_response('E001', http_status=500, data={
+                'message': f'Error de base de datos: {str(db_error)}',
+                'sql': sql
+            })
+        
+    except Exception as e:
+        app.logger.error(f"Error agregando nuevo rol automático: {e}")
+        if connection:
+            connection.rollback()
+        sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
     finally:
         if cursor:

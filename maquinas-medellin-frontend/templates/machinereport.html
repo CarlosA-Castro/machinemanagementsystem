@@ -67,6 +67,28 @@
       border-color: rgba(59, 130, 246, 0.3);
     }
     
+    .machine-item div {
+      transition: all 0.3s ease;
+    }
+    
+    .machine-item:hover div {
+      transform: scale(1.05);
+    }
+    
+    .machine-item:hover i {
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    .machine-item:active div {
+      transform: scale(0.98);
+    }
+    
     .loading {
       display: inline-block;
       width: 20px;
@@ -138,8 +160,8 @@
         gap: 0.75rem !important;
       }
       
-      .machine-item img {
-        height: 120px !important;
+      .machine-item div {
+        height: 100px !important;
       }
       
       .btn-touch {
@@ -160,8 +182,8 @@
         text-align: center;
       }
       
-      .machine-item img {
-        height: 150px !important;
+      .machine-item div {
+        height: 120px !important;
       }
       
       .glass-card {
@@ -202,7 +224,7 @@
           <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-chart-line mr-2"></i>Ventas
           </a>
-          {% if session.get('user_role') == 'Admin' %}
+          {% if session.get('user_role') == 'admin' %}
           <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-user-cog mr-2"></i>Admin
           </a>
@@ -254,65 +276,89 @@
           </h2>
           <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 
-            <!-- Máquinas -->
+            <!-- Máquinas con animaciones -->
             <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/Basket.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-orange-100 to-orange-200">
+                <i class="fas fa-basketball-ball text-4xl text-orange-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Basket</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/DiscoHockey.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-blue-100 to-blue-200">
+                <i class="fas fa-hockey-puck text-4xl text-blue-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Disco Hockey</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/Pelea.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-red-100 to-red-200">
+                <i class="fas fa-fist-raised text-4xl text-red-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Pelea</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/peluches1.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-pink-100 to-pink-200">
+                <i class="fas fa-stuffed-portrait text-4xl text-pink-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Peluches 1</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/Peluches2.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-purple-100 to-purple-200">
+                <i class="fas fa-soft-drink text-4xl text-purple-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Peluches 2</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/Simulador1.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-green-100 to-green-200">
+                <i class="fas fa-gamepad text-4xl text-green-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Simulador 1</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/Simulador2.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-teal-100 to-teal-200">
+                <i class="fas fa-joystick text-4xl text-teal-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Simulador 2</p>
             </div>
             
             <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/SimuladorConnection.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-yellow-100 to-yellow-200">
+                <i class="fas fa-network-wired text-4xl text-yellow-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Máquina De Simulador Connection</p>
             </div>
 
-            <!-- Máquinas adicionales de tu base de datos -->
+            <!-- Máquinas adicionales -->
             <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-indigo-100 to-indigo-200">
+                <i class="fas fa-couch text-4xl text-indigo-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Sillas Masajes</p>
             </div>
             
             <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-red-100 to-red-200">
+                <i class="fas fa-car text-4xl text-red-700"></i>
+              </div>
               <p class="font-semibold text-center text-sm">McQueen</p>
             </div>
             
             <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-brown-100 to-brown-200">
+                <i class="fas fa-horse text-4xl text-brown-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Caballito</p>
             </div>
             
             <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <img src="{{ url_for('static', filename='img/default-machine.jpg') }}" class="rounded-lg shadow-md w-full h-32 object-cover mb-2" />
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-gray-100 to-gray-200">
+                <i class="fas fa-train text-4xl text-gray-600"></i>
+              </div>
               <p class="font-semibold text-center text-sm">Trencito</p>
             </div>
           </div>
@@ -341,6 +387,25 @@
           <span id="maquinaSeleccionada" class="font-semibold text-blue-600"></span>
           <span class="font-semibold">ID:</span>
           <span id="maquinaIdSeleccionada" class="font-semibold text-gray-600"></span>
+        </div>
+
+        <!-- Información de estado de la máquina -->
+        <div id="infoMaquina" class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+          <div class="flex justify-between">
+            <span class="font-medium text-gray-700">Estado:</span>
+            <span id="estadoMaquina" class="font-semibold flex items-center">
+              <span id="estadoIcono" class="mr-1"></span>
+              <span id="estadoTexto">Cargando...</span>
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="font-medium text-gray-700">Último juego:</span>
+            <span id="ultimoJuego" class="font-semibold text-gray-600">Cargando...</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="font-medium text-gray-700">Turnos fallados:</span>
+            <span id="turnosFallados" class="font-semibold text-gray-600">Cargando...</span>
+          </div>
         </div>
 
         <div class="mt-3">
@@ -446,7 +511,91 @@
       console.log("Machine Report App inicializada correctamente");
     });
 
-    function abrirModal(nombre, id) {
+    // Función para obtener información de la máquina desde la API
+    async function obtenerInfoMaquina(machineId) {
+      try {
+        const response = await fetch(`/api/maquinas/${machineId}`, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return data;
+        } else {
+          console.error('Error obteniendo información de máquina:', response.status);
+          return null;
+        }
+      } catch (error) {
+        console.error('Error obteniendo información de máquina:', error);
+        return null;
+      }
+    }
+
+    // Función para obtener el último uso desde la API
+    async function obtenerUltimoJuego(machineId) {
+      try {
+        const response = await fetch(`/api/estadisticas/rango-fechas?fecha_inicio=${new Date().toISOString().split('T')[0]}&fecha_fin=${new Date().toISOString().split('T')[0]}`, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Buscar en las máquinas populares
+          const maquina = data.maquinas_populares?.find(m => m.id === machineId);
+          if (maquina && maquina.ultimo_uso) {
+            return new Date(maquina.ultimo_uso).toLocaleTimeString('es-CO');
+          }
+        }
+        
+        // Si no hay datos específicos, mostrar hora actual como ejemplo
+        return new Date().toLocaleTimeString('es-CO', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        });
+      } catch (error) {
+        console.error('Error obteniendo último juego:', error);
+        return 'No disponible';
+      }
+    }
+
+    // Función para actualizar la información en el modal
+    function actualizarInfoModal(info) {
+      if (!info) return;
+      
+      // Actualizar estado
+      const estadoElemento = document.getElementById('estadoTexto');
+      const estadoIcono = document.getElementById('estadoIcono');
+      const turnosFallados = document.getElementById('turnosFallados');
+      
+      if (info.status === 'activa') {
+        estadoElemento.textContent = 'Activa';
+        estadoElemento.className = 'font-semibold text-green-600 flex items-center';
+        estadoIcono.innerHTML = '<i class="fas fa-check-circle mr-1 text-green-500"></i>';
+        estadoIcono.className = 'text-green-500';
+      } else if (info.status === 'mantenimiento') {
+        estadoElemento.textContent = 'En mantenimiento';
+        estadoElemento.className = 'font-semibold text-yellow-600 flex items-center';
+        estadoIcono.innerHTML = '<i class="fas fa-tools mr-1 text-yellow-500"></i>';
+        estadoIcono.className = 'text-yellow-500';
+      } else if (info.status === 'inactiva') {
+        estadoElemento.textContent = 'Inactiva';
+        estadoElemento.className = 'font-semibold text-red-600 flex items-center';
+        estadoIcono.innerHTML = '<i class="fas fa-times-circle mr-1 text-red-500"></i>';
+        estadoIcono.className = 'text-red-500';
+      }
+      
+      // Actualizar turnos fallados
+      turnosFallados.textContent = info.dailyFailedTurns || 0;
+    }
+
+    async function abrirModal(nombre, id) {
       maquinaActual = nombre;
       maquinaIdActual = id;
       
@@ -454,7 +603,35 @@
       document.getElementById("maquinaIdSeleccionada").innerText = id;
       document.getElementById("tipoProblema").value = "mantenimiento";
       document.getElementById("descripcionFalla").value = "";
+      
+      // Resetear información mientras se carga
+      document.getElementById("estadoTexto").textContent = "Cargando...";
+      document.getElementById("ultimoJuego").textContent = "Cargando...";
+      document.getElementById("turnosFallados").textContent = "Cargando...";
+      document.getElementById("estadoIcono").innerHTML = '<div class="loading"></div>';
+      
+      // Mostrar el modal inmediatamente
       document.getElementById("modal").classList.remove("hidden");
+      
+      // Cargar información de la máquina en segundo plano
+      try {
+        // Obtener información básica de la máquina
+        const infoMaquina = await obtenerInfoMaquina(id);
+        if (infoMaquina) {
+          actualizarInfoModal(infoMaquina);
+        }
+        
+        // Obtener último juego (ejemplo por ahora)
+        const ultimoJuego = await obtenerUltimoJuego(id);
+        document.getElementById("ultimoJuego").textContent = ultimoJuego || "No disponible";
+        
+      } catch (error) {
+        console.error('Error cargando información:', error);
+        document.getElementById("estadoTexto").textContent = "Error cargando";
+        document.getElementById("ultimoJuego").textContent = "No disponible";
+        document.getElementById("turnosFallados").textContent = "N/A";
+        document.getElementById("estadoIcono").innerHTML = '<i class="fas fa-exclamation-triangle text-red-500"></i>';
+      }
     }
 
     function cerrarModal() {
@@ -462,57 +639,57 @@
     }
 
     async function confirmarFalla() {
-    const descripcion = document.getElementById("descripcionFalla").value.trim();
-    const tipoProblema = document.getElementById("tipoProblema").value;
+      const descripcion = document.getElementById("descripcionFalla").value.trim();
+      const tipoProblema = document.getElementById("tipoProblema").value;
 
-    if (!descripcion) {
-        mostrarAlerta('❌ Por favor, describa el problema', 'error');
-        return;
+      if (!descripcion) {
+          mostrarAlerta('❌ Por favor, describa el problema', 'error');
+          return;
+      }
+
+      try {
+          mostrarAlerta('<div class="loading mr-2"></div> Reportando falla...', 'info');
+          
+          // Usar el endpoint correcto con todos los campos necesarios
+          const response = await fetch('/api/reportar-falla-maquina', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: JSON.stringify({
+                  machine_id: maquinaIdActual,
+                  machine_name: maquinaActual,  // AÑADIR ESTE CAMPO
+                  description: descripcion,
+                  problem_type: tipoProblema
+              })
+          });
+
+          const result = await response.json();
+          console.log('Respuesta del servidor:', result);  // Para depuración
+
+          if (response.ok) {
+              // Verificar diferentes formatos de respuesta
+              if (result.status === 'success' || result.success === true) {
+                  mostrarAlerta(`✅ ${result.message || 'Falla reportada correctamente'}`, 'success');
+                  console.log(`Reporte ID: ${result.data?.error_report_id}`);
+              } else {
+                  // Si no tiene status='success', mostrar el mensaje de error
+                  throw new Error(result.message || 'Error al reportar la falla');
+              }
+          } else {
+              // Si la respuesta HTTP no es OK
+              throw new Error(result.message || `Error ${response.status}: ${response.statusText}`);
+          }
+      } catch (error) {
+          console.error('Error:', error);
+          mostrarAlerta(`❌ ${error.message}`, 'error');
+      }
+      
+      cerrarModal();
     }
 
-    try {
-        mostrarAlerta('<div class="loading mr-2"></div> Reportando falla...', 'info');
-        
-        // Usar el endpoint correcto con todos los campos necesarios
-        const response = await fetch('/api/reportar-falla-maquina', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                machine_id: maquinaIdActual,
-                machine_name: maquinaActual,  // AÑADIR ESTE CAMPO
-                description: descripcion,
-                problem_type: tipoProblema
-            })
-        });
-
-        const result = await response.json();
-        console.log('Respuesta del servidor:', result);  // Para depuración
-
-        if (response.ok) {
-            // Verificar diferentes formatos de respuesta
-            if (result.status === 'success' || result.success === true) {
-                mostrarAlerta(`✅ ${result.message || 'Falla reportada correctamente'}`, 'success');
-                console.log(`Reporte ID: ${result.data?.error_report_id}`);
-            } else {
-                // Si no tiene status='success', mostrar el mensaje de error
-                throw new Error(result.message || 'Error al reportar la falla');
-            }
-        } else {
-            // Si la respuesta HTTP no es OK
-            throw new Error(result.message || `Error ${response.status}: ${response.statusText}`);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        mostrarAlerta(`❌ ${error.message}`, 'error');
-    }
-    
-    cerrarModal();
-}
-
-function mostrarAlerta(mensaje, tipo) {
+    function mostrarAlerta(mensaje, tipo) {
       const toast = document.createElement('div');
       toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
         tipo === 'error' ? 'bg-red-500' : 
@@ -532,6 +709,49 @@ function mostrarAlerta(mensaje, tipo) {
       setTimeout(() => {
         toast.remove();
       }, 4000);
+    }
+
+    // Funciones auxiliares opcionales para más detalles
+    // Función para obtener el estado real desde la API TFT
+    async function obtenerEstadoRealMaquina(machineId) {
+      try {
+        const response = await fetch(`/api/tft/machine-status/${machineId}`, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return data;
+        }
+        return null;
+      } catch (error) {
+        console.error('Error obteniendo estado real:', error);
+        return null;
+      }
+    }
+
+    // Función para obtener reportes recientes de la máquina
+    async function obtenerReportesRecientes(machineId) {
+      try {
+        const response = await fetch(`/api/maquinas/${machineId}/reportes`, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return data;
+        }
+        return null;
+      } catch (error) {
+        console.error('Error obteniendo reportes:', error);
+        return null;
+      }
     }
   </script>
 </body>

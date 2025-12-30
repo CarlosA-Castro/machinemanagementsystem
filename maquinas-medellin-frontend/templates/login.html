@@ -145,60 +145,68 @@
   // Namespace para Login App
   const LoginApp = {
     verificarCodigo: function() {
-      const codigo = document.getElementById("codigoEmpleado").value.trim();
-      const loadingElement = document.getElementById("loading");
+  const codigo = document.getElementById("codigoEmpleado").value.trim();
+  const loadingElement = document.getElementById("loading");
 
-      if (!codigo) {
-        this.mostrarAlerta("Por favor ingrese su código.", "warning");
-        return;
-      }
+  if (!codigo) {
+    this.mostrarAlerta("Por favor ingrese su código.", "warning");
+    return;
+  }
 
-      // Mostrar loading
-      loadingElement.classList.remove('hidden');
-      document.querySelector('button').disabled = true;
+  // Mostrar loading
+  loadingElement.classList.remove('hidden');
+  document.querySelector('button').disabled = true;
 
-      fetch("/login", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest"
-        },
-        body: JSON.stringify({ codigo })
-      })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error('Error en la respuesta del servidor');
-        }
-        return res.json();
-      })
-      .then(data => {
-        loadingElement.classList.add('hidden');
-        document.querySelector('button').disabled = false;
-        
-        if (data.valido) {
-          sessionStorage.setItem("nombreUsuario", data.nombre);
-          sessionStorage.setItem("rolUsuario", data.role);
-          sessionStorage.setItem("localUsuario", data.local);
-          sessionStorage.setItem("userId", data.user_id || '');
-          
-          console.log("✅ Login exitoso. Rol:", data.role);
-          
-          if (data.role === 'admin') {
-            this.mostrarModalSeleccion(data.role);
-          } else {
-            window.location.href = "/local";
-          }
-        } else {
-          this.mostrarAlerta("Código inválido. Intenta de nuevo.", "error");
-        }
-      })
-      .catch(err => {
-        loadingElement.classList.add('hidden');
-        document.querySelector('button').disabled = false;
-        console.error("Error:", err);
-        this.mostrarAlerta("Error de conexión. Intente nuevamente.", "error");
-      });
+  fetch("/login", {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest"
     },
+    body: JSON.stringify({ codigo })
+  })
+  .then(res => {
+    if (!res.ok) {
+      throw new Error('Error en la respuesta del servidor');
+    }
+    return res.json();
+  })
+  .then(data => {
+    loadingElement.classList.add('hidden');
+    document.querySelector('button').disabled = false;
+    
+    if (data.valido) {
+      sessionStorage.setItem("nombreUsuario", data.nombre);
+      sessionStorage.setItem("rolUsuario", data.role);
+      sessionStorage.setItem("localUsuario", data.local);
+      sessionStorage.setItem("userId", data.user_id || '');
+      
+      console.log("✅ Login exitoso. Rol:", data.role);
+      
+      // MODIFICACIÓN: Manejo específico para socios
+      if (data.role === 'socio') {
+        // Redirigir directamente a socios.html
+        window.location.href = "/socios";
+      } else if (data.role === 'admin') {
+        this.mostrarModalSeleccion(data.role);
+      } else if (data.role === 'admin_restaurante') {
+        // También mostrar modal para admin_restaurante
+        this.mostrarModalSeleccion(data.role);
+      } else {
+        // Para cajeros y otros roles, redirigir a local
+        window.location.href = "/local";
+      }
+    } else {
+      this.mostrarAlerta("Código inválido. Intenta de nuevo.", "error");
+    }
+  })
+  .catch(err => {
+    loadingElement.classList.add('hidden');
+    document.querySelector('button').disabled = false;
+    console.error("Error:", err);
+    this.mostrarAlerta("Error de conexión. Intente nuevamente.", "error");
+  });
+},
 
     mostrarModalSeleccion: function(rol) {
       const esAdminRestaurante = rol === 'admin_restaurante';
