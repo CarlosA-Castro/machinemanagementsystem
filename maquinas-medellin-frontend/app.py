@@ -2328,12 +2328,21 @@ def resolver_reporte(reporte_id):
         data = request.get_json()
         comentarios = data.get('comentarios', '')
         user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        user_role = session.get('user_role')
         
-        app.logger.info(f"Datos recibidos: comentarios='{comentarios}', user_id={user_id}")
+        # DEPURACIÓN DETALLADA
+        app.logger.info(f"DEPURACIÓN - user_id: {user_id}, user_name: {user_name}, user_role: {user_role}")
+        app.logger.info(f"Datos recibidos: {data}")
+        app.logger.info(f"Comentarios: '{comentarios}'")
         
         if not user_id:
-            app.logger.error("Usuario no autenticado")
-            return api_response('E003', http_status=401)
+            app.logger.error("Usuario no autenticado - Sesión inválida")
+            return api_response('E003', http_status=401, data={'message': 'Usuario no autenticado'})
+        
+        if user_role != 'admin':
+            app.logger.error(f"Usuario {user_name} no es admin, es {user_role}")
+            return api_response('E004', http_status=403, data={'message': 'Solo administradores pueden resolver reportes'})
         
         connection = get_db_connection()
         if not connection:
@@ -2341,6 +2350,11 @@ def resolver_reporte(reporte_id):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
+        
+        # Test de conexión
+        cursor.execute("SELECT 1 as test")
+        test_result = cursor.fetchone()
+        app.logger.info(f"Conexión BD test: {test_result}")
         
         # Verificar que el reporte existe
         cursor.execute("SELECT id FROM ErrorReport WHERE id = %s", (reporte_id,))
@@ -2371,78 +2385,52 @@ def resolver_reporte(reporte_id):
         app.logger.info(f"Máquina asociada: id={machine_id}, nombre={machine_name}")
         
         # Iniciar transacción
-        connection.start_transaction()
+     #connection.start_transaction()
         
         try:
             # 1. Marcar reporte como resuelto en ErrorReport
             app.logger.info("Actualizando ErrorReport...")
-            # Verificar columnas disponibles
-            cursor.execute("SHOW COLUMNS FROM ErrorReport LIKE 'resolved%'")
-            columnas_resolved = cursor.fetchall()
-            app.logger.info(f"Columnas resolved en ErrorReport: {columnas_resolved}")
             
-            # Usar el nombre correcto de la columna
             query_update_er = """
                 UPDATE ErrorReport 
-                SET isResolved = TRUE
-                """
-            
-            # Agregar resolved_at si existe
-            if any('resolved_at' in col.values() for col in columnas_resolved):
-                query_update_er += ", resolved_at = NOW()"
-            
-            query_update_er += " WHERE id = %s"
+                SET isResolved = TRUE, resolved_at = NOW()
+                WHERE id = %s
+            """
             
             cursor.execute(query_update_er, (reporte_id,))
             app.logger.info(f"ErrorReport actualizado: {cursor.rowcount} filas afectadas")
             
-            # 2. Crear registro en confirmation_logs
+            # 2. Crear registro en confirmation_logs (VERSIÓN SIMPLIFICADA)
             app.logger.info("Insertando en confirmation_logs...")
             
-            # Verificar si existe la tabla confirmation_logs
-            cursor.execute("SHOW TABLES LIKE 'confirmation_logs'")
-            tabla_existe = cursor.fetchone()
-            
-            if tabla_existe:
-                # Verificar estructura de confirmation_logs
-                cursor.execute("DESCRIBE confirmation_logs")
-                estructura_logs = cursor.fetchall()
-                app.logger.info(f"Estructura confirmation_logs: {estructura_logs}")
+            # Insertar sin foreign keys primero (para debug)
+            try:
+                insert_query = """
+                    INSERT INTO confirmation_logs 
+                    (fault_report_id, admin_id, confirmation_status, comments)
+                    VALUES (%s, %s, %s, %s)
+                """
+                app.logger.info(f"Query: {insert_query}")
+                app.logger.info(f"Valores: {reporte_id}, {user_id}, 'resuelta', '{comentarios}'")
                 
-                # Insertar usando los nombres de columna correctos
+                cursor.execute(insert_query, (reporte_id, user_id, 'resuelta', comentarios))
+                confirmation_id = cursor.lastrowid
+                app.logger.info(f"Registro creado en confirmation_logs con ID: {confirmation_id}")
+            except Exception as insert_error:
+                app.logger.error(f"Error insertando en confirmation_logs: {insert_error}")
+                # Si falla, intentar sin comments
                 cursor.execute("""
                     INSERT INTO confirmation_logs 
-                    (fault_report_id, admin_id, confirmation_status, comments)
-                    VALUES (%s, %s, %s, %s)
-                """, (reporte_id, user_id, 'resuelta', comentarios))
-                app.logger.info(f"Registro creado en confirmation_logs con ID: {cursor.lastrowid}")
-            else:
-                app.logger.warning("Tabla confirmation_logs no existe")
-                # Crear tabla si no existe
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS confirmation_logs (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        fault_report_id INT NOT NULL,
-                        admin_id INT NOT NULL,
-                        confirmation_status ENUM('confirmada','rechazada','resuelta') NOT NULL,
-                        comments TEXT,
-                        confirmation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        INDEX idx_fault_report (fault_report_id),
-                        INDEX idx_admin (admin_id)
-                    )
-                """)
-                cursor.execute("""
-                    INSERT INTO confirmation_logs 
-                    (fault_report_id, admin_id, confirmation_status, comments)
-                    VALUES (%s, %s, %s, %s)
-                """, (reporte_id, user_id, 'resuelta', comentarios))
-                app.logger.info("Tabla confirmation_logs creada y registro insertado")
+                    (fault_report_id, admin_id, confirmation_status)
+                    VALUES (%s, %s, %s)
+                """, (reporte_id, user_id, 'resuelta'))
+                confirmation_id = cursor.lastrowid
+                app.logger.info(f"Registro creado (sin comments) con ID: {confirmation_id}")
             
             # 3. Cambiar estado de la máquina si es necesario
             if machine_id:
                 app.logger.info(f"Actualizando estado de máquina {machine_id}...")
                 
-                # Solo cambiar a activa si estaba en mantenimiento o inactiva
                 cursor.execute("""
                     UPDATE Machine 
                     SET status = 'activa'
@@ -2463,18 +2451,139 @@ def resolver_reporte(reporte_id):
                 data={
                     'machine_id': machine_id,
                     'reporte_id': reporte_id,
-                    'machine_name': machine_name
+                    'machine_name': machine_name,
+                    'confirmation_id': confirmation_id,
+                    'resolved_by': user_name
                 }
             )
             
         except Exception as trans_error:
             app.logger.error(f"Error en transacción: {trans_error}", exc_info=True)
             connection.rollback()
-            raise trans_error
+            
+            # Dar más detalles del error
+            error_msg = str(trans_error)
+            
+            # Verificar errores específicos
+            if "confirmation_logs" in error_msg:
+                # Probar estructura de la tabla
+                app.logger.info("Verificando estructura de confirmation_logs...")
+                try:
+                    cursor.execute("DESCRIBE confirmation_logs")
+                    estructura = cursor.fetchall()
+                    app.logger.info(f"Estructura: {estructura}")
+                except Exception as e:
+                    app.logger.error(f"Error verificando estructura: {e}")
+            
+            raise Exception(f"Error en transacción: {error_msg}")
             
     except Exception as e:
         app.logger.error(f"Error resolviendo reporte: {e}", exc_info=True)
         return api_response('E001', http_status=500, data={'error_detail': str(e)})
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/debug/tabla-confirmation-logs', methods=['GET'])
+def debug_confirmation_logs():
+    """Debug: Ver estructura exacta de confirmation_logs"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        # 1. Ver estructura
+        cursor.execute("DESCRIBE confirmation_logs")
+        estructura = cursor.fetchall()
+        
+        # 2. Ver valores ENUM
+        cursor.execute("SHOW COLUMNS FROM confirmation_logs LIKE 'confirmation_status'")
+        enum_info = cursor.fetchone()
+        
+        # 3. Intentar insertar manualmente
+        test_data = {
+            'fault_report_id': 5,
+            'admin_id': session.get('user_id', 1),
+            'confirmation_status': 'resuelta',
+            'comments': 'test desde API'
+        }
+        
+        try:
+            cursor.execute("""
+                INSERT INTO confirmation_logs 
+                (fault_report_id, admin_id, confirmation_status, comments)
+                VALUES (%s, %s, %s, %s)
+            """, (test_data['fault_report_id'], test_data['admin_id'], 
+                  test_data['confirmation_status'], test_data['comments']))
+            
+            test_id = cursor.lastrowid
+            connection.commit()
+            
+            cursor.execute("SELECT * FROM confirmation_logs WHERE id = %s", (test_id,))
+            registro_insertado = cursor.fetchone()
+            
+            return jsonify({
+                'estructura': estructura,
+                'enum_info': enum_info,
+                'test_insert': {
+                    'success': True,
+                    'id': test_id,
+                    'registro': registro_insertado
+                }
+            })
+            
+        except Exception as insert_error:
+            connection.rollback()
+            return jsonify({
+                'estructura': estructura,
+                'enum_info': enum_info,
+                'test_insert': {
+                    'success': False,
+                    'error': str(insert_error),
+                    'error_type': type(insert_error).__name__
+                }
+            })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/debug/reporte-5', methods=['GET'])
+def debug_reporte_5():
+    """Debug: Verificar reporte con ID 5"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                er.*, 
+                m.name as machine_name,
+                u.name as user_name
+            FROM ErrorReport er
+            LEFT JOIN Machine m ON er.machineId = m.id
+            LEFT JOIN Users u ON er.userId = u.id
+            WHERE er.id = 5
+        """)
+        
+        reporte = cursor.fetchone()
+        
+        return jsonify({
+            'reporte_5': reporte,
+            'exists': reporte is not None
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
     finally:
         if cursor:
             cursor.close()
