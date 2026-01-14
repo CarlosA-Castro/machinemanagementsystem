@@ -176,7 +176,7 @@ class MessageService:
         """Obtiene conexión a la base de datos"""
         try:
             conn = mysql.connector.connect(
-                host="localhost",
+                host="mysql",
                 user="root",
                 password="",
                 database="maquinasmedellin",
@@ -669,8 +669,43 @@ def generar_codigo_qr():
         if connection:
             connection.close()
 
-# función para generar múltiples QR con 4 cifras
-def generar_codigos_qr_lote(cantidad, nombre=""):
+@app.route('/api/debug-generar-qr', methods=['POST'])
+def debug_generar_qr():
+    """Endpoint temporal para debug del generador QR"""
+    try:
+        data = request.get_json()
+        cantidad = int(data.get('cantidad', 1))
+        nombre = data.get('nombre', '')
+        
+        print(f"DEBUG: Intentando generar {cantidad} QR")
+        
+        # Llamar directamente a la función
+        codigos = generar_codigos_qr_lote(cantidad, nombre)
+        
+        if not codigos:
+            return jsonify({
+                'error': 'La función retornó lista vacía',
+                'cantidad': cantidad,
+                'nombre': nombre
+            }), 500
+            
+        return jsonify({
+            'success': True,
+            'codigos': codigos,
+            'cantidad': len(codigos)
+        })
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"ERROR DETALLADO: {error_detail}")
+        return jsonify({
+            'error': str(e),
+            'traceback': error_detail
+        }), 500
+    
+    # función para generar múltiples QR con 4 cifras
+def generar_codigos_qr_lote(cantidad_qr, nombre=""):
     """Generar múltiples códigos QR con 4 cifras usando contador global con manejo de reinicio"""
     connection = None
     cursor = None
@@ -696,20 +731,20 @@ def generar_codigos_qr_lote(cantidad, nombre=""):
             cursor.execute("""
                 INSERT INTO GlobalCounter (counter_type, counter_value, description) 
                 VALUES ('QR_CODE', %s, 'Contador para códigos QR')
-            """, (cantidad,))
+            """, (cantidad_qr,))
             numero_inicial = 1
-            numero_final = cantidad
+            numero_final = cantidad_qr
         else:
             # Tomar el valor actual y calcular el rango
             numero_inicial = resultado['counter_value'] + 1
-            numero_final = resultado['counter_value'] + cantidad
+            numero_final = resultado['counter_value'] + cantidad_qr
             
             # Manejar el caso donde el rango excede 9999
             if numero_final > 9999:
                 # Parte del rango antes de 9999
                 numeros_antes_reinicio = 9999 - numero_inicial + 1
                 # Parte del rango después del reinicio
-                numeros_despues_reinicio = cantidad - numeros_antes_reinicio
+                numeros_despues_reinicio = cantidad_qr - numeros_antes_reinicio
                 
                 # Configurar dos rangos
                 rango1_inicio = numero_inicial
@@ -717,14 +752,14 @@ def generar_codigos_qr_lote(cantidad, nombre=""):
                 rango2_inicio = 1
                 rango2_final = numeros_despues_reinicio
                 
-                numero_final = numero_final - 9999  # Esto será el nuevo valor para el contador
+                nuevo_valor_contador = numeros_despues_reinicio
                 
                 # Actualizar el contador
                 cursor.execute("""
                     UPDATE GlobalCounter 
                     SET counter_value = %s 
                     WHERE counter_type = 'QR_CODE'
-                """, (numero_final,))
+                """, (nuevo_valor_contador,))
                 
                 codigos_generados = []
                 
@@ -771,8 +806,8 @@ def generar_codigos_qr_lote(cantidad, nombre=""):
                 
                 connection.commit()
                 
-                app.logger.warning(f"Contador QR reiniciado automáticamente al generar lote grande. Generados {cantidad} códigos")
-                app.logger.info(f"Generados {cantidad} códigos QR: desde QR{rango1_inicio:04d} hasta QR{rango1_final:04d} y desde QR{rango2_inicio:04d} hasta QR{rango2_final:04d} por {user_name}")
+                app.logger.warning(f"Contador QR reiniciado automáticamente al generar lote grande. Generados {cantidad_qr} códigos")
+                app.logger.info(f"Generados {cantidad_qr} códigos QR: desde QR{rango1_inicio:04d} hasta QR{rango1_final:04d} y desde QR{rango2_inicio:04d} hasta QR{rango2_final:04d} por {user_name}")
                 
                 return codigos_generados
             else:
@@ -811,7 +846,7 @@ def generar_codigos_qr_lote(cantidad, nombre=""):
         
         connection.commit()
         
-        app.logger.info(f"Generados {cantidad} códigos QR: desde QR{numero_inicial:04d} hasta QR{numero_final:04d} por {user_name}")
+        app.logger.info(f"Generados {cantidad_qr} códigos QR: desde QR{numero_inicial:04d} hasta QR{numero_final:04d} por {user_name}")
         
         return codigos_generados
         
@@ -998,6 +1033,7 @@ def generar_qr():
         data = request.get_json()
         cantidad = int(data['cantidad'])
         nombre = data.get('nombre', '')
+        paquete_id = data.get('paquete_id')
         
         if cantidad <= 0 or cantidad > 1000:
             return api_response(
@@ -1014,24 +1050,68 @@ def generar_qr():
                 data={'message': 'No se pueden generar más de 9999 códigos a la vez'}
             )
         
-        codigos_generados = generar_codigos_qr_lote(cantidad, nombre)
-        
-        if not codigos_generados:
-            return api_response('E001', http_status=500)
-        
-        app.logger.info(f"Generados {len(codigos_generados)} códigos QR: {codigos_generados[:5]}...")  # Mostrar solo primeros 5
-        
-        return api_response(
-            'S002',
-            status='success',
-            data={
+        # Si se proporciona paquete_id, usar la función que incluye asignación de paquete
+        if paquete_id:
+            # Verificar que el paquete existe
+            connection = get_db_connection()
+            if not connection:
+                return api_response('E006', http_status=500)
+                
+            cursor = get_db_cursor(connection)
+            cursor.execute("SELECT * FROM TurnPackage WHERE id = %s", (paquete_id,))
+            paquete = cursor.fetchone()
+            cursor.close()
+            connection.close()
+            
+            if not paquete:
+                return api_response('Q004', http_status=404, data={'paquete_id': paquete_id})
+            
+            # Generar códigos y asignar paquete
+            codigos_generados = generar_codigos_qr_lote(cantidad, nombre)
+            
+            if not codigos_generados:
+                return api_response('E001', http_status=500)
+            
+            # Asignar paquete a los códigos generados
+            response_data = {
                 'codigos': codigos_generados,
                 'cantidad': len(codigos_generados),
                 'nombre': nombre,
+                'paquete_id': paquete_id,
+                'paquete_nombre': paquete['name'],
+                'paquete_precio': float(paquete['price']),
+                'paquete_turnos': paquete['turns'],
                 'formato': 'QRXXXX (4 dígitos, de QR0001 a QR9999)',
                 'nota': 'El contador se reiniciará automáticamente al llegar a QR9999'
             }
-        )
+            
+            app.logger.info(f"Generados {len(codigos_generados)} códigos QR con paquete {paquete['name']}")
+            
+            return api_response(
+                'S002',
+                status='success',
+                data=response_data
+            )
+        else:
+            # Solo generar códigos sin paquete
+            codigos_generados = generar_codigos_qr_lote(cantidad, nombre)
+            
+            if not codigos_generados:
+                return api_response('E001', http_status=500)
+            
+            app.logger.info(f"Generados {len(codigos_generados)} códigos QR sin paquete")
+            
+            return api_response(
+                'S002',
+                status='success',
+                data={
+                    'codigos': codigos_generados,
+                    'cantidad': len(codigos_generados),
+                    'nombre': nombre,
+                    'formato': 'QRXXXX (4 dígitos, de QR0001 a QR9999)',
+                    'nota': 'El contador se reiniciará automáticamente al llegar a QR9999'
+                }
+            )
         
     except Exception as e:
         app.logger.error(f"Error generando QR: {e}")
@@ -2406,8 +2486,7 @@ def resolver_reporte(reporte_id):
             # Insertar sin foreign keys primero (para debug)
             try:
                 insert_query = """
-                    INSERT INTO confirmation_logs 
-                    (fault_report_id, admin_id, confirmation_status, comments)
+                    INSERT INTO confirmation_logs  
                     VALUES (%s, %s, %s, %s)
                 """
                 app.logger.info(f"Query: {insert_query}")
