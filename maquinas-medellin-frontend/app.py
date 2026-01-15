@@ -293,7 +293,7 @@ def validate_required_fields(required_fields):
 
 try:
     db_config = {
-        "host": "localhost",
+        "host": "mysql",
         "user": "root",
         "password": "" , 
         "database": "maquinasmedellin",
@@ -339,7 +339,7 @@ def get_db_connection():
     try:
         # Conexión directa sin pool para debugging
         connection = mysql.connector.connect(
-            host="localhost",
+            host="mysql",
             user="root",
             password="",
             database="maquinasmedellin",
@@ -2333,7 +2333,7 @@ def reportar_falla_maquina():
         user_id = session.get('user_id', 1)
         
         connection = mysql.connector.connect(
-            host="localhost",
+            host="mysql",
             user="root",
             password="",
             database="maquinasmedellin",
