@@ -377,7 +377,7 @@ def create_tables():
         
         # Crear tabla GlobalCounter si no existe
         cursor.execute("""
-              CREATE TABLE IF NOT EXISTS GlobalCounter (
+              CREATE TABLE IF NOT EXISTS globalcounter (
         id INT AUTO_INCREMENT PRIMARY KEY,
         counter_type VARCHAR(50) NOT NULL UNIQUE,
         counter_value INT NOT NULL DEFAULT 0,
@@ -389,19 +389,19 @@ def create_tables():
         
         # Inicializar contador si no existe
         cursor.execute("""
-              INSERT IGNORE INTO GlobalCounter (counter_type, counter_value, description) 
+              INSERT IGNORE INTO globalcounter (counter_type, counter_value, description) 
     VALUES ('QR_CODE', 0, 'Contador para códigos QR (formato QR0001 a QR9999, se reinicia en 1)')
 """)
-        # Crear tabla ResolucionReportes si no existe
+        # Crear tabla resolucionreportes si no existe
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ResolucionReportes (
+            CREATE TABLE IF NOT EXISTS resolucionreportes (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 error_report_id INT NOT NULL,
                 admin_id INT NOT NULL,
                 comentarios TEXT,
                 fecha_resolucion DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (error_report_id) REFERENCES ErrorReport(id),
-                FOREIGN KEY (admin_id) REFERENCES Users(id),
+                FOREIGN KEY (error_report_id) REFERENCES errorreport(id),
+                FOREIGN KEY (admin_id) REFERENCES users(id),
                 INDEX idx_error_report (error_report_id),
                 INDEX idx_admin (admin_id)
             )
@@ -469,7 +469,7 @@ def procesar_login():
             }), 500
 
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT * FROM Users WHERE password = %s", (codigo,))
+        cursor.execute("SELECT * FROM users WHERE password = %s", (codigo,))
         usuario = cursor.fetchone()
 
         if usuario:
@@ -519,7 +519,7 @@ def test_db():
         connection = get_db_connection()
         if connection:
             cursor = get_db_cursor(connection)
-            cursor.execute("SELECT COUNT(*) as count FROM Users")
+            cursor.execute("SELECT COUNT(*) as count FROM users")
             resultado = cursor.fetchone()
             cursor.close()
             connection.close()
@@ -601,7 +601,7 @@ def generar_codigo_qr():
         connection.start_transaction()
         
         cursor.execute("""
-            SELECT counter_value FROM GlobalCounter 
+            SELECT counter_value FROM globalcounter 
             WHERE counter_type = 'QR_CODE' 
             FOR UPDATE
         """)
@@ -611,7 +611,7 @@ def generar_codigo_qr():
         if not resultado:
             # Si no existe el contador, crearlo
             cursor.execute("""
-                INSERT INTO GlobalCounter (counter_type, counter_value, description) 
+                INSERT INTO globalcounter (counter_type, counter_value, description) 
                 VALUES ('QR_CODE', 1, 'Contador para códigos QR (formato QR0001, QR0002, etc.)')
             """)
             nuevo_numero = 1
@@ -625,7 +625,7 @@ def generar_codigo_qr():
                 app.logger.warning("Contador QR reiniciado a 1 (llegó al límite de 9999)")
             
             cursor.execute("""
-                UPDATE GlobalCounter 
+                UPDATE globalcounter 
                 SET counter_value = %s 
                 WHERE counter_type = 'QR_CODE'
             """, (nuevo_numero,))
@@ -640,15 +640,15 @@ def generar_codigo_qr():
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
         
-        # Insertar en la tabla QRCode
+        # Insertar en la tabla qrcode
         cursor.execute("""
-            INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+            INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
             VALUES (%s, %s, %s, %s, %s)
         """, (nuevo_codigo, 0, 1, 1, ''))
         
         # Registrar automáticamente en el historial
         cursor.execute("""
-            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, ''))
         
@@ -719,7 +719,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
         connection.start_transaction()
         
         cursor.execute("""
-            SELECT counter_value FROM GlobalCounter 
+            SELECT counter_value FROM globalcounter 
             WHERE counter_type = 'QR_CODE' 
             FOR UPDATE
         """)
@@ -729,7 +729,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
         if not resultado:
             # Si no existe el contador, crearlo
             cursor.execute("""
-                INSERT INTO GlobalCounter (counter_type, counter_value, description) 
+                INSERT INTO globalcounter (counter_type, counter_value, description) 
                 VALUES ('QR_CODE', %s, 'Contador para códigos QR')
             """, (cantidad_qr,))
             numero_inicial = 1
@@ -756,7 +756,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
                 
                 # Actualizar el contador
                 cursor.execute("""
-                    UPDATE GlobalCounter 
+                    UPDATE globalcounter 
                     SET counter_value = %s 
                     WHERE counter_type = 'QR_CODE'
                 """, (nuevo_valor_contador,))
@@ -775,15 +775,15 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
                     nuevo_codigo = f"QR{i:04d}"
                     codigos_generados.append(nuevo_codigo)
                     
-                    # Insertar en la tabla QRCode
+                    # Insertar en la tabla qrcode
                     cursor.execute("""
-                        INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                        INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (nuevo_codigo, 0, 1, 1, nombre))
                     
                     # Registrar automáticamente en el historial
                     cursor.execute("""
-                        INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                        INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
                 
@@ -792,15 +792,15 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
                     nuevo_codigo = f"QR{i:04d}"
                     codigos_generados.append(nuevo_codigo)
                     
-                    # Insertar en la tabla QRCode
+                    # Insertar en la tabla qrcode
                     cursor.execute("""
-                        INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                        INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (nuevo_codigo, 0, 1, 1, nombre))
                     
                     # Registrar automáticamente en el historial
                     cursor.execute("""
-                        INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                        INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
                 
@@ -813,7 +813,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
             else:
                 # Actualizar el contador normalmente
                 cursor.execute("""
-                    UPDATE GlobalCounter 
+                    UPDATE globalcounter 
                     SET counter_value = %s 
                     WHERE counter_type = 'QR_CODE'
                 """, (numero_final,))
@@ -832,15 +832,15 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
             nuevo_codigo = f"QR{i:04d}"
             codigos_generados.append(nuevo_codigo)
             
-            # Insertar en la tabla QRCode
+            # Insertar en la tabla qrcode
             cursor.execute("""
-                INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                 VALUES (%s, %s, %s, %s, %s)
             """, (nuevo_codigo, 0, 1, 1, nombre))
             
             # Registrar automáticamente en el historial
             cursor.execute("""
-                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
+                INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
         
@@ -882,8 +882,8 @@ def obtener_estado_contador():
                 gc.description,
                 gc.last_updated,
                 COUNT(qc.id) as total_qr_registrados
-            FROM GlobalCounter gc
-            LEFT JOIN QRCode qc ON qc.code REGEXP '^QR[0-9]+$'
+            FROM globalcounter gc
+            LEFT JOIN qrcode qc ON qc.code REGEXP '^QR[0-9]+$'
             WHERE gc.counter_type = 'QR_CODE'
         """)
         
@@ -956,7 +956,7 @@ def reiniciar_contador():
             
             # Actualizar el contador
             cursor.execute("""
-                UPDATE GlobalCounter 
+                UPDATE globalcounter 
                 SET counter_value = %s 
                 WHERE counter_type = 'QR_CODE'
             """, (nuevo_valor,))
@@ -964,7 +964,7 @@ def reiniciar_contador():
             connection.commit()
             
             # Verificar el nuevo valor
-            cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
+            cursor.execute("SELECT counter_value FROM globalcounter WHERE counter_type = 'QR_CODE'")
             resultado = cursor.fetchone()
             
             app.logger.warning(f"Contador QR reiniciado manualmente a {nuevo_valor} por usuario {session.get('user_name')}")
@@ -1005,7 +1005,7 @@ def get_next_qr_number():
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
+        cursor.execute("SELECT counter_value FROM globalcounter WHERE counter_type = 'QR_CODE'")
         resultado = cursor.fetchone()
         
         if resultado:
@@ -1058,7 +1058,7 @@ def generar_qr():
                 return api_response('E006', http_status=500)
                 
             cursor = get_db_cursor(connection)
-            cursor.execute("SELECT * FROM TurnPackage WHERE id = %s", (paquete_id,))
+            cursor.execute("SELECT * FROM turnpackage WHERE id = %s", (paquete_id,))
             paquete = cursor.fetchone()
             cursor.close()
             connection.close()
@@ -1153,7 +1153,7 @@ def obtener_paquetes():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT * FROM TurnPackage ORDER BY id")
+        cursor.execute("SELECT * FROM turnpackage ORDER BY id")
         return jsonify(cursor.fetchall())
     except Exception as e:
         app.logger.error(f"Error obteniendo paquetes: {e}")
@@ -1185,11 +1185,11 @@ def asignar_paquete():
         cursor = get_db_cursor(connection)
         
         # Verificar si el QR ya tiene un paquete
-        cursor.execute("SELECT turnPackageId FROM QRCode WHERE code = %s", (codigo_qr,))
+        cursor.execute("SELECT turnPackageId FROM qrcode WHERE code = %s", (codigo_qr,))
         qr_existente = cursor.fetchone()
         
         if qr_existente and qr_existente['turnPackageId'] is not None and qr_existente['turnPackageId'] != 1:
-            cursor.execute("SELECT name FROM TurnPackage WHERE id = %s", (qr_existente['turnPackageId'],))
+            cursor.execute("SELECT name FROM turnpackage WHERE id = %s", (qr_existente['turnPackageId'],))
             paquete_actual = cursor.fetchone()
             paquete_nombre = paquete_actual['name'] if paquete_actual else 'Desconocido'
             
@@ -1201,20 +1201,20 @@ def asignar_paquete():
                     'qr_code': codigo_qr
                 }
             )
-        
-        cursor.execute("SELECT turns, price FROM TurnPackage WHERE id = %s", (paquete_id,))
+
+        cursor.execute("SELECT turns, price FROM turnpackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
         if not paquete:
             return api_response('Q004', http_status=404)
 
         turns, price = paquete['turns'], paquete['price']
 
-        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (codigo_qr,))
+        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (codigo_qr,))
         qr_existente = cursor.fetchone()
         
         if not qr_existente:
             cursor.execute("""
-                INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId)
+                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId)
                 VALUES (%s, %s, 1, %s)
             """, (codigo_qr, turns, paquete_id))
             connection.commit()
@@ -1222,7 +1222,7 @@ def asignar_paquete():
         else:
             qr_id = qr_existente['id']
             cursor.execute("""
-                UPDATE QRCode
+                UPDATE qrcode
                 SET remainingTurns = remainingTurns + %s,
                     turnPackageId = %s
                 WHERE id = %s
@@ -1230,7 +1230,7 @@ def asignar_paquete():
             connection.commit()
         
         cursor.execute("""
-            INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
+            INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
             VALUES (%s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE 
                 turns_remaining = turns_remaining + %s,
@@ -1276,7 +1276,7 @@ def verificar_qr(qr_code):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT id, code, remainingTurns, isActive, turnPackageId FROM QRCode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT id, code, remainingTurns, isActive, turnPackageId FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         
         if not qr_data:
@@ -1287,8 +1287,8 @@ def verificar_qr(qr_code):
         
         cursor.execute("""
             SELECT ut.*, tp.name as package_name, tp.turns, tp.price
-            FROM UserTurns ut
-            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            FROM userturns ut
+            LEFT JOIN turnpackage tp ON ut.package_id = tp.id
             WHERE ut.qr_code_id = %s
         """, (qr_id,))
         resultado = cursor.fetchone()
@@ -1346,20 +1346,20 @@ def registrar_uso():
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
         
         qr_id = qr_data['id']
-        cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
         
-        cursor.execute("INSERT INTO TurnUsage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
-        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
+        cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
         connection.commit()
         
         app.logger.info(f"Turno usado - QR: {qr_code}, Máquina: {machine_id}")
@@ -1402,23 +1402,23 @@ def reportar_falla():
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
         
         qr_id = qr_data['id']
-        cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         if not turnos_data:
             return api_response('Q003', http_status=400)
         
         cursor.execute("""
-            INSERT INTO MachineFailures (qr_code_id, machine_id, machine_name, turnos_devueltos)
+            INSERT INTO machinefailures (qr_code_id, machine_id, machine_name, turnos_devueltos)
             VALUES (%s, %s, %s, %s)
         """, (qr_id, machine_id, machine_name, turnos_devueltos))
         
-        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
+        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
                        (turnos_devueltos, qr_id))
         connection.commit()
         
@@ -1457,9 +1457,9 @@ def obtener_historial_fallas():
         cursor = get_db_cursor(connection)
         cursor.execute("""
             SELECT mf.*, qr.code as qr_code, ut.turns_remaining, ut.total_turns
-            FROM MachineFailures mf
-            JOIN QRCode qr ON mf.qr_code_id = qr.id
-            JOIN UserTurns ut ON mf.qr_code_id = ut.qr_code_id
+            FROM machinefailures mf
+            JOIN qrcode qr ON mf.qr_code_id = qr.id
+            JOIN userturns ut ON mf.qr_code_id = ut.qr_code_id
             ORDER BY mf.reported_at DESC
             LIMIT 50
         """)
@@ -1499,7 +1499,7 @@ def guardar_qr():
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
         
-        cursor.execute("SELECT qr_name, turnPackageId FROM QRCode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT qr_name, turnPackageId FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         qr_name = qr_data['qr_name'] if qr_data and 'qr_name' in qr_data else None
         
@@ -1507,7 +1507,7 @@ def guardar_qr():
         
         # Insertar en historial
         cursor.execute("""
-            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (qr_code, user_id, user_name, local, fecha_hora_str, qr_name, es_venta_real))
         
@@ -1579,19 +1579,19 @@ def guardar_multiples_qr_con_paquete():
         qrs_actualizados = 0
         
         for qr_code in qr_codes:
-            cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+            cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
             qr_existente = cursor.fetchone()
             
             if not qr_existente:
                 cursor.execute("""
-                    INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                    INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (qr_code, paquete_turns, 1, paquete_id, nombre))
                 
                 qr_id = cursor.lastrowid
                 
                 cursor.execute("""
-                    INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
+                    INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
                     VALUES (%s, %s, %s, %s)
                 """, (qr_id, paquete_turns, paquete_turns, paquete_id))
                 
@@ -1599,30 +1599,30 @@ def guardar_multiples_qr_con_paquete():
             else:
                 qr_id = qr_existente['id']
                 
-                cursor.execute("SELECT turnPackageId FROM QRCode WHERE id = %s", (qr_id,))
+                cursor.execute("SELECT turnPackageId FROM qrcode WHERE id = %s", (qr_id,))
                 qr_info = cursor.fetchone()
                 
                 if qr_info['turnPackageId'] is not None and qr_info['turnPackageId'] != 1:
                     continue
                 
                 cursor.execute("""
-                    UPDATE QRCode 
+                    UPDATE qrcode 
                     SET remainingTurns = %s, turnPackageId = %s, qr_name = %s
                     WHERE id = %s
                 """, (paquete_turns, paquete_id, nombre, qr_id))
                 
-                cursor.execute("SELECT id FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+                cursor.execute("SELECT id FROM userturns WHERE qr_code_id = %s", (qr_id,))
                 user_turns_existente = cursor.fetchone()
                 
                 if user_turns_existente:
                     cursor.execute("""
-                        UPDATE UserTurns 
+                        UPDATE userturns 
                         SET turns_remaining = %s, total_turns = %s, package_id = %s
                         WHERE qr_code_id = %s
                     """, (paquete_turns, paquete_turns, paquete_id, qr_id))
                 else:
                     cursor.execute("""
-                        INSERT INTO UserTurns (qr_code_id, turns_remaining, total_turns, package_id)
+                        INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
                         VALUES (%s, %s, %s, %s)
                     """, (qr_id, paquete_turns, paquete_turns, paquete_id))
                 
@@ -1630,7 +1630,7 @@ def guardar_multiples_qr_con_paquete():
             
             # Registrar en historial marcando si es venta real
             cursor.execute("""
-                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+                INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre, es_venta_real))
 
@@ -1701,22 +1701,22 @@ def guardar_multiples_qr():
         fecha_hora_str = format_datetime_for_db(hora_colombia)
 
         for qr_code in qr_codes:
-            cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+            cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
             qr_existente = cursor.fetchone()
             
             if not qr_existente:
                 cursor.execute("""
-                    INSERT INTO QRCode (code, remainingTurns, isActive, turnPackageId, qr_name)
+                    INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (qr_code, 0, 1, 1, nombre))
             else:
                 cursor.execute("""
-                    UPDATE QRCode SET qr_name = %s WHERE code = %s
+                    UPDATE qrcode SET qr_name = %s WHERE code = %s
                 """, (nombre, qr_code))
             
             # Registrar en historial
             cursor.execute("""
-                INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+                INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (qr_code, user_id, user_name, local, fecha_hora_str, nombre, es_venta_real))
 
@@ -1770,9 +1770,9 @@ def obtener_estadisticas_tiempo_real():
         cursor.execute("""
             SELECT COUNT(DISTINCT qh.qr_code) as vendidos_hoy,
                    COALESCE(SUM(tp.price), 0) as valor_hoy
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -1784,7 +1784,7 @@ def obtener_estadisticas_tiempo_real():
         # QR escaneados hoy (todos)
         cursor.execute("""
             SELECT COUNT(*) as escaneados_hoy
-            FROM QRHistory
+            FROM qrhistory
             WHERE DATE(fecha_hora) = %s
         """, (fecha,))
         
@@ -1793,7 +1793,7 @@ def obtener_estadisticas_tiempo_real():
         # Turnos utilizados hoy
         cursor.execute("""
             SELECT COUNT(*) as turnos_hoy
-            FROM TurnUsage
+            FROM turnusage
             WHERE DATE(usedAt) = %s
         """, (fecha,))
         
@@ -1802,14 +1802,14 @@ def obtener_estadisticas_tiempo_real():
         # QR generados hoy (nuevos)
         cursor.execute("""
             SELECT COUNT(*) as qr_generados_hoy
-            FROM QRCode
+            FROM qrcode
             WHERE DATE(createdAt) = %s
         """, (fecha,))
         
         generados = cursor.fetchone()
         
         # Contador global actual
-        cursor.execute("SELECT counter_value FROM GlobalCounter WHERE counter_type = 'QR_CODE'")
+        cursor.execute("SELECT counter_value FROM globalcounter WHERE counter_type = 'QR_CODE'")
         contador_qr = cursor.fetchone()
         
         return jsonify({
@@ -1867,10 +1867,10 @@ def obtener_historial_completo():
                     tp.name as package_name,
                     tp.price as precio_paquete,
                     ut.turns_remaining
-                FROM QRHistory h
-                LEFT JOIN QRCode qr ON qr.code = h.qr_code
-                LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
-                LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+                FROM qrhistory h
+                LEFT JOIN qrcode qr ON qr.code = h.qr_code
+                LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
+                LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
                 WHERE h.local = %s
                 ORDER BY h.fecha_hora DESC
                 LIMIT 100
@@ -1887,10 +1887,10 @@ def obtener_historial_completo():
                     tp.name as package_name,
                     tp.price as precio_paquete,
                     ut.turns_remaining
-                FROM QRHistory h
-                LEFT JOIN QRCode qr ON qr.code = h.qr_code
-                LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
-                LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+                FROM qrhistory h
+                LEFT JOIN qrcode qr ON qr.code = h.qr_code
+                LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
+                LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
                 WHERE h.user_id = %s OR h.local = %s
                 ORDER BY h.fecha_hora DESC
                 LIMIT 50
@@ -1949,10 +1949,10 @@ def obtener_historial_qr(qr_code):
                 tp.name as package_name,
                 tp.price as precio_paquete,
                 ut.turns_remaining
-            FROM QRHistory h
-            LEFT JOIN QRCode qr ON qr.code = h.qr_code
-            LEFT JOIN UserTurns ut ON ut.qr_code_id = qr.id
-            LEFT JOIN TurnPackage tp ON tp.id = qr.turnPackageId
+            FROM qrhistory h
+            LEFT JOIN qrcode qr ON qr.code = h.qr_code
+            LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
+            LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
             WHERE h.qr_code = %s
             ORDER BY h.fecha_hora DESC
             LIMIT 20
@@ -2022,9 +2022,9 @@ def registrar_venta():
         hora_colombia = get_colombia_time()
         
         cursor.execute("""
-            INSERT INTO QRHistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
             VALUES (%s, %s, %s, %s, %s, 
-                    (SELECT qr_name FROM QRCode WHERE code = %s LIMIT 1),
+                    (SELECT qr_name FROM qrcode WHERE code = %s LIMIT 1),
                     TRUE)
         """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_code))
         
@@ -2068,9 +2068,9 @@ def ventas_dia():
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
                 COALESCE(SUM(tp.price), 0) as valor_total
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2123,9 +2123,9 @@ def obtener_ventas():
                 tp.turns as turnos,
                 qh.user_name as vendedor,
                 'Completada' as estado
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2145,9 +2145,9 @@ def obtener_ventas():
                         COALESCE(SUM(tp.price), 0) / COUNT(DISTINCT qh.qr_code)
                     ELSE 0 
                 END as ticket_promedio
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2161,9 +2161,9 @@ def obtener_ventas():
             SELECT 
                 tp.name as paquete,
                 COUNT(DISTINCT qh.qr_code) as cantidad
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2179,8 +2179,8 @@ def obtener_ventas():
             SELECT 
                 HOUR(qh.fecha_hora) as hora,
                 COUNT(DISTINCT qh.qr_code) as cantidad
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2199,9 +2199,9 @@ def obtener_ventas():
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as paquetes_ayer,
                 COALESCE(SUM(tp.price), 0) as ventas_ayer
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2342,7 +2342,7 @@ def reportar_falla_maquina():
         cursor = connection.cursor(dictionary=True)
         
         # Verificar máquina
-        cursor.execute("SELECT id, name FROM Machine WHERE id = %s", (machine_id,))
+        cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
         maquina = cursor.fetchone()
         
         if not maquina:
@@ -2353,7 +2353,7 @@ def reportar_falla_maquina():
         
         # Insertar reporte
         cursor.execute("""
-            INSERT INTO ErrorReport 
+            INSERT INTO errorreport 
             (machineId, userId, description, reportedAt, isResolved)
             VALUES (%s, %s, %s, NOW(), FALSE)
         """, (machine_id, user_id, description))
@@ -2362,7 +2362,7 @@ def reportar_falla_maquina():
         
         # Actualizar máquina
         cursor.execute("""
-            UPDATE Machine 
+            UPDATE machine 
             SET status = %s, 
                 errorNote = %s,
                 dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
@@ -2437,7 +2437,7 @@ def resolver_reporte(reporte_id):
         app.logger.info(f"Conexión BD test: {test_result}")
         
         # Verificar que el reporte existe
-        cursor.execute("SELECT id FROM ErrorReport WHERE id = %s", (reporte_id,))
+        cursor.execute("SELECT id FROM errorreport WHERE id = %s", (reporte_id,))
         reporte_existe = cursor.fetchone()
         
         if not reporte_existe:
@@ -2447,8 +2447,8 @@ def resolver_reporte(reporte_id):
         # Obtener información completa del reporte
         cursor.execute("""
             SELECT er.*, m.name as machine_name, m.id as machine_id
-            FROM ErrorReport er
-            LEFT JOIN Machine m ON er.machineId = m.id
+            FROM errorreport er
+            LEFT JOIN machine m ON er.machineId = m.id
             WHERE er.id = %s
         """, (reporte_id,))
         
@@ -2472,7 +2472,7 @@ def resolver_reporte(reporte_id):
             app.logger.info("Actualizando ErrorReport...")
             
             query_update_er = """
-                UPDATE ErrorReport 
+                UPDATE errorreport 
                 SET isResolved = TRUE, resolved_at = NOW()
                 WHERE id = %s
             """
@@ -2511,7 +2511,7 @@ def resolver_reporte(reporte_id):
                 app.logger.info(f"Actualizando estado de máquina {machine_id}...")
                 
                 cursor.execute("""
-                    UPDATE Machine 
+                    UPDATE machine 
                     SET status = 'activa'
                     WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
                 """, (machine_id,))
@@ -2648,9 +2648,9 @@ def debug_reporte_5():
                 er.*, 
                 m.name as machine_name,
                 u.name as user_name
-            FROM ErrorReport er
-            LEFT JOIN Machine m ON er.machineId = m.id
-            LEFT JOIN Users u ON er.userId = u.id
+            FROM errorreport er
+            LEFT JOIN machine m ON er.machineId = m.id
+            LEFT JOIN users u ON er.userId = u.id
             WHERE er.id = 5
         """)
         
@@ -2678,7 +2678,7 @@ def debug_errorreport_estructura():
         connection = get_db_connection()
         cursor = get_db_cursor(connection)
         
-        cursor.execute("DESCRIBE ErrorReport")
+        cursor.execute("DESCRIBE errorreport")
         estructura = cursor.fetchall()
         
         cursor.execute("DESCRIBE confirmation_logs")
@@ -2791,8 +2791,8 @@ def debug_usuarios():
         
         cursor.execute("""
             SELECT u.*, creador.name as creador_nombre
-            FROM Users u
-            LEFT JOIN Users creador ON u.createdBy = creador.id
+            FROM users u
+            LEFT JOIN users creador ON u.createdBy = creador.id
             ORDER BY u.createdAt DESC
         """)
         
@@ -2840,8 +2840,8 @@ def obtener_usuarios():
                 u.*, 
                 creador.name as creador_nombre,
                 COALESCE(u.isActive, TRUE) as isActive  -- Si no existe, usar TRUE por defecto
-            FROM Users u
-            LEFT JOIN Users creador ON u.createdBy = creador.id
+            FROM users u
+            LEFT JOIN users creador ON u.createdBy = creador.id
             ORDER BY u.createdAt DESC
         """)
         
@@ -2893,7 +2893,7 @@ def obtener_usuario(usuario_id):
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("SELECT * FROM Users WHERE id = %s", (usuario_id,))
+        cursor.execute("SELECT * FROM users WHERE id = %s", (usuario_id,))
         usuario = cursor.fetchone()
         
         if not usuario:
@@ -2947,13 +2947,13 @@ def crear_usuario():
         cursor = get_db_cursor(connection)
         
         # Verificar si el usuario ya existe
-        cursor.execute("SELECT id FROM Users WHERE name = %s", (name,))
+        cursor.execute("SELECT id FROM users WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
         
         # Crear usuario
         cursor.execute("""
-            INSERT INTO Users (name, password, role, createdBy, notes)
+            INSERT INTO users (name, password, role, createdBy, notes)
             VALUES (%s, %s, %s, %s, %s)
         """, (name, password, role, session.get('user_id'), notes))
         
@@ -3003,25 +3003,25 @@ def actualizar_usuario(usuario_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el usuario existe
-        cursor.execute("SELECT id FROM Users WHERE id = %s", (usuario_id,))
+        cursor.execute("SELECT id FROM users WHERE id = %s", (usuario_id,))
         if not cursor.fetchone():
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
         
         # Verificar nombre duplicado
-        cursor.execute("SELECT id FROM Users WHERE name = %s AND id != %s", (name, usuario_id))
+        cursor.execute("SELECT id FROM users WHERE name = %s AND id != %s", (name, usuario_id))
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
         
         # Actualizar usuario
         if password:
             cursor.execute("""
-                UPDATE Users 
+                UPDATE users 
                 SET name = %s, password = %s, role = %s, notes = %s
                 WHERE id = %s
             """, (name, password, role, notes, usuario_id))
         else:
             cursor.execute("""
-                UPDATE Users 
+                UPDATE users 
                 SET name = %s, role = %s, notes = %s
                 WHERE id = %s
             """, (name, role, notes, usuario_id))
@@ -3060,13 +3060,13 @@ def eliminar_usuario(usuario_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el usuario existe
-        cursor.execute("SELECT name FROM Users WHERE id = %s", (usuario_id,))
+        cursor.execute("SELECT name FROM users WHERE id = %s", (usuario_id,))
         usuario = cursor.fetchone()
         if not usuario:
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
         
         # Eliminar usuario
-        cursor.execute("DELETE FROM Users WHERE id = %s", (usuario_id,))
+        cursor.execute("DELETE FROM users WHERE id = %s", (usuario_id,))
         connection.commit()
         
         app.logger.info(f"Usuario eliminado: {usuario['name']} (ID: {usuario_id})")
@@ -3099,7 +3099,7 @@ def obtener_paquete(paquete_id):
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("SELECT * FROM TurnPackage WHERE id = %s", (paquete_id,))
+        cursor.execute("SELECT * FROM turnpackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
         
         if not paquete:
@@ -3146,13 +3146,13 @@ def crear_paquete():
         cursor = get_db_cursor(connection)
         
         # Verificar si el paquete ya existe
-        cursor.execute("SELECT id FROM TurnPackage WHERE name = %s", (name,))
+        cursor.execute("SELECT id FROM turnpackage WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Paquete ya existe'})
         
         # Crear paquete
         cursor.execute("""
-            INSERT INTO TurnPackage (name, turns, price, isActive)
+            INSERT INTO turnpackage (name, turns, price, isActive)
             VALUES (%s, %s, %s, %s)
         """, (name, turns, price, isActive))
         
@@ -3205,18 +3205,18 @@ def actualizar_paquete(paquete_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el paquete existe
-        cursor.execute("SELECT id FROM TurnPackage WHERE id = %s", (paquete_id,))
+        cursor.execute("SELECT id FROM turnpackage WHERE id = %s", (paquete_id,))
         if not cursor.fetchone():
             return api_response('Q004', http_status=404, data={'paquete_id': paquete_id})
         
         # Verificar nombre duplicado
-        cursor.execute("SELECT id FROM TurnPackage WHERE name = %s AND id != %s", (name, paquete_id))
+        cursor.execute("SELECT id FROM turnpackage WHERE name = %s AND id != %s", (name, paquete_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de paquete ya existe'})
         
         # Actualizar paquete
         cursor.execute("""
-            UPDATE TurnPackage 
+            UPDATE turnpackage 
             SET name = %s, turns = %s, price = %s, isActive = %s
             WHERE id = %s
         """, (name, turns, price, isActive, paquete_id))
@@ -3252,7 +3252,7 @@ def eliminar_paquete(paquete_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el paquete existe
-        cursor.execute("SELECT name FROM TurnPackage WHERE id = %s", (paquete_id,))
+        cursor.execute("SELECT name FROM turnpackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
         if not paquete:
             return api_response('Q004', http_status=404, data={'paquete_id': paquete_id})
@@ -3260,7 +3260,7 @@ def eliminar_paquete(paquete_id):
         # Verificar si el paquete está en uso
         cursor.execute("""
             SELECT COUNT(*) as uso_count 
-            FROM QRCode 
+            FROM qrcode 
             WHERE turnPackageId = %s
         """, (paquete_id,))
         uso_count = cursor.fetchone()['uso_count']
@@ -3277,7 +3277,7 @@ def eliminar_paquete(paquete_id):
             )
         
         # Eliminar paquete
-        cursor.execute("DELETE FROM TurnPackage WHERE id = %s", (paquete_id,))
+        cursor.execute("DELETE FROM turnpackage WHERE id = %s", (paquete_id,))
         connection.commit()
         
         app.logger.info(f"Paquete eliminado: {paquete['name']} (ID: {paquete_id})")
@@ -3314,8 +3314,8 @@ def obtener_locales():
             SELECT l.*, 
                    COUNT(m.id) as maquinas_count,
                    SUM(CASE WHEN m.status = 'activa' THEN 1 ELSE 0 END) as maquinas_activas
-            FROM Location l
-            LEFT JOIN Machine m ON l.id = m.location_id
+            FROM location l
+            LEFT JOIN machine m ON l.id = m.location_id
             GROUP BY l.id
             ORDER BY l.name
         """)
@@ -3347,7 +3347,7 @@ def obtener_local(local_id):
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("SELECT * FROM Location WHERE id = %s", (local_id,))
+        cursor.execute("SELECT * FROM location WHERE id = %s", (local_id,))
         
         local = cursor.fetchone()
         
@@ -3402,13 +3402,13 @@ def crear_local():
         cursor = get_db_cursor(connection)
         
         # Verificar si el local ya existe
-        cursor.execute("SELECT id FROM Location WHERE name = %s", (name,))
+        cursor.execute("SELECT id FROM location WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Local ya existe'})
         
         # Crear local
         cursor.execute("""
-            INSERT INTO Location (name, address, city, status, telefono, horario, notas)
+            INSERT INTO location (name, address, city, status, telefono, horario, notas)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (name, address, city, status, telefono, horario, notas))
         
@@ -3457,18 +3457,18 @@ def actualizar_local(local_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el local existe
-        cursor.execute("SELECT id FROM Location WHERE id = %s", (local_id,))
+        cursor.execute("SELECT id FROM location WHERE id = %s", (local_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': local_id})
         
         # Verificar nombre duplicado
-        cursor.execute("SELECT id FROM Location WHERE name = %s AND id != %s", (name, local_id))
+        cursor.execute("SELECT id FROM location WHERE name = %s AND id != %s", (name, local_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de local ya existe'})
         
         # Actualizar local
         cursor.execute("""
-            UPDATE Location 
+            UPDATE location 
             SET name = %s, address = %s, city = %s, status = %s, 
                 telefono = %s, horario = %s, notas = %s
             WHERE id = %s
@@ -3505,13 +3505,13 @@ def eliminar_local(local_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el local existe
-        cursor.execute("SELECT name FROM Location WHERE id = %s", (local_id,))
+        cursor.execute("SELECT name FROM location WHERE id = %s", (local_id,))
         local = cursor.fetchone()
         if not local:
             return api_response('E002', http_status=404, data={'local_id': local_id})
         
         # Verificar si el local tiene máquinas asignadas
-        cursor.execute("SELECT COUNT(*) as maquinas_count FROM Machine WHERE location_id = %s", (local_id,))
+        cursor.execute("SELECT COUNT(*) as maquinas_count FROM machine WHERE location_id = %s", (local_id,))
         maquinas_count = cursor.fetchone()['maquinas_count']
         
         if maquinas_count > 0:
@@ -3526,7 +3526,7 @@ def eliminar_local(local_id):
             )
         
         # Eliminar local
-        cursor.execute("DELETE FROM Location WHERE id = %s", (local_id,))
+        cursor.execute("DELETE FROM location WHERE id = %s", (local_id,))
         connection.commit()
         
         app.logger.info(f"Local eliminado: {local['name']} (ID: {local_id})")
@@ -3570,9 +3570,9 @@ def obtener_maquinas():
                 m.errorNote,
                 l.name as location_name,
                 COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM Machine m
-            LEFT JOIN Location l ON m.location_id = l.id
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            FROM machine m
+            LEFT JOIN location l ON m.location_id = l.id
+            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
             ORDER BY m.name
         """)
         
@@ -3585,8 +3585,8 @@ def obtener_maquinas():
                     p.id,
                     p.nombre,
                     mp.porcentaje_propiedad
-                FROM MaquinaPropietario mp
-                JOIN Propietarios p ON mp.propietario_id = p.id
+                FROM maquinapropietario mp
+                JOIN propietarios p ON mp.propietario_id = p.id
                 WHERE mp.maquina_id = %s
             """, (maquina['id'],))
             
@@ -3641,9 +3641,9 @@ def obtener_maquina(maquina_id):
                 m.*,
                 l.name as location_name,
                 COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM Machine m
-            LEFT JOIN Location l ON m.location_id = l.id
-            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            FROM machine m
+            LEFT JOIN location l ON m.location_id = l.id
+            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
             WHERE m.id = %s
         """, (maquina_id,))
         
@@ -3658,8 +3658,8 @@ def obtener_maquina(maquina_id):
                 p.id,
                 p.nombre,
                 mp.porcentaje_propiedad
-            FROM MaquinaPropietario mp
-            JOIN Propietarios p ON mp.propietario_id = p.id
+            FROM maquinapropietario mp
+            JOIN propietarios p ON mp.propietario_id = p.id
             WHERE mp.maquina_id = %s
         """, (maquina_id,))
         
@@ -3728,18 +3728,18 @@ def crear_maquina():
         cursor = get_db_cursor(connection)
         
         # Verificar si la máquina ya existe
-        cursor.execute("SELECT id FROM Machine WHERE name = %s", (name,))
+        cursor.execute("SELECT id FROM machine WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Máquina ya existe'})
         
         # Verificar que el local existe
-        cursor.execute("SELECT id FROM Location WHERE id = %s", (location_id,))
+        cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': location_id})
         
         # Crear máquina
         cursor.execute("""
-            INSERT INTO Machine (name, type, status, location_id, errorNote)
+            INSERT INTO machine (name, type, status, location_id, errorNote)
             VALUES (%s, %s, %s, %s, %s)
         """, (name, type, status, location_id, errorNote))
         
@@ -3807,24 +3807,24 @@ def actualizar_maquina(maquina_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que la máquina existe
-        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
+        cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
         
         # Verificar nombre duplicado
-        cursor.execute("SELECT id FROM Machine WHERE name = %s AND id != %s", (name, maquina_id))
+        cursor.execute("SELECT id FROM machine WHERE name = %s AND id != %s", (name, maquina_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de máquina ya existe'})
         
         # Verificar que el local existe
-        cursor.execute("SELECT id FROM Location WHERE id = %s", (location_id,))
+        cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': location_id})
         
         # Actualizar máquina
         cursor.execute("""
-            UPDATE Machine 
+            UPDATE machine 
             SET name = %s, type = %s, status = %s, location_id = %s, errorNote = %s
             WHERE id = %s
         """, (name, type, status, location_id, errorNote, maquina_id))
@@ -3871,13 +3871,13 @@ def eliminar_maquina(maquina_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que la máquina existe
-        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
+        cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
         
         # Verificar si la máquina tiene uso histórico
-        cursor.execute("SELECT COUNT(*) as uso_count FROM TurnUsage WHERE machineId = %s", (maquina_id,))
+        cursor.execute("SELECT COUNT(*) as uso_count FROM turnusage WHERE machineId = %s", (maquina_id,))
         uso_count = cursor.fetchone()['uso_count']
         
         if uso_count > 0:
@@ -3895,10 +3895,10 @@ def eliminar_maquina(maquina_id):
         # Eliminar registros relacionados
         cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
         cursor.execute("DELETE FROM MaquinaPropietario WHERE maquina_id = %s", (maquina_id,))
-        cursor.execute("DELETE FROM ErrorReport WHERE machineId = %s", (maquina_id,))
+        cursor.execute("DELETE FROM errorreport WHERE machineId = %s", (maquina_id,))
         
         # Eliminar máquina
-        cursor.execute("DELETE FROM Machine WHERE id = %s", (maquina_id,))
+        cursor.execute("DELETE FROM machine WHERE id = %s", (maquina_id,))
         
         connection.commit()
         
@@ -4343,9 +4343,9 @@ def obtener_estadisticas_dashboard():
             SELECT 
                 COALESCE(SUM(tp.price), 0) as ingresos_totales,
                 COUNT(DISTINCT qh.qr_code) as paquetes_vendidos
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -4359,7 +4359,7 @@ def obtener_estadisticas_dashboard():
             SELECT 
                 COUNT(CASE WHEN status = 'activa' THEN 1 END) as maquinas_activas,
                 COUNT(*) as maquinas_totales
-            FROM Machine
+            FROM machine
         """)
         
         maquinas = cursor.fetchone()
@@ -4372,9 +4372,9 @@ def obtener_estadisticas_dashboard():
                         COALESCE(SUM(tp.price), 0) / COUNT(DISTINCT qh.qr_code)
                     ELSE 0 
                 END as ticket_promedio
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -4390,9 +4390,9 @@ def obtener_estadisticas_dashboard():
             SELECT 
                 COALESCE(SUM(tp.price), 0) as ingresos_anterior,
                 COUNT(DISTINCT qh.qr_code) as paquetes_anterior
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -4467,9 +4467,9 @@ def obtener_graficas_dashboard():
                 DATE(qh.fecha_hora) as fecha,
                 COUNT(DISTINCT qh.qr_code) as ventas,
                 COALESCE(SUM(tp.price), 0) as ingresos
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -4491,9 +4491,9 @@ def obtener_graficas_dashboard():
                 tp.name as paquete,
                 COUNT(DISTINCT qh.qr_code) as cantidad,
                 SUM(tp.price) as ingresos
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -4517,11 +4517,11 @@ def obtener_graficas_dashboard():
                 COUNT(DISTINCT qh.qr_code) as ventas,
                 COALESCE(SUM(tp.price), 0) as ingresos,
                 COUNT(DISTINCT tu.id) as usos
-            FROM Machine m
-            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) BETWEEN %s AND %s
-            LEFT JOIN QRHistory qh ON DATE(qh.fecha_hora) BETWEEN %s AND %s
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM machine m
+            LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) BETWEEN %s AND %s
+            LEFT JOIN qrhistory qh ON DATE(qh.fecha_hora) BETWEEN %s AND %s
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qh.fecha_hora IS NOT NULL
             GROUP BY m.id, m.name
             ORDER BY ingresos DESC
@@ -4541,7 +4541,7 @@ def obtener_graficas_dashboard():
                 COUNT(CASE WHEN status = 'activa' THEN 1 END) as activas,
                 COUNT(CASE WHEN status = 'mantenimiento' THEN 1 END) as mantenimiento,
                 COUNT(CASE WHEN status = 'inactiva' THEN 1 END) as inactivas
-            FROM Machine
+            FROM machine
         """)
         
         estado_data = cursor.fetchone()
@@ -4596,11 +4596,11 @@ def obtener_top_maquinas():
                 COUNT(DISTINCT qh.qr_code) as ventas,
                 COALESCE(SUM(tp.price), 0) as ingresos,
                 COUNT(DISTINCT tu.id) as usos
-            FROM Machine m
-            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = %s
-            LEFT JOIN QRHistory qh ON DATE(qh.fecha_hora) = %s
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM machine m
+            LEFT JOIN machine tu ON tu.machineId = m.id AND DATE(tu.usedAt) = %s
+            LEFT JOIN qrhistory qh ON DATE(qh.fecha_hora) = %s
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qh.fecha_hora IS NOT NULL
             GROUP BY m.id, m.name
             ORDER BY ingresos DESC
@@ -4652,9 +4652,9 @@ def obtener_ventas_recientes():
                 qh.fecha_hora,
                 tp.name as paquete,
                 tp.price as precio
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
@@ -4729,14 +4729,14 @@ def cambiar_estado_usuario(usuario_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que el usuario existe
-        cursor.execute("SELECT name FROM Users WHERE id = %s", (usuario_id,))
+        cursor.execute("SELECT name FROM users WHERE id = %s", (usuario_id,))
         usuario = cursor.fetchone()
         if not usuario:
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
         
         # Actualizar estado
         cursor.execute("""
-            UPDATE Users 
+            UPDATE users 
             SET isActive = %s,
                 updatedAt = NOW()
             WHERE id = %s
@@ -4787,7 +4787,7 @@ def obtener_estadisticas_usuarios():
                 COUNT(CASE WHEN role = 'cajero' THEN 1 END) as cajeros,
                 COUNT(CASE WHEN role = 'admin_restaurante' THEN 1 END) as admin_restaurante,
                 COUNT(CASE WHEN role = 'socio' THEN 1 END) as socios
-            FROM Users
+            FROM users
         """)
         
         estadisticas = cursor.fetchone()
@@ -4885,33 +4885,33 @@ def esp32_registrar_uso():
         cursor = get_db_cursor(connection)
         
         # Verificar que el QR existe y tiene turnos
-        cursor.execute("SELECT id FROM QRCode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
         
         qr_id = qr_data['id']
-        cursor.execute("SELECT turns_remaining FROM UserTurns WHERE qr_code_id = %s", (qr_id,))
+        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
         
         # Registrar uso
-        cursor.execute("INSERT INTO TurnUsage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
-        cursor.execute("UPDATE UserTurns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
+        cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
         
         # Actualizar última fecha de uso de la máquina
-        cursor.execute("UPDATE Machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
+        cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
         
         connection.commit()
         
         # Obtener información actualizada
         cursor.execute("""
             SELECT ut.turns_remaining, tp.name as package_name 
-            FROM UserTurns ut 
-            JOIN QRCode qr ON qr.id = ut.qr_code_id
-            LEFT JOIN TurnPackage tp ON ut.package_id = tp.id
+            FROM userturns ut 
+            JOIN qrcode qr ON qr.id = ut.qr_code_id
+            LEFT JOIN turnpackage tp ON ut.package_id = tp.id
             WHERE ut.qr_code_id = %s
         """, (qr_id,))
         
@@ -4956,9 +4956,9 @@ def tft_machine_status(machine_id):
                 m.id, m.name, m.status, m.type,
                 l.name as location_name,
                 COUNT(tu.id) as usos_hoy
-            FROM Machine m
-            LEFT JOIN Location l ON m.location_id = l.id
-            LEFT JOIN TurnUsage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = CURDATE()
+            FROM machine m
+            LEFT JOIN location l ON m.location_id = l.id
+            LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = CURDATE()
             WHERE m.id = %s OR m.name = %s
             GROUP BY m.id, m.name, m.status, m.type, l.name
         """, (machine_id, machine_id))
@@ -5047,8 +5047,8 @@ def obtener_contador_global_vendidos():
         # Obtener QR vendidos (con paquetes) hoy
         cursor.execute("""
             SELECT COUNT(DISTINCT qh.qr_code) as total_vendidos
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -5059,9 +5059,9 @@ def obtener_contador_global_vendidos():
         # Obtener total de ventas del día
         cursor.execute("""
             SELECT COALESCE(SUM(tp.price), 0) as valor_total
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -5107,7 +5107,7 @@ def obtener_contador_global_escaneados():
         # Obtener total QR escaneados hoy
         cursor.execute("""
             SELECT COUNT(*) as total_escaneados
-            FROM QRHistory
+            FROM qrhistory
             WHERE DATE(fecha_hora) = %s
         """, (fecha,))
         
@@ -5118,8 +5118,8 @@ def obtener_contador_global_escaneados():
             SELECT 
                 COUNT(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN 1 END) as con_paquete,
                 COUNT(CASE WHEN qr.turnPackageId IS NULL OR qr.turnPackageId = 1 THEN 1 END) as sin_paquete
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             WHERE DATE(qh.fecha_hora) = %s
         """, (fecha,))
         
@@ -5164,7 +5164,7 @@ def obtener_contador_global_turnos():
         # Obtener turnos utilizados hoy
         cursor.execute("""
             SELECT COUNT(*) as turnos_utilizados
-            FROM TurnUsage
+            FROM turnusage
             WHERE DATE(usedAt) = %s
         """, (fecha,))
         
@@ -5175,8 +5175,8 @@ def obtener_contador_global_turnos():
             SELECT 
                 m.name as maquina_nombre,
                 COUNT(tu.id) as turnos
-            FROM TurnUsage tu
-            JOIN Machine m ON tu.machineId = m.id
+            FROM turnusage tu
+            JOIN machine m ON tu.machineId = m.id
             WHERE DATE(tu.usedAt) = %s
             GROUP BY m.id, m.name
             ORDER BY turnos DESC
@@ -5224,9 +5224,9 @@ def obtener_contador_global_resumen():
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_vendidos,
                 COALESCE(SUM(tp.price), 0) as valor_total
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -5237,7 +5237,7 @@ def obtener_contador_global_resumen():
         # 2. QR escaneados total
         cursor.execute("""
             SELECT COUNT(*) as total_escaneados
-            FROM QRHistory
+            FROM qrhistory
             WHERE DATE(fecha_hora) = %s
         """, (fecha,))
         
@@ -5246,7 +5246,7 @@ def obtener_contador_global_resumen():
         # 3. Turnos utilizados
         cursor.execute("""
             SELECT COUNT(*) as turnos_utilizados
-            FROM TurnUsage
+            FROM turnusage
             WHERE DATE(usedAt) = %s
         """, (fecha,))
         
@@ -5255,7 +5255,7 @@ def obtener_contador_global_resumen():
         # 4. Fallas reportadas
         cursor.execute("""
             SELECT COUNT(*) as fallas_reportadas
-            FROM MachineFailures
+            FROM machinefailures
             WHERE DATE(reported_at) = %s
         """, (fecha,))
         
@@ -5264,7 +5264,7 @@ def obtener_contador_global_resumen():
         # 5. Reportes de máquinas
         cursor.execute("""
             SELECT COUNT(*) as reportes_maquinas
-            FROM ErrorReport
+            FROM errorreport
             WHERE DATE(reportedAt) = %s
         """, (fecha,))
         
@@ -5330,10 +5330,10 @@ def obtener_estadisticas_rango_fechas():
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as vendidos,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_ventas,
                 COUNT(tu.id) as turnos_utilizados
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = h.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
-            LEFT JOIN TurnUsage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN turnusage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             GROUP BY DATE(qh.fecha_hora)
             ORDER BY fecha DESC
@@ -5348,10 +5348,10 @@ def obtener_estadisticas_rango_fechas():
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as total_vendidos,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as total_valor_ventas,
                 COUNT(DISTINCT tu.id) as total_turnos_utilizados
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
-            LEFT JOIN TurnUsage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN turnusage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
         """, (fecha_inicio, fecha_fin))
         
@@ -5362,8 +5362,8 @@ def obtener_estadisticas_rango_fechas():
             SELECT 
                 m.name as maquina_nombre,
                 COUNT(tu.id) as turnos_utilizados
-            FROM TurnUsage tu
-            JOIN Machine m ON tu.machineId = m.id
+            FROM turnusage tu
+            JOIN machine m ON tu.machineId = m.id
             WHERE DATE(tu.usedAt) BETWEEN %s AND %s
             GROUP BY m.id, m.name
             ORDER BY turnos_utilizados DESC
@@ -5378,9 +5378,9 @@ def obtener_estadisticas_rango_fechas():
                 tp.name as paquete_nombre,
                 COUNT(DISTINCT qh.qr_code) as veces_vendido,
                 SUM(tp.price) as valor_total
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -5442,16 +5442,16 @@ def obtener_resumen_dashboard():
             SELECT 
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as vendidos_hoy,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_hoy
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
         """, (fecha_hoy,))
         
         hoy = cursor.fetchone()
         
         # Turnos utilizados hoy
-        cursor.execute("SELECT COUNT(*) as turnos_hoy FROM TurnUsage WHERE DATE(usedAt) = %s", (fecha_hoy,))
+        cursor.execute("SELECT COUNT(*) as turnos_hoy FROM turnusage WHERE DATE(usedAt) = %s", (fecha_hoy,))
         turnos_hoy = cursor.fetchone()
         
         # Estadísticas de ayer
@@ -5459,16 +5459,16 @@ def obtener_resumen_dashboard():
             SELECT 
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as vendidos_ayer,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_ayer
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
         """, (fecha_ayer,))
         
         ayer = cursor.fetchone()
         
         # Turnos utilizados ayer
-        cursor.execute("SELECT COUNT(*) as turnos_ayer FROM TurnUsage WHERE DATE(usedAt) = %s", (fecha_ayer,))
+        cursor.execute("SELECT COUNT(*) as turnos_ayer FROM turnusage WHERE DATE(usedAt) = %s", (fecha_ayer,))
         turnos_ayer = cursor.fetchone()
         
         # Máquinas activas/inactivas
@@ -5478,7 +5478,7 @@ def obtener_resumen_dashboard():
                 COUNT(CASE WHEN status = 'mantenimiento' THEN 1 END) as maquinas_mantenimiento,
                 COUNT(CASE WHEN status = 'inactiva' THEN 1 END) as maquinas_inactivas,
                 COUNT(*) as total_maquinas
-            FROM Machine
+            FROM machine
         """)
         
         maquinas = cursor.fetchone()
@@ -5486,7 +5486,7 @@ def obtener_resumen_dashboard():
         # Reportes pendientes
         cursor.execute("""
             SELECT COUNT(*) as reportes_pendientes
-            FROM ErrorReport
+            FROM errorreport
             WHERE isResolved = FALSE
         """)
         
@@ -5500,9 +5500,9 @@ def obtener_resumen_dashboard():
                 qh.fecha_hora,
                 tp.name as paquete_nombre,
                 tp.price as precio
-            FROM QRHistory qh
-            JOIN QRCode qr ON qr.code = qh.qr_code
-            JOIN TurnPackage tp ON qr.turnPackageId = tp.id
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             ORDER BY qh.fecha_hora DESC
@@ -5602,11 +5602,11 @@ def actualizar_contador_diario(fecha=None):
                 COUNT(DISTINCT qh.qr_code) as qr_escaneados,
                 COUNT(DISTINCT tu.id) as turnos_utilizados,
                 COUNT(DISTINCT mf.id) as fallas_reportadas
-            FROM QRHistory qh
-            LEFT JOIN QRCode qr ON qr.code = qh.qr_code
-            LEFT JOIN TurnPackage tp ON qr.turnPackageId = tp.id
-            LEFT JOIN TurnUsage tu ON DATE(tu.usedAt) = %s
-            LEFT JOIN MachineFailures mf ON DATE(mf.reported_at) = %s
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN turnusage tu ON DATE(tu.usedAt) = %s
+            LEFT JOIN machinefailures mf ON DATE(mf.reported_at) = %s
             WHERE DATE(qh.fecha_hora) = %s
             ON DUPLICATE KEY UPDATE
                 qr_vendidos = VALUES(qr_vendidos),
@@ -5702,7 +5702,7 @@ def obtener_propietarios():
         cursor = get_db_cursor(connection)
         
         cursor.execute("""
-            SELECT * FROM Propietarios 
+            SELECT * FROM propietarios 
             ORDER BY nombre
         """)
         
@@ -5754,7 +5754,7 @@ def obtener_propietario(propietario_id):
         cursor.execute("""
             SELECT m.id, m.name, mp.porcentaje_propiedad
             FROM MaquinaPropietario mp
-            JOIN Machine m ON mp.maquina_id = m.id
+            JOIN machine m ON mp.maquina_id = m.id
             WHERE mp.propietario_id = %s
         """, (propietario_id,))
         
@@ -5957,7 +5957,7 @@ def obtener_reportes_maquina(maquina_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que la máquina existe
-        cursor.execute("SELECT name FROM Machine WHERE id = %s", (maquina_id,))
+        cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
@@ -5972,8 +5972,8 @@ def obtener_reportes_maquina(maquina_id):
                 er.reportedAt,
                 er.isResolved,
                 u.name as user_name
-            FROM ErrorReport er
-            JOIN Users u ON er.userId = u.id
+            FROM errorreport er
+            JOIN users u ON er.userId = u.id
             WHERE er.machineId = %s
             ORDER BY er.reportedAt DESC
         """, (maquina_id,))
@@ -6017,7 +6017,7 @@ def obtener_estadisticas_maquina(maquina_id):
         cursor = get_db_cursor(connection)
         
         # Verificar que la máquina existe
-        cursor.execute("SELECT name, status FROM Machine WHERE id = %s", (maquina_id,))
+        cursor.execute("SELECT name, status FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
@@ -6029,7 +6029,7 @@ def obtener_estadisticas_maquina(maquina_id):
                 COUNT(DISTINCT DATE(usedAt)) as dias_con_usos,
                 MIN(usedAt) as primer_uso,
                 MAX(usedAt) as ultimo_uso
-            FROM TurnUsage
+            FROM turnusage
             WHERE machineId = %s
         """, (maquina_id,))
         
@@ -6040,7 +6040,7 @@ def obtener_estadisticas_maquina(maquina_id):
             SELECT 
                 DATE(usedAt) as fecha,
                 COUNT(*) as usos
-            FROM TurnUsage
+            FROM turnusage
             WHERE machineId = %s 
             AND usedAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
             GROUP BY DATE(usedAt)
@@ -6055,7 +6055,7 @@ def obtener_estadisticas_maquina(maquina_id):
                 COUNT(*) as total_reportes,
                 COUNT(CASE WHEN isResolved = TRUE THEN 1 END) as reportes_resueltos,
                 COUNT(CASE WHEN isResolved = FALSE THEN 1 END) as reportes_pendientes
-            FROM ErrorReport
+            FROM errorreport
             WHERE machineId = %s
         """, (maquina_id,))
         
@@ -6068,8 +6068,8 @@ def obtener_estadisticas_maquina(maquina_id):
                 er.reportedAt,
                 er.isResolved,
                 u.name as reportado_por
-            FROM ErrorReport er
-            JOIN Users u ON er.userId = u.id
+            FROM errorreport er
+            JOIN users u ON er.userId = u.id
             WHERE er.machineId = %s
             ORDER BY er.reportedAt DESC
             LIMIT 5
@@ -6135,7 +6135,7 @@ def obtener_roles_sistema():
             SELECT COLUMN_TYPE 
             FROM INFORMATION_SCHEMA.COLUMNS 
             WHERE TABLE_SCHEMA = DATABASE() 
-            AND TABLE_NAME = 'Users' 
+            AND TABLE_NAME = 'users' 
             AND COLUMN_NAME = 'role'
         """)
         
@@ -6194,7 +6194,7 @@ def obtener_roles_sistema():
         
         # Contar usuarios por rol
         for rol_info in roles_detallados:
-            cursor.execute("SELECT COUNT(*) as count FROM Users WHERE role = %s", (rol_info['id'],))
+            cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = %s", (rol_info['id'],))
             count_result = cursor.fetchone()
             rol_info['total_usuarios'] = count_result['count'] if count_result else 0
         
@@ -6243,7 +6243,7 @@ def agregar_nuevo_rol_automatico():
             SELECT COLUMN_TYPE 
             FROM INFORMATION_SCHEMA.COLUMNS 
             WHERE TABLE_SCHEMA = DATABASE() 
-            AND TABLE_NAME = 'Users' 
+            AND TABLE_NAME = 'users' 
             AND COLUMN_NAME = 'role'
         """)
         
@@ -6264,7 +6264,7 @@ def agregar_nuevo_rol_automatico():
         roles_actuales.append(nuevo_rol)
         
         # Generar y ejecutar SQL automáticamente
-        sql = f"ALTER TABLE Users MODIFY COLUMN role ENUM('{','.join(roles_actuales)}') NOT NULL;"
+        sql = f"ALTER TABLE users MODIFY COLUMN role ENUM('{','.join(roles_actuales)}') NOT NULL;"
         
         try:
             cursor.execute(sql)
@@ -6275,7 +6275,7 @@ def agregar_nuevo_rol_automatico():
                 SELECT COLUMN_TYPE 
                 FROM INFORMATION_SCHEMA.COLUMNS 
                 WHERE TABLE_SCHEMA = DATABASE() 
-                AND TABLE_NAME = 'Users' 
+                AND TABLE_NAME = 'users' 
                 AND COLUMN_NAME = 'role'
             """)
             
@@ -6362,11 +6362,11 @@ def obtener_socio_actual():
         
         if user_role == 'socio':
             # Buscar socio por user_id
-            cursor.execute("SELECT * FROM Socios WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT * FROM socios WHERE user_id = %s", (user_id,))
         else:
             # Admin puede especificar socio
             socio_id = request.args.get('socio_id')
-            cursor.execute("SELECT * FROM Socios WHERE id = %s", (socio_id,))
+            cursor.execute("SELECT * FROM socios WHERE id = %s", (socio_id,))
         
         socio = cursor.fetchone()
         if not socio:
