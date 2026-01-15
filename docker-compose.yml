@@ -21,6 +21,7 @@ services:
       MYSQL_DATABASE: maquinasmedellin
       MYSQL_USER: myuser
       MYSQL_PASSWORD: mypassword
+      MYSQL_ALLOW_EMPTY_PASSWORD: yes
       MYSQL_ROOT_PASSWORD:
     volumes:
       - mysql_data:/var/lib/mysql
