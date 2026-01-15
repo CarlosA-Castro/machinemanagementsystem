@@ -1,0 +1,4 @@
+# Ignore log files
+.venv/*
+.vscode/*
+logs/maquinas.log
