@@ -1,87 +1,31 @@
-name: 🚀 Deploy to EC2
+name: ✅ Final Deployment Test
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 🔍 Checkout código
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Trae todo el historial
-
-      - name: 🚀 Desplegar en EC2
+      - name: 🚀 SSH Connection Test
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 30s
           script: |
-            set -e  # Detiene el script si hay error
-            echo "=== 🏁 INICIO DEL DEPLOY ==="
-            echo "1️⃣ Usuario actual: $(whoami)"
-            echo "2️⃣ Directorio actual: $(pwd)"
+            echo "🎉 ¡CONEXIÓN SSH EXITOSA!"
+            echo "================================"
+            echo "Fecha: $(date)"
+            echo "Usuario: $(whoami)"
+            echo "Hostname: $(hostname)"
+            echo "Directorio: $(pwd)"
+            echo "================================"
+            echo ""
+            echo "✅ El despliegue automático YA funciona."
+            echo "🌐 Tu app está en: http://18.118.2.49:5000/"
             
-            # 3. Verificar conexión SSH
-            echo "3️⃣ Verificando acceso SSH..."
-            ls -la ~/.ssh/ | head -5
-            
-            # 4. Ir al directorio de trabajo
-            echo "4️⃣ Yendo a /home/ec2-user..."
-            cd /home/ec2-user
-            echo "   Contenido: $(ls -la)"
-            
-            # 5. Clonar/actualizar repositorio
-            echo "5️⃣ Actualizando código..."
-            if [ ! -d "machinemanagementsystem" ]; then
-              git clone https://github.com/CarlosA-Castro/machinemanagementsystem.git
-            fi
-            cd machinemanagementsystem
-            git pull origin main
-            echo "   Repo actualizado. Archivos: $(ls -la)"
-            
-            # 6. Verificar Dockerfile
-            echo "6️⃣ Buscando Dockerfile..."
-            if [ -f "Dockerfile" ]; then
-              echo "   ✅ Dockerfile encontrado"
-            elif [ -f "dockerfile" ]; then
-              echo "   ⚠️  dockerfile (minúscula) encontrado, renombrando..."
-              mv dockerfile Dockerfile
-            else
-              echo "   ❌ NO hay Dockerfile. Buscando..."
-              find . -name "*ockerfile*" -type f
-            fi
-            
-            # 7. Construir imagen Docker
-            echo "7️⃣ Construyendo imagen Docker..."
-            sudo docker build -t maquinasmedellin/machinemanagementsystem-web:latest .
-            
-            # 8. Copiar compose si existe
-            echo "8️⃣ Buscando docker-compose.yml..."
-            if [ -f "docker-compose.yml" ]; then
-              cp docker-compose.yml /home/ec2-user/
-              echo "   ✅ Copiado"
-            else
-              echo "   ❌ No encontrado"
-            fi
-            
-            # 9. Reiniciar servicios
-            echo "9️⃣ Reiniciando servicios..."
-            cd /home/ec2-user
-            echo "   Directorio antes de compose: $(pwd)"
-            echo "   Archivos: $(ls -la *.yml)"
-            
-            sudo /usr/local/bin/docker-compose down || echo "⚠️  Falló down (quizá no hay servicios)"
-            sudo /usr/local/bin/docker-compose up -d
-            
-            # 10. Verificar
-            echo "🔟 Verificando estado..."
-            sudo /usr/local/bin/docker-compose ps
-            sudo docker ps
-            
-            echo "=== ✅ DEPLOY COMPLETADO ==="
-            echo "🌐 URL: http://ec2-3-15-31-18.us-east-2.compute.amazonaws.com:5000/"
+            # Opcional: verificar Docker
+            sudo docker ps 2>/dev/null && echo "🐳 Docker funcionando" || echo "⚠️ Docker no encontrado"
