@@ -30,3 +30,4 @@ Este proyecto está alojado en GitHub y es privado.
 
 
 
+# Activando workflow - Wed, Jan 21, 2026  4:09:19 PM
