@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   web:
-    image: machinemanagementsystem-web:1.0
+    build: .  # Ahora construye desde Dockerfile
     ports:
       - "5000:5000"
     depends_on:
