@@ -111,4 +111,4 @@ jobs:
             echo "📊 Para monitorear:"
             echo "   • GitHub Actions: https://github.com/CarlosA-Castro/machinemanagementsystem/actions"
             echo "   • Docker logs: sudo docker logs -f [nombre-contenedor]"
-            echo "   • App: Abre la URL en tu navegador"
+            echo "   • App: Abre la URL en tu navegador"# Última actualización: Wed, Jan 21, 2026  2:25:49 PM
