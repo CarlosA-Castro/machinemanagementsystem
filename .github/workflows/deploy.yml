@@ -50,12 +50,12 @@ jobs:
             sudo docker images | grep "machinemanagementsystem-web"
             
             # 4. Copiar configuración
-            echo "📄 Paso 4: Configurando docker-compose..."
+            #echo "📄 Paso 4: Configurando docker-compose..."
             cd "$COMPOSE_DIR"
-            if [ -f "$REPO_DIR/docker-compose.yml" ]; then
-              cp "$REPO_DIR/docker-compose.yml" .
-              echo "   docker-compose.yml actualizado"
-            fi
+            #if [ -f "$REPO_DIR/docker-compose.yml" ]; then
+            #  cp "$REPO_DIR/docker-compose.yml" .
+            #  echo "   docker-compose.yml actualizado"
+            #fi
             
             # 5. Detener servicios actuales
             echo "🛑 Paso 5: Deteniendo servicios anteriores..."
