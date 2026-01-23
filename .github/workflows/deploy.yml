@@ -27,13 +27,14 @@ jobs:
             
             # Configurar directorios
             REPO_DIR="/home/ec2-user/machinemanagementsystem"
+            REPO_KEY="${{ secrets.REPO_KEY }}"
             COMPOSE_DIR="/home/ec2-user"
             
             # 1. Actualizar código del repositorio
             echo "📦 Paso 1: Actualizando código desde GitHub..."
             if [ ! -d "$REPO_DIR" ]; then
               echo "   Clonando repositorio por primera vez..."
-              git clone https://github.com/CarlosA-Castro/machinemanagementsystem.git "$REPO_DIR"
+              git clone https://"$REPO_KEY"@github.com/CarlosA-Castro/machinemanagementsystem.git "$REPO_DIR"
             fi
             
             cd "$REPO_DIR"
