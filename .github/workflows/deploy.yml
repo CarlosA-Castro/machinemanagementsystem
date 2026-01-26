@@ -1,4 +1,4 @@
-name: 🚀 Deploy to EC2 - Production
+name: 🚀 Deploy to EC2
 
 on:
   push:
@@ -20,96 +20,53 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          timeout: 300s  # 5 minutos para construcción completa
+          timeout: 300s
           script: |
-            echo "🚀 INICIANDO DEPLOY DE PRODUCCIÓN"
-            echo "=================================="
+            echo "🚀 INICIANDO DEPLOY CON DOCKER BUILD"
+            echo "====================================="
             
-            # Configurar directorios
-            REPO_DIR="/home/ec2-user/machinemanagementsystem"
-            REPO_KEY="${{ secrets.REPO_KEY }}"
-            COMPOSE_DIR="/home/ec2-user"
-            
-            # 1. Actualizar código del repositorio
-            echo "📦 Paso 1: Actualizando código desde GitHub..."
-            if [ ! -d "$REPO_DIR" ]; then
-              echo "   Clonando repositorio por primera vez..."
-              git clone https://"$REPO_KEY"@github.com/CarlosA-Castro/machinemanagementsystem.git "$REPO_DIR"
+            # 1. Actualizar código
+            cd /home/ec2-user
+            if [ ! -d "machinemanagementsystem" ]; then
+              git clone https://github.com/CarlosA-Castro/machinemanagementsystem.git
             fi
             
-            cd "$REPO_DIR"
-            echo "   Pulling latest changes..."
+            cd machinemanagementsystem
             git pull origin main
             
-            # 2. Construir nueva imagen Docker
-            echo "🐳 Paso 2: Construyendo imagen Docker..."
-            echo "   Usando Dockerfile en: $(pwd)/Dockerfile"
-            sudo docker build -t machinemanagementsystem-web:1.0 .
+            # 2. Copiar docker-compose.yml actualizado
+            echo "📄 Copiando configuración actualizada..."
+            cp docker-compose.yml /home/ec2-user/
             
-            # 3. Verificar que la imagen se creó
-            echo "🔍 Paso 3: Verificando imagen..."
-            sudo docker images | grep "machinemanagementsystem-web"
+            # 3. Usar docker-compose para construir (ahora usa build: .)
+            echo "🐳 Construyendo y levantando servicios..."
+            cd /home/ec2-user
             
-            # 4. Copiar configuración
-            #echo "📄 Paso 4: Configurando docker-compose..."
-            cd "$COMPOSE_DIR"
-            #if [ -f "$REPO_DIR/docker-compose.yml" ]; then
-            #  cp "$REPO_DIR/docker-compose.yml" .
-            #  echo "   docker-compose.yml actualizado"
-            #fi
+            # Limpiar imágenes viejas
+            sudo docker system prune -f
             
-            # 5. Detener servicios actuales
-            echo "🛑 Paso 5: Deteniendo servicios anteriores..."
-            sudo /usr/local/bin/docker-compose down 2>/dev/null || echo "   No había servicios corriendo"
+            # Construir y levantar (docker-compose hará el build automáticamente)
+            sudo docker-compose down
+            sudo docker-compose up -d --build  # ← --build ES CLAVE
             
-            # 6. Levantar nuevos servicios
-            echo "🚀 Paso 6: Levantando nuevos servicios..."
-            sudo /usr/local/bin/docker-compose up -d --force-recreate
+            # 4. Esperar y verificar
+            echo "⏳ Esperando inicialización..."
+            sleep 15
             
-            # 7. Esperar inicialización
-            echo "⏳ Paso 7: Esperando inicialización (20 segundos)..."
-            sleep 20
+            # 5. Verificar que los cambios están dentro del contenedor
+            echo "🔍 Verificando archivos actualizados..."
+            sudo docker exec ec2-user-web-1 grep "Inicio de sesión" /app/maquinas-medellin-frontend/templates/login.html
             
-            # 8. Verificar estado
-            echo "📊 Paso 8: Verificando estado de servicios..."
-            echo "=========================================="
-            sudo /usr/local/bin/docker-compose ps
-            echo "=========================================="
-            
-            # 9. Ver logs de la aplicación
-            echo "📝 Paso 9: Revisando logs de la aplicación..."
-            WEB_CONTAINER=$(sudo docker ps -q --filter "name=web")
-            if [ -n "$WEB_CONTAINER" ]; then
-              echo "   Últimas 15 líneas de logs:"
-              sudo docker logs --tail=15 "$WEB_CONTAINER"
+            # 6. Health check
+            echo "🌐 Probando aplicación..."
+            if curl -f -s http://localhost:5000 > /dev/null; then
+              echo "✅ ¡APP ACTUALIZADA CORRECTAMENTE!"
+              echo "🔗 URL: http://3.151.87.130:5000/"
+              
+              # Mostrar versión actual
+              echo "📦 Imagen actual:"
+              sudo docker images | grep "machinemanagementsystem-web"
             else
-              echo "   ⚠️ No se encontró contenedor 'web'"
-              echo "   Contenedores activos:"
-              sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+              echo "⚠️ Revisando logs..."
+              sudo docker logs ec2-user-web-1 --tail=20
             fi
-            
-            # 10. Verificar que la app responde
-            echo "🌐 Paso 10: Verificando que la app esté respondiendo..."
-            if curl -s -f -o /dev/null -w "   Status: %{http_code}\n" http://localhost:5000; then
-              echo "   ✅ ¡APP FUNCIONANDO CORRECTAMENTE!"
-            else
-              echo "   ⚠️ La app no responde aún, revisando..."
-              curl -I http://localhost:5000 || true
-            fi
-            
-            echo ""
-            echo "🎉🎉🎉 DEPLOY COMPLETADO EXITOSAMENTE 🎉🎉🎉"
-            echo "=========================================="
-            echo "✅ Código actualizado desde GitHub"
-            echo "✅ Imagen Docker reconstruida"
-            echo "✅ Servicios reiniciados"
-            echo "✅ Aplicación en producción"
-            echo ""
-            echo "🌐 URL de producción:"
-            echo "   http://18.118.2.49:5000/"
-            echo "   http://ec2-18-118-2-49.us-east-2.compute.amazonaws.com:5000/"
-            echo ""
-            echo "📊 Para monitorear:"
-            echo "   • GitHub Actions: https://github.com/CarlosA-Castro/machinemanagementsystem/actions"
-            echo "   • Docker logs: sudo docker logs -f [nombre-contenedor]"
-            echo "   • App: Abre la URL en tu navegador"# Última actualización: Wed, Jan 21, 2026  2:25:49 PM
