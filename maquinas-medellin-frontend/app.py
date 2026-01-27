@@ -294,13 +294,14 @@ def validate_required_fields(required_fields):
 
 try:
     db_config = {
-        "host": "mysql",
-        "user": "root",
-        "password": "" , 
-        "database": "maquinasmedellin",
-        "port": 3306,
-        "pool_name": "maquinas_pool",
-        "pool_size": 5
+        "host": os.getenv("DB_HOST", "mysql"),
+    "user": os.getenv("DB_USER", "myuser"),
+    "password": os.getenv("DB_PASSWORD", "mypassword"),
+    "database": os.getenv("DB_NAME", "maquinasmedellin"),
+    "port": 3306,
+    "pool_name": "maquinas_pool",
+    "pool_size": 5,
+    "auth_plugin": "mysql_native_password"
     }
 
     app.logger.info("🔧 Intentando crear pool de conexiones...")
@@ -366,80 +367,6 @@ def get_db_cursor(connection):
     except Exception as e:
         app.logger.error(f"❌ Error obteniendo cursor: {e}")
         return None
-
-# Crear tablas si no existen (solo una vez al inicio)
-def create_tables():
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return False
-            
-        cursor = get_db_cursor(connection)
-        
-        # Crear tabla GlobalCounter si no existe
-        cursor.execute("""
-              CREATE TABLE IF NOT EXISTS globalcounter (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        counter_type VARCHAR(50) NOT NULL UNIQUE,
-        counter_value INT NOT NULL DEFAULT 0,
-        description VARCHAR(255),
-        last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_counter_type (counter_type)
-    )
-""")
-        
-        # Inicializar contador si no existe
-        cursor.execute("""
-              INSERT IGNORE INTO globalcounter (counter_type, counter_value, description) 
-    VALUES ('QR_CODE', 0, 'Contador para códigos QR (formato QR0001 a QR9999, se reinicia en 1)')
-""")
-        # Crear tabla resolucionreportes si no existe
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS resolucionreportes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                error_report_id INT NOT NULL,
-                admin_id INT NOT NULL,
-                comentarios TEXT,
-                fecha_resolucion DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (error_report_id) REFERENCES errorreport(id),
-                FOREIGN KEY (admin_id) REFERENCES users(id),
-                INDEX idx_error_report (error_report_id),
-                INDEX idx_admin (admin_id)
-            )
-        """)
-        
-        # Crear tabla ContadorDiario si no existe
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ContadorDiario (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                fecha DATE NOT NULL UNIQUE,
-                qr_vendidos INT DEFAULT 0,
-                valor_ventas DECIMAL(10, 2) DEFAULT 0,
-                qr_escaneados INT DEFAULT 0,
-                turnos_utilizados INT DEFAULT 0,
-                fallas_reportadas INT DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_fecha (fecha)
-            )
-        """)
-        
-        connection.commit()
-        app.logger.info("✅ Tablas verificadas/creadas")
-        return True
-    except Exception as e:
-        app.logger.error(f"❌ Error creando tablas: {e}")
-        return False
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# Crear tablas al iniciar
-create_tables()
 
 # ==================== RUTAS PRINCIPALES ====================
 
@@ -5669,7 +5596,6 @@ def reparar_bd_temporal():
     """Reparar tablas temporales si es necesario"""
     try:
         # Esto es solo un placeholder - ajusta según tus necesidades
-        create_tables()  # Recrear tablas si no existen
         
         return api_response(
             'S001',
