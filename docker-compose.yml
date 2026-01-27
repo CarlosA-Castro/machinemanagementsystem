@@ -38,7 +38,7 @@ services:
       mysql:
         condition: service_healthy
     command: >
-      -url=jdbc:mysql://mysql:3306/maquinasmedellin
+      -url=jdbc:mysql://mysql:3306/maquinasmedellin?allowPublicKeyRetrieval=true&useSSL=false
       -user=myuser
       -password=mypassword
       -baselineOnMigrate=true
