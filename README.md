@@ -1,4 +1,4 @@
- Sistema de Gestión de Máquinas  - Máquinas Medellín
+ Sistema de Gestión de Máquinas  - Inversiones Arcade
 
 Este proyecto permite gestionar el funcionamiento de máquinas arcade en locales comerciales. Ha sido diseñado para digitalizar el control de acceso mediante códigos QR físicos previamente generados.
 

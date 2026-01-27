@@ -42,3 +42,5 @@ Solución de problemas:
 - Revisa `python --version` y `which python` / `Get-Command python` para confirmar.
 
 Si quieres, puedo añadir un `pyproject.toml` o `Pipfile` y configurar un entorno reproducible.
+
+echo "## Último deploy: $(date '+%Y-%m-%d %H:%M:%S')" >> README.md

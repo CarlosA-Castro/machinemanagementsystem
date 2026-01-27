@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Local - Máquinas Medellín</title>
+  <title>Inversiones Arcade</title>
   
   <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
 
@@ -302,7 +302,7 @@
     <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
         <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
-          <i class="fas fa-gamepad mr-2"></i>Máquinas Medellín
+          <i class="fas fa-gamepad mr-2"></i>Inversiones Arcade
         </div>
         <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
           <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -1908,7 +1908,7 @@ cargarHistorialQR: function() {
                         // Información adicional más pequeña
                         doc.setFontSize(6);
                         doc.setFont(undefined, 'normal');
-                        const textoInfo = "Máquinas Medellín - Presentar para canjear";
+                        const textoInfo = "Inversiones Arcade - Presentar para canjear";
                         const anchoTextoInfo = doc.getTextWidth(textoInfo);
                         const xTextoInfo = (anchoPapel - anchoTextoInfo) / 2;
                         doc.text(textoInfo, xTextoInfo, yQR + altoQR + 34);
@@ -2074,7 +2074,7 @@ cargarHistorialQR: function() {
         const numero = numeroInput ? numeroInput.value.trim() : '';
         
         // Crear mensaje con información del paquete
-        const mensaje = `¡Hola! 🎮\n\nTu código QR para Máquinas Medellín:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n• Paquete: P${paquete.id} - ${paquete.name}\n• Precio: $${paquete.price.toLocaleString('es-CO')}\n• Turnos: ${paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
+        const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n• Paquete: P${paquete.id} - ${paquete.name}\n• Precio: $${paquete.price.toLocaleString('es-CO')}\n• Turnos: ${paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
         
         // Primero descargar el QR
         this.descargarQR(qrDataUrl, nombre, codigo);
