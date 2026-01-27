@@ -176,12 +176,13 @@ class MessageService:
         """Obtiene conexión a la base de datos"""
         try:
             conn = mysql.connector.connect(
-                host="mysql",
-                user="root",
-                password="",
-                database="maquinasmedellin",
-                port=3306
-            )
+                host=os.getenv("DB_HOST", "mysql"),
+    user=os.getenv("DB_USER", "myuser"),
+    password=os.getenv("DB_PASSWORD", "mypassword"),
+    database=os.getenv("DB_NAME", "maquinasmedellin"),
+    port=3306,
+    auth_plugin="mysql_native_password"
+)
             return conn
         except Exception as e:
             app.logger.error(f"Error conectando a BD para mensajes: {e}")
@@ -310,12 +311,13 @@ try:
     
     # Probar conexión simple primero
     test_conn = mysql.connector.connect(
-        host=db_config["host"],
-        user=db_config["user"], 
-        password=db_config["password"],
-        database=db_config["database"],
-        port=db_config["port"]
-    )
+         host=os.getenv("DB_HOST", "mysql"),
+    user=os.getenv("DB_USER", "myuser"),
+    password=os.getenv("DB_PASSWORD", "mypassword"),
+    database=os.getenv("DB_NAME", "maquinasmedellin"),
+    port=3306,
+    auth_plugin="mysql_native_password"
+)
     app.logger.info("✅ Conexión simple exitosa")
     test_conn.close()
     
@@ -339,12 +341,13 @@ def get_db_connection():
     try:
         # Conexión directa sin pool para debugging
         connection = mysql.connector.connect(
-            host="mysql",
-            user="root",
-            password="",
-            database="maquinasmedellin",
-            port=3306
-        )
+             host=os.getenv("DB_HOST", "mysql"),
+    user=os.getenv("DB_USER", "myuser"),
+    password=os.getenv("DB_PASSWORD", "mypassword"),
+    database=os.getenv("DB_NAME", "maquinasmedellin"),
+    port=3306,
+    auth_plugin="mysql_native_password"
+)
         cursor = connection.cursor()
         cursor.execute("SET time_zone = '-05:00'")
         cursor.close()
@@ -2333,12 +2336,13 @@ def reportar_falla_maquina():
         user_id = session.get('user_id', 1)
         
         connection = mysql.connector.connect(
-            host="mysql",
-            user="root",
-            password="",
-            database="maquinasmedellin",
-            port=3306
-        )
+             host=os.getenv("DB_HOST", "mysql"),
+    user=os.getenv("DB_USER", "myuser"),
+    password=os.getenv("DB_PASSWORD", "mypassword"),
+    database=os.getenv("DB_NAME", "maquinasmedellin"),
+    port=3306,
+    auth_plugin="mysql_native_password"
+)
         cursor = connection.cursor(dictionary=True)
         
         # Verificar máquina
