@@ -47,7 +47,7 @@ jobs:
             
             # Construir y levantar (docker-compose hará el build automáticamente)
             sudo docker-compose down
-            sudo docker-compose up -d --build  # ← --build ES CLAVE
+            sudo docker-compose up -d --build  
             
             # 4. Esperar y verificar
             echo "⏳ Esperando inicialización..."
@@ -70,3 +70,5 @@ jobs:
               echo "⚠️ Revisando logs..."
               sudo docker logs ec2-user-web-1 --tail=20
             fi
+            echo "====================================="
+            echo "🚀 DEPLOY FINALIZADO"
