@@ -32,19 +32,20 @@ services:
       DB_NAME: maquinasmedellin
     restart: always
 
-  flyway:
-    image: flyway/flyway
-    depends_on:
-      mysql:
-        condition: service_healthy
-    command: >
-      -url=jdbc:mysql://mysql:3306/maquinasmedellin?allowPublicKeyRetrieval=true&useSSL=false
-      -user=myuser
-      -password=mypassword
-      -baselineOnMigrate=true
-      migrate
-    volumes:
-      - ./db/migration:/flyway/sql
+flyway:
+  image: flyway/flyway:10
+  depends_on:
+    mysql:
+      condition: service_healthy
+  command: migrate
+  environment:
+    FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin
+    FLYWAY_USER: myuser
+    FLYWAY_PASSWORD: mypassword
+    FLYWAY_LOCATIONS: filesystem:/flyway/sql
+  volumes:
+    - ./db/migration:/flyway/sql
+
 
 volumes:
   mysql_data:
