@@ -1,21 +1,37 @@
+version: "3.9"
+
 services:
   mysql:
     image: mysql:8.3
     container_name: ec2-user-mysql-1
-    ports:
-      - "3306:3306"
     environment:
       MYSQL_DATABASE: maquinasmedellin
       MYSQL_USER: myuser
       MYSQL_PASSWORD: mypassword
       MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+
+  flyway:
+    image: flyway/flyway:10
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin
+      FLYWAY_USER: myuser
+      FLYWAY_PASSWORD: mypassword
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ./db/migration:/flyway/sql
 
   web:
     build: .
@@ -31,21 +47,6 @@ services:
       DB_PASSWORD: mypassword
       DB_NAME: maquinasmedellin
     restart: always
-
-flyway:
-  image: flyway/flyway:10
-  depends_on:
-    mysql:
-      condition: service_healthy
-  command: migrate
-  environment:
-    FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin
-    FLYWAY_USER: myuser
-    FLYWAY_PASSWORD: mypassword
-    FLYWAY_LOCATIONS: filesystem:/flyway/sql
-  volumes:
-    - ./db/migration:/flyway/sql
-
 
 volumes:
   mysql_data:
