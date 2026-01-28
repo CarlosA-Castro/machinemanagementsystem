@@ -2178,7 +2178,7 @@ def registrar_venta():
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def ventas_dia():
-    """Obtener ventas del día"""
+    """Obtener ventas REALES del día (solo donde es_venta_real = TRUE)"""
     connection = None
     cursor = None
     try:
@@ -2190,6 +2190,7 @@ def ventas_dia():
             
         cursor = get_db_cursor(connection)
         
+        # **MODIFICACIÓN CRÍTICA**: Solo contar ventas donde es_venta_real = TRUE
         cursor.execute("""
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
@@ -2200,15 +2201,27 @@ def ventas_dia():
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE  -- ¡SOLO VENTAS REALES!
         """, (fecha,))
         
         resultado = cursor.fetchone()
         
-        app.logger.info(f"Ventas del día {fecha}: {resultado['total_ventas']} ventas")
+        # **NUEVO**: También contar el total de QR escaneados (para referencia)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT qr_code) as total_escaneados
+            FROM qrhistory
+            WHERE DATE(fecha_hora) = %s
+        """, (fecha,))
+        
+        escaneados = cursor.fetchone()
+        
+        app.logger.info(f"Ventas REALES del día {fecha}: {resultado['total_ventas']} ventas, {escaneados['total_escaneados']} escaneados totales")
         
         return jsonify({
             'total_ventas': resultado['total_ventas'] or 0,
-            'valor_total': float(resultado['valor_total'] or 0)
+            'valor_total': float(resultado['valor_total'] or 0),
+            'total_escaneados': escaneados['total_escaneados'] or 0,
+            'fecha': fecha
         })
     except Exception as e:
         app.logger.error(f"Error obteniendo ventas del día: {e}")
@@ -5688,7 +5701,7 @@ def obtener_resumen_dashboard():
 # ==================== FUNCIÓN PARA ACTUALIZAR CONTADORES DIARIOS ====================
 
 def actualizar_contador_diario(fecha=None):
-    """Actualizar o crear registro de contador diario"""
+    """Actualizar o crear registro de contador diario - SOLO VENTAS REALES"""
     if fecha is None:
         fecha = get_colombia_time().strftime('%Y-%m-%d')
     
@@ -5717,12 +5730,17 @@ def actualizar_contador_diario(fecha=None):
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         
+        # **MODIFICACIÓN: Solo contar ventas REALES (es_venta_real = TRUE)**
         cursor.execute("""
             INSERT INTO ContadorDiario (fecha, qr_vendidos, valor_ventas, qr_escaneados, turnos_utilizados, fallas_reportadas)
             SELECT 
                 %s as fecha,
-                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN qh.qr_code END) as qr_vendidos,
-                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN tp.price END), 0) as valor_ventas,
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 
+                          AND qh.es_venta_real = TRUE  -- ¡SOLO VENTAS REALES!
+                          THEN qh.qr_code END) as qr_vendidos,
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 
+                           AND qh.es_venta_real = TRUE  -- ¡SOLO VENTAS REALES!
+                           THEN tp.price END), 0) as valor_ventas,
                 COUNT(DISTINCT qh.qr_code) as qr_escaneados,
                 COUNT(DISTINCT tu.id) as turnos_utilizados,
                 COUNT(DISTINCT mf.id) as fallas_reportadas
@@ -5742,7 +5760,7 @@ def actualizar_contador_diario(fecha=None):
         """, (fecha, fecha, fecha, fecha))
         
         connection.commit()
-        app.logger.info(f"Contador diario actualizado para {fecha}")
+        app.logger.info(f"Contador diario actualizado para {fecha} - Solo ventas reales contadas")
         return True
         
     except Exception as e:
