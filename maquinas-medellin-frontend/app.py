@@ -1542,11 +1542,34 @@ def guardar_qr():
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
         
+        # Obtener información del QR
         cursor.execute("SELECT qr_name, turnPackageId FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         qr_name = qr_data['qr_name'] if qr_data and 'qr_name' in qr_data else None
         
-        es_venta = es_venta_real and qr_data and qr_data['turnPackageId'] is not None and qr_data['turnPackageId'] != 1
+        # **NUEVA LÓGICA: Verificar si YA EXISTE una venta real para este QR**
+        cursor.execute("""
+            SELECT COUNT(*) as ventas_existentes
+            FROM qrhistory 
+            WHERE qr_code = %s 
+            AND es_venta_real = TRUE
+        """, (qr_code,))
+        
+        existe_venta_anterior = cursor.fetchone()['ventas_existentes'] > 0
+        
+        tiene_paquete = qr_data and qr_data['turnPackageId'] is not None and qr_data['turnPackageId'] != 1
+        
+        # **REGLA ACTUALIZADA: Es venta SOLO si:
+        # 1. Es marcado como venta real (es_venta_real=True)
+        # 2. Tiene paquete asignado
+        # 3. NO existe ya una venta anterior para este mismo QR
+        es_venta = False
+        if es_venta_real and tiene_paquete and not existe_venta_anterior:
+            es_venta = True
+        elif es_venta_real and existe_venta_anterior:
+            # Si ya existe venta anterior, marcar como duplicada
+            es_venta = False
+            app.logger.warning(f"Intento de registrar venta duplicada para QR: {qr_code}")
         
         # Insertar en historial
         cursor.execute("""
@@ -1556,11 +1579,18 @@ def guardar_qr():
         
         connection.commit()
         
-        # Si es una venta real, actualizar el contador diario
-        if es_venta_real:
+        # Solo actualizar contador diario si es una NUEVA venta real
+        if es_venta:
             actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
-
-        app.logger.info(f"QR guardado en historial: {qr_code} por {user_name} (venta: {es_venta_real})")
+            app.logger.info(f"VENTA NUEVA registrada: {qr_code} por {user_name}")
+            mensaje = "Venta registrada"
+        elif existe_venta_anterior and es_venta_real:
+            app.logger.info(f"VENTA DUPLICADA (ya existía): {qr_code} por {user_name}")
+            mensaje = "Este QR ya tenía una venta registrada anteriormente"
+        else:
+            # Si es escaneo de consulta, NO actualizar contador diario
+            app.logger.info(f"Escaneo de CONSULTA: {qr_code} por {user_name}")
+            mensaje = "Escaneo de consulta registrado"
         
         return api_response(
             'S006',
@@ -1569,12 +1599,65 @@ def guardar_qr():
                 'qr_name': qr_name,
                 'es_venta': es_venta,
                 'es_venta_real': es_venta_real,
+                'tiene_paquete': tiene_paquete,
+                'existe_venta_anterior': existe_venta_anterior,
+                'mensaje': mensaje,
                 'timestamp': hora_colombia.strftime('%Y-%m-%d %H:%M:%S')
             }
         )
     except Exception as e:
         app.logger.error(f"Error guardando QR en historial: {e}")
         sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/verificar-venta-existente/<qr_code>', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+def verificar_venta_existente(qr_code):
+    """Verificar si ya existe una venta real para este QR"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si ya existe venta real para este QR
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as existe_venta,
+                MAX(fecha_hora) as ultima_venta_fecha,
+                COUNT(*) as total_ventas
+            FROM qrhistory 
+            WHERE qr_code = %s 
+            AND es_venta_real = TRUE
+        """, (qr_code,))
+        
+        venta_info = cursor.fetchone()
+        
+        # Obtener información básica del QR
+        cursor.execute("SELECT qr_name, turnPackageId FROM qrcode WHERE code = %s", (qr_code,))
+        qr_info = cursor.fetchone()
+        
+        existe_venta = venta_info['existe_venta'] > 0
+        
+        return jsonify({
+            'existe_venta': existe_venta,
+            'total_ventas': venta_info['total_ventas'] or 0,
+            'ultima_venta_fecha': venta_info['ultima_venta_fecha'].isoformat() if venta_info['ultima_venta_fecha'] else None,
+            'qr_tiene_paquete': qr_info and qr_info['turnPackageId'] is not None and qr_info['turnPackageId'] != 1,
+            'qr_nombre': qr_info['qr_name'] if qr_info and 'qr_name' in qr_info else None
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error verificando venta existente: {e}")
         return api_response('E001', http_status=500)
     finally:
         if cursor:
