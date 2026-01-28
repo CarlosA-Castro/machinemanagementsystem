@@ -798,58 +798,86 @@ actualizarContadorGlobal: function() {
 },
 
       // Función para actualizar las ventas del día CON VALOR TOTAL
-     actualizarVentasDia: function() {
+     // Función para actualizar las ventas REALES del día
+actualizarVentasDia: function() {
   const hoy = new Date().toISOString().split('T')[0];
   
-  console.log(`📈 Solicitando ventas del día: ${hoy}`);
+  console.log(`📈 Solicitando VENTAS REALES del día: ${hoy}`);
   
   fetch(`/api/ventas-dia?fecha=${hoy}`, {
     headers: {
       'X-Requested-With': 'XMLHttpRequest'
     }
   })
-    .then(res => {
-      if (!res.ok) throw new Error('Error en la respuesta del servidor');
-      return res.json();
-    })
-    .then(data => {
-      // Actualizar número de ventas
-      const ventasElement = document.getElementById('ventasDia');
-      if (ventasElement) {
-        ventasElement.innerText = data.total_ventas || 0;
+  .then(res => {
+    if (!res.ok) {
+      console.error(`Error HTTP: ${res.status} ${res.statusText}`);
+      throw new Error('Error en la respuesta del servidor');
+    }
+    return res.json();
+  })
+  .then(data => {
+    console.log("📊 Datos de ventas recibidos:", data);
+    
+    // Actualizar número de ventas REALES
+    const ventasElement = document.getElementById('ventasDia');
+    if (ventasElement) {
+      ventasElement.innerText = data.total_ventas || 0;
+      
+      // Agregar tooltip informativo
+      ventasElement.title = `Ventas reales del día\nTotal escaneados: ${data.total_escaneados || 0}`;
+    }
+    
+    // Formatear y mostrar el valor total de VENTAS REALES
+    const valorTotal = data.valor_total || 0;
+    const valorFormateado = new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(valorTotal);
+    
+    const valorElement = document.getElementById('valorTotalVentas');
+    if (valorElement) {
+      valorElement.innerText = valorFormateado;
+      
+      // Agregar tooltip para claridad
+      valorElement.title = `Valor total de VENTAS REALES\nFecha: ${data.fecha || hoy}\nEscaneos totales: ${data.total_escaneados || 0}`;
+      
+      // Cambiar color según si hay ventas o no
+      if (valorTotal > 0) {
+        valorElement.className = "text-xl lg:text-2xl font-bold text-purple-600";
+      } else {
+        valorElement.className = "text-xl lg:text-2xl font-bold text-gray-400";
       }
-      
-      // Formatear y mostrar el valor total
-      const valorTotal = data.valor_total || 0;
-      const valorFormateado = new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0
-      }).format(valorTotal);
-      
-      const valorElement = document.getElementById('valorTotalVentas');
-      if (valorElement) {
-        valorElement.innerText = valorFormateado;
-      }
-      
-      console.log(`💰 Ventas del día: ${data.total_ventas || 0} paquetes, valor: ${valorFormateado}`);
-    })
-    .catch(err => {
-      console.error(" Error obteniendo ventas del día:", err);
-      // Mostrar errores en los elementos
-      const ventasElement = document.getElementById('ventasDia');
-      const valorElement = document.getElementById('valorTotalVentas');
-      
-      if (ventasElement) {
-        ventasElement.innerText = "Error";
-        ventasElement.className = "text-2xl lg:text-3xl font-bold text-red-600";
-      }
-      
-      if (valorElement) {
-        valorElement.innerText = "$Error";
-        valorElement.className = "text-xl lg:text-2xl font-bold text-red-600";
-      }
-    });
+    }
+    
+    // Actualizar contador de escaneos si existe
+    const escaneosElement = document.getElementById('escaneosDia');
+    if (escaneosElement) {
+      escaneosElement.innerText = data.total_escaneados || 0;
+    }
+    
+    console.log(`💰 VENTAS REALES del día: ${data.total_ventas || 0} ventas, valor: ${valorFormateado}, escaneos: ${data.total_escaneados || 0}`);
+  })
+  .catch(err => {
+    console.error("❌ Error obteniendo ventas del día:", err);
+    
+    // Mostrar errores en los elementos
+    const ventasElement = document.getElementById('ventasDia');
+    const valorElement = document.getElementById('valorTotalVentas');
+    
+    if (ventasElement) {
+      ventasElement.innerText = "Error";
+      ventasElement.className = "text-2xl lg:text-3xl font-bold text-red-600";
+      ventasElement.title = "Error al cargar datos de ventas";
+    }
+    
+    if (valorElement) {
+      valorElement.innerText = "$Error";
+      valorElement.className = "text-xl lg:text-2xl font-bold text-red-600";
+      valorElement.title = "Error al cargar valor de ventas";
+    }
+  });
 },
 
      // Función para cargar el historial de QR - VERSIÓN ROBUSTA
@@ -1267,7 +1295,7 @@ cargarHistorialQR: function() {
           });
       },
 
-      guardarEnHistorial: function(codigo) {
+     guardarEnHistorial: function(codigo) {
   const tabla = document.getElementById("tablaRegistros");
   
   // Crear nueva fila
@@ -1282,7 +1310,7 @@ cargarHistorialQR: function() {
     <td class="p-3">${fecha.toLocaleDateString('es-CO')}</td>
     <td class="p-3">${fecha.toLocaleTimeString('es-CO', {hour12: false})}</td>
     <td class="p-3 space-x-2">
-      <button onclick="LocalApp.verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs btn-touch">
+      <button onclick="LocalApp.verDetalles('${codigo}')" class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
         <i class="fas fa-info-circle mr-1"></i>Detalles
       </button>
     </td>
@@ -1294,7 +1322,123 @@ cargarHistorialQR: function() {
     rows[i].getElementsByTagName('td')[0].textContent = i;
   }
 
-  // Guardar en historial como escaneo (no venta)
+  // Verificar si ya existe venta para este QR
+  fetch(`/api/verificar-venta-existente/${codigo}`, {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Error verificando venta existente');
+    return res.json();
+  })
+  .then(ventaInfo => {
+    
+    // Guardar en historial como ESCANEO DE CONSULTA (NO venta)
+    fetch("/api/guardar-qr", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify({ 
+        qr_code: codigo,
+        es_venta_real: false  // ¡IMPORTANTE! Esto es solo escaneo de consulta
+      })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Error en la respuesta del servidor');
+      return res.json();
+    })
+    .then(data => {
+      console.log("Historial guardado (solo consulta):", data);
+      
+      // Actualizar el nombre en la fila si está disponible
+      if (data.qr_name) {
+        fila.cells[2].innerHTML = data.qr_name;
+      }
+      
+      // Determinar badge según la información
+      let badgeHTML = '';
+      let badgeTitle = '';
+      
+      if (ventaInfo.existe_venta) {
+        badgeHTML = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2">VENTA PREVIA</span>';
+        badgeTitle = 'Ya existe una venta registrada para este QR';
+      } else if (data.tiene_paquete && !ventaInfo.existe_venta) {
+        badgeHTML = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded ml-2">CON PAQUETE</span>';
+        badgeTitle = 'Tiene paquete asignado pero no es una venta';
+      } else {
+        badgeHTML = '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded ml-2">ESCANEO</span>';
+        badgeTitle = 'Escaneo de consulta (no afecta ventas)';
+      }
+      
+      // Actualizar celda con nombre y badge
+      fila.cells[2].innerHTML = `
+        <div class="flex items-center">
+          <span class="truncate max-w-[150px]">${data.qr_name || 'Sin nombre'}</span>
+          <div class="ml-2" title="${badgeTitle}">${badgeHTML}</div>
+        </div>
+      `;
+      
+      // Solo agregar botón de imprimir si es venta (aquí nunca será venta nueva)
+      if (data.es_venta) {
+        const accionesCelda = fila.cells[5];
+        accionesCelda.innerHTML += `
+          <button onclick="LocalApp.reimprimirQR('${codigo}', '${data.qr_name || ''}')" 
+                  class="text-green-600 hover:text-green-800 text-xs btn-touch px-2 py-1 rounded bg-green-50 hover:bg-green-100 transition">
+            <i class="fas fa-print mr-1"></i>Imprimir
+          </button>
+        `;
+      }
+      
+      // Recargar el historial completo para mantener consistencia
+      this.cargarHistorialQR();
+      
+      // **IMPORTANTE: NO actualizar contador de ventas**
+      // Los escaneos de consulta NO deben afectar las estadísticas de ventas
+      
+      // Mostrar mensaje específico al usuario
+      let mensaje = "🔍 QR escaneado para consulta";
+      let tipo = "info";
+      
+      if (ventaInfo.existe_venta) {
+        mensaje = "📋 QR consultado (ya tiene venta registrada - no se cuenta de nuevo)";
+        tipo = "success";
+      } else if (data.tiene_paquete) {
+        mensaje = "📦 QR con paquete (escaneo de consulta - no es venta)";
+        tipo = "warning";
+      } else {
+        mensaje = "🔍 Escaneo de consulta registrado (no afecta ventas)";
+        tipo = "info";
+      }
+      
+      this.mostrarAlerta(mensaje, tipo);
+      
+      // **NO LLAMAR a actualizarVentasDia() aquí**
+      // Solo actualizar contador global de QR si es necesario
+      setTimeout(() => this.actualizarContadorGlobal(), 500);
+    })
+    .catch(err => {
+      console.error("Error guardando historial:", err);
+      this.mostrarAlerta("Error al guardar en el historial", "error");
+      
+      fila.cells[2].innerHTML = `
+        <span class="text-red-500">
+          <i class="fas fa-exclamation-triangle mr-1"></i>Error
+        </span>
+      `;
+    });
+    
+  })
+  .catch(err => {
+    console.error("Error verificando venta existente:", err);
+    this.guardarQRSimple(codigo, fila);
+  });
+},
+
+// Función auxiliar para guardar QR sin verificar venta existente (fallback)
+guardarQRSimple: function(codigo, fila) {
   fetch("/api/guardar-qr", {
     method: "POST",
     headers: { 
@@ -1303,7 +1447,7 @@ cargarHistorialQR: function() {
     },
     body: JSON.stringify({ 
       qr_code: codigo,
-      es_venta_real: false  // Solo escaneo informativo
+      es_venta_real: false
     })
   })
   .then(res => {
@@ -1311,19 +1455,26 @@ cargarHistorialQR: function() {
     return res.json();
   })
   .then(data => {
-    console.log("Historial guardado (escaneo informativo):", data);
+    console.log("Historial guardado (versión simple):", data);
     
     // Actualizar el nombre en la fila si está disponible
     if (data.qr_name) {
       fila.cells[2].textContent = data.qr_name;
     }
     
-    // Solo agregar botón de imprimir si es venta (pero aquí nunca será venta real)
+    // Determinar badge básico
+    let badgeHTML = data.es_venta ? 
+      '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2">VENTA</span>' : 
+      '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded ml-2">ESCANEO</span>';
+    
+    fila.cells[2].innerHTML = `${data.qr_name || 'Sin nombre'} ${badgeHTML}`;
+    
+    // Solo agregar botón de imprimir si es venta
     if (data.es_venta) {
       const accionesCelda = fila.cells[5];
       accionesCelda.innerHTML += `
         <button onclick="LocalApp.reimprimirQR('${codigo}', '${data.qr_name || ''}')" 
-                class="text-green-600 hover:text-green-800 text-xs btn-touch">
+                class="text-green-600 hover:text-green-800 text-xs btn-touch px-2 py-1 rounded bg-green-50 hover:bg-green-100 transition">
           <i class="fas fa-print mr-1"></i>Imprimir
         </button>
       `;
@@ -1332,12 +1483,20 @@ cargarHistorialQR: function() {
     // Recargar el historial completo
     this.cargarHistorialQR();
     
-    // **SOLO actualizar contador global, NO ventas**
-    setTimeout(() => this.actualizarContadorGlobal(), 1000);
+    // Mostrar mensaje básico
+    this.mostrarAlerta(data.es_venta ? "✅ QR registrado" : "🔍 QR escaneado", 
+                      data.es_venta ? "success" : "info");
   })
   .catch(err => {
-    console.error("Error guardando historial:", err);
-    this.mostrarAlerta("Error al guardar en el historial", "error");
+    console.error("Error en guardado simple:", err);
+    this.mostrarAlerta("Error al guardar QR", "error");
+    
+    // Mostrar error en la fila
+    fila.cells[2].innerHTML = `
+      <span class="text-red-500">
+        <i class="fas fa-exclamation-triangle mr-1"></i>Error
+      </span>
+    `;
   });
 },
 
