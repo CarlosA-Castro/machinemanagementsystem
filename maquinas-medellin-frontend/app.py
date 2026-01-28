@@ -526,8 +526,6 @@ def generar_codigo_qr():
             
         cursor = get_db_cursor(connection)
         
-        connection.start_transaction()
-        
         cursor.execute("""
             SELECT counter_value FROM globalcounter 
             WHERE counter_type = 'QR_CODE' 
@@ -643,8 +641,6 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
             return []
             
         cursor = get_db_cursor(connection)
-        
-        connection.start_transaction()
         
         cursor.execute("""
             SELECT counter_value FROM globalcounter 
@@ -811,9 +807,6 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         turns_paquete = paquete['turns']
         price_paquete = paquete['price']
         nombre_paquete = paquete['name']
-        
-        # Ahora obtener el contador global
-        connection.start_transaction()
         
         cursor.execute("""
             SELECT counter_value FROM globalcounter 
@@ -1147,6 +1140,7 @@ def get_next_qr_number():
 def generar_qr():
     """Generar nuevos códigos QR con 4 cifras"""
     try:
+        app.logger.info(f"SESSION EN generar-qr: {dict(session)}")
         data = request.get_json()
         cantidad = int(data['cantidad'])
         nombre = data.get('nombre', '')
@@ -2581,9 +2575,6 @@ def resolver_reporte(reporte_id):
         machine_name = reporte['machine_name']
         
         app.logger.info(f"Máquina asociada: id={machine_id}, nombre={machine_name}")
-        
-        # Iniciar transacción
-     #connection.start_transaction()
         
         try:
             # 1. Marcar reporte como resuelto en ErrorReport
