@@ -266,29 +266,27 @@ def require_login(roles=None):
     return decorator
 
 def validate_required_fields(required_fields):
-    """
-    Decorador para validar campos requeridos
-    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            data = request.get_json() if request.is_json else request.form
-            
+            data = request.get_json(silent=True) or request.form
+
             missing_fields = []
             for field in required_fields:
-                if field not in data or not data[field]:
+                if field not in data or data[field] in [None, '', []]:
                     missing_fields.append(field)
-            
+
             if missing_fields:
                 return api_response(
-                    'E005', 
+                    'E005',
                     http_status=400,
                     data={'missing_fields': missing_fields}
                 )
-            
+
             return func(*args, **kwargs)
         return wrapper
     return decorator
+
 
 # ==================== CONFIGURACIÓN DEL POOL DE CONEXIONES ====================
 
@@ -1170,6 +1168,7 @@ def generar_qr():
             )
         
         # Si se proporciona paquete_id, usar la función que incluye asignación de paquete
+       
         if paquete_id:
             # Generar códigos con el paquete incluido
             codigos_generados = generar_codigos_qr_lote_con_paquete(cantidad, nombre, paquete_id)
