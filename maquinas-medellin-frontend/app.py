@@ -786,178 +786,108 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
             connection.close()
 
 def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
-    """Generar múltiples códigos QR con 4 cifras Y ASIGNAR PAQUETE desde el inicio"""
+    """Generar múltiples códigos QR y asignar paquete desde el inicio (blindado contra duplicados)"""
     connection = None
     cursor = None
     try:
         connection = get_db_connection()
         if not connection:
             return []
-            
+
         cursor = get_db_cursor(connection)
-        
-        # Primero obtener información del paquete
-        cursor.execute("SELECT turns, price, name FROM turnpackage WHERE id = %s", (paquete_id,))
+
+        # 🔹 Obtener información del paquete
+        cursor.execute(
+            "SELECT turns, price, name FROM turnpackage WHERE id = %s",
+            (paquete_id,)
+        )
         paquete = cursor.fetchone()
-        
         if not paquete:
             app.logger.error(f"Paquete {paquete_id} no encontrado")
             return []
-        
+
         turns_paquete = paquete['turns']
-        price_paquete = paquete['price']
         nombre_paquete = paquete['name']
-        
+
+        # 🔹 Bloquear contador
         cursor.execute("""
-            SELECT counter_value FROM globalcounter 
-            WHERE counter_type = 'QR_CODE' 
+            SELECT counter_value FROM globalcounter
+            WHERE counter_type = 'QR_CODE'
             FOR UPDATE
         """)
-        
         resultado = cursor.fetchone()
-        
+
         if not resultado:
-            # Si no existe el contador, crearlo
             cursor.execute("""
-                INSERT INTO globalcounter (counter_type, counter_value, description) 
-                VALUES ('QR_CODE', %s, 'Contador para códigos QR')
-            """, (cantidad_qr,))
-            numero_inicial = 1
-            numero_final = cantidad_qr
+                INSERT INTO globalcounter (counter_type, counter_value, description)
+                VALUES ('QR_CODE', 0, 'Contador para códigos QR')
+            """)
+            contador_bd = 0
         else:
-            # Tomar el valor actual y calcular el rango
-            numero_inicial = resultado['counter_value'] + 1
-            numero_final = resultado['counter_value'] + cantidad_qr
-            
-            # Manejar el caso donde el rango excede 9999
-            if numero_final > 9999:
-                # Parte del rango antes de 9999
-                numeros_antes_reinicio = 9999 - numero_inicial + 1
-                # Parte del rango después del reinicio
-                numeros_despues_reinicio = cantidad_qr - numeros_antes_reinicio
-                
-                # Configurar dos rangos
-                rango1_inicio = numero_inicial
-                rango1_final = 9999
-                rango2_inicio = 1
-                rango2_final = numeros_despues_reinicio
-                
-                nuevo_valor_contador = numeros_despues_reinicio
-                
-                # Actualizar el contador
-                cursor.execute("""
-                    UPDATE globalcounter 
-                    SET counter_value = %s 
-                    WHERE counter_type = 'QR_CODE'
-                """, (nuevo_valor_contador,))
-                
-                codigos_generados = []
-                
-                # Obtener información del usuario actual para el historial
-                user_id = session.get('user_id')
-                user_name = session.get('user_name', 'Sistema')
-                local = session.get('user_local', 'El Mekatiadero')
-                hora_colombia = get_colombia_time()
-                fecha_hora_str = format_datetime_for_db(hora_colombia)
-                
-                # Generar códigos del primer rango (hasta 9999)
-                for i in range(rango1_inicio, rango1_final + 1):
-                    nuevo_codigo = f"QR{i:04d}"
-                    codigos_generados.append(nuevo_codigo)
-                    
-                    # Insertar en la tabla qrcode CON PAQUETE YA ASIGNADO
-                    cursor.execute("""
-                        INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (nuevo_codigo, turns_paquete, 1, paquete_id, nombre))
-                    
-                    # Registrar automáticamente en userturns CON PAQUETE
-                    cursor.execute("""
-                        INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
-                        VALUES (LAST_INSERT_ID(), %s, %s, %s)
-                    """, (turns_paquete, turns_paquete, paquete_id))
-                    
-                    # Registrar automáticamente en el historial COMO VENTA REAL
-                    cursor.execute("""
-                        INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
-                        VALUES (%s, %s, %s, %s, %s, %s, TRUE)
-                    """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
-                
-                # Generar códigos del segundo rango (después del reinicio)
-                for i in range(rango2_inicio, rango2_final + 1):
-                    nuevo_codigo = f"QR{i:04d}"
-                    codigos_generados.append(nuevo_codigo)
-                    
-                    # Insertar en la tabla qrcode CON PAQUETE YA ASIGNADO
-                    cursor.execute("""
-                        INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (nuevo_codigo, turns_paquete, 1, paquete_id, nombre))
-                    
-                    # Registrar automáticamente en userturns CON PAQUETE
-                    cursor.execute("""
-                        INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
-                        VALUES (LAST_INSERT_ID(), %s, %s, %s)
-                    """, (turns_paquete, turns_paquete, paquete_id))
-                    
-                    # Registrar automáticamente en el historial COMO VENTA REAL
-                    cursor.execute("""
-                        INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
-                        VALUES (%s, %s, %s, %s, %s, %s, TRUE)
-                    """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
-                
-                connection.commit()
-                
-                app.logger.warning(f"Contador QR reiniciado automáticamente. Generados {cantidad_qr} códigos con paquete {nombre_paquete}")
-                app.logger.info(f"Generados {cantidad_qr} códigos QR con paquete {paquete_id} por {user_name}")
-                
-                return codigos_generados
-            else:
-                # Actualizar el contador normalmente
-                cursor.execute("""
-                    UPDATE globalcounter 
-                    SET counter_value = %s 
-                    WHERE counter_type = 'QR_CODE'
-                """, (numero_final,))
-        
-        codigos_generados = []
-        
-        # Obtener información del usuario actual para el historial
+            contador_bd = resultado['counter_value']
+
+        # 🔹 Obtener el mayor QR REAL existente
+        cursor.execute("""
+            SELECT MAX(CAST(SUBSTRING(code, 3) AS UNSIGNED)) AS max_real
+            FROM qrcode
+        """)
+        max_real = cursor.fetchone()['max_real'] or 0
+
+        # 🔹 Sincronizar contador
+        contador_actual = max(contador_bd, max_real)
+
+        numero_inicial = contador_actual + 1
+        numero_final = contador_actual + cantidad_qr
+
+        # 🔹 Actualizar contador global con el valor REAL final
+        cursor.execute("""
+            UPDATE globalcounter
+            SET counter_value = %s
+            WHERE counter_type = 'QR_CODE'
+        """, (numero_final,))
+
+        # 🔹 Datos del usuario
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
         local = session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
-        
-        # Generar todos los códigos YA CON PAQUETE
+
+        codigos_generados = []
+
+        # 🔹 Generar QRs
         for i in range(numero_inicial, numero_final + 1):
             nuevo_codigo = f"QR{i:04d}"
             codigos_generados.append(nuevo_codigo)
-            
-            # Insertar en la tabla qrcode CON PAQUETE YA ASIGNADO
+
+            # Insertar QR
             cursor.execute("""
                 INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                 VALUES (%s, %s, %s, %s, %s)
             """, (nuevo_codigo, turns_paquete, 1, paquete_id, nombre))
-            
-            # Registrar automáticamente en userturns CON PAQUETE
+
+            # Insertar userturns
             cursor.execute("""
                 INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
                 VALUES (LAST_INSERT_ID(), %s, %s, %s)
             """, (turns_paquete, turns_paquete, paquete_id))
-            
-            # Registrar automáticamente en el historial COMO VENTA REAL
+
+            # Insertar historial
             cursor.execute("""
-                INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+                INSERT INTO qrhistory
+                (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
                 VALUES (%s, %s, %s, %s, %s, %s, TRUE)
             """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
-        
+
         connection.commit()
-        
-        app.logger.info(f"Generados {cantidad_qr} códigos QR: desde QR{numero_inicial:04d} hasta QR{numero_final:04d} con paquete {nombre_paquete} por {user_name}")
-        
+
+        app.logger.info(
+            f"Generados {cantidad_qr} QRs: QR{numero_inicial:04d} a QR{numero_final:04d} "
+            f"con paquete {nombre_paquete} por {user_name}"
+        )
+
         return codigos_generados
-        
+
     except Exception as e:
         app.logger.error(f"Error generando códigos QR en lote con paquete: {e}")
         import traceback
@@ -965,11 +895,13 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         if connection:
             connection.rollback()
         return []
+
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
+
 
 @app.route('/api/contador-qr/estado', methods=['GET'])
 @handle_api_errors
