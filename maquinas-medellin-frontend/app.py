@@ -1522,7 +1522,7 @@ def obtener_historial_fallas():
 @require_login(['admin', 'cajero'])
 @validate_required_fields(['qr_code'])
 def guardar_qr():
-    """Guardar QR en historial"""
+    """Guardar QR en historial - CONSULTA o VENTA"""
     connection = None
     cursor = None
     try:
@@ -1532,6 +1532,7 @@ def guardar_qr():
         user_name = session.get('user_name', 'Usuario')
         local = session.get('user_local', 'El Mekatiadero')
         es_venta_real = data.get('es_venta_real', False)
+        es_consulta = data.get('es_consulta', False)
 
         connection = get_db_connection()
         if not connection:
@@ -1547,29 +1548,15 @@ def guardar_qr():
         qr_data = cursor.fetchone()
         qr_name = qr_data['qr_name'] if qr_data and 'qr_name' in qr_data else None
         
-        # **NUEVA LÓGICA: Verificar si YA EXISTE una venta real para este QR**
-        cursor.execute("""
-            SELECT COUNT(*) as ventas_existentes
-            FROM qrhistory 
-            WHERE qr_code = %s 
-            AND es_venta_real = TRUE
-        """, (qr_code,))
-        
-        existe_venta_anterior = cursor.fetchone()['ventas_existentes'] > 0
-        
+        # **LÓGICA CORRECTA: Solo es venta si:
+        # 1. Es marcado como venta real (es_venta_real=True)
+        # 2. NO es consulta (es_consulta=False)
+        # 3. Tiene paquete asignado
         tiene_paquete = qr_data and qr_data['turnPackageId'] is not None and qr_data['turnPackageId'] != 1
         
-        # **REGLA ACTUALIZADA: Es venta SOLO si:
-        # 1. Es marcado como venta real (es_venta_real=True)
-        # 2. Tiene paquete asignado
-        # 3. NO existe ya una venta anterior para este mismo QR
         es_venta = False
-        if es_venta_real and tiene_paquete and not existe_venta_anterior:
+        if es_venta_real and not es_consulta and tiene_paquete:
             es_venta = True
-        elif es_venta_real and existe_venta_anterior:
-            # Si ya existe venta anterior, marcar como duplicada
-            es_venta = False
-            app.logger.warning(f"Intento de registrar venta duplicada para QR: {qr_code}")
         
         # Insertar en historial
         cursor.execute("""
@@ -1579,18 +1566,15 @@ def guardar_qr():
         
         connection.commit()
         
-        # Solo actualizar contador diario si es una NUEVA venta real
+        # Solo actualizar contador diario si es una VENTA REAL (no consulta)
         if es_venta:
             actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
-            app.logger.info(f"VENTA NUEVA registrada: {qr_code} por {user_name}")
+            app.logger.info(f"VENTA REAL registrada: {qr_code} por {user_name}")
             mensaje = "Venta registrada"
-        elif existe_venta_anterior and es_venta_real:
-            app.logger.info(f"VENTA DUPLICADA (ya existía): {qr_code} por {user_name}")
-            mensaje = "Este QR ya tenía una venta registrada anteriormente"
         else:
-            # Si es escaneo de consulta, NO actualizar contador diario
-            app.logger.info(f"Escaneo de CONSULTA: {qr_code} por {user_name}")
-            mensaje = "Escaneo de consulta registrado"
+            # Si es consulta, NO actualizar contador diario
+            app.logger.info(f"CONSULTA registrada: {qr_code} por {user_name}")
+            mensaje = "Consulta registrada"
         
         return api_response(
             'S006',
@@ -1599,8 +1583,8 @@ def guardar_qr():
                 'qr_name': qr_name,
                 'es_venta': es_venta,
                 'es_venta_real': es_venta_real,
+                'es_consulta': es_consulta,
                 'tiene_paquete': tiene_paquete,
-                'existe_venta_anterior': existe_venta_anterior,
                 'mensaje': mensaje,
                 'timestamp': hora_colombia.strftime('%Y-%m-%d %H:%M:%S')
             }
@@ -1670,7 +1654,7 @@ def verificar_venta_existente(qr_code):
 @require_login(['admin', 'cajero'])
 @validate_required_fields(['qr_codes', 'paquete_id'])
 def guardar_multiples_qr_con_paquete():
-    """Guardar múltiples QR con paquete asignado desde el inicio"""
+    """Guardar múltiples QR con paquete como VENTAS REALES"""
     connection = None
     cursor = None
     try:
@@ -1681,7 +1665,7 @@ def guardar_multiples_qr_con_paquete():
         paquete_nombre = data.get('paquete_nombre', '')
         paquete_precio = data.get('paquete_precio', 0)
         paquete_turns = data.get('paquete_turns', 0)
-        es_venta_real = data.get('es_venta_real', True) 
+        es_venta_real = data.get('es_venta_real', True)  # Por defecto es venta
         
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
@@ -1754,7 +1738,7 @@ def guardar_multiples_qr_con_paquete():
                 
                 qrs_actualizados += 1
             
-            # Registrar en historial marcando si es venta real
+            # Registrar en historial como VENTA REAL
             cursor.execute("""
                 INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -1762,13 +1746,13 @@ def guardar_multiples_qr_con_paquete():
 
         connection.commit()
         
-        # Si es una venta real, actualizar el contador diario
+        # Actualizar contador diario si es venta real
         if es_venta_real and qr_codes:
             actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
         
         total_qrs = qrs_creados + qrs_actualizados
         
-        app.logger.info(f"{total_qrs} QR generados y asignados al paquete {paquete_nombre}")
+        app.logger.info(f"{total_qrs} QR generados como VENTAS REALES con paquete {paquete_nombre}")
 
         return api_response(
             'S002',
@@ -1781,7 +1765,8 @@ def guardar_multiples_qr_con_paquete():
                 'turns': paquete_turns,
                 'creados': qrs_creados,
                 'actualizados': qrs_actualizados,
-                'es_venta_real': es_venta_real
+                'es_venta_real': es_venta_real,
+                'mensaje': f'{total_qrs} QR registrados como VENTAS REALES'
             }
         )
         
@@ -2178,7 +2163,7 @@ def registrar_venta():
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def ventas_dia():
-    """Obtener ventas REALES del día (solo donde es_venta_real = TRUE)"""
+    """Obtener VENTAS REALES del día (solo donde es_venta_real = TRUE)"""
     connection = None
     cursor = None
     try:
@@ -2190,7 +2175,7 @@ def ventas_dia():
             
         cursor = get_db_cursor(connection)
         
-        # **MODIFICACIÓN CRÍTICA**: Solo contar ventas donde es_venta_real = TRUE
+        # Solo contar ventas donde es_venta_real = TRUE
         cursor.execute("""
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
@@ -2201,26 +2186,16 @@ def ventas_dia():
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE  -- ¡SOLO VENTAS REALES!
+            AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
         """, (fecha,))
         
         resultado = cursor.fetchone()
         
-        # **NUEVO**: También contar el total de QR escaneados (para referencia)
-        cursor.execute("""
-            SELECT COUNT(DISTINCT qr_code) as total_escaneados
-            FROM qrhistory
-            WHERE DATE(fecha_hora) = %s
-        """, (fecha,))
-        
-        escaneados = cursor.fetchone()
-        
-        app.logger.info(f"Ventas REALES del día {fecha}: {resultado['total_ventas']} ventas, {escaneados['total_escaneados']} escaneados totales")
+        app.logger.info(f"Ventas REALES del día {fecha}: {resultado['total_ventas']} ventas")
         
         return jsonify({
             'total_ventas': resultado['total_ventas'] or 0,
             'valor_total': float(resultado['valor_total'] or 0),
-            'total_escaneados': escaneados['total_escaneados'] or 0,
             'fecha': fecha
         })
     except Exception as e:
@@ -5701,7 +5676,7 @@ def obtener_resumen_dashboard():
 # ==================== FUNCIÓN PARA ACTUALIZAR CONTADORES DIARIOS ====================
 
 def actualizar_contador_diario(fecha=None):
-    """Actualizar o crear registro de contador diario - SOLO VENTAS REALES"""
+    """Actualizar contador diario - SOLO VENTAS REALES"""
     if fecha is None:
         fecha = get_colombia_time().strftime('%Y-%m-%d')
     
@@ -5714,7 +5689,7 @@ def actualizar_contador_diario(fecha=None):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar si existe tabla ContadorDiario, si no crearla
+        # Crear tabla si no existe
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS ContadorDiario (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -5730,16 +5705,16 @@ def actualizar_contador_diario(fecha=None):
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         
-        # **MODIFICACIÓN: Solo contar ventas REALES (es_venta_real = TRUE)**
+        # Solo contar ventas REALES
         cursor.execute("""
             INSERT INTO ContadorDiario (fecha, qr_vendidos, valor_ventas, qr_escaneados, turnos_utilizados, fallas_reportadas)
             SELECT 
                 %s as fecha,
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 
-                          AND qh.es_venta_real = TRUE  -- ¡SOLO VENTAS REALES!
+                          AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
                           THEN qh.qr_code END) as qr_vendidos,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 
-                           AND qh.es_venta_real = TRUE  -- ¡SOLO VENTAS REALES!
+                           AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
                            THEN tp.price END), 0) as valor_ventas,
                 COUNT(DISTINCT qh.qr_code) as qr_escaneados,
                 COUNT(DISTINCT tu.id) as turnos_utilizados,
@@ -5760,7 +5735,7 @@ def actualizar_contador_diario(fecha=None):
         """, (fecha, fecha, fecha, fecha))
         
         connection.commit()
-        app.logger.info(f"Contador diario actualizado para {fecha} - Solo ventas reales contadas")
+        app.logger.info(f"Contador diario actualizado para {fecha}")
         return True
         
     except Exception as e:
