@@ -1783,6 +1783,7 @@ cargarHistorialQR: function() {
     // Solicitar al backend que genere los códigos QR con 4 dígitos
     fetch('/api/generar-qr', {
         method: 'POST',
+        credentials: 'include',
         headers: { 
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
