@@ -269,103 +269,100 @@
           </p>
         </div>
         
-        <!-- Sección Máquinas -->
-        <div class="glass-card space-y-4">
-          <h2 class="text-xl font-semibold">
-            <i class="fas fa-gamepad text-green-600 mr-2"></i>Máquinas:
-          </h2>
-          <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+       <!-- Sección Máquinas -->
+<div class="glass-card space-y-4">
+  <h2 class="text-xl font-semibold">
+    <i class="fas fa-gamepad text-green-600 mr-2"></i>Máquinas:
+  </h2>
+  <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 
-            <!-- Máquinas con animaciones -->
-            <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-orange-100 to-orange-200">
-                <i class="fas fa-basketball-ball text-4xl text-orange-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Basket</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-blue-100 to-blue-200">
-                <i class="fas fa-hockey-puck text-4xl text-blue-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Disco Hockey</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-red-100 to-red-200">
-                <i class="fas fa-fist-raised text-4xl text-red-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Pelea</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-pink-100 to-pink-200">
-                <i class="fas fa-stuffed-portrait text-4xl text-pink-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Peluches 1</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-purple-100 to-purple-200">
-                <i class="fas fa-soft-drink text-4xl text-purple-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Peluches 2</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-green-100 to-green-200">
-                <i class="fas fa-gamepad text-4xl text-green-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Simulador 1</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-teal-100 to-teal-200">
-                <i class="fas fa-joystick text-4xl text-teal-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Simulador 2</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-yellow-100 to-yellow-200">
-                <i class="fas fa-network-wired text-4xl text-yellow-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Simulador Connection</p>
-            </div>
-
-            <!-- Máquinas adicionales -->
-            <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-indigo-100 to-indigo-200">
-                <i class="fas fa-couch text-4xl text-indigo-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Sillas Masajes</p>
-            </div>
-            
-            <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-red-100 to-red-200">
-                <i class="fas fa-car text-4xl text-red-700"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">McQueen</p>
-            </div>
-            
-            <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-brown-100 to-brown-200">
-                <i class="fas fa-horse text-4xl text-brown-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Caballito</p>
-            </div>
-            
-            <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 bg-gradient-to-br from-gray-100 to-gray-200">
-                <i class="fas fa-train text-4xl text-gray-600"></i>
-              </div>
-              <p class="font-semibold text-center text-sm">Trencito</p>
-            </div>
-          </div>
-        </div>
+    <!-- Máquinas con imágenes -->
+    <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200">
+        <img src="/static/img/basketball.jpg" alt="Máquina De Basket" class="w-full h-full object-cover">
       </div>
-    </main>
+      <p class="font-semibold text-center text-sm">Máquina De Basket</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200">
+        <img src="/static/img/disco hockey.jpg" alt="Máquina De Disco Hockey" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Disco Hockey</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+        <img src="/static/img/pelea.jpg" alt="Máquina De Pelea" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Pelea</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-pink-100 to-pink-200">
+        <img src="/static/img/peluches1.jpg" alt="Máquina De Peluches 1" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Peluches 1</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-purple-100 to-purple-200">
+        <img src="/static/img/peluches2.jpg" alt="Máquina De Peluches 2" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Peluches 2</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-green-100 to-green-200">
+        <img src="/static/img/simulador1.jpg" alt="Máquina De Simulador 1" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Simulador 1</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-teal-100 to-teal-200">
+        <img src="/static/img/simulador2.jpg" alt="Máquina De Simulador 2" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Simulador 2</p>
+    </div>
+    
+    <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-yellow-100 to-yellow-200">
+        <img src="/static/img/simulador pk.jpg" alt="Máquina De Simulador Connection" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Máquina De Simulador Connection</p>
+    </div>
+
+    <!-- Máquinas adicionales -->
+    <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
+        <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Sillas Masajes</p>
+    </div>
+    
+    <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+        <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">McQueen</p>
+    </div>
+    
+    <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-brown-100 to-brown-200">
+        <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Caballito</p>
+    </div>
+    
+    <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+        <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Trencito</p>
+    </div>
   </div>
+</div>
 
   <!-- Modal de Confirmación -->
   <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
