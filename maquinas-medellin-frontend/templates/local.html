@@ -984,8 +984,6 @@ cargarHistorialQR: function() {
     
     console.log(`✅ Historial cargado: ${data.length} registros`);
     
-    // **IMPORTANTE: NO actualizar ventas aquí**
-    // this.actualizarVentasDia(); // ¡REMOVER ESTA LÍNEA SI EXISTE!
   })
   .catch(err => {
     console.error("❌ Error cargando historial:", err);
@@ -1301,8 +1299,8 @@ cargarHistorialQR: function() {
     },
     body: JSON.stringify({ 
       qr_code: codigo,
-      es_venta_real: false,  // ¡IMPORTANTE! NO es venta
-      es_consulta: true      // Marcar explícitamente como consulta
+      es_venta_real: false,  
+      es_consulta: true      
     })
   })
   .then(res => {
@@ -1325,13 +1323,6 @@ cargarHistorialQR: function() {
       this.mostrarAlerta("🔍 QR escaneado para consulta (no afecta ventas)", "info");
     }
     
-    // **NO ACTUALIZAR VENTAS - ES SOLO CONSULTA**
-    // No llamar a this.actualizarVentasDia()
-    // No llamar a this.cargarHistorialQR() aquí
-    
-    // Si quieres mantener la tabla actualizada, puedes actualizar solo esta fila
-    // Pero mejor dejar que el intervalo automático se encargue
-    
   })
   .catch(err => {
     console.error("Error guardando consulta:", err);
@@ -1346,7 +1337,7 @@ cargarHistorialQR: function() {
   });
 },
 
-      // Funcionalidad del escáner QR - CORREGIDA
+      // Funcionalidad del escáner QR
       html5QrcodeScanner: null,
       scannerActivo: false,
       isScannerInitializing: false,
@@ -1900,7 +1891,8 @@ cargarHistorialQR: function() {
                         // Información adicional más pequeña
                         doc.setFontSize(6);
                         doc.setFont(undefined, 'normal');
-                        const textoInfo = "Inversiones Arcade - Presentar para canjear";
+                        const textoInfo = "Tiene 3 días para redimirse - Presentar para canjear";
+                        
                         const anchoTextoInfo = doc.getTextWidth(textoInfo);
                         const xTextoInfo = (anchoPapel - anchoTextoInfo) / 2;
                         doc.text(textoInfo, xTextoInfo, yQR + altoQR + 34);
@@ -1948,7 +1940,7 @@ cargarHistorialQR: function() {
             paquete_nombre: `P${paquete.id} - ${paquete.name}`,
             paquete_precio: paquete.price,
             paquete_turns: paquete.turns,
-            es_venta_real: true  // Esto marca que es una venta real
+            es_venta_real: true  
         })
     })
     .then(res => {
