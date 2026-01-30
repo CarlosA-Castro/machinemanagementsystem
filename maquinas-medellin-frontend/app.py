@@ -5749,58 +5749,6 @@ def actualizar_contador_diario(fecha=None):
         if connection:
             connection.close()
 
-# ==================== RUTA PARA ACTUALIZAR CONTADOR DIARIO ====================
-
-@app.route('/api/actualizar-contador-diario', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-def api_actualizar_contador_diario():
-    """Forzar actualización del contador diario"""
-    try:
-        data = request.get_json()
-        fecha = data.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
-        
-        resultado = actualizar_contador_diario(fecha)
-        
-        if resultado:
-            return api_response('S003', status='success', data={
-                'mensaje': f'Contador diario actualizado para {fecha}',
-                'fecha': fecha
-            })
-        else:
-            return api_response('E001', http_status=500, data={'mensaje': 'Error actualizando contador'})
-            
-    except Exception as e:
-        app.logger.error(f"Error en API de actualización contador diario: {e}")
-        return api_response('E001', http_status=500)
-
-# ==================== APIS PARA REPARACIÓN DE BD TEMPORAL ====================
-
-@app.route('/api/reparar-bd-temporal', methods=['GET'])
-@handle_api_errors
-def reparar_bd_temporal():
-    """Reparar tablas temporales si es necesario"""
-    try:
-        # Esto es solo un placeholder - ajusta según tus necesidades
-        
-        return api_response(
-            'S001',
-            status='success',
-            data={'message': 'Base de datos verificada correctamente'}
-        )
-    except Exception as e:
-        app.logger.error(f"Error reparando BD: {e}")
-        return api_response('E001', http_status=500)
-
-@app.route('/api/reportar-falla-funcional', methods=['POST'])
-@handle_api_errors
-@require_login(['admin', 'cajero', 'admin_restaurante'])
-@validate_required_fields(['machine_id', 'description'])
-def reportar_falla_funcional():
-    """Alternativa simplificada para reportar falla"""
-    # Reutilizar la función existente
-    return reportar_falla_maquina()
-
 # ==================== APIS PARA PROPIETARIOS ====================
 
 @app.route('/api/propietarios', methods=['GET'])
@@ -6493,6 +6441,428 @@ def obtener_socio_actual():
     except Exception as e:
         app.logger.error(f"Error obteniendo socio actual: {e}")
         sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA LIQUIDACIONES Y REPORTES ====================
+
+@app.route('/api/ventas-liquidadas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_ventas_liquidadas():
+    """Obtener ventas liquidadas con distribución real"""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fechaInicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fechaFin', get_colombia_time().strftime('%Y-%m-%d'))
+        pagina = int(request.args.get('pagina', 1))
+        por_pagina = int(request.args.get('porPagina', 50))
+        offset = (pagina - 1) * por_pagina
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener ventas con distribución real
+        cursor.execute("""
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                qh.qr_code,
+                qh.user_name as vendedor,
+                tp.name as paquete_nombre,
+                tp.price as precio_unitario,
+                1 as cantidad_paquetes,
+                tp.price as ingresos_totales,
+                m.name as maquina_nombre,
+                m.id as maquina_id,
+                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+                (tp.price * COALESCE(mpr.porcentaje_restaurante, 35.00) / 100) as ingresos_restaurante,
+                (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100) as ingresos_proveedor,
+                (tp.price * 0.30) as ingresos_30_porciento,
+                (tp.price * 0.35) as ingresos_35_porciento,
+                p.nombre as propietario,
+                mp.porcentaje_propiedad
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
+            LEFT JOIN machine m ON tu.machineId = m.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            LEFT JOIN MaquinaPropietario mp ON m.id = mp.maquina_id
+            LEFT JOIN propietarios p ON mp.propietario_id = p.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            ORDER BY qh.fecha_hora DESC
+            LIMIT %s OFFSET %s
+        """, (fecha_inicio, fecha_fin, por_pagina, offset))
+        
+        ventas = cursor.fetchall()
+        
+        # Contar total
+        cursor.execute("""
+            SELECT COUNT(*) as total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+        """, (fecha_inicio, fecha_fin))
+        
+        total = cursor.fetchone()['total']
+        
+        # Calcular totales
+        total_ingresos = sum(float(v['ingresos_totales']) for v in ventas)
+        total_restaurante = sum(float(v['ingresos_restaurante']) for v in ventas)
+        total_proveedor = sum(float(v['ingresos_proveedor']) for v in ventas)
+        
+        return jsonify({
+            'datos': ventas,
+            'totalRegistros': total,
+            'totalIngresos': total_ingresos,
+            'gananciaTotal': total_ingresos,
+            'gananciaProveedor': total_proveedor,
+            'gananciaRestaurante': total_restaurante,
+            'paginaActual': pagina,
+            'totalPaginas': (total + por_pagina - 1) // por_pagina
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ventas liquidadas: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/liquidaciones/calcular', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def calcular_liquidacion():
+    """Calcular liquidación detallada por período"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        fecha_inicio = data.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = data.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # 1. Estadísticas del período
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT qh.qr_code) as total_ventas,
+                COALESCE(SUM(tp.price), 0) as total_ingresos,
+                COUNT(DISTINCT m.id) as maquinas_utilizadas
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
+            LEFT JOIN machine m ON tu.machineId = m.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+        """, (fecha_inicio, fecha_fin))
+        
+        periodo = cursor.fetchone()
+        
+        # 2. Distribución por propietarios
+        cursor.execute("""
+            SELECT 
+                p.id as propietario_id,
+                p.nombre as propietario_nombre,
+                COUNT(DISTINCT qh.qr_code) as ventas_asociadas,
+                COALESCE(SUM(
+                    (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100) 
+                    * (mp.porcentaje_propiedad / 100)
+                ), 0) as total_ingresos,
+                GROUP_CONCAT(DISTINCT m.name SEPARATOR ', ') as maquinas_nombres
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            JOIN MaquinaPropietario mp ON m.id = mp.maquina_id
+            JOIN propietarios p ON mp.propietario_id = p.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY p.id, p.nombre
+        """, (fecha_inicio, fecha_fin))
+        
+        propietarios = cursor.fetchall()
+        
+        # 3. Resumen por máquinas
+        cursor.execute("""
+            SELECT 
+                m.id as maquina_id,
+                m.name as maquina_nombre,
+                m.type as tipo_maquina,
+                COUNT(DISTINCT qh.qr_code) as ventas_realizadas,
+                COALESCE(SUM(tp.price), 0) as ingresos_totales,
+                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+                COALESCE(SUM(tp.price * COALESCE(mpr.porcentaje_restaurante, 35.00) / 100), 0) as ingresos_restaurante,
+                COALESCE(SUM(tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100), 0) as ingresos_proveedor
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante
+            ORDER BY ingresos_totales DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        maquinas = cursor.fetchall()
+        
+        # 4. Tabla detallada para vista
+        cursor.execute("""
+            SELECT 
+                DATE(qh.fecha_hora) as fecha,
+                qh.qr_code,
+                tp.name as paquete_nombre,
+                m.name as maquina_nombre,
+                tp.price as ingresos_totales,
+                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+                (tp.price * COALESCE(mpr.porcentaje_restaurante, 35.00) / 100) as ingresos_restaurante,
+                (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100) as ingresos_proveedor,
+                p.nombre as propietario
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            LEFT JOIN MaquinaPorcentajeRestaurante mpr ON m.id = mpr.maquina_id
+            LEFT JOIN MaquinaPropietario mp ON m.id = mp.maquina_id
+            LEFT JOIN propietarios p ON mp.propietario_id = p.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            ORDER BY qh.fecha_hora DESC
+        """, (fecha_inicio, fecha_fin))
+        
+        datos_tabla = cursor.fetchall()
+        
+        # 5. Calcular totales finales
+        total_ingresos = float(periodo['total_ingresos'])
+        total_restaurante = sum(float(m['ingresos_restaurante']) for m in maquinas)
+        total_proveedor = sum(float(m['ingresos_proveedor']) for m in maquinas)
+        
+        # Crear respuesta estructurada
+        distribucion_propietarios = {}
+        for prop in propietarios:
+            distribucion_propietarios[prop['propietario_nombre']] = {
+                'total_ingresos': float(prop['total_ingresos']),
+                'ventas_asociadas': prop['ventas_asociadas'],
+                'detalles_maquinas': prop['maquinas_nombres'].split(', ') if prop['maquinas_nombres'] else []
+            }
+        
+        resumen_maquinas = {}
+        for maq in maquinas:
+            resumen_maquinas[maq['maquina_nombre']] = {
+                'tipo_maquina': maq['tipo_maquina'],
+                'ventas_realizadas': maq['ventas_realizadas'],
+                'ingresos_totales': float(maq['ingresos_totales']),
+                'porcentaje_restaurante': float(maq['porcentaje_restaurante']),
+                'ingresos_restaurante': float(maq['ingresos_restaurante']),
+                'ingresos_proveedor': float(maq['ingresos_proveedor'])
+            }
+        
+        return jsonify({
+            'success': True,
+            'periodo': {
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+                'total_ventas': periodo['total_ventas'],
+                'total_ingresos': total_ingresos,
+                'total_restaurante': total_restaurante,
+                'total_proveedor': total_proveedor,
+                'maquinas_utilizadas': periodo['maquinas_utilizadas']
+            },
+            'distribucion_propietarios': distribucion_propietarios,
+            'resumen_maquinas': resumen_maquinas,
+            'datos_tabla': datos_tabla,
+            'totales': {
+                'ingresos_totales': total_ingresos,
+                'ganancia_restaurante': total_restaurante,
+                'ganancia_proveedores': total_proveedor
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error calculando liquidación: {e}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/liquidaciones/registrar', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def registrar_liquidacion():
+    """Registrar una liquidación en la base de datos"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin')
+        total_ingresos = data.get('total_ingresos', 0)
+        total_restaurante = data.get('total_restaurante', 0)
+        total_proveedor = data.get('total_proveedor', 0)
+        detalles = data.get('detalles', [])
+        user_id = session.get('user_id')
+        
+        if not fecha_inicio or not fecha_fin:
+            return api_response('E005', http_status=400, data={'message': 'Fechas requeridas'})
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Insertar liquidación principal
+        cursor.execute("""
+            INSERT INTO liquidaciones 
+            (fecha_inicio, fecha_fin, total_ingresos, total_restaurante, total_proveedor, 
+             created_by, created_at, estado)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW(), 'completada')
+        """, (fecha_inicio, fecha_fin, total_ingresos, total_restaurante, total_proveedor, user_id))
+        
+        liquidacion_id = cursor.lastrowid
+        
+        # Insertar detalles por propietario si existen
+        for detalle in detalles:
+            if isinstance(detalle, dict) and 'propietario_id' in detalle:
+                cursor.execute("""
+                    INSERT INTO liquidacion_detalles 
+                    (liquidacion_id, propietario_id, monto_total, monto_propietario, 
+                     porcentaje_propiedad, maquinas_incluidas)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    liquidacion_id,
+                    detalle.get('propietario_id'),
+                    detalle.get('monto_total', 0),
+                    detalle.get('monto_propietario', 0),
+                    detalle.get('porcentaje_propiedad', 0),
+                    detalle.get('maquinas_incluidas', '')
+                ))
+        
+        connection.commit()
+        
+        app.logger.info(f"Liquidación registrada: ID {liquidacion_id} por usuario {user_id}")
+        
+        return api_response(
+            'S002',
+            status='success',
+            data={'liquidacion_id': liquidacion_id}
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error registrando liquidación: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/liquidaciones/historial', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_historial_liquidaciones():
+    """Obtener historial de liquidaciones registradas"""
+    connection = None
+    cursor = None
+    try:
+        pagina = int(request.args.get('pagina', 1))
+        por_pagina = int(request.args.get('porPagina', 20))
+        offset = (pagina - 1) * por_pagina
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si la tabla existe
+        cursor.execute("SHOW TABLES LIKE 'liquidaciones'")
+        if not cursor.fetchone():
+            return jsonify({
+                'datos': [],
+                'totalRegistros': 0,
+                'paginaActual': 1,
+                'totalPaginas': 1,
+                'mensaje': 'Tabla de liquidaciones no existe'
+            })
+        
+        cursor.execute("""
+            SELECT 
+                l.*,
+                u.name as usuario_nombre,
+                COUNT(ld.id) as detalles_count
+            FROM liquidaciones l
+            LEFT JOIN users u ON l.created_by = u.id
+            LEFT JOIN liquidacion_detalles ld ON l.id = ld.liquidacion_id
+            GROUP BY l.id
+            ORDER BY l.created_at DESC
+            LIMIT %s OFFSET %s
+        """, (por_pagina, offset))
+        
+        liquidaciones = cursor.fetchall()
+        
+        # Contar total
+        cursor.execute("SELECT COUNT(*) as total FROM liquidaciones")
+        total = cursor.fetchone()['total']
+        
+        # Formatear fechas
+        for liq in liquidaciones:
+            if liq.get('created_at'):
+                try:
+                    fecha_colombia = parse_db_datetime(liq['created_at'])
+                    liq['created_at_formatted'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    liq['created_at_formatted'] = str(liq['created_at'])
+        
+        return jsonify({
+            'datos': liquidaciones,
+            'totalRegistros': total,
+            'paginaActual': pagina,
+            'totalPaginas': (total + por_pagina - 1) // por_pagina
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo historial de liquidaciones: {e}")
         return api_response('E001', http_status=500)
     finally:
         if cursor:
