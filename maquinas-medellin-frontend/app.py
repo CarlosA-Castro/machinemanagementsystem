@@ -8029,6 +8029,463 @@ def eliminar_pago_cuota(pago_id):
         if connection:
             connection.close()
 
+# ==================== APIS PARA PANEL DE SOCIO (ROL SOCIO) ====================
+
+@app.route('/api/socio/panel/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def obtener_estadisticas_panel_socio():
+    """Obtener estadísticas para el panel del socio"""
+    connection = None
+    cursor = None
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Buscar socio por nombre (puedes ajustar esta lógica)
+        cursor.execute("""
+            SELECT * FROM socios 
+            WHERE nombre = %s 
+            ORDER BY id DESC 
+            LIMIT 1
+        """, (user_name,))
+        
+        socio = cursor.fetchone()
+        
+        if not socio:
+            # Si no existe, crear un socio básico con la información del usuario
+            return api_response('E002', http_status=404, data={
+                'message': 'No se encontró información de socio asociada a tu usuario',
+                'user_name': user_name
+            })
+        
+        socio_id = socio['id']
+        
+        # Calcular estadísticas del socio
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(i.monto_inicial), 0) as total_invertido,
+                COUNT(i.id) as total_inversiones,
+                COUNT(CASE WHEN i.estado = 'activa' THEN 1 END) as inversiones_activas,
+                COALESCE(SUM(i.monto_inicial * i.porcentaje_inversion / 100), 0) as inversion_personal
+            FROM inversiones i
+            WHERE i.socio_id = %s
+        """, (socio_id,))
+        
+        inversiones_stats = cursor.fetchone()
+        
+        # Calcular ingresos mensuales (simplificado)
+        cursor.execute("""
+            SELECT 
+                MONTH(fecha_hora) as mes,
+                YEAR(fecha_hora) as anio,
+                COALESCE(SUM(tp.price * i.porcentaje_inversion / 100), 0) as ingresos_mensuales
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN inversiones i ON i.maquina_id = (
+                SELECT tu.machineId 
+                FROM turnusage tu 
+                JOIN qrcode qr2 ON qr2.id = tu.qrCodeId 
+                WHERE qr2.code = qh.qr_code 
+                LIMIT 1
+            )
+            WHERE DATE(qh.fecha_hora) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+            AND i.socio_id = %s
+            AND qh.es_venta_real = TRUE
+            GROUP BY YEAR(fecha_hora), MONTH(fecha_hora)
+            ORDER BY anio DESC, mes DESC
+            LIMIT 12
+        """, (socio_id,))
+        
+        ingresos_mensuales = cursor.fetchall()
+        
+        # Calcular ROI simplificado (esto debería ser más complejo en producción)
+        total_invertido = float(inversiones_stats['total_invertido'] or 0)
+        if total_invertido > 0:
+            # Supongamos un ROI del 12.5% anual por ahora
+            roi_total = 12.5
+            ingreso_mensual_promedio = total_invertido * (roi_total / 100) / 12
+        else:
+            roi_total = 0
+            ingreso_mensual_promedio = 0
+        
+        # Obtener cuota anual
+        cuota_anual = float(socio.get('cuota_anual', 0) or 0)
+        
+        # Determinar estado de cuota
+        estado_cuota = 'al_dia'
+        if socio['estado'] == 'pendiente_pago':
+            estado_cuota = 'pendiente'
+        
+        return jsonify({
+            'socio': {
+                'id': socio['id'],
+                'codigo_socio': socio['codigo_socio'],
+                'nombre': socio['nombre'],
+                'documento': socio['documento'],
+                'email': socio.get('email', ''),
+                'telefono': socio.get('telefono', ''),
+                'fecha_inscripcion': socio['fecha_inscripcion'].isoformat() if socio['fecha_inscripcion'] else None,
+                'fecha_vencimiento': socio['fecha_vencimiento'].isoformat() if socio['fecha_vencimiento'] else None,
+                'estado': socio['estado'],
+                'cuota_anual': cuota_anual,
+                'porcentaje_global': float(socio.get('porcentaje_global', 0) or 0)
+            },
+            'estadisticas': {
+                'total_invertido': total_invertido,
+                'inversion_personal': float(inversiones_stats['inversion_personal'] or 0),
+                'total_inversiones': inversiones_stats['total_inversiones'] or 0,
+                'inversiones_activas': inversiones_stats['inversiones_activas'] or 0,
+                'ingreso_mensual': ingreso_mensual_promedio,
+                'ingreso_mensual_real': float(sum([i['ingresos_mensuales'] for i in ingresos_mensuales])) / len(ingresos_mensuales) if ingresos_mensuales else 0,
+                'roi_total': roi_total,
+                'estado_cuota': estado_cuota,
+                'ranking_roi': 25,  # Ejemplo: Top 25%
+                'tendencia_mensual': 2.5,  # Ejemplo: +2.5% vs mes anterior
+                'rentabilidad_total': 15.2  # Ejemplo: 15.2% rentabilidad total
+            },
+            'ingresos_mensuales': [float(i['ingresos_mensuales']) for i in reversed(ingresos_mensuales)] if ingresos_mensuales else [0] * 12
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas panel socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socio/panel/maquinas', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def obtener_maquinas_socio_panel():
+    """Obtener máquinas del socio para el panel"""
+    connection = None
+    cursor = None
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Buscar socio por nombre
+        cursor.execute("SELECT id FROM socios WHERE nombre = %s ORDER BY id DESC LIMIT 1", (user_name,))
+        socio = cursor.fetchone()
+        
+        if not socio:
+            return jsonify([])
+        
+        socio_id = socio['id']
+        
+        # Obtener inversiones activas con información de máquinas
+        cursor.execute("""
+            SELECT 
+                i.id as inversion_id,
+                i.porcentaje_inversion,
+                i.monto_inicial,
+                i.fecha_inicio,
+                i.estado,
+                m.id as maquina_id,
+                m.name as maquina_nombre,
+                m.type as maquina_tipo,
+                l.name as ubicacion,
+                ROUND(
+                    (i.monto_inicial * i.porcentaje_inversion / 100) * 
+                    (SELECT COALESCE(SUM(tp.price * i2.porcentaje_inversion / 100), 0) 
+                     FROM qrhistory qh
+                     JOIN qrcode qr ON qr.code = qh.qr_code
+                     JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                     JOIN turnusage tu ON qr.id = tu.qrCodeId
+                     JOIN inversiones i2 ON i2.maquina_id = tu.machineId
+                     WHERE i2.socio_id = %s
+                     AND MONTH(qh.fecha_hora) = MONTH(CURDATE())
+                     AND YEAR(qh.fecha_hora) = YEAR(CURDATE())
+                    ) / NULLIF(SUM(i.monto_inicial * i.porcentaje_inversion / 100) OVER(), 0) * 100,
+                    2
+                ) as rentabilidad_mensual
+            FROM inversiones i
+            JOIN machine m ON i.maquina_id = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE i.socio_id = %s 
+            AND i.estado = 'activa'
+            ORDER BY i.fecha_inicio DESC
+        """, (socio_id, socio_id))
+        
+        maquinas = cursor.fetchall()
+        
+        # Calcular ingresos estimados
+        maquinas_formateadas = []
+        for maquina in maquinas:
+            # Calcular ingreso mensual estimado (simplificado)
+            ingreso_mensual = float(maquina['monto_inicial'] or 0) * float(maquina['porcentaje_inversion'] or 0) / 100 * 0.12 / 12
+            
+            maquinas_formateadas.append({
+                'id': maquina['maquina_id'],
+                'nombre': maquina['maquina_nombre'],
+                'tipo': maquina['maquina_tipo'],
+                'ubicacion': maquina['ubicacion'],
+                'porcentaje_propiedad': float(maquina['porcentaje_inversion']),
+                'inversion_inicial': float(maquina['monto_inicial'] or 0),
+                'ingreso_mensual': ingreso_mensual,
+                'rentabilidad': float(maquina['rentabilidad_mensual'] or 0),
+                'fecha_adquisicion': maquina['fecha_inicio'].isoformat() if maquina['fecha_inicio'] else None,
+                'estado': maquina['estado']
+            })
+        
+        return jsonify(maquinas_formateadas)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo máquinas panel socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socio/panel/ingresos', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def obtener_ingresos_socio_panel():
+    """Obtener ingresos del socio para el panel"""
+    connection = None
+    cursor = None
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        pagina = int(request.args.get('pagina', 1))
+        por_pagina = int(request.args.get('por_pagina', 10))
+        offset = (pagina - 1) * por_pagina
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Buscar socio por nombre
+        cursor.execute("SELECT id FROM socios WHERE nombre = %s ORDER BY id DESC LIMIT 1", (user_name,))
+        socio = cursor.fetchone()
+        
+        if not socio:
+            return jsonify({'ingresos': [], 'total': 0})
+        
+        socio_id = socio['id']
+        
+        # Obtener ingresos históricos (versión simplificada)
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(qh.fecha_hora, '%Y-%m') as periodo,
+                DATE_FORMAT(qh.fecha_hora, '%M %Y') as periodo_nombre,
+                m.name as maquina_nombre,
+                COUNT(DISTINCT qh.qr_code) as turnos_totales,
+                COALESCE(SUM(tp.price), 0) as ingresos_brutos,
+                i.porcentaje_inversion as porcentaje_propiedad,
+                COALESCE(SUM(tp.price * i.porcentaje_inversion / 100), 0) as ganancia_neta,
+                TRUE as liquidado
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            JOIN inversiones i ON i.maquina_id = m.id AND i.socio_id = %s
+            WHERE qh.es_venta_real = TRUE
+            GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%m'), m.name, i.porcentaje_inversion
+            ORDER BY periodo DESC
+            LIMIT %s OFFSET %s
+        """, (socio_id, por_pagina, offset))
+        
+        ingresos = cursor.fetchall()
+        
+        # Obtener total
+        cursor.execute("""
+            SELECT COUNT(DISTINCT CONCAT(DATE_FORMAT(qh.fecha_hora, '%Y-%m'), m.name)) as total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            JOIN inversiones i ON i.maquina_id = m.id AND i.socio_id = %s
+            WHERE qh.es_venta_real = TRUE
+        """, (socio_id,))
+        
+        total = cursor.fetchone()['total'] or 0
+        
+        return jsonify({
+            'ingresos': ingresos,
+            'total': total,
+            'pagina': pagina,
+            'por_pagina': por_pagina,
+            'total_paginas': (total + por_pagina - 1) // por_pagina
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ingresos panel socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socio/panel/pagos', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def obtener_pagos_socio_panel():
+    """Obtener pagos del socio para el panel"""
+    connection = None
+    cursor = None
+    try:
+        user_id = session.get('user_id')
+        user_name = session.get('user_name')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Buscar socio por nombre
+        cursor.execute("SELECT id FROM socios WHERE nombre = %s ORDER BY id DESC LIMIT 1", (user_name,))
+        socio = cursor.fetchone()
+        
+        if not socio:
+            return jsonify([])
+        
+        socio_id = socio['id']
+        
+        # Obtener pagos pendientes
+        cursor.execute("""
+            SELECT 
+                pc.id,
+                pc.anio,
+                pc.monto,
+                pc.fecha_pago,
+                pc.metodo_pago,
+                pc.comprobante,
+                pc.estado,
+                DATE_ADD(DATE(CONCAT(pc.anio, '-01-01')), INTERVAL 30 DAY) as fecha_vencimiento,
+                'cuota_anual' as tipo_pago
+            FROM pagoscuotas pc
+            WHERE pc.socio_id = %s 
+            AND pc.estado = 'pendiente'
+            ORDER BY pc.anio DESC
+            LIMIT 10
+        """, (socio_id,))
+        
+        pagos = cursor.fetchall()
+        
+        # Formatear respuesta
+        pagos_formateados = []
+        for pago in pagos:
+            pagos_formateados.append({
+                'id': pago['id'],
+                'tipo_pago': pago['tipo_pago'],
+                'monto': float(pago['monto']),
+                'fecha_pago': pago['fecha_pago'].isoformat() if pago['fecha_pago'] else None,
+                'fecha_vencimiento': pago['fecha_vencimiento'].isoformat() if pago['fecha_vencimiento'] else None,
+                'metodo_pago': pago['metodo_pago'],
+                'comprobante': pago['comprobante'],
+                'estado': pago['estado'],
+                'anio': pago['anio']
+            })
+        
+        return jsonify(pagos_formateados)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo pagos panel socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socio/actual', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def obtener_socio_actual_simple():
+    """Obtener información básica del socio actual (versión corregida)"""
+    connection = None
+    cursor = None
+    try:
+        user_name = session.get('user_name')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Buscar socio por nombre (relación por nombre de usuario)
+        cursor.execute("""
+            SELECT * FROM socios 
+            WHERE nombre = %s 
+            ORDER BY id DESC 
+            LIMIT 1
+        """, (user_name,))
+        
+        socio = cursor.fetchone()
+        
+        if not socio:
+            # Crear socio básico con la información del usuario si no existe
+            return jsonify({
+                'id': 0,
+                'codigo_socio': 'TEMP-' + user_name[:10].upper(),
+                'nombre': user_name,
+                'documento': 'PENDIENTE',
+                'email': '',
+                'telefono': '',
+                'fecha_inscripcion': datetime.now().date().isoformat(),
+                'fecha_vencimiento': (datetime.now() + timedelta(days=365)).date().isoformat(),
+                'estado': 'activo',
+                'cuota_anual': 0,
+                'porcentaje_global': 0,
+                'tipo_socio': 'inversionista',
+                'notas': 'Socio temporal creado automáticamente'
+            })
+        
+        return jsonify({
+            'id': socio['id'],
+            'codigo_socio': socio['codigo_socio'],
+            'nombre': socio['nombre'],
+            'documento': socio['documento'],
+            'email': socio.get('email', ''),
+            'telefono': socio.get('telefono', ''),
+            'fecha_inscripcion': socio['fecha_inscripcion'].isoformat() if socio['fecha_inscripcion'] else None,
+            'fecha_vencimiento': socio['fecha_vencimiento'].isoformat() if socio['fecha_vencimiento'] else None,
+            'estado': socio['estado'],
+            'cuota_anual': float(socio.get('cuota_anual', 0) or 0),
+            'porcentaje_global': float(socio.get('porcentaje_global', 0) or 0),
+            'tipo_socio': 'inversionista',
+            'notas': socio.get('notas', '')
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo socio actual: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 # ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':

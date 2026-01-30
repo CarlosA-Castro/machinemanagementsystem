@@ -880,6 +880,7 @@
         const SocioPanel = {
     data: {
         socio: null,
+        estadisticas: null,
         maquinas: [],
         ingresos: [],
         pagos: [],
@@ -891,7 +892,7 @@
     init: function() {
         console.log('🌟 Iniciando panel de socio premium...');
         
-        // Configurar partículas MUCHO MÁS VISIBLES
+        // Configurar partículas
         this.configurarParticulas();
         
         // Configurar fecha y hora
@@ -913,88 +914,20 @@
     configurarParticulas: function() {
         particlesJS('particles-js', {
             particles: {
-                number: {
-                    value: 80, // MÁS partículas
-                    density: {
-                        enable: true,
-                        value_area: 800
-                    }
-                },
-                color: {
-                    value: "#3b82f6" // Color azul principal
-                },
-                shape: {
-                    type: "circle",
-                    stroke: {
-                        width: 0,
-                        color: "#000000"
-                    }
-                },
-                opacity: {
-                    value: 0.4, // MÁS visibles
-                    random: true,
-                    anim: {
-                        enable: true,
-                        speed: 1,
-                        opacity_min: 0.2,
-                        sync: false
-                    }
-                },
-                size: {
-                    value: 3, // Tamaño aumentado
-                    random: true,
-                    anim: {
-                        enable: true,
-                        speed: 2,
-                        size_min: 1,
-                        sync: false
-                    }
-                },
-                line_linked: {
-                    enable: true,
-                    distance: 100, // Distancia reducida para más conexiones
-                    color: "#3b82f6",
-                    opacity: 0.3, // MÁS visibles
-                    width: 1.5 // Más gruesas
-                },
-                move: {
-                    enable: true,
-                    speed: 1.5, // Movimiento más rápido
-                    direction: "none",
-                    random: true,
-                    straight: false,
-                    out_mode: "out",
-                    bounce: false,
-                    attract: {
-                        enable: true,
-                        rotateX: 600,
-                        rotateY: 1200
-                    }
-                }
+                number: { value: 80, density: { enable: true, value_area: 800 } },
+                color: { value: "#3b82f6" },
+                shape: { type: "circle" },
+                opacity: { value: 0.4, random: true },
+                size: { value: 3, random: true },
+                line_linked: { enable: true, distance: 100, color: "#3b82f6", opacity: 0.3, width: 1.5 },
+                move: { enable: true, speed: 1.5, direction: "none", random: true }
             },
             interactivity: {
                 detect_on: "canvas",
                 events: {
-                    onhover: {
-                        enable: true,
-                        mode: "grab"
-                    },
-                    onclick: {
-                        enable: true,
-                        mode: "push"
-                    },
+                    onhover: { enable: true, mode: "grab" },
+                    onclick: { enable: true, mode: "push" },
                     resize: true
-                },
-                modes: {
-                    grab: {
-                        distance: 140,
-                        line_linked: {
-                            opacity: 0.5
-                        }
-                    },
-                    push: {
-                        particles_nb: 4
-                    }
                 }
             },
             retina_detect: true
@@ -1017,7 +950,7 @@
     },
 
     inicializarGraficos: function() {
-        // Gráfico de ingresos mejorado
+        // Gráfico de ingresos
         const ctxIngresos = document.getElementById('chartIngresos').getContext('2d');
         this.data.charts.ingresos = new Chart(ctxIngresos, {
             type: 'line',
@@ -1041,66 +974,34 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(30, 64, 175, 0.9)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: '#3b82f6',
-                        borderWidth: 2,
-                        callbacks: {
-                            label: function(context) {
-                                return `Ingreso: $${context.raw.toLocaleString()}`;
-                            }
-                        }
-                    }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
                         ticks: {
                             color: 'rgba(255, 255, 255, 0.7)',
-                            callback: function(value) {
-                                return '$' + value.toLocaleString();
-                            }
+                            callback: function(value) { return '$' + value.toLocaleString(); }
                         }
                     },
                     x: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: 'rgba(255, 255, 255, 0.7)'
-                        }
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: 'rgba(255, 255, 255, 0.7)' }
                     }
                 }
             }
         });
 
-        // Gráfico de distribución mejorado
+        // Gráfico de distribución
         const ctxDistribucion = document.getElementById('chartDistribucion').getContext('2d');
         this.data.charts.distribucion = new Chart(ctxDistribucion, {
             type: 'doughnut',
             data: {
-                labels: ['Máquina 1', 'Máquina 2', 'Máquina 3'],
+                labels: ['Cargando...'],
                 datasets: [{
-                    data: [30, 30, 40],
-                    backgroundColor: [
-                        'rgba(59, 130, 246, 0.9)',
-                        'rgba(16, 185, 129, 0.9)',
-                        'rgba(139, 92, 246, 0.9)'
-                    ],
-                    borderColor: [
-                        'rgba(59, 130, 246, 1)',
-                        'rgba(16, 185, 129, 1)',
-                        'rgba(139, 92, 246, 1)'
-                    ],
+                    data: [100],
+                    backgroundColor: ['rgba(59, 130, 246, 0.9)'],
+                    borderColor: ['rgba(59, 130, 246, 1)'],
                     borderWidth: 2,
                     hoverOffset: 20
                 }]
@@ -1115,16 +1016,8 @@
                         labels: {
                             color: 'rgba(255, 255, 255, 0.8)',
                             padding: 20,
-                            usePointStyle: true,
-                            pointStyle: 'circle'
+                            usePointStyle: true
                         }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(30, 64, 175, 0.9)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: '#3b82f6',
-                        borderWidth: 2
                     }
                 }
             }
@@ -1132,7 +1025,6 @@
     },
 
     configurarNavegacion: function() {
-        // Navegación suave con scroll
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -1149,74 +1041,35 @@
         });
     },
 
-    actualizarGraficosEstadisticas: async function() {
-    try {
-        const response = await fetch('/api/socios/completos');
-        if (response.ok) {
-            const socios = await response.json();
-            
-            // Calcular distribución por estado
-            const estados = {
-                activo: 0,
-                inactivo: 0,
-                pendiente_pago: 0,
-                suspendido: 0
-            };
-            
-            socios.forEach(socio => {
-                estados[socio.estado] = (estados[socio.estado] || 0) + 1;
-            });
-            
-            // Actualizar gráfico de estados
-            if (this.charts.estados) {
-                this.charts.estados.data.datasets[0].data = [
-                    estados.activo || 0,
-                    estados.inactivo || 0,
-                    estados.pendiente_pago || 0,
-                    estados.suspendido || 0
-                ];
-                this.charts.estados.update();
-            }
-            
-            // Actualizar gráfico de evolución (últimos 12 meses)
-            const evolucion = this.calcularEvolucionSocios(socios);
-            if (this.charts.evolucion) {
-                this.charts.evolucion.data.datasets[0].data = evolucion;
-                this.charts.evolucion.update();
-            }
-        }
-    } catch (error) {
-        console.error('Error actualizando gráficos:', error);
-    }
-},
-
-calcularEvolucionSocios: function(socios) {
-   
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return meses.map((mes, index) => Math.floor(Math.random() * 20) + 10);
-},
-
     cargarDatosSocio: async function() {
         try {
             // Mostrar estados de carga
             this.mostrarEstadosCarga();
             
-            // Cargar información del socio
-            const response = await fetch('/api/socio/actual');
+            // Cargar información básica del socio
+            const [socioRes, estadisticasRes] = await Promise.all([
+                fetch('/api/socio/actual'),
+                fetch('/api/socio/panel/estadisticas')
+            ]);
             
-            if (response.ok) {
-                this.data.socio = await response.json();
+            if (socioRes.ok && estadisticasRes.ok) {
+                const socioData = await socioRes.json();
+                const estadisticasData = await estadisticasRes.json();
+                
+                this.data.socio = socioData;
+                this.data.estadisticas = estadisticasData.estadisticas;
+                
                 this.actualizarInfoSocio();
+                this.actualizarEstadisticasUI();
                 
                 // Cargar datos relacionados
                 await Promise.all([
                     this.cargarMaquinasSocio(),
                     this.cargarIngresosSocio(),
-                    this.cargarPagosSocio(),
-                    this.cargarEstadisticasSocio()
+                    this.cargarPagosSocio()
                 ]);
                 
-                // Actualizar gráficos con datos reales
+                // Actualizar gráficos
                 this.actualizarGraficos();
                 
                 this.mostrarNotificacion('Datos actualizados correctamente', 'success');
@@ -1224,13 +1077,13 @@ calcularEvolucionSocios: function(socios) {
                 throw new Error('Error al cargar datos');
             }
         } catch (error) {
-            console.error('❌ Error:', error);
+            console.error('❌ Error cargando datos socio:', error);
             this.mostrarNotificacion('Error al cargar los datos', 'error');
+            this.mostrarDatosDeEjemplo();
         }
     },
 
     mostrarEstadosCarga: function() {
-        // Actualizar textos a estado de carga
         document.getElementById('totalInvertido').textContent = '--';
         document.getElementById('ingresoMensual').textContent = '--';
         document.getElementById('roiTotal').textContent = '--';
@@ -1259,7 +1112,7 @@ calcularEvolucionSocios: function(socios) {
             document.getElementById('diasMiembro').textContent = `${dias} días`;
         }
         
-        // Estado de cuenta con color
+        // Estado de cuenta
         const estadoElement = document.getElementById('estadoCuenta');
         const estado = socio.estado || 'activo';
         
@@ -1272,29 +1125,100 @@ calcularEvolucionSocios: function(socios) {
                 estadoElement.className = 'text-xl font-bold text-yellow-400';
                 estadoElement.textContent = 'Pendiente';
                 break;
-            case 'inactivo':
-            case 'suspendido':
+            default:
                 estadoElement.className = 'text-xl font-bold text-red-400';
                 estadoElement.textContent = 'Inactivo';
                 break;
         }
     },
 
+    actualizarEstadisticasUI: function() {
+        if (!this.data.estadisticas) return;
+        
+        const stats = this.data.estadisticas;
+        
+        // Total invertido
+        document.getElementById('totalInvertido').textContent = 
+            this.formatearMoneda(stats.total_invertido || 0);
+        document.getElementById('rentabilidadTotal').textContent = 
+            `${(stats.rentabilidad_total || 0).toFixed(1)}%`;
+        
+        // Ingreso mensual
+        document.getElementById('ingresoMensual').textContent = 
+            this.formatearMoneda(stats.ingreso_mensual || 0);
+        
+        const tendencia = stats.tendencia_mensual || 0;
+        const tendenciaElement = document.getElementById('tendenciaMensualContainer');
+        const tendenciaText = document.getElementById('tendenciaMensual');
+        
+        if (tendencia >= 0) {
+            tendenciaElement.className = 'text-xs flex items-center text-green-400';
+            tendenciaText.textContent = `+${tendencia.toFixed(1)}%`;
+        } else {
+            tendenciaElement.className = 'text-xs flex items-center text-red-400';
+            tendenciaText.textContent = `${tendencia.toFixed(1)}%`;
+        }
+        
+        // ROI
+        document.getElementById('roiTotal').textContent = 
+            `${(stats.roi_total || 0).toFixed(1)}%`;
+        document.getElementById('rankingROI').textContent = 
+            `Top ${(stats.ranking_roi || 0)}%`;
+        
+        // Cuota anual
+        if (this.data.socio) {
+            document.getElementById('cuotaAnual').textContent = 
+                this.formatearMoneda(this.data.socio.cuota_anual || 0);
+        }
+        
+        // Estado de cuota
+        const estadoCuotaElement = document.getElementById('estadoCuotaContainer');
+        const estadoCuotaTexto = document.getElementById('estadoCuotaTexto');
+        const estadoCuota = stats.estado_cuota || 'al_dia';
+        
+        switch(estadoCuota) {
+            case 'al_dia':
+                estadoCuotaElement.innerHTML = `
+                    <div class="flex items-center text-green-400">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        <span>Al día</span>
+                    </div>
+                `;
+                break;
+            case 'pendiente':
+                estadoCuotaElement.innerHTML = `
+                    <div class="flex items-center text-yellow-400">
+                        <i class="fas fa-clock mr-1"></i>
+                        <span>Pendiente</span>
+                    </div>
+                `;
+                break;
+            case 'vencido':
+                estadoCuotaElement.innerHTML = `
+                    <div class="flex items-center text-red-400">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <span>Vencido</span>
+                    </div>
+                `;
+                break;
+        }
+    },
+
     cargarMaquinasSocio: async function() {
         try {
-            if (!this.data.socio) return;
-            
-            const response = await fetch(`/api/socios/${this.data.socio.id}/maquinas`);
+            const response = await fetch('/api/socio/panel/maquinas');
             
             if (response.ok) {
                 this.data.maquinas = await response.json();
                 this.renderizarMaquinas();
                 
-                // Actualizar porcentaje total de propiedad
+                // Actualizar total de propiedad
                 const totalPropiedad = this.data.maquinas.reduce((sum, maquina) => 
                     sum + (parseFloat(maquina.porcentaje_propiedad) || 0), 0);
-                document.getElementById('totalPropiedad').textContent = `${totalPropiedad.toFixed(1)}%`;
-                document.getElementById('totalMaquinas').textContent = `${this.data.maquinas.length} máquina${this.data.maquinas.length !== 1 ? 's' : ''}`;
+                document.getElementById('totalPropiedad').textContent = 
+                    `${totalPropiedad.toFixed(1)}%`;
+                document.getElementById('totalMaquinas').textContent = 
+                    `${this.data.maquinas.length} máquina${this.data.maquinas.length !== 1 ? 's' : ''}`;
             }
         } catch (error) {
             console.error('Error cargando máquinas:', error);
@@ -1313,8 +1237,8 @@ calcularEvolucionSocios: function(socios) {
                         </div>
                         <h3 class="text-lg font-bold mb-2">No tienes inversiones activas</h3>
                         <p class="text-gray-400 mb-4">Comienza tu primera inversión hoy mismo</p>
-                        <button class="btn-modern">
-                            <i class="fas fa-plus mr-2"></i>Nueva Inversión
+                        <button class="btn-modern" onclick="SocioPanel.solicitarInversion()">
+                            <i class="fas fa-plus mr-2"></i>Solicitar Inversión
                         </button>
                     </div>
                 </div>
@@ -1329,7 +1253,7 @@ calcularEvolucionSocios: function(socios) {
             const iconoRentabilidad = rentabilidad >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
             
             html += `
-                <div class="machine-card animate-fade-in-up" style="animation-delay: ${index * 0.1}s">
+                <div class="machine-card" style="animation-delay: ${index * 0.1}s">
                     <div class="machine-percentage">
                         ${parseFloat(maquina.porcentaje_propiedad).toFixed(1)}%
                     </div>
@@ -1378,11 +1302,14 @@ calcularEvolucionSocios: function(socios) {
         // Implementar lógica para mostrar detalles
     },
 
+    solicitarInversion: function() {
+        this.mostrarNotificacion('Redirigiendo a formulario de inversión...', 'info');
+        // Implementar lógica para solicitar inversión
+    },
+
     cargarIngresosSocio: async function() {
         try {
-            if (!this.data.socio) return;
-            
-            const response = await fetch(`/api/socios/${this.data.socio.id}/ingresos?pagina=${this.data.paginaIngresos}`);
+            const response = await fetch(`/api/socio/panel/ingresos?pagina=${this.data.paginaIngresos}&por_pagina=${this.data.itemsPorPagina}`);
             
             if (response.ok) {
                 const data = await response.json();
@@ -1416,7 +1343,7 @@ calcularEvolucionSocios: function(socios) {
         
         let html = '';
         this.data.ingresos.forEach((ingreso) => {
-            const fecha = new Date(ingreso.fecha_periodo);
+            const fecha = new Date(ingreso.periodo + '-01');
             const mes = fecha.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
             const estado = ingreso.liquidado ? 'Liquidado' : 'Pendiente';
             const estadoClass = ingreso.liquidado ? 'text-green-400' : 'text-yellow-400';
@@ -1464,9 +1391,7 @@ calcularEvolucionSocios: function(socios) {
 
     cargarPagosSocio: async function() {
         try {
-            if (!this.data.socio) return;
-            
-            const response = await fetch(`/api/socios/${this.data.socio.id}/pagos/pendientes`);
+            const response = await fetch('/api/socio/panel/pagos');
             
             if (response.ok) {
                 this.data.pagos = await response.json();
@@ -1516,7 +1441,7 @@ calcularEvolucionSocios: function(socios) {
             }
             
             html += `
-                <div class="machine-card animate-fade-in-up" style="animation-delay: ${index * 0.1}s">
+                <div class="machine-card" style="animation-delay: ${index * 0.1}s">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center">
                             <div class="w-10 h-10 rounded-lg bg-gradient-to-br ${estadoBg} flex items-center justify-center mr-3">
@@ -1559,91 +1484,10 @@ calcularEvolucionSocios: function(socios) {
         // Implementar lógica de pago
     },
 
-    cargarEstadisticasSocio: async function() {
-        try {
-            if (!this.data.socio) return;
-            
-            const response = await fetch(`/api/socios/${this.data.socio.id}/estadisticas`);
-            
-            if (response.ok) {
-                const estadisticas = await response.json();
-                this.actualizarEstadisticasUI(estadisticas);
-            }
-        } catch (error) {
-            console.error('Error cargando estadísticas:', error);
-        }
-    },
-
-    actualizarEstadisticasUI: function(estadisticas) {
-        // Total invertido
-        document.getElementById('totalInvertido').textContent = 
-            this.formatearMoneda(estadisticas.total_invertido || 0);
-        document.getElementById('rentabilidadTotal').textContent = 
-            `${(estadisticas.rentabilidad_total || 0).toFixed(1)}%`;
-        
-        // Ingreso mensual
-        document.getElementById('ingresoMensual').textContent = 
-            this.formatearMoneda(estadisticas.ingreso_mensual || 0);
-        
-        const tendencia = estadisticas.tendencia_mensual || 0;
-        const tendenciaElement = document.getElementById('tendenciaMensualContainer');
-        const tendenciaText = document.getElementById('tendenciaMensual');
-        
-        if (tendencia >= 0) {
-            tendenciaElement.className = 'text-xs flex items-center text-green-400';
-            tendenciaText.textContent = `+${tendencia.toFixed(1)}%`;
-        } else {
-            tendenciaElement.className = 'text-xs flex items-center text-red-400';
-            tendenciaText.textContent = `${tendencia.toFixed(1)}%`;
-        }
-        
-        // ROI
-        document.getElementById('roiTotal').textContent = 
-            `${(estadisticas.roi_total || 0).toFixed(1)}%`;
-        document.getElementById('rankingROI').textContent = 
-            `Top ${(estadisticas.ranking_roi || 0)}%`;
-        
-        // Cuota anual
-        document.getElementById('cuotaAnual').textContent = 
-            this.formatearMoneda(estadisticas.cuota_anual || 0);
-        
-        // Estado de cuota
-        const estadoCuotaElement = document.getElementById('estadoCuotaContainer');
-        const estadoCuotaTexto = document.getElementById('estadoCuotaTexto');
-        const estadoCuota = estadisticas.estado_cuota || 'al_dia';
-        
-        switch(estadoCuota) {
-            case 'al_dia':
-                estadoCuotaElement.innerHTML = `
-                    <div class="flex items-center text-green-400">
-                        <i class="fas fa-check-circle mr-1"></i>
-                        <span>Al día</span>
-                    </div>
-                `;
-                break;
-            case 'pendiente':
-                estadoCuotaElement.innerHTML = `
-                    <div class="flex items-center text-yellow-400">
-                        <i class="fas fa-clock mr-1"></i>
-                        <span>Pendiente</span>
-                    </div>
-                `;
-                break;
-            case 'vencido':
-                estadoCuotaElement.innerHTML = `
-                    <div class="flex items-center text-red-400">
-                        <i class="fas fa-exclamation-triangle mr-1"></i>
-                        <span>Vencido</span>
-                    </div>
-                `;
-                break;
-        }
-    },
-
     actualizarGraficos: function() {
         // Actualizar gráfico de ingresos
-        if (this.data.socio && this.data.socio.ingresos_mensuales) {
-            this.data.charts.ingresos.data.datasets[0].data = this.data.socio.ingresos_mensuales;
+        if (this.data.estadisticas && this.data.estadisticas.ingresos_mensuales) {
+            this.data.charts.ingresos.data.datasets[0].data = this.data.estadisticas.ingresos_mensuales;
             this.data.charts.ingresos.update();
         }
         
@@ -1670,6 +1514,55 @@ calcularEvolucionSocios: function(socios) {
     actualizarTodo: function() {
         this.mostrarNotificacion('Actualizando datos...', 'info');
         this.cargarDatosSocio();
+    },
+
+    mostrarDatosDeEjemplo: function() {
+        // Datos de ejemplo para demo
+        this.data.socio = {
+            codigo_socio: 'SOC-0001',
+            nombre: 'Juan Socio',
+            estado: 'activo',
+            fecha_inscripcion: '2024-01-15',
+            cuota_anual: 1000000
+        };
+        
+        this.data.estadisticas = {
+            total_invertido: 5000000,
+            ingreso_mensual: 250000,
+            roi_total: 12.5,
+            rentabilidad_total: 15.2,
+            tendencia_mensual: 2.5,
+            ranking_roi: 25,
+            estado_cuota: 'al_dia'
+        };
+        
+        this.data.maquinas = [
+            {
+                id: 1,
+                nombre: 'Máquina Arcade Pro',
+                tipo: 'Arcade',
+                porcentaje_propiedad: 30,
+                inversion_inicial: 2000000,
+                ingreso_mensual: 120000,
+                rentabilidad: 15.5
+            },
+            {
+                id: 2,
+                nombre: 'Simulador Carreras',
+                tipo: 'Simulador',
+                porcentaje_propiedad: 25,
+                inversion_inicial: 1500000,
+                ingreso_mensual: 80000,
+                rentabilidad: 12.8
+            }
+        ];
+        
+        this.actualizarInfoSocio();
+        this.actualizarEstadisticasUI();
+        this.renderizarMaquinas();
+        this.actualizarGraficos();
+        
+        this.mostrarNotificacion('Mostrando datos de ejemplo', 'warning');
     },
 
     formatearMoneda: function(valor) {
@@ -1723,6 +1616,3 @@ calcularEvolucionSocios: function(socios) {
 document.addEventListener('DOMContentLoaded', function() {
     SocioPanel.init();
 });
-    </script>
-</body>
-</html>
