@@ -7050,6 +7050,985 @@ def verificar_tablas_liquidaciones():
         if connection:
             connection.close()
 
+# ==================== APIS PARA SOCIOS ====================
+
+@app.route('/api/socios', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_todos_socios():
+    """Obtener todos los socios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT * FROM socios 
+            ORDER BY fecha_inscripcion DESC
+        """)
+        
+        socios = cursor.fetchall()
+        
+        return jsonify(socios)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo socios: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/completos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_socios_completos():
+    """Obtener socios con información adicional calculada"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                s.*,
+                COALESCE(SUM(i.monto_inicial), 0) as inversion_total,
+                COUNT(DISTINCT i.id) as total_inversiones,
+                COUNT(CASE WHEN i.estado = 'activa' THEN 1 END) as inversiones_activas,
+                COUNT(DISTINCT pc.id) as total_pagos,
+                COUNT(CASE WHEN pc.estado = 'pendiente' THEN 1 END) as pagos_pendientes
+            FROM socios s
+            LEFT JOIN inversiones i ON s.id = i.socio_id
+            LEFT JOIN pagoscuotas pc ON s.id = pc.socio_id
+            GROUP BY s.id
+            ORDER BY s.fecha_inscripcion DESC
+        """)
+        
+        socios = cursor.fetchall()
+        
+        # Formatear fechas
+        for socio in socios:
+            if socio['fecha_inscripcion']:
+                socio['fecha_inscripcion'] = socio['fecha_inscripcion'].isoformat() if hasattr(socio['fecha_inscripcion'], 'isoformat') else str(socio['fecha_inscripcion'])
+            if socio['fecha_vencimiento']:
+                socio['fecha_vencimiento'] = socio['fecha_vencimiento'].isoformat() if hasattr(socio['fecha_vencimiento'], 'isoformat') else str(socio['fecha_vencimiento'])
+            if socio['created_at']:
+                socio['created_at'] = socio['created_at'].isoformat() if hasattr(socio['created_at'], 'isoformat') else str(socio['created_at'])
+            if socio['updated_at']:
+                socio['updated_at'] = socio['updated_at'].isoformat() if hasattr(socio['updated_at'], 'isoformat') else str(socio['updated_at'])
+        
+        return jsonify(socios)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo socios completos: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/<int:socio_id>', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_socio(socio_id):
+    """Obtener un socio específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT * FROM socios WHERE id = %s", (socio_id,))
+        socio = cursor.fetchone()
+        
+        if not socio:
+            return api_response('E002', http_status=404, data={'socio_id': socio_id})
+        
+        # Obtener inversiones del socio
+        cursor.execute("""
+            SELECT i.*, m.name as maquina_nombre
+            FROM inversiones i
+            LEFT JOIN machine m ON i.maquina_id = m.id
+            WHERE i.socio_id = %s
+            ORDER BY i.fecha_inicio DESC
+        """, (socio_id,))
+        
+        inversiones = cursor.fetchall()
+        
+        # Obtener pagos del socio
+        cursor.execute("""
+            SELECT * FROM pagoscuotas 
+            WHERE socio_id = %s
+            ORDER BY anio DESC, created_at DESC
+        """, (socio_id,))
+        
+        pagos = cursor.fetchall()
+        
+        # Formatear fechas
+        if socio['fecha_inscripcion']:
+            socio['fecha_inscripcion'] = socio['fecha_inscripcion'].isoformat() if hasattr(socio['fecha_inscripcion'], 'isoformat') else str(socio['fecha_inscripcion'])
+        if socio['fecha_vencimiento']:
+            socio['fecha_vencimiento'] = socio['fecha_vencimiento'].isoformat() if hasattr(socio['fecha_vencimiento'], 'isoformat') else str(socio['fecha_vencimiento'])
+        
+        for inversion in inversiones:
+            if inversion['fecha_inicio']:
+                inversion['fecha_inicio'] = inversion['fecha_inicio'].isoformat() if hasattr(inversion['fecha_inicio'], 'isoformat') else str(inversion['fecha_inicio'])
+            if inversion['fecha_fin']:
+                inversion['fecha_fin'] = inversion['fecha_fin'].isoformat() if hasattr(inversion['fecha_fin'], 'isoformat') else str(inversion['fecha_fin'])
+        
+        for pago in pagos:
+            if pago['fecha_pago']:
+                pago['fecha_pago'] = pago['fecha_pago'].isoformat() if hasattr(pago['fecha_pago'], 'isoformat') else str(pago['fecha_pago'])
+        
+        return jsonify({
+            'socio': socio,
+            'inversiones': inversiones,
+            'pagos': pagos
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['nombre', 'documento', 'fecha_inscripcion', 'fecha_vencimiento'])
+def crear_socio():
+    """Crear un nuevo socio"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        # Generar código de socio único
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Generar código (SOC-XXXX)
+        cursor.execute("SELECT MAX(CAST(SUBSTRING(codigo_socio, 5) AS UNSIGNED)) as max_num FROM socios WHERE codigo_socio LIKE 'SOC-%'")
+        max_num = cursor.fetchone()
+        next_num = (max_num['max_num'] or 0) + 1
+        codigo_socio = f"SOC-{next_num:04d}"
+        
+        # Insertar socio
+        cursor.execute("""
+            INSERT INTO socios (
+                codigo_socio, nombre, documento, tipo_documento, telefono, email,
+                direccion, fecha_inscripcion, fecha_vencimiento, cuota_anual,
+                estado, notas, porcentaje_global
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            codigo_socio,
+            data['nombre'],
+            data['documento'],
+            data.get('tipo_documento', 'CC'),
+            data.get('telefono', ''),
+            data.get('email', ''),
+            data.get('direccion', ''),
+            data['fecha_inscripcion'],
+            data['fecha_vencimiento'],
+            data.get('cuota_anual', 0),
+            data.get('estado', 'activo'),
+            data.get('notas', ''),
+            data.get('porcentaje_global', 0)
+        ))
+        
+        socio_id = cursor.lastrowid
+        
+        connection.commit()
+        
+        app.logger.info(f"Socio creado: {data['nombre']} (Código: {codigo_socio})")
+        
+        return api_response(
+            'S002',
+            status='success',
+            data={'socio_id': socio_id, 'codigo_socio': codigo_socio}
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error creando socio: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/<int:socio_id>', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['nombre', 'documento', 'fecha_inscripcion', 'fecha_vencimiento'])
+def actualizar_socio(socio_id):
+    """Actualizar un socio existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT id FROM socios WHERE id = %s", (socio_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'socio_id': socio_id})
+        
+        # Actualizar socio
+        cursor.execute("""
+            UPDATE socios SET
+                nombre = %s,
+                documento = %s,
+                tipo_documento = %s,
+                telefono = %s,
+                email = %s,
+                direccion = %s,
+                fecha_inscripcion = %s,
+                fecha_vencimiento = %s,
+                cuota_anual = %s,
+                estado = %s,
+                notas = %s,
+                porcentaje_global = %s,
+                updated_at = NOW()
+            WHERE id = %s
+        """, (
+            data['nombre'],
+            data['documento'],
+            data.get('tipo_documento', 'CC'),
+            data.get('telefono', ''),
+            data.get('email', ''),
+            data.get('direccion', ''),
+            data['fecha_inscripcion'],
+            data['fecha_vencimiento'],
+            data.get('cuota_anual', 0),
+            data.get('estado', 'activo'),
+            data.get('notas', ''),
+            data.get('porcentaje_global', 0),
+            socio_id
+        ))
+        
+        connection.commit()
+        
+        app.logger.info(f"Socio actualizado: {data['nombre']} (ID: {socio_id})")
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error actualizando socio: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/<int:socio_id>', methods=['DELETE'])
+@handle_api_errors
+@require_login(['admin'])
+def eliminar_socio(socio_id):
+    """Eliminar un socio"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT nombre FROM socios WHERE id = %s", (socio_id,))
+        socio = cursor.fetchone()
+        if not socio:
+            return api_response('E002', http_status=404, data={'socio_id': socio_id})
+        
+        # Verificar si tiene inversiones activas
+        cursor.execute("SELECT COUNT(*) as inversiones_activas FROM inversiones WHERE socio_id = %s AND estado = 'activa'", (socio_id,))
+        inversiones = cursor.fetchone()
+        
+        if inversiones['inversiones_activas'] > 0:
+            return api_response(
+                'W006',
+                status='warning',
+                http_status=400,
+                data={
+                    'message': f'El socio tiene {inversiones["inversiones_activas"]} inversiones activas',
+                    'inversiones_activas': inversiones['inversiones_activas']
+                }
+            )
+        
+        # Eliminar pagos asociados
+        cursor.execute("DELETE FROM pagoscuotas WHERE socio_id = %s", (socio_id,))
+        
+        # Eliminar inversiones (primero cambiar estado a finalizada)
+        cursor.execute("UPDATE inversiones SET estado = 'finalizada' WHERE socio_id = %s", (socio_id,))
+        
+        # Eliminar socio
+        cursor.execute("DELETE FROM socios WHERE id = %s", (socio_id,))
+        
+        connection.commit()
+        
+        app.logger.info(f"Socio eliminado: {socio['nombre']} (ID: {socio_id})")
+        
+        return api_response('S004', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error eliminando socio: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_estadisticas_socios():
+    """Obtener estadísticas generales de socios"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Estadísticas generales
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_socios,
+                COUNT(CASE WHEN estado = 'activo' THEN 1 END) as socios_activos,
+                COUNT(CASE WHEN estado = 'inactivo' THEN 1 END) as socios_inactivos,
+                COUNT(CASE WHEN estado = 'pendiente_pago' THEN 1 END) as socios_pendientes,
+                SUM(cuota_anual) as cuota_anual_total,
+                SUM(porcentaje_global) as porcentaje_total
+            FROM socios
+        """)
+        
+        stats = cursor.fetchone()
+        
+        # Inversión total
+        cursor.execute("SELECT COALESCE(SUM(monto_inicial), 0) as inversion_total FROM inversiones WHERE estado = 'activa'")
+        inversion = cursor.fetchone()
+        
+        # Pagos pendientes
+        cursor.execute("SELECT COUNT(*) as cuotas_pendientes FROM pagoscuotas WHERE estado = 'pendiente'")
+        pendientes = cursor.fetchone()
+        
+        # ROI promedio (simplificado por ahora)
+        roi_promedio = 12.5  # Esto debería calcularse de forma más compleja
+        
+        return jsonify({
+            'total_socios': stats['total_socios'] or 0,
+            'socios_activos': stats['socios_activos'] or 0,
+            'socios_inactivos': stats['socios_inactivos'] or 0,
+            'socios_pendientes': stats['socios_pendientes'] or 0,
+            'cuota_anual_total': float(stats['cuota_anual_total'] or 0),
+            'inversion_total': float(inversion['inversion_total'] or 0),
+            'cuotas_pendientes': pendientes['cuotas_pendientes'] or 0,
+            'roi_promedio': roi_promedio,
+            'porcentaje_total': float(stats['porcentaje_total'] or 0)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas de socios: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/top', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_top_socios():
+    """Obtener top 10 socios por inversión"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                s.id,
+                s.codigo_socio,
+                s.nombre,
+                s.documento,
+                s.estado,
+                COALESCE(SUM(i.monto_inicial), 0) as inversion_total,
+                COUNT(i.id) as total_inversiones
+            FROM socios s
+            LEFT JOIN inversiones i ON s.id = i.socio_id AND i.estado = 'activa'
+            GROUP BY s.id, s.codigo_socio, s.nombre, s.documento, s.estado
+            HAVING COALESCE(SUM(i.monto_inicial), 0) > 0
+            ORDER BY inversion_total DESC
+            LIMIT 10
+        """)
+        
+        top_socios = cursor.fetchall()
+        
+        return jsonify(top_socios)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo top socios: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/recientes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_socios_recientes():
+    """Obtener socios inscritos recientemente"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                codigo_socio,
+                nombre,
+                documento,
+                fecha_inscripcion,
+                estado,
+                cuota_anual
+            FROM socios
+            ORDER BY fecha_inscripcion DESC
+            LIMIT 10
+        """)
+        
+        socios_recientes = cursor.fetchall()
+        
+        return jsonify(socios_recientes)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo socios recientes: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/<int:socio_id>/inversiones', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_inversiones_socio(socio_id):
+    """Obtener inversiones de un socio específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                i.*,
+                m.name as maquina_nombre,
+                m.type as maquina_tipo,
+                l.name as ubicacion
+            FROM inversiones i
+            LEFT JOIN machine m ON i.maquina_id = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE i.socio_id = %s
+            ORDER BY i.fecha_inicio DESC
+        """, (socio_id,))
+        
+        inversiones = cursor.fetchall()
+        
+        return jsonify(inversiones)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo inversiones de socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/<int:socio_id>/pagos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_pagos_socio(socio_id):
+    """Obtener pagos de un socio específico"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT * FROM pagoscuotas 
+            WHERE socio_id = %s
+            ORDER BY anio DESC, created_at DESC
+        """, (socio_id,))
+        
+        pagos = cursor.fetchall()
+        
+        return jsonify(pagos)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo pagos de socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/socios/<int:socio_id>/ingresos/ultimos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_ultimos_ingresos_socio(socio_id):
+    """Obtener últimos ingresos de un socio (simplificado)"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Esta es una implementación simplificada
+        # Deberías ajustarla según tu lógica de negocio real
+        cursor.execute("""
+            SELECT 
+                '2024-01' as fecha_periodo,
+                'Máquina A' as maquina_nombre,
+                1000.00 as ganancia_neta,
+                TRUE as liquidado
+            UNION ALL
+            SELECT 
+                '2023-12',
+                'Máquina B',
+                850.50,
+                TRUE
+            UNION ALL
+            SELECT 
+                '2023-11',
+                'Todas',
+                1250.75,
+                FALSE
+            LIMIT 5
+        """)
+        
+        ingresos = cursor.fetchall()
+        
+        return jsonify(ingresos)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ingresos de socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA INVERSIONES ====================
+
+@app.route('/api/inversiones', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['socio_id', 'maquina_id', 'porcentaje_inversion', 'fecha_inicio', 'monto_inicial'])
+def crear_inversion():
+    """Crear una nueva inversión"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el socio existe
+        cursor.execute("SELECT id FROM socios WHERE id = %s", (data['socio_id'],))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'socio_id': data['socio_id']})
+        
+        # Verificar que la máquina existe
+        cursor.execute("SELECT id FROM machine WHERE id = %s", (data['maquina_id'],))
+        if not cursor.fetchone():
+            return api_response('M001', http_status=404, data={'machine_id': data['maquina_id']})
+        
+        # Verificar porcentaje disponible
+        cursor.execute("""
+            SELECT COALESCE(SUM(porcentaje_inversion), 0) as porcentaje_ocupado
+            FROM inversiones 
+            WHERE maquina_id = %s AND estado = 'activa'
+        """, (data['maquina_id'],))
+        
+        porcentaje_ocupado = cursor.fetchone()['porcentaje_ocupado'] or 0
+        porcentaje_disponible = 100 - porcentaje_ocupado
+        
+        if float(data['porcentaje_inversion']) > porcentaje_disponible:
+            return api_response(
+                'E005',
+                http_status=400,
+                data={
+                    'message': f'Porcentaje no disponible. Solo queda {porcentaje_disponible}%',
+                    'porcentaje_disponible': porcentaje_disponible
+                }
+            )
+        
+        # Crear inversión
+        cursor.execute("""
+            INSERT INTO inversiones (
+                socio_id, maquina_id, porcentaje_inversion, fecha_inicio,
+                fecha_fin, monto_inicial, estado
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            data['socio_id'],
+            data['maquina_id'],
+            data['porcentaje_inversion'],
+            data['fecha_inicio'],
+            data.get('fecha_fin'),
+            data['monto_inicial'],
+            data.get('estado', 'activa')
+        ))
+        
+        inversion_id = cursor.lastrowid
+        
+        connection.commit()
+        
+        app.logger.info(f"Inversión creada: ID {inversion_id} para socio {data['socio_id']}")
+        
+        return api_response(
+            'S002',
+            status='success',
+            data={'inversion_id': inversion_id}
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error creando inversión: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/inversiones/<int:inversion_id>', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+def actualizar_inversion(inversion_id):
+    """Actualizar una inversión existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT id FROM inversiones WHERE id = %s", (inversion_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'inversion_id': inversion_id})
+        
+        # Actualizar
+        update_fields = []
+        update_values = []
+        
+        if 'porcentaje_inversion' in data:
+            update_fields.append("porcentaje_inversion = %s")
+            update_values.append(data['porcentaje_inversion'])
+        
+        if 'fecha_fin' in data:
+            update_fields.append("fecha_fin = %s")
+            update_values.append(data['fecha_fin'])
+        
+        if 'estado' in data:
+            update_fields.append("estado = %s")
+            update_values.append(data['estado'])
+        
+        if 'monto_inicial' in data:
+            update_fields.append("monto_inicial = %s")
+            update_values.append(data['monto_inicial'])
+        
+        if not update_fields:
+            return api_response('E005', http_status=400, data={'message': 'No hay campos para actualizar'})
+        
+        update_fields.append("updated_at = NOW()")
+        
+        update_values.append(inversion_id)
+        update_query = f"UPDATE inversiones SET {', '.join(update_fields)} WHERE id = %s"
+        
+        cursor.execute(update_query, update_values)
+        connection.commit()
+        
+        app.logger.info(f"Inversión actualizada: ID {inversion_id}")
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error actualizando inversión: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA PAGOS DE CUOTAS ====================
+
+@app.route('/api/pagoscuotas', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['socio_id', 'anio', 'monto'])
+def crear_pago_cuota():
+    """Crear un nuevo pago de cuota"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que el socio existe
+        cursor.execute("SELECT id FROM socios WHERE id = %s", (data['socio_id'],))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'socio_id': data['socio_id']})
+        
+        # Verificar si ya existe pago para este año
+        cursor.execute("""
+            SELECT id FROM pagoscuotas 
+            WHERE socio_id = %s AND anio = %s
+        """, (data['socio_id'], data['anio']))
+        
+        if cursor.fetchone():
+            return api_response(
+                'E007',
+                http_status=400,
+                data={'message': f'Ya existe un pago para el año {data["anio"]}'}
+            )
+        
+        # Crear pago
+        cursor.execute("""
+            INSERT INTO pagoscuotas (
+                socio_id, anio, monto, fecha_pago, metodo_pago,
+                comprobante, estado, notas
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            data['socio_id'],
+            data['anio'],
+            data['monto'],
+            data.get('fecha_pago'),
+            data.get('metodo_pago', 'efectivo'),
+            data.get('comprobante', ''),
+            data.get('estado', 'pendiente'),
+            data.get('notas', '')
+        ))
+        
+        pago_id = cursor.lastrowid
+        
+        connection.commit()
+        
+        app.logger.info(f"Pago de cuota creado: ID {pago_id} para socio {data['socio_id']}")
+        
+        return api_response(
+            'S002',
+            status='success',
+            data={'pago_id': pago_id}
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error creando pago de cuota: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/pagoscuotas/<int:pago_id>', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+def actualizar_pago_cuota(pago_id):
+    """Actualizar un pago de cuota existente"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT id FROM pagoscuotas WHERE id = %s", (pago_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'pago_id': pago_id})
+        
+        # Actualizar
+        update_fields = []
+        update_values = []
+        
+        if 'fecha_pago' in data:
+            update_fields.append("fecha_pago = %s")
+            update_values.append(data['fecha_pago'])
+        
+        if 'metodo_pago' in data:
+            update_fields.append("metodo_pago = %s")
+            update_values.append(data['metodo_pago'])
+        
+        if 'comprobante' in data:
+            update_fields.append("comprobante = %s")
+            update_values.append(data['comprobante'])
+        
+        if 'estado' in data:
+            update_fields.append("estado = %s")
+            update_values.append(data['estado'])
+        
+        if 'notas' in data:
+            update_fields.append("notas = %s")
+            update_values.append(data['notas'])
+        
+        if not update_fields:
+            return api_response('E005', http_status=400, data={'message': 'No hay campos para actualizar'})
+        
+        update_fields.append("updated_at = NOW()")
+        
+        update_values.append(pago_id)
+        update_query = f"UPDATE pagoscuotas SET {', '.join(update_fields)} WHERE id = %s"
+        
+        cursor.execute(update_query, update_values)
+        connection.commit()
+        
+        app.logger.info(f"Pago de cuota actualizado: ID {pago_id}")
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error actualizando pago de cuota: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/pagoscuotas/<int:pago_id>', methods=['DELETE'])
+@handle_api_errors
+@require_login(['admin'])
+def eliminar_pago_cuota(pago_id):
+    """Eliminar un pago de cuota"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Verificar que existe
+        cursor.execute("SELECT id FROM pagoscuotas WHERE id = %s", (pago_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'pago_id': pago_id})
+        
+        # Eliminar
+        cursor.execute("DELETE FROM pagoscuotas WHERE id = %s", (pago_id,))
+        connection.commit()
+        
+        app.logger.info(f"Pago de cuota eliminado: ID {pago_id}")
+        
+        return api_response('S004', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error eliminando pago de cuota: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 # ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':

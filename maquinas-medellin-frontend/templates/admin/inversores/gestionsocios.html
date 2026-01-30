@@ -619,88 +619,88 @@
     },
 
     inicializarDataTable: function() {
-        this.dataTable = $('#tablaSocios').DataTable({
-            ajax: {
-                url: '/api/socios/completos',
-                dataSrc: ''
+    this.dataTable = $('#tablaSocios').DataTable({
+        ajax: {
+            url: '/api/socios/completos',
+            dataSrc: ''
+        },
+        columns: [
+            { data: 'id' },
+            { data: 'codigo_socio' },
+            { data: 'nombre' },
+            { data: 'documento' },
+            { 
+                data: 'inversion_total',
+                render: function(data) {
+                    return GestionSocios.formatearMoneda(data || 0);
+                }
             },
-            columns: [
-                { data: 'id' },
-                { data: 'codigo_socio' },
-                { data: 'nombre' },
-                { data: 'documento' },
-                { 
-                    data: 'inversion_total',
-                    render: function(data) {
-                        return GestionSocios.formatearMoneda(data || 0);
-                    }
-                },
-                { 
-                    data: 'cuota_anual',
-                    render: function(data) {
-                        return GestionSocios.formatearMoneda(data || 0);
-                    }
-                },
-                { 
-                    data: 'estado',
-                    render: function(data) {
-                        const estados = {
-                            'activo': { clase: 'badge-activo', texto: 'Activo' },
-                            'inactivo': { clase: 'badge-inactivo', texto: 'Inactivo' },
-                            'pendiente_pago': { clase: 'badge-pendiente', texto: 'Pendiente' },
-                            'suspendido': { clase: 'badge-inactivo', texto: 'Suspendido' }
-                        };
-                        const estado = estados[data] || estados['activo'];
-                        return `<span class="badge-estado ${estado.clase}">${estado.texto}</span>`;
-                    }
-                },
-                { 
-                    data: 'fecha_vencimiento',
-                    render: function(data) {
-                        if (!data) return '-';
-                        const fecha = new Date(data);
-                        const hoy = new Date();
-                        const dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
-                        
-                        if (dias < 0) {
-                            return `<span class="text-red-600 font-medium">Vencido</span>`;
-                        } else if (dias < 30) {
-                            return `<span class="text-yellow-600 font-medium">${dias} días</span>`;
-                        } else {
-                            return fecha.toLocaleDateString('es-ES');
-                        }
-                    }
-                },
-                {
-                    data: null,
-                    render: function(data, type, row) {
-                        return `
-                            <div class="flex space-x-2">
-                                <button onclick="GestionSocios.verDetalleCompleto(${row.id})" 
-                                        class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button onclick="GestionSocios.editarSocio(${row.id})" 
-                                        class="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button onclick="GestionSocios.eliminarSocio(${row.id})" 
-                                        class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        `;
+            { 
+                data: 'cuota_anual',
+                render: function(data) {
+                    return GestionSocios.formatearMoneda(data || 0);
+                }
+            },
+            { 
+                data: 'estado',
+                render: function(data) {
+                    const estados = {
+                        'activo': { clase: 'badge-activo', texto: 'Activo' },
+                        'inactivo': { clase: 'badge-inactivo', texto: 'Inactivo' },
+                        'pendiente_pago': { clase: 'badge-pendiente', texto: 'Pendiente' },
+                        'suspendido': { clase: 'badge-inactivo', texto: 'Suspendido' }
+                    };
+                    const estado = estados[data] || estados['activo'];
+                    return `<span class="badge-estado ${estado.clase}">${estado.texto}</span>`;
+                }
+            },
+            { 
+                data: 'fecha_vencimiento',
+                render: function(data) {
+                    if (!data) return '-';
+                    const fecha = new Date(data);
+                    const hoy = new Date();
+                    const dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+                    
+                    if (dias < 0) {
+                        return `<span class="text-red-600 font-medium">Vencido</span>`;
+                    } else if (dias < 30) {
+                        return `<span class="text-yellow-600 font-medium">${dias} días</span>`;
+                    } else {
+                        return fecha.toLocaleDateString('es-ES');
                     }
                 }
-            ],
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
             },
-            pageLength: 10,
-            responsive: true,
-            order: [[0, 'desc']]
-        });
-    },
+            {
+                data: null,
+                render: function(data, type, row) {
+                    return `
+                        <div class="flex space-x-2">
+                            <button onclick="GestionSocios.verDetalleCompleto(${row.id})" 
+                                    class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="GestionSocios.editarSocio(${row.id})" 
+                                    class="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="GestionSocios.eliminarSocio(${row.id})" 
+                                    class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        ],
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+        },
+        pageLength: 10,
+        responsive: true,
+        order: [[0, 'desc']]
+    });
+},
 
     cargarEstadisticas: async function() {
         try {
@@ -893,42 +893,84 @@
     },
 
     editarSocio: async function(socioId) {
-        try {
-            const response = await fetch(`/api/socios/${socioId}`);
+    try {
+        const response = await fetch(`/api/socios/${socioId}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            const socio = data.socio;
             
-            if (response.ok) {
-                const socio = await response.json();
-                
-                const modal = document.getElementById('modalSocio');
-                const form = document.getElementById('formSocio');
-                const titulo = document.getElementById('modalTitulo');
-                
-                // Configurar formulario
-                form.dataset.modo = 'editar';
-                form.dataset.socioId = socioId;
-                
-                // Llenar campos
-                Object.keys(socio).forEach(key => {
-                    const input = form.querySelector(`[name="${key}"]`);
-                    if (input) {
-                        if (input.type === 'date' && socio[key]) {
-                            const date = new Date(socio[key]);
-                            input.value = date.toISOString().split('T')[0];
-                        } else {
-                            input.value = socio[key] || '';
-                        }
+            const modal = document.getElementById('modalSocio');
+            const form = document.getElementById('formSocio');
+            const titulo = document.getElementById('modalTitulo');
+            
+            // Configurar formulario
+            form.dataset.modo = 'editar';
+            form.dataset.socioId = socioId;
+            
+            // Llenar campos
+            Object.keys(socio).forEach(key => {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) {
+                    if (input.type === 'date' && socio[key]) {
+                        const date = new Date(socio[key]);
+                        input.value = date.toISOString().split('T')[0];
+                    } else {
+                        input.value = socio[key] || '';
                     }
-                });
-                
-                titulo.textContent = 'Editar Socio';
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-        } catch (error) {
-            console.error('Error cargando socio:', error);
-            this.mostrarAlerta('Error al cargar socio', 'error');
+                }
+            });
+            
+            titulo.textContent = 'Editar Socio';
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
         }
-    },
+    } catch (error) {
+        console.error('Error cargando socio:', error);
+        this.mostrarAlerta('Error al cargar socio', 'error');
+    }
+},
+
+guardarSocio: async function(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    const modo = form.dataset.modo;
+    const socioId = form.dataset.socioId;
+    
+    // Agregar campos necesarios
+    data.fecha_vencimiento = data.fecha_vencimiento || data.fecha_inscripcion;
+    data.tipo_socio = 'inversionista'; // Valor por defecto
+    
+    try {
+        const url = modo === 'editar' ? `/api/socios/${socioId}` : '/api/socios';
+        const method = modo === 'editar' ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            this.cerrarModal();
+            this.actualizarDatos();
+            this.mostrarAlerta(
+                modo === 'editar' ? 'Socio actualizado correctamente' : 'Socio creado correctamente',
+                'success'
+            );
+        } else {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al guardar');
+        }
+    } catch (error) {
+        console.error('Error guardando socio:', error);
+        this.mostrarAlerta(error.message || 'Error al guardar socio', 'error');
+    }
+},
 
     guardarSocio: async function(event) {
         event.preventDefault();

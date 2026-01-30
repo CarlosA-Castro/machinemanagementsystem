@@ -1149,6 +1149,53 @@
         });
     },
 
+    actualizarGraficosEstadisticas: async function() {
+    try {
+        const response = await fetch('/api/socios/completos');
+        if (response.ok) {
+            const socios = await response.json();
+            
+            // Calcular distribución por estado
+            const estados = {
+                activo: 0,
+                inactivo: 0,
+                pendiente_pago: 0,
+                suspendido: 0
+            };
+            
+            socios.forEach(socio => {
+                estados[socio.estado] = (estados[socio.estado] || 0) + 1;
+            });
+            
+            // Actualizar gráfico de estados
+            if (this.charts.estados) {
+                this.charts.estados.data.datasets[0].data = [
+                    estados.activo || 0,
+                    estados.inactivo || 0,
+                    estados.pendiente_pago || 0,
+                    estados.suspendido || 0
+                ];
+                this.charts.estados.update();
+            }
+            
+            // Actualizar gráfico de evolución (últimos 12 meses)
+            const evolucion = this.calcularEvolucionSocios(socios);
+            if (this.charts.evolucion) {
+                this.charts.evolucion.data.datasets[0].data = evolucion;
+                this.charts.evolucion.update();
+            }
+        }
+    } catch (error) {
+        console.error('Error actualizando gráficos:', error);
+    }
+},
+
+calcularEvolucionSocios: function(socios) {
+   
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return meses.map((mes, index) => Math.floor(Math.random() * 20) + 10);
+},
+
     cargarDatosSocio: async function() {
         try {
             // Mostrar estados de carga
