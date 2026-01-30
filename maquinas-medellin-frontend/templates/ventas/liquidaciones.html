@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Liquidaciones - Inversiones Arcade</title>
+    <title>Liquidaciones y Reportes - Inversiones Arcade</title>
     <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -197,6 +197,30 @@
             cursor: not-allowed;
         }
         
+        /* Estilos para pestañas */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            color: #374151;
+        }
+        .tab.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+        
         /* Estilos para modales */
         .modal-overlay {
             position: fixed;
@@ -215,6 +239,26 @@
             max-height: 90vh;
             overflow-y: auto;
             width: 100%;
+        }
+        
+        /* Estilos para gráficos */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        /* Estilos para cards de resumen */
+        .summary-card {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         
         @media (max-width: 1024px) {
@@ -307,7 +351,7 @@
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                     <div>
                         <h1 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">
-                            <i class="fas fa-file-invoice-dollar mr-3 text-green-600"></i>Reporte de Liquidaciones
+                            <i class="fas fa-chart-pie mr-3 text-green-600"></i>Liquidaciones y Reportes
                         </h1>
                         <p class="text-gray-600">
                             <i class="fas fa-store mr-2"></i>Local: <strong>{{ local_usuario }}</strong> | 
@@ -343,7 +387,7 @@
 
             <!-- Filtros -->
             <div class="glass-card mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
                         <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
@@ -357,6 +401,19 @@
                         <select id="tipoReporte" class="w-full border border-gray-300 rounded-lg px-3 py-2">
                             <option value="ventas">Ventas de Paquetes</option>
                             <option value="liquidaciones">Liquidaciones Registradas</option>
+                            <option value="resumen">Resumen General</option>
+                            <option value="detallado">Detalle Completo</option>
+                            <option value="propietarios">Por Propietarios</option>
+                            <option value="maquinas">Por Máquinas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Agrupación</label>
+                        <select id="agrupacion" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="diario">Diario</option>
+                            <option value="semanal">Semanal</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
                         </select>
                     </div>
                 </div>
@@ -367,123 +424,400 @@
                 </div>
             </div>
 
-            <!-- Resumen -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="stat-card" style="border-left-color: #3b82f6;">
-                    <div class="flex items-center">
-                        <div class="stat-icon" style="color: #3b82f6;">
-                            <i class="fas fa-coins"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="stat-label">Ingresos Totales</p>
-                            <p class="stat-value" id="totalIngresos">$0</p>
-                        </div>
-                    </div>
+            <!-- Pestañas -->
+            <div class="tabs">
+                <div class="tab active" onclick="LiquidacionesApp.cambiarPestana('liquidaciones')">
+                    <i class="fas fa-file-invoice-dollar mr-2"></i>Liquidaciones
                 </div>
-                <div class="stat-card" style="border-left-color: #10b981;">
-                    <div class="flex items-center">
-                        <div class="stat-icon" style="color: #10b981;">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="stat-label">Ganancia Total</p>
-                            <p class="stat-value" id="gananciaTotal">$0</p>
-                        </div>
-                    </div>
+                <div class="tab" onclick="LiquidacionesApp.cambiarPestana('resumen')">
+                    <i class="fas fa-chart-pie mr-2"></i>Resumen
                 </div>
-                <div class="stat-card" style="border-left-color: #8b5cf6;">
-                    <div class="flex items-center">
-                        <div class="stat-icon" style="color: #8b5cf6;">
-                            <i class="fas fa-user-tie"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="stat-label">Ganancia Proveedor</p>
-                            <p class="stat-value" id="gananciaProveedor">$0</p>
-                        </div>
-                    </div>
+                <div class="tab" onclick="LiquidacionesApp.cambiarPestana('graficos')">
+                    <i class="fas fa-chart-line mr-2"></i>Gráficos
                 </div>
-                <div class="stat-card" style="border-left-color: #f59e0b;">
-                    <div class="flex items-center">
-                        <div class="stat-icon" style="color: #f59e0b;">
-                            <i class="fas fa-utensils"></i>
-                        </div>
-                        <div class="ml-4">
-                            <p class="stat-label">Ganancia Restaurante</p>
-                            <p class="stat-value" id="gananciaRestaurante">$0</p>
-                        </div>
-                    </div>
+                <div class="tab" onclick="LiquidacionesApp.cambiarPestana('detalle')">
+                    <i class="fas fa-table mr-2"></i>Detalle
+                </div>
+                <div class="tab" onclick="LiquidacionesApp.cambiarPestana('propietarios')">
+                    <i class="fas fa-users mr-2"></i>Propietarios
+                </div>
+                <div class="tab" onclick="LiquidacionesApp.cambiarPestana('maquinas')">
+                    <i class="fas fa-gamepad mr-2"></i>Máquinas
                 </div>
             </div>
 
-            <!-- Tabla de liquidaciones -->
-            <div class="glass-card">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-2 md:mb-0">
-                        <i class="fas fa-table mr-2 text-purple-600"></i>Registros de Liquidación
-                    </h2>
-                    <div class="flex items-center">
-                        <div class="relative">
-                            <input type="text" id="busqueda" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscar()">
-                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            <!-- Contenido de pestañas -->
+            <div id="contenidoPestanas">
+                <!-- Pestaña Liquidaciones -->
+                <div id="pestanaLiquidaciones" class="pestana-contenido">
+                    <!-- Resumen -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card" style="border-left-color: #3b82f6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #3b82f6;">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ingresos Totales</p>
+                                    <p class="stat-value" id="totalIngresos">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #10b981;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #10b981;">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Total</p>
+                                    <p class="stat-value" id="gananciaTotal">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #8b5cf6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #8b5cf6;">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Proveedor</p>
+                                    <p class="stat-value" id="gananciaProveedor">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #f59e0b;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #f59e0b;">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Restaurante</p>
+                                    <p class="stat-value" id="gananciaRestaurante">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de liquidaciones -->
+                    <div class="glass-card">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2 md:mb-0">
+                                <i class="fas fa-table mr-2 text-purple-600"></i>Registros de Liquidación
+                            </h2>
+                            <div class="flex items-center">
+                                <div class="relative">
+                                    <input type="text" id="busqueda" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscar()">
+                                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table id="tablaLiquidaciones">
+                                <thead>
+                                    <tr>
+                                        <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('fecha')">
+                                            Fecha <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th class="text-right">Cant. Paquetes</th>
+                                        <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
+                                            Ingresos Totales <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th class="text-right">30% Máquinas</th>
+                                        <th class="text-right">35% Proveedores</th>
+                                        <th class="text-right">Ingresos Restaurante</th>
+                                        <th class="text-right">Ingresos Proveedores</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpoTabla">
+                                    <!-- Se llenará dinámicamente -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-gray-50 font-semibold">
+                                        <td class="text-right">TOTALES:</td>
+                                        <td id="totalPaquetes" class="text-right">0</td>
+                                        <td id="totalIngresosTabla" class="text-right">$0</td>
+                                        <td id="total30Porciento" class="text-right">$0</td>
+                                        <td id="total35Porciento" class="text-right">$0</td>
+                                        <td id="totalIngresosRestaurante" class="text-right">$0</td>
+                                        <td id="totalIngresosProveedor" class="text-right">$0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center">
+                            <div class="text-sm text-gray-600 mb-2 sm:mb-0">
+                                Mostrando <span id="mostrandoDesde">0</span> a <span id="mostrandoHasta">0</span> de <span id="totalRegistros">0</span> registros
+                            </div>
+                            <div class="pagination">
+                                <button id="btnPrimeraPagina" onclick="LiquidacionesApp.irAPagina(1)" disabled>
+                                    <i class="fas fa-angle-double-left"></i>
+                                </button>
+                                <button id="btnPaginaAnterior" onclick="LiquidacionesApp.paginaAnterior()" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div id="numerosPagina" class="flex">
+                                    <!-- Se generan dinámicamente -->
+                                </div>
+                                <button id="btnPaginaSiguiente" onclick="LiquidacionesApp.paginaSiguiente()" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                                <button id="btnUltimaPagina" onclick="LiquidacionesApp.irAUltimaPagina()" disabled>
+                                    <i class="fas fa-angle-double-right"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="table-container">
-                    <table id="tablaLiquidaciones">
-                        <thead>
-                            <tr>
-                                <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('fecha')">
-                                    Fecha <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th class="text-right">Cant. Paquetes</th>
-                                <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
-                                    Ingresos Totales <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th class="text-right">30% Máquinas</th>
-                                <th class="text-right">35% Proveedores</th>
-                                <th class="text-right">Ingresos Restaurante</th>
-                                <th class="text-right">Ingresos Proveedores</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cuerpoTabla">
+                <!-- Pestaña Resumen -->
+                <div id="pestanaResumen" class="pestana-contenido hidden">
+                    <!-- Resumen General -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card" style="border-left-color: #3b82f6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #3b82f6;">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ingresos Totales</p>
+                                    <p class="stat-value" id="totalIngresosResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #10b981;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #10b981;">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Total</p>
+                                    <p class="stat-value" id="gananciaTotalResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #8b5cf6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #8b5cf6;">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Proveedor</p>
+                                    <p class="stat-value" id="gananciaProveedorResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #f59e0b;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #f59e0b;">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Restaurante</p>
+                                    <p class="stat-value" id="gananciaRestauranteResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas Adicionales -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-blue-100 p-3 mr-4">
+                                    <i class="fas fa-shopping-cart text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Total Ventas</p>
+                                    <p class="text-xl font-bold" id="totalVentas">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-green-100 p-3 mr-4">
+                                    <i class="fas fa-gamepad text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Máquinas Activas</p>
+                                    <p class="text-xl font-bold" id="maquinasActivas">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-purple-100 p-3 mr-4">
+                                    <i class="fas fa-ticket-alt text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Turnos Usados</p>
+                                    <p class="text-xl font-bold" id="turnosUsados">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-orange-100 p-3 mr-4">
+                                    <i class="fas fa-dollar-sign text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Compra Promedio</p>
+                                    <p class="text-xl font-bold" id="ticketPromedio">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Distribución por Propietarios -->
+                    <div class="glass-card mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Distribución por Propietarios
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="distribucionPropietarios">
                             <!-- Se llenará dinámicamente -->
-                        </tbody>
-                        <tfoot>
-                            <tr class="bg-gray-50 font-semibold">
-                                <td class="text-right">TOTALES:</td>
-                                <td id="totalPaquetes" class="text-right">0</td>
-                                <td id="totalIngresosTabla" class="text-right">$0</td>
-                                <td id="total30Porciento" class="text-right">$0</td>
-                                <td id="total35Porciento" class="text-right">$0</td>
-                                <td id="totalIngresosRestaurante" class="text-right">$0</td>
-                                <td id="totalIngresosProveedor" class="text-right">$0</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                        </div>
+                    </div>
+
+                    <!-- Top Máquinas -->
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas Más Rentables
+                        </h2>
+                        <div class="space-y-4" id="topMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Paginación -->
-                <div class="mt-4 flex flex-col sm:flex-row justify-between items-center">
-                    <div class="text-sm text-gray-600 mb-2 sm:mb-0">
-                        Mostrando <span id="mostrandoDesde">0</span> a <span id="mostrandoHasta">0</span> de <span id="totalRegistros">0</span> registros
-                    </div>
-                    <div class="pagination">
-                        <button id="btnPrimeraPagina" onclick="LiquidacionesApp.irAPagina(1)" disabled>
-                            <i class="fas fa-angle-double-left"></i>
-                        </button>
-                        <button id="btnPaginaAnterior" onclick="LiquidacionesApp.paginaAnterior()" disabled>
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <div id="numerosPagina" class="flex">
-                            <!-- Se generan dinámicamente -->
+                <!-- Pestaña Gráficos -->
+                <div id="pestanaGraficos" class="pestana-contenido hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-pie mr-2"></i>Distribución de Ingresos
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoDistribucion"></canvas>
+                            </div>
                         </div>
-                        <button id="btnPaginaSiguiente" onclick="LiquidacionesApp.paginaSiguiente()" disabled>
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                        <button id="btnUltimaPagina" onclick="LiquidacionesApp.irAUltimaPagina()" disabled>
-                            <i class="fas fa-angle-double-right"></i>
-                        </button>
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-bar mr-2"></i>Ventas por Día
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoVentasDiarias"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-line mr-2"></i>Evolución de Ingresos
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoEvolucion"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-pie mr-2"></i>Ventas por Paquete
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoPaquetes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Detalle -->
+                <div id="pestanaDetalle" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2 md:mb-0">
+                                <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Liquidaciones
+                            </h2>
+                            <div class="flex items-center">
+                                <div class="relative">
+                                    <input type="text" id="busquedaDetalle" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscarDetalle()">
+                                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table id="tablaDetalle">
+                                <thead>
+                                    <tr>
+                                        <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('fecha')">
+                                            Fecha <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th>Paquete</th>
+                                        <th>Máquina</th>
+                                        <th class="text-right">Turnos</th>
+                                        <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
+                                            Ingresos <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th class="text-right">% Rest.</th>
+                                        <th class="text-right">Restaurante</th>
+                                        <th class="text-right">Proveedor</th>
+                                        <th>Propietario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpoTablaDetalle">
+                                    <!-- Se llenará dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center">
+                            <div class="text-sm text-gray-600 mb-2 sm:mb-0">
+                                Mostrando <span id="mostrandoDesdeDetalle">0</span> a <span id="mostrandoHastaDetalle">0</span> de <span id="totalRegistrosDetalle">0</span> registros
+                            </div>
+                            <div class="pagination">
+                                <button id="btnPrimeraPaginaDetalle" onclick="LiquidacionesApp.irAPaginaDetalle(1)" disabled>
+                                    <i class="fas fa-angle-double-left"></i>
+                                </button>
+                                <button id="btnPaginaAnteriorDetalle" onclick="LiquidacionesApp.paginaAnteriorDetalle()" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div id="numerosPaginaDetalle" class="flex">
+                                    <!-- Se generan dinámicamente -->
+                                </div>
+                                <button id="btnPaginaSiguienteDetalle" onclick="LiquidacionesApp.paginaSiguienteDetalle()" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                                <button id="btnUltimaPaginaDetalle" onclick="LiquidacionesApp.irAUltimaPaginaDetalle()" disabled>
+                                    <i class="fas fa-angle-double-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Propietarios -->
+                <div id="pestanaPropietarios" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Reporte por Propietarios
+                        </h2>
+                        <div id="tablaPropietarios">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Máquinas -->
+                <div id="pestanaMaquinas" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-gamepad mr-2 text-purple-600"></i>Reporte por Máquinas
+                        </h2>
+                        <div id="tablaMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -511,29 +845,40 @@
             }).format(valor);
         }
         
-        // Aplicación de liquidaciones
+        // Aplicación de liquidaciones y reportes combinados
         const LiquidacionesApp = {
             // Estado de la aplicación
             estado: {
                 datos: [],
+                datosReporte: null,
                 filtros: {
                     fechaInicio: formatearFechaInput(primerDiaMes),
                     fechaFin: formatearFechaInput(hoy),
                     tipoReporte: 'ventas',
+                    agrupacion: 'diario',
                     busqueda: '',
+                    busquedaDetalle: '',
                     orden: { campo: 'fecha', direccion: 'desc' },
+                    ordenDetalle: { campo: 'fecha', direccion: 'desc' },
                     paginacion: {
                         paginaActual: 1,
                         registrosPorPagina: 50,
                         totalRegistros: 0,
                         totalPaginas: 1
+                    },
+                    paginacionDetalle: {
+                        paginaActual: 1,
+                        registrosPorPagina: 50,
+                        totalRegistros: 0,
+                        totalPaginas: 1
                     }
-                }
+                },
+                graficos: {}
             },
             
             // Inicialización
             init: function() {
-                console.log('Inicializando módulo de liquidaciones...');
+                console.log('Inicializando módulo de liquidaciones y reportes...');
                 
                 // Configurar eventos
                 this.configurarEventos();
@@ -545,7 +890,7 @@
                 this.actualizarHora();
                 setInterval(() => this.actualizarHora(), 1000);
                 
-                console.log('Módulo de liquidaciones inicializado');
+                console.log('Módulo de liquidaciones y reportes inicializado');
             },
             
             // Configurar eventos
@@ -562,6 +907,242 @@
                 document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
                 document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
                 document.getElementById('tipoReporte').value = this.estado.filtros.tipoReporte;
+                document.getElementById('agrupacion').value = this.estado.filtros.agrupacion;
+            },
+            
+            // Cambiar pestaña activa
+            cambiarPestana: function(pestana) {
+                // Ocultar todas las pestañas
+                document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                
+                // Mostrar pestaña seleccionada
+                document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
+                document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
+                
+                // Si es la pestaña de gráficos, inicializar gráficos
+                if (pestana === 'graficos') {
+                    setTimeout(() => this.inicializarGraficos(), 100);
+                }
+                
+                // Si es la pestaña de reportes, cargar datos de reporte
+                if (pestana !== 'liquidaciones' && pestana !== 'resumen') {
+                    this.cargarDatosReporte();
+                }
+            },
+            
+            // Capitalizar primera letra
+            capitalize: function(str) {
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            },
+            
+            // Inicializar gráficos
+            inicializarGraficos: function() {
+                this.crearGraficoDistribucion();
+                this.crearGraficoVentasDiarias();
+                this.crearGraficoEvolucion();
+                this.crearGraficoPaquetes();
+            },
+            
+            // Crear gráfico de distribución
+            crearGraficoDistribucion: function() {
+                const ctx = document.getElementById('graficoDistribucion').getContext('2d');
+                
+                if (this.estado.graficos.distribucion) {
+                    this.estado.graficos.distribucion.destroy();
+                }
+                
+                const gananciaRestaurante = this.estado.datosReporte?.periodo?.total_restaurante || 0;
+                const gananciaProveedor = this.estado.datosReporte?.periodo?.total_proveedor || 0;
+                
+                this.estado.graficos.distribucion = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Restaurante', 'Proveedores'],
+                        datasets: [{
+                            data: [gananciaRestaurante, gananciaProveedor],
+                            backgroundColor: ['#10b981', '#8b5cf6'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ${formatearMoneda(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de ventas diarias
+            crearGraficoVentasDiarias: function() {
+                const ctx = document.getElementById('graficoVentasDiarias').getContext('2d');
+                
+                if (this.estado.graficos.ventasDiarias) {
+                    this.estado.graficos.ventasDiarias.destroy();
+                }
+                
+                // Datos de ejemplo - en producción se obtendrían de la API
+                const datosEjemplo = {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                    datasets: [{
+                        label: 'Ingresos',
+                        data: [120000, 190000, 150000, 180000, 220000, 300000, 280000],
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 2
+                    }]
+                };
+                
+                this.estado.graficos.ventasDiarias = new Chart(ctx, {
+                    type: 'bar',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatearMoneda(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de evolución
+            crearGraficoEvolucion: function() {
+                const ctx = document.getElementById('graficoEvolucion').getContext('2d');
+                
+                if (this.estado.graficos.evolucion) {
+                    this.estado.graficos.evolucion.destroy();
+                }
+                
+                // Datos de ejemplo
+                const datosEjemplo = {
+                    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+                    datasets: [
+                        {
+                            label: 'Ingresos Totales',
+                            data: [850000, 920000, 780000, 1100000],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Ganancia Proveedores',
+                            data: [552500, 598000, 507000, 715000],
+                            borderColor: 'rgb(139, 92, 246)',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                };
+                
+                this.estado.graficos.evolucion = new Chart(ctx, {
+                    type: 'line',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatearMoneda(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de paquetes
+            crearGraficoPaquetes: function() {
+                const ctx = document.getElementById('graficoPaquetes').getContext('2d');
+                
+                if (this.estado.graficos.paquetes) {
+                    this.estado.graficos.paquetes.destroy();
+                }
+                
+                // Datos de ejemplo
+                const datosEjemplo = {
+                    labels: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'],
+                    datasets: [{
+                        data: [12, 19, 8, 15, 10, 7, 5, 9, 11, 6],
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
+                            '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
+                        ]
+                    }]
+                };
+                
+                this.estado.graficos.paquetes = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Cargar datos para reportes
+            cargarDatosReporte: async function() {
+                try {
+                    const { fechaInicio, fechaFin } = this.estado.filtros;
+                    
+                    const response = await fetch('/api/liquidaciones/calcular', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            fecha_inicio: fechaInicio,
+                            fecha_fin: fechaFin
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.estado.datosReporte = data;
+                        this.actualizarResumenReporte(data);
+                        this.actualizarDistribucionPropietarios(data);
+                        this.actualizarTopMaquinas(data);
+                        this.actualizarTablaDetalle(data);
+                        this.actualizarTablaPropietarios(data);
+                        this.actualizarTablaMaquinas(data);
+                    }
+                } catch (error) {
+                    console.error('Error cargando datos de reporte:', error);
+                }
             },
             
             // Actualizar datos desde la API
@@ -630,299 +1211,142 @@
                 }
             },
             
-            // Función para mostrar datos de ejemplo (solo desarrollo)
-            mostrarDatosEjemplo: function() {
-                console.log('📋 Mostrando datos de ejemplo para desarrollo');
-                
-                // Generar datos de ejemplo
-                const datosEjemplo = [];
-                const fechaInicio = new Date(this.estado.filtros.fechaInicio);
-                const fechaFin = new Date(this.estado.filtros.fechaFin);
-                
-                for (let i = 0; i < 20; i++) {
-                    const fecha = new Date(fechaInicio.getTime() + Math.random() * (fechaFin.getTime() - fechaInicio.getTime()));
-                    const ingresos = Math.floor(Math.random() * 50000) + 10000;
+            // Función para calcular liquidación completa
+            calcularLiquidacionCompleta: async function() {
+                try {
+                    this.mostrarCarga(true);
                     
-                    datosEjemplo.push({
-                        fecha: fecha.toISOString().split('T')[0],
-                        paquete_nombre: `Paquete P${Math.floor(Math.random() * 10) + 1}`,
-                        precio_unitario: ingresos,
-                        cantidad_paquetes: 1,
-                        ingresos_totales: ingresos,
-                        ingresos_30_porciento: ingresos * 0.5,
-                        ingresos_35_porciento: ingresos * 0.5,
-                        ingresos_restaurante: ingresos * 0.35,
-                        ingresos_proveedor: ingresos * 0.65,
-                        vendedor: 'Sistema',
-                        qr_nombre: 'QR Ejemplo'
+                    const { fechaInicio, fechaFin } = this.estado.filtros;
+                    
+                    console.log('🧮 Calculando liquidación completa...');
+                    
+                    const response = await fetch('/api/liquidaciones/calcular', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            fecha_inicio: fechaInicio,
+                            fecha_fin: fechaFin
+                        })
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error('Error al calcular liquidación');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.mostrarModalCalculoDetallado(data);
+                    } else {
+                        throw new Error(data.error || 'Error desconocido');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error calculando liquidación:', error);
+                    this.mostrarAlerta('Error al calcular liquidación: ' + error.message, 'error');
+                } finally {
+                    this.mostrarCarga(false);
                 }
-                
-                this.estado.datos = datosEjemplo;
-                this.estado.filtros.paginacion.totalRegistros = datosEjemplo.length;
-                this.estado.filtros.paginacion.totalPaginas = 1;
-                
-                this.actualizarTabla();
-                this.actualizarResumen({
-                    totalIngresos: datosEjemplo.reduce((sum, item) => sum + item.ingresos_totales, 0),
-                    gananciaTotal: datosEjemplo.reduce((sum, item) => sum + item.ingresos_totales, 0),
-                    gananciaProveedor: datosEjemplo.reduce((sum, item) => sum + item.ingresos_proveedor, 0),
-                    gananciaRestaurante: datosEjemplo.reduce((sum, item) => sum + item.ingresos_restaurante, 0)
-                });
-                this.actualizarPaginacion();
-                
-                this.mostrarAlerta('Se están mostrando datos de ejemplo para desarrollo', 'warning');
             },
             
-            // Función para calcular liquidación completa
-          // En el objeto LiquidacionesApp, mantener tu función existente pero mejorar el modal
-calcularLiquidacionCompleta: async function() {
-    try {
-        this.mostrarCarga(true);
-        
-        const { fechaInicio, fechaFin } = this.estado.filtros;
-        
-        console.log('🧮 Calculando liquidación completa...');
-        
-        const response = await fetch('/api/liquidaciones/calcular', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                fecha_inicio: fechaInicio,
-                fecha_fin: fechaFin
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Error al calcular liquidación');
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            this.mostrarModalCalculoDetallado(data);
-        } else {
-            throw new Error(data.error || 'Error desconocido');
-        }
-        
-    } catch (error) {
-        console.error('Error calculando liquidación:', error);
-        this.mostrarAlerta('Error al calcular liquidación: ' + error.message, 'error');
-    } finally {
-        this.mostrarCarga(false);
-    }
-},
-
-// Modal mejorado que muestra el cálculo detallado
-mostrarModalCalculoDetallado: function(data) {
-    const modalHTML = `
-        <div class="modal-overlay" id="modalCalculoDetallado">
-            <div class="modal-content" style="max-width: 98vw; width: 98vw; max-height: 95vh;">
-                <div class="p-6 border-b bg-blue-50">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-800">
-                                <i class="fas fa-calculator mr-2 text-blue-600"></i>
-                                Cálculo Detallado de Liquidación
-                            </h3>
-                            <p class="text-gray-600 mt-1">
-                                Período: ${data.periodo.fecha_inicio} a ${data.periodo.fecha_fin} | 
-                                ${data.periodo.total_ventas} ventas | 
-                                ${data.periodo.maquinas_utilizadas} máquinas utilizadas
-                            </p>
-                        </div>
-                        <button onclick="LiquidacionesApp.cerrarModal()" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-times text-xl"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="p-6 max-h-96 overflow-y-auto">
-                    <!-- Resumen Rápido -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-blue-600">${formatearMoneda(data.periodo.total_ingresos)}</div>
-                            <div class="text-sm text-gray-600">Ingresos Totales</div>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-green-600">${formatearMoneda(data.periodo.total_restaurante)}</div>
-                            <div class="text-sm text-gray-600">Restaurante</div>
-                            <div class="text-xs text-gray-500">${data.estadisticas.porcentaje_restaurante_promedio}%</div>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-purple-600">${formatearMoneda(data.periodo.total_proveedor)}</div>
-                            <div class="text-sm text-gray-600">Proveedores</div>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                            <div class="text-2xl font-bold text-orange-600">${data.periodo.total_ventas}</div>
-                            <div class="text-sm text-gray-600">Ventas</div>
-                            <div class="text-xs text-gray-500">${formatearMoneda(data.estadisticas.ticket_promedio)} c/u</div>
-                        </div>
-                    </div>
-
-                    <!-- Explicación del Proceso -->
-                    <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <h4 class="font-semibold text-yellow-800 mb-2">
-                            <i class="fas fa-info-circle mr-2"></i>Proceso de Cálculo
-                        </h4>
-                        <div class="text-sm text-yellow-700 grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div><strong>1.</strong> Se obtienen ${data.periodo.total_ventas} ventas únicas de paquetes</div>
-                            <div><strong>2.</strong> Se distribuye cada paquete entre las máquinas usadas</div>
-                            <div><strong>3.</strong> Se aplica el % restaurante específico de cada máquina</div>
-                            <div><strong>4.</strong> El resto se distribuye entre los propietarios</div>
-                        </div>
-                    </div>
-
-                    <!-- Desglose por Fecha -->
-                    <div class="mb-6">
-                        <h4 class="font-semibold text-lg mb-3 text-gray-800 border-b pb-2">
-                            <i class="fas fa-calendar-day mr-2"></i>Desglose por Fecha
-                        </h4>
-                        
-                        ${Object.entries(data.desglose_por_fecha).map(([fecha, datosFecha]) => `
-                            <div class="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                <div class="bg-gray-50 px-4 py-3 border-b">
-                                    <div class="flex justify-between items-center">
-                                        <h5 class="font-semibold text-gray-800">${fecha}</h5>
-                                        <div class="text-sm text-gray-600">
-                                            ${datosFecha.total_ventas} ventas | ${formatearMoneda(datosFecha.ingresos_totales)}
-                                        </div>
+            // Modal mejorado que muestra el cálculo detallado
+            mostrarModalCalculoDetallado: function(data) {
+                const modalHTML = `
+                    <div class="modal-overlay" id="modalCalculoDetallado">
+                        <div class="modal-content" style="max-width: 98vw; width: 98vw; max-height: 95vh;">
+                            <div class="p-6 border-b bg-blue-50">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="text-xl font-bold text-gray-800">
+                                            <i class="fas fa-calculator mr-2 text-blue-600"></i>
+                                            Cálculo Detallado de Liquidación
+                                        </h3>
+                                        <p class="text-gray-600 mt-1">
+                                            Período: ${data.periodo.fecha_inicio} a ${data.periodo.fecha_fin} | 
+                                            ${data.periodo.total_ventas} ventas | 
+                                            ${data.periodo.maquinas_utilizadas} máquinas utilizadas
+                                        </p>
                                     </div>
-                                </div>
-                                
-                                <div class="p-4 bg-white">
-                                    ${datosFecha.detalles_ventas.map((venta, index) => `
-                                        <div class="mb-4 pb-4 ${index < datosFecha.detalles_ventas.length - 1 ? 'border-b border-gray-100' : ''}">
-                                            <!-- Información de la venta -->
-                                            <div class="flex justify-between items-start mb-3">
-                                                <div class="flex-1">
-                                                    <div class="font-medium text-gray-800 flex items-center">
-                                                        ${venta.paquete_nombre}
-                                                        <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${venta.qr_nombre || venta.qr_code}</span>
-                                                    </div>
-                                                    <div class="text-sm text-gray-600 mt-1">
-                                                        Vendedor: ${venta.vendedor} | 
-                                                        Turnos: ${venta.turnos_paquete} | 
-                                                        Precio: ${formatearMoneda(venta.precio_paquete)}
-                                                    </div>
-                                                </div>
-                                                <div class="text-right">
-                                                    <div class="font-semibold text-green-600">${formatearMoneda(venta.precio_paquete)}</div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Distribución por máquinas -->
-                                            <div class="ml-4 border-l-2 border-blue-200 pl-3">
-                                                <div class="text-xs font-semibold text-gray-500 mb-2">DISTRIBUCIÓN POR MÁQUINAS:</div>
-                                                ${venta.distribucion_maquinas.map(uso => `
-                                                    <div class="flex justify-between items-center text-sm mb-2 bg-gray-50 rounded px-3 py-2">
-                                                        <div class="flex items-center">
-                                                            <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                                                            <span class="font-medium">${uso.maquina_nombre}</span>
-                                                            <span class="text-xs text-gray-500 ml-2">${uso.tipo_maquina}</span>
-                                                        </div>
-                                                        <div class="text-right">
-                                                            <div class="font-medium">${formatearMoneda(uso.ingresos_asignados)}</div>
-                                                            <div class="text-xs text-gray-500">
-                                                                ${uso.turnos_usados} turnos (${(uso.proporcion * 100).toFixed(1)}%)
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                `).join('')}
-                                            </div>
-                                        </div>
-                                    `).join('')}
+                                    <button onclick="this.closest('.modal-overlay').remove()" class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-times text-xl"></i>
+                                    </button>
                                 </div>
                             </div>
-                        `).join('')}
-                    </div>
-
-                    <!-- Resumen por Máquina -->
-                    <div class="mb-6">
-                        <h4 class="font-semibold text-lg mb-3 text-gray-800 border-b pb-2">
-                            <i class="fas fa-gamepad mr-2"></i>Resumen por Máquina
-                        </h4>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white border border-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left border-b">Máquina</th>
-                                        <th class="px-4 py-2 text-left border-b">Tipo</th>
-                                        <th class="px-4 py-2 text-right border-b">Ingresos</th>
-                                        <th class="px-4 py-2 text-right border-b">% Rest.</th>
-                                        <th class="px-4 py-2 text-right border-b">Restaurante</th>
-                                        <th class="px-4 py-2 text-right border-b">Proveedores</th>
-                                        <th class="px-4 py-2 text-right border-b">Ventas</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${Object.entries(data.resumen_maquinas).map(([id, maquina]) => `
-                                        <tr class="border-t hover:bg-gray-50">
-                                            <td class="px-4 py-2 font-medium">${maquina.maquina_nombre}</td>
-                                            <td class="px-4 py-2 text-gray-600">${maquina.tipo_maquina}</td>
-                                            <td class="px-4 py-2 text-right font-semibold">${formatearMoneda(maquina.ingresos_totales)}</td>
-                                            <td class="px-4 py-2 text-right text-blue-600">${maquina.porcentaje_restaurante}%</td>
-                                            <td class="px-4 py-2 text-right text-green-600">${formatearMoneda(maquina.ingresos_restaurante)}</td>
-                                            <td class="px-4 py-2 text-right text-purple-600">${formatearMoneda(maquina.ingresos_proveedor)}</td>
-                                            <td class="px-4 py-2 text-right text-gray-600">${maquina.detalles.length}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Distribución a Propietarios -->
-                    <div class="mb-6">
-                        <h4 class="font-semibold text-lg mb-3 text-gray-800 border-b pb-2">
-                            <i class="fas fa-users mr-2"></i>Distribución a Propietarios
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            ${Object.entries(data.distribucion_propietarios).map(([nombre, datos]) => `
-                                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <h5 class="font-semibold text-gray-800">${nombre}</h5>
-                                        <div class="text-lg font-bold text-green-600">${formatearMoneda(datos.total_ingresos)}</div>
+                            
+                            <div class="p-6 max-h-96 overflow-y-auto">
+                                <!-- Resumen Rápido -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                                        <div class="text-2xl font-bold text-blue-600">${formatearMoneda(data.periodo.total_ingresos)}</div>
+                                        <div class="text-sm text-gray-600">Ingresos Totales</div>
                                     </div>
-                                    <div class="text-sm text-gray-600 mb-3">
-                                        ${((datos.total_ingresos / data.periodo.total_proveedor) * 100).toFixed(1)}% del total proveedores
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                                        <div class="text-2xl font-bold text-green-600">${formatearMoneda(data.periodo.total_restaurante)}</div>
+                                        <div class="text-sm text-gray-600">Restaurante</div>
                                     </div>
-                                    <div class="text-xs text-gray-500">
-                                        <strong>Máquinas:</strong> ${datos.detalles_maquinas.map(d => d.maquina_nombre).join(', ')}
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                                        <div class="text-2xl font-bold text-purple-600">${formatearMoneda(data.periodo.total_proveedor)}</div>
+                                        <div class="text-sm text-gray-600">Proveedores</div>
+                                    </div>
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                                        <div class="text-2xl font-bold text-orange-600">${data.periodo.total_ventas}</div>
+                                        <div class="text-sm text-gray-600">Ventas</div>
                                     </div>
                                 </div>
-                            `).join('')}
+
+                                <!-- Distribución a Propietarios -->
+                                <div class="mb-6">
+                                    <h4 class="font-semibold text-lg mb-3 text-gray-800 border-b pb-2">
+                                        <i class="fas fa-users mr-2"></i>Distribución a Propietarios
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        ${Object.entries(data.distribucion_propietarios || {}).map(([nombre, datos]) => `
+                                            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <h5 class="font-semibold text-gray-800">${nombre}</h5>
+                                                    <div class="text-lg font-bold text-green-600">${formatearMoneda(datos.total_ingresos)}</div>
+                                                </div>
+                                                <div class="text-sm text-gray-600 mb-3">
+                                                    ${((datos.total_ingresos / data.periodo.total_proveedor) * 100).toFixed(1)}% del total proveedores
+                                                </div>
+                                                <div class="text-xs text-gray-500">
+                                                    <strong>Máquinas:</strong> ${datos.detalles_maquinas?.map(d => d.maquina_nombre).join(', ') || 'No especificadas'}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6 border-t bg-gray-50 flex justify-between items-center">
+                                <div class="text-sm text-gray-600">
+                                    <i class="fas fa-calculator mr-1"></i>
+                                    Cálculo basado en distribución real por uso de máquinas
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
+                                        Cerrar
+                                    </button>
+                                    <button onclick="LiquidacionesApp.actualizarDatos()" class="btn btn-primary">
+                                        <i class="fas fa-sync-alt mr-2"></i>Actualizar Tabla
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                `;
                 
-                <div class="p-6 border-t bg-gray-50 flex justify-between items-center">
-                    <div class="text-sm text-gray-600">
-                        <i class="fas fa-calculator mr-1"></i>
-                        Cálculo basado en distribución real por uso de máquinas
-                    </div>
-                    <div class="flex space-x-3">
-                        <button onclick="LiquidacionesApp.cerrarModal()" class="btn btn-secondary">
-                            Cerrar
-                        </button>
-                        <button onclick="LiquidacionesApp.actualizarDatos()" class="btn btn-primary">
-                            <i class="fas fa-sync-alt mr-2"></i>Actualizar Tabla
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-},
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+            },
+            
             // Aplicar filtros
             aplicarFiltros: function() {
                 this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
                 this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
                 this.estado.filtros.tipoReporte = document.getElementById('tipoReporte').value;
+                this.estado.filtros.agrupacion = document.getElementById('agrupacion').value;
                 this.estado.filtros.paginacion.paginaActual = 1;
                 
                 this.actualizarDatos();
@@ -964,12 +1388,9 @@ mostrarModalCalculoDetallado: function(data) {
                     }
                     
                     // Calcular distribución de ingresos
-                    // 30% para máquinas y 35% para proveedores son porcentajes fijos
                     const ingresos = item.ingresos_totales || item.ingresos || 0;
                     const ingresos30 = item.ingresos_30_porciento || (ingresos * 0.30);
                     const ingresos35 = item.ingresos_35_porciento || (ingresos * 0.35);
-                    
-                    // El resto va para el restaurante (35%)
                     const ingresosRestaurante = item.ingresos_restaurante || item.ganancia_restaurante || (ingresos * 0.35);
                     const ingresosProveedor = item.ingresos_proveedor || item.ganancia_proveedor || 0;
                     
@@ -1044,6 +1465,226 @@ mostrarModalCalculoDetallado: function(data) {
                 document.getElementById('totalRegistros').textContent = this.estado.filtros.paginacion.totalRegistros;
             },
             
+            // Actualizar resumen de reportes
+            actualizarResumenReporte: function(data) {
+                const periodo = data.periodo || {};
+                const totalIngresos = periodo.total_ingresos || 0;
+                const gananciaRestaurante = periodo.total_restaurante || 0;
+                const gananciaProveedor = periodo.total_proveedor || 0;
+                const gananciaTotal = totalIngresos;
+                const totalVentas = periodo.total_ventas || 0;
+                const maquinasActivas = periodo.maquinas_utilizadas || 0;
+                const ticketPromedio = totalVentas > 0 ? totalIngresos / totalVentas : 0;
+                const turnosUsados = totalVentas * 10; // Estimación
+                
+                document.getElementById('totalIngresosResumen').textContent = formatearMoneda(totalIngresos);
+                document.getElementById('gananciaTotalResumen').textContent = formatearMoneda(gananciaTotal);
+                document.getElementById('gananciaProveedorResumen').textContent = formatearMoneda(gananciaProveedor);
+                document.getElementById('gananciaRestauranteResumen').textContent = formatearMoneda(gananciaRestaurante);
+                document.getElementById('totalVentas').textContent = totalVentas.toLocaleString();
+                document.getElementById('maquinasActivas').textContent = maquinasActivas.toLocaleString();
+                document.getElementById('turnosUsados').textContent = turnosUsados.toLocaleString();
+                document.getElementById('ticketPromedio').textContent = formatearMoneda(ticketPromedio);
+            },
+            
+            // Actualizar distribución por propietarios
+            actualizarDistribucionPropietarios: function(data) {
+                const distribucion = data.distribucion_propietarios || {};
+                const container = document.getElementById('distribucionPropietarios');
+                container.innerHTML = '';
+                
+                Object.entries(distribucion).forEach(([nombre, datos]) => {
+                    const card = document.createElement('div');
+                    card.className = 'summary-card';
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-gray-800">${nombre}</h3>
+                            <div class="text-lg font-bold text-green-600">${formatearMoneda(datos.total_ingresos)}</div>
+                        </div>
+                        <div class="text-sm text-gray-600 mb-3">
+                            ${((datos.total_ingresos / (data.periodo?.total_proveedor || 1)) * 100).toFixed(1)}% del total proveedores
+                        </div>
+                        <div class="space-y-2">
+                            ${datos.detalles_maquinas?.slice(0, 3).map(maquina => `
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="truncate">${maquina.maquina_nombre}</span>
+                                    <span class="font-medium">${formatearMoneda(maquina.monto_propietario)}</span>
+                                </div>
+                            `).join('')}
+                            ${datos.detalles_maquinas?.length > 3 ? `
+                                <div class="text-xs text-gray-500 text-center">
+                                    +${datos.detalles_maquinas.length - 3} máquinas más
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+            
+            // Actualizar top máquinas
+            actualizarTopMaquinas: function(data) {
+                const maquinas = data.resumen_maquinas || {};
+                const container = document.getElementById('topMaquinas');
+                container.innerHTML = '';
+                
+                // Convertir a array y ordenar por ingresos
+                const maquinasArray = Object.values(maquinas)
+                    .sort((a, b) => (b.ingresos_totales || 0) - (a.ingresos_totales || 0))
+                    .slice(0, 5);
+                
+                maquinasArray.forEach((maquina, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                    item.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                <span class="text-blue-600 font-bold">${index + 1}</span>
+                            </div>
+                            <div>
+                                <div class="font-medium">${maquina.maquina_nombre}</div>
+                                <div class="text-xs text-gray-500">${formatearMoneda(maquina.ingresos_proveedor || 0)} proveedor</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-green-600">${formatearMoneda(maquina.ingresos_totales || 0)}</div>
+                            <div class="text-xs text-gray-500">total</div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            },
+            
+            // Actualizar tabla detalle
+            actualizarTablaDetalle: function(data) {
+                const tbody = document.getElementById('cuerpoTablaDetalle');
+                tbody.innerHTML = '';
+                
+                const datosTabla = data.datos_tabla || [];
+                
+                if (datosTabla.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td colspan="9" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-2 block"></i>
+                            No se encontraron registros para los filtros seleccionados.
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    return;
+                }
+                
+                datosTabla.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    tr.innerHTML = `
+                        <td>${this.formatearFecha(item.fecha)}</td>
+                        <td class="font-medium">${item.paquete_nombre || 'General'}</td>
+                        <td>${item.maquina_nombre || 'No especificada'}</td>
+                        <td class="text-right">${item.turnos_usados || 0}</td>
+                        <td class="text-right font-semibold">${formatearMoneda(item.ingresos_totales || 0)}</td>
+                        <td class="text-right">${item.porcentaje_restaurante || 35}%</td>
+                        <td class="text-right text-green-600">${formatearMoneda(item.ingresos_restaurante || 0)}</td>
+                        <td class="text-right text-purple-600">${formatearMoneda(item.ingresos_proveedor || 0)}</td>
+                        <td>${item.propietario || 'No asignado'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+            
+            // Actualizar tabla de propietarios
+            actualizarTablaPropietarios: function(data) {
+                const distribucion = data.distribucion_propietarios || {};
+                const container = document.getElementById('tablaPropietarios');
+                
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Propietario</th>
+                                    <th class="text-right">Total Ingresos</th>
+                                    <th class="text-right">% del Total</th>
+                                    <th class="text-right">Máquinas</th>
+                                    <th>Principales Máquinas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                Object.entries(distribucion).forEach(([nombre, datos]) => {
+                    const totalProveedor = data.periodo?.total_proveedor || 1;
+                    const porcentaje = ((datos.total_ingresos / totalProveedor) * 100).toFixed(1);
+                    const numMaquinas = datos.detalles_maquinas?.length || 0;
+                    const principalesMaquinas = datos.detalles_maquinas?.slice(0, 3).map(m => m.maquina_nombre).join(', ') || '';
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="font-medium">${nombre}</td>
+                            <td class="text-right font-semibold text-green-600">${formatearMoneda(datos.total_ingresos)}</td>
+                            <td class="text-right">${porcentaje}%</td>
+                            <td class="text-right">${numMaquinas}</td>
+                            <td class="text-sm text-gray-600">${principalesMaquinas}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            },
+            
+            // Actualizar tabla de máquinas
+            actualizarTablaMaquinas: function(data) {
+                const maquinas = data.resumen_maquinas || {};
+                const container = document.getElementById('tablaMaquinas');
+                
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Máquina</th>
+                                    <th>Tipo</th>
+                                    <th class="text-right">Ingresos Totales</th>
+                                    <th class="text-right">% Rest.</th>
+                                    <th class="text-right">Restaurante</th>
+                                    <th class="text-right">Proveedor</th>
+                                    <th class="text-right">Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                Object.values(maquinas).forEach(maquina => {
+                    const ventas = maquina.detalles?.length || 0;
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="font-medium">${maquina.maquina_nombre}</td>
+                            <td class="text-gray-600">${maquina.tipo_maquina}</td>
+                            <td class="text-right font-semibold">${formatearMoneda(maquina.ingresos_totales || 0)}</td>
+                            <td class="text-right text-blue-600">${maquina.porcentaje_restaurante || 35}%</td>
+                            <td class="text-right text-green-600">${formatearMoneda(maquina.ingresos_restaurante || 0)}</td>
+                            <td class="text-right text-purple-600">${formatearMoneda(maquina.ingresos_proveedor || 0)}</td>
+                            <td class="text-right text-gray-600">${ventas}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            },
+            
             // Resto de funciones de paginación, ordenación, etc.
             actualizarPaginacion: function() {
                 const { paginaActual, totalPaginas } = this.estado.filtros.paginacion;
@@ -1102,6 +1743,13 @@ mostrarModalCalculoDetallado: function(data) {
                 this.actualizarDatos();
             },
             
+            buscarDetalle: function() {
+                const busqueda = document.getElementById('busquedaDetalle').value.trim().toLowerCase();
+                this.estado.filtros.busquedaDetalle = busqueda;
+                this.estado.filtros.paginacionDetalle.paginaActual = 1;
+                // Implementar búsqueda en tabla detalle
+            },
+            
             ordenarPor: function(campo) {
                 if (this.estado.filtros.orden.campo === campo) {
                     this.estado.filtros.orden.direccion = this.estado.filtros.orden.direccion === 'asc' ? 'desc' : 'asc';
@@ -1144,6 +1792,7 @@ mostrarModalCalculoDetallado: function(data) {
                             fin: this.estado.filtros.fechaFin
                         },
                         datos: this.estado.datos,
+                        datosReporte: this.estado.datosReporte,
                         totales: {
                             ingresosTotales: document.getElementById('totalIngresos').textContent,
                             gananciaTotal: document.getElementById('gananciaTotal').textContent,
@@ -1392,6 +2041,50 @@ mostrarModalCalculoDetallado: function(data) {
                         day: 'numeric'
                     });
                 }
+            },
+            
+            // Función para mostrar datos de ejemplo (solo desarrollo)
+            mostrarDatosEjemplo: function() {
+                console.log('📋 Mostrando datos de ejemplo para desarrollo');
+                
+                // Generar datos de ejemplo para liquidaciones
+                const datosEjemplo = [];
+                const fechaInicio = new Date(this.estado.filtros.fechaInicio);
+                const fechaFin = new Date(this.estado.filtros.fechaFin);
+                
+                for (let i = 0; i < 20; i++) {
+                    const fecha = new Date(fechaInicio.getTime() + Math.random() * (fechaFin.getTime() - fechaInicio.getTime()));
+                    const ingresos = Math.floor(Math.random() * 50000) + 10000;
+                    
+                    datosEjemplo.push({
+                        fecha: fecha.toISOString().split('T')[0],
+                        paquete_nombre: `Paquete P${Math.floor(Math.random() * 10) + 1}`,
+                        precio_unitario: ingresos,
+                        cantidad_paquetes: 1,
+                        ingresos_totales: ingresos,
+                        ingresos_30_porciento: ingresos * 0.5,
+                        ingresos_35_porciento: ingresos * 0.5,
+                        ingresos_restaurante: ingresos * 0.35,
+                        ingresos_proveedor: ingresos * 0.65,
+                        vendedor: 'Sistema',
+                        qr_nombre: 'QR Ejemplo'
+                    });
+                }
+                
+                this.estado.datos = datosEjemplo;
+                this.estado.filtros.paginacion.totalRegistros = datosEjemplo.length;
+                this.estado.filtros.paginacion.totalPaginas = 1;
+                
+                this.actualizarTabla();
+                this.actualizarResumen({
+                    totalIngresos: datosEjemplo.reduce((sum, item) => sum + item.ingresos_totales, 0),
+                    gananciaTotal: datosEjemplo.reduce((sum, item) => sum + item.ingresos_totales, 0),
+                    gananciaProveedor: datosEjemplo.reduce((sum, item) => sum + item.ingresos_proveedor, 0),
+                    gananciaRestaurante: datosEjemplo.reduce((sum, item) => sum + item.ingresos_restaurante, 0)
+                });
+                this.actualizarPaginacion();
+                
+                this.mostrarAlerta('Se están mostrando datos de ejemplo para desarrollo', 'warning');
             }
         };
         
