@@ -2618,20 +2618,48 @@ def resolver_reporte(reporte_id):
                 confirmation_id = cursor.lastrowid
                 app.logger.info(f"Registro creado (sin comments) con ID: {confirmation_id}")
             
-            # 3. Cambiar estado de la máquina si es necesario
+            # 3. Cambiar estado de la máquina si es necesario y LIMPIAR errorNote
             if machine_id:
                 app.logger.info(f"Actualizando estado de máquina {machine_id}...")
                 
+                # PRIMERO: Verificar si hay otros reportes pendientes para esta máquina
                 cursor.execute("""
-                    UPDATE machine 
-                    SET status = 'activa'
-                    WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
+                    SELECT COUNT(*) as reportes_pendientes
+                    FROM errorreport 
+                    WHERE machineId = %s AND isResolved = FALSE
                 """, (machine_id,))
                 
-                if cursor.rowcount > 0:
-                    app.logger.info(f"Máquina {machine_id} cambiada a estado 'activa'")
+                otros_reportes = cursor.fetchone()
+                reportes_pendientes = otros_reportes['reportes_pendientes'] if otros_reportes else 0
+                
+                app.logger.info(f"Máquina {machine_id} tiene {reportes_pendientes} reportes pendientes adicionales")
+                
+                if reportes_pendientes == 0:
+                    # Si NO hay más reportes pendientes, limpiar errorNote y poner estado 'activa'
+                    cursor.execute("""
+                        UPDATE machine 
+                        SET status = 'activa', 
+                            errorNote = NULL  -- IMPORTANTE: Limpiar el mensaje de error
+                        WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
+                    """, (machine_id,))
+                    
+                    if cursor.rowcount > 0:
+                        app.logger.info(f"Máquina {machine_id} cambiada a estado 'activa' y errorNote limpiado")
+                    else:
+                        app.logger.info(f"Máquina {machine_id} no cambió de estado (ya estaba activa o no aplica)")
                 else:
-                    app.logger.info(f"Máquina {machine_id} no cambió de estado (ya estaba activa o no aplica)")
+                    # Si todavía hay reportes pendientes, solo cambiar el estado si es necesario
+                    # pero mantener el errorNote
+                    cursor.execute("""
+                        UPDATE machine 
+                        SET status = 'activa'
+                        WHERE id = %s AND status IN ('mantenimiento', 'inactiva')
+                    """, (machine_id,))
+                    
+                    if cursor.rowcount > 0:
+                        app.logger.info(f"Máquina {machine_id} cambiada a estado 'activa' (aún tiene {reportes_pendientes} reportes pendientes)")
+                    else:
+                        app.logger.info(f"Máquina {machine_id} no cambió de estado")
             
             connection.commit()
             app.logger.info(f"=== REPORTE {reporte_id} RESUELTO EXITOSAMENTE ===")
@@ -2644,7 +2672,8 @@ def resolver_reporte(reporte_id):
                     'reporte_id': reporte_id,
                     'machine_name': machine_name,
                     'confirmation_id': confirmation_id,
-                    'resolved_by': user_name
+                    'resolved_by': user_name,
+                    'errorNote_cleared': True if machine_id and reportes_pendientes == 0 else False
                 }
             )
             

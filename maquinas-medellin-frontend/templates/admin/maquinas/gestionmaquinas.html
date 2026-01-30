@@ -1052,6 +1052,7 @@ function mostrarReportesModal(maquinaId, maquinaNombre, reportes) {
 }
 
 // Función para resolver un reporte
+// Función para resolver un reporte
 function resolverReporte(reporteId, maquinaId) {
     const comentarios = prompt('Ingrese comentarios sobre la resolución (opcional):');
     
@@ -1088,6 +1089,9 @@ function resolverReporte(reporteId, maquinaId) {
     .then(data => {
         console.log('Reporte resuelto correctamente:', data);
         mostrarAlerta('Reporte resuelto correctamente', 'success');
+        
+        // FORZAR ACTUALIZACIÓN DE MÁQUINAS
+        MaquinaManager.cargarMaquinas();
         
         // Recargar los reportes después de un breve delay
         setTimeout(() => {
