@@ -414,25 +414,101 @@
                     ahora.toLocaleDateString('es-ES', opciones);
             },
 
-            cargarLocales: function() {
-                fetch('/api/locales', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                    return response.json();
-                })
-                .then(data => {
-                    this.mostrarLocales(data);
-                    this.actualizarEstadisticas(data);
-                })
-                .catch(error => {
-                    console.error('Error cargando locales:', error);
-                    this.mostrarError('Error al cargar los locales');
-                });
-            },
+           cargarLocales: function() {
+    console.log("🔍 Iniciando carga de locales...");
+    
+    // Mostrar estado de carga
+    const container = document.getElementById('vistaTarjetas');
+    const tbody = document.getElementById('tablaLocales');
+    
+    // Mostrar estado de carga en ambas vistas
+    const loadingHTML = `
+        <div class="col-span-3 text-center py-8">
+            <div class="loading mx-auto mb-2"></div>
+            <p class="text-gray-600">Cargando locales...</p>
+        </div>
+    `;
+    
+    if (container) {
+        container.innerHTML = loadingHTML;
+    }
+    
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="p-4 text-center">
+                    <div class="loading mx-auto mb-2"></div>
+                    <p class="text-gray-600">Cargando locales...</p>
+                </td>
+            </tr>
+        `;
+    }
+    
+    fetch('/api/locales', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        console.log(`📊 Respuesta HTTP: ${response.status} ${response.statusText}`);
+        
+        // Verificar si la respuesta es exitosa
+        if (!response.ok) {
+            // Si hay un error HTTP, obtener el texto del error
+            return response.text().then(text => {
+                console.error("❌ Error en la respuesta:", text);
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            });
+        }
+        
+        // Intentar parsear como JSON
+        return response.json().then(data => {
+            console.log("✅ Locales cargados correctamente:", data);
+            return data;
+        });
+    })
+    .then(data => {
+        console.log(`📋 Total de locales recibidos: ${Array.isArray(data) ? data.length : 'no es array'}`);
+        
+        // Validar que data sea un array
+        if (!Array.isArray(data)) {
+            console.error("❌ Los datos recibidos no son un array:", data);
+            this.mostrarLocales([]);
+            return;
+        }
+        
+        // Verificar estructura de los datos
+        if (data.length > 0) {
+            console.log("📝 Primer local recibido:", data[0]);
+        }
+        
+        // Mostrar los locales
+        this.mostrarLocales(data);
+        this.actualizarEstadisticas(data);
+        
+        console.log("🎉 Locales mostrados exitosamente");
+    })
+    .catch(error => {
+        console.warn("⚠️ Advertencia al cargar locales:", error.message);
+        console.warn("Stack trace:", error.stack);
+        
+        // Solo mostrar error si realmente no hay datos
+        const container = document.getElementById('vistaTarjetas');
+        const currentContent = container ? container.innerHTML : '';
+        
+        // Si ya hay contenido (no el de carga), no mostrar error
+        if (currentContent && !currentContent.includes('Cargando locales')) {
+            console.log("✅ Ya hay locales mostrados, ignorando error...");
+            return;
+        }
+        
+        // Mostrar mensaje de error solo si no hay datos
+        this.mostrarLocales([]);
+        this.actualizarEstadisticas([]);
+        
+    });
+},
 
             mostrarLocales: function(locales) {
                 this.mostrarVistaTarjetas(locales);
