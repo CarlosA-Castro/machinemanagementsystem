@@ -643,11 +643,6 @@ mostrarVistaTarjetas: function(locales) {
                                             title="Editar local">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="LocalesApp.verDetalles(${local.id})" 
-                                            class="text-green-600 hover:text-green-800 btn-touch"
-                                            title="Ver detalles">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
                                     <button onclick="LocalesApp.eliminarLocal(${local.id}, '${local.name}')" 
                                             class="text-red-600 hover:text-red-800 btn-touch"
                                             title="Eliminar local">
@@ -740,11 +735,6 @@ mostrarVistaTarjetas: function(locales) {
                     console.error('Error cargando local:', error);
                     this.mostrarError('Error al cargar el local');
                 });
-            },
-
-            verDetalles: function(id) {
-                // Aquí podrías implementar un modal con más detalles del local
-                this.mostrarAlerta('Función de detalles en desarrollo', 'info');
             },
 
             guardarLocal: function(event) {
