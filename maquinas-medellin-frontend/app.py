@@ -3412,33 +3412,74 @@ def eliminar_paquete(paquete_id):
 @handle_api_errors
 @require_login(['admin'])
 def obtener_locales():
-    """Obtener todos los locales con estadísticas"""
+    """Obtener todos los locales con estadísticas - VERSIÓN CORREGIDA"""
     connection = None
     cursor = None
     try:
+        app.logger.info("=== OBTENIENDO LOCALES ===")
+        
         connection = get_db_connection()
         if not connection:
+            app.logger.error("No se pudo conectar a la BD")
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
         
+        # Primero, obtener todos los locales
         cursor.execute("""
-            SELECT l.*, 
-                   COUNT(m.id) as maquinas_count,
-                   SUM(CASE WHEN m.status = 'activa' THEN 1 ELSE 0 END) as maquinas_activas
+            SELECT 
+                l.id,
+                l.name,
+                l.address,
+                l.city,
+                l.status,
+                l.telefono,
+                l.horario,
+                l.notas
             FROM location l
-            LEFT JOIN machine m ON l.id = m.location_id
-            GROUP BY l.id
             ORDER BY l.name
         """)
         
         locales = cursor.fetchall()
-        return jsonify(locales)
+        app.logger.info(f"Locales encontrados: {len(locales)}")
+        
+        if not locales:
+            return jsonify([])
+        
+        # Ahora, para cada local, obtener las estadísticas de máquinas por separado
+        locales_con_estadisticas = []
+        for local in locales:
+            cursor.execute("""
+                SELECT 
+                    COUNT(m.id) as maquinas_count,
+                    SUM(CASE WHEN m.status = 'activa' THEN 1 ELSE 0 END) as maquinas_activas
+                FROM machine m
+                WHERE m.location_id = %s
+            """, (local['id'],))
+            
+            stats = cursor.fetchone()
+            
+            locales_con_estadisticas.append({
+                'id': local['id'],
+                'name': local['name'],
+                'address': local.get('address', ''),
+                'city': local.get('city', ''),
+                'status': local.get('status', 'activo'),
+                'telefono': local.get('telefono', ''),
+                'horario': local.get('horario', ''),
+                'notas': local.get('notas', ''),
+                'maquinas_count': stats['maquinas_count'] if stats else 0,
+                'maquinas_activas': stats['maquinas_activas'] if stats else 0
+            })
+        
+        app.logger.info("Locales procesados exitosamente")
+        return jsonify(locales_con_estadisticas)
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo locales: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
+        app.logger.error(f"Error obteniendo locales: {e}", exc_info=True)
+        import traceback
+        app.logger.error(f"Traceback completo: {traceback.format_exc()}")
+        return api_response('E001', http_status=500, data={'error_detail': str(e)})
     finally:
         if cursor:
             cursor.close()
