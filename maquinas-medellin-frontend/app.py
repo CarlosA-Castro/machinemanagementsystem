@@ -5067,12 +5067,14 @@ def esp32_registrar_uso():
         cursor = get_db_cursor(connection)
         
         # Verificar que el QR existe y tiene turnos
-        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT id, qr_name FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
         
         qr_id = qr_data['id']
+        qr_name = qr_data['qr_name']
+        
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         
@@ -5107,6 +5109,8 @@ def esp32_registrar_uso():
             data={
                 'turns_remaining': info_actualizada['turns_remaining'],
                 'package_name': info_actualizada['package_name'],
+                'qr_name': qr_name,
+                'qr_code': qr_code,
                 'machine_id': machine_id
             }
         )
