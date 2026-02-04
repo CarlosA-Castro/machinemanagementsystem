@@ -5187,60 +5187,86 @@ def tft_machine_status(machine_id):
             connection.close()
 
 @app.route('/api/esp32/machine-technical/<int:machine_id>', methods=['GET'])
+@handle_api_errors
 def esp32_machine_technical(machine_id):
     """Obtener datos técnicos de la máquina para pantalla TFT"""
     connection = None
     cursor = None
     try:
+        app.logger.info(f"ESP32: Solicitando datos técnicos - Máquina: {machine_id}")
+        
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
         
-        # Obtener datos técnicos de la máquina
+        # Verificar que la máquina existe primero
+        cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
+        machine_data = cursor.fetchone()
+        
+        if not machine_data:
+            return api_response('M001', http_status=404, 
+                              message="Máquina no encontrada")
+        
+        # Obtener datos técnicos con JOIN correcto
         cursor.execute("""
             SELECT 
-                mt.credits_virtual,
-                mt.credits_machine,
-                mt.game_duration_seconds,
+                COALESCE(mt.credits_virtual, 1) as credits_virtual,
+                COALESCE(mt.credits_machine, 1) as credits_machine,
+                COALESCE(mt.game_duration_seconds, 60) as game_duration_seconds,
                 m.name as machine_name,
-                l.name as location_name,
+                COALESCE(l.name, 'Sin ubicación') as location_name,
                 MAX(tu.usedAt) as last_play_time
-            FROM machinetechnical mt
-            JOIN machine m ON m.id = mt.machine_id
+            FROM machine m
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
             LEFT JOIN location l ON m.location_id = l.id
             LEFT JOIN turnusage tu ON tu.machineId = m.id
-            WHERE mt.machine_id = %s
-            GROUP BY mt.id, m.name, l.name
+            WHERE m.id = %s
+            GROUP BY m.id, m.name, l.name, mt.credits_virtual, mt.credits_machine, mt.game_duration_seconds
         """, (machine_id,))
         
         tech_data = cursor.fetchone()
         
-        if not tech_data:
-            return api_response('M001', http_status=404)
-        
         # Formatear última hora de juego
         last_play_time = None
-        if tech_data['last_play_time']:
+        if tech_data and tech_data['last_play_time']:
             last_play_time = tech_data['last_play_time'].isoformat()
+        else:
+            last_play_time = None
+        
+        # Valores por defecto si no hay datos técnicos
+        credits_virtual = 1
+        credits_machine = 1
+        game_duration_seconds = 60
+        location_name = "Sin ubicación"
+        machine_name = machine_data['name']
+        
+        if tech_data:
+            credits_virtual = tech_data['credits_virtual'] or 1
+            credits_machine = tech_data['credits_machine'] or 1
+            game_duration_seconds = tech_data['game_duration_seconds'] or 60
+            location_name = tech_data['location_name'] or "Sin ubicación"
+        
+        app.logger.info(f"ESP32: Datos técnicos enviados - Máquina: {machine_id}")
+        app.logger.info(f"  Créditos: {credits_virtual}, Duración: {game_duration_seconds}s")
         
         return api_response(
             'S011',
             status='success',
             data={
-                'machine_name': tech_data['machine_name'],
-                'location': tech_data['location_name'],
-                'credits_virtual': tech_data['credits_virtual'],
-                'credits_machine': tech_data['credits_machine'],
-                'game_duration_seconds': tech_data['game_duration_seconds'],
+                'machine_name': machine_name,
+                'location': location_name,
+                'credits_virtual': credits_virtual,
+                'credits_machine': credits_machine,
+                'game_duration_seconds': game_duration_seconds,
                 'last_play_time': last_play_time,
                 'machine_id': machine_id
             }
         )
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo datos técnicos: {e}")
+        app.logger.error(f"Error obteniendo datos técnicos: {str(e)}")
         sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
     finally:
