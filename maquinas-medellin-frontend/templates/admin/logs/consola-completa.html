@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Consola de Logs - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .log-line {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.25rem;
+            transition: background-color 0.2s;
+        }
+        .log-line:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        .log-line-error {
+            border-left: 3px solid #dc2626;
+        }
+        .log-line-warning {
+            border-left: 3px solid #d97706;
+        }
+        .log-line-info {
+            border-left: 3px solid #2563eb;
+        }
+        .log-line-access {
+            border-left: 3px solid #059669;
+        }
+        .log-line-debug {
+            border-left: 3px solid #6b7280;
+        }
+        .log-console {
+            height: 500px;
+            overflow-y: auto;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        .log-timestamp {
+            color: #888;
+        }
+        .log-level {
+            font-weight: bold;
+            padding: 0 0.25rem;
+            border-radius: 3px;
+        }
+        .log-level-INFO { color: #60a5fa; }
+        .log-level-WARNING { color: #fbbf24; }
+        .log-level-ERROR { color: #f87171; }
+        .log-level-CRITICAL { color: #dc2626; }
+        .log-level-DEBUG { color: #9ca3af; }
+        .log-level-ACCESS { color: #34d399; }
+        .log-level-SYSTEM { color: #a78bfa; }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-error { background-color: #fee2e2; color: #dc2626; }
+        .badge-warning { background-color: #fef3c7; color: #d97706; }
+        .badge-info { background-color: #dbeafe; color: #2563eb; }
+        .badge-success { background-color: #d1fae5; color: #059669; }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+            .log-console {
+                height: 400px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-terminal mr-2"></i>Logs
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/logs/consola-completa" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-terminal mr-2"></i>Consola de Logs
+                    </a>
+                    <a href="/admin/logs/gestion-logs" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-cogs mr-2"></i>Gestión de Logs
+                    </a>
+                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">Sistema de Logs</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-terminal mr-3 text-green-600"></i>Consola de Logs
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-user mr-2"></i>Bienvenido, <strong>{{ nombre_usuario }}</strong> | 
+                            <i class="fas fa-clock mr-2 ml-4"></i><span id="horaActual">{{ hora_actual }}</span> |
+                            <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual">{{ fecha_actual }}</span>
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="LogsConsole.actualizarLogs()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                        </button>
+                        <button onclick="LogsConsole.limpiarConsola()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 btn-touch">
+                            <i class="fas fa-broom mr-2"></i>Limpiar
+                        </button>
+                        <button onclick="LogsConsole.descargarLogs()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                            <i class="fas fa-download mr-2"></i>Exportar
+                        </button>
+                        <button onclick="hacerBackupManual()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 btn-touch">
+                             <i class="fas fa-save mr-2"></i>Backup Manual
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de control -->
+            <div class="glass-card mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-sliders-h mr-2 text-purple-600"></i>Panel de Control
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Cantidad:</label>
+                        <select id="cantidadLogs" class="w-full border border-gray-300 rounded-lg p-3" onchange="LogsConsole.actualizarLogs()">
+                            <option value="50">50 líneas</option>
+                            <option value="100" selected>100 líneas</option>
+                            <option value="200">200 líneas</option>
+                            <option value="500">500 líneas</option>
+                            <option value="1000">1000 líneas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nivel:</label>
+                        <select id="nivelLogs" class="w-full border border-gray-300 rounded-lg p-3" onchange="LogsConsole.actualizarLogs()">
+                            <option value="todos" selected>Todos los niveles</option>
+                            <option value="ERROR">Solo ERROR</option>
+                            <option value="WARNING">Solo WARNING</option>
+                            <option value="INFO">Solo INFO</option>
+                            <option value="DEBUG">Solo DEBUG</option>
+                            <option value="ACCESS">Solo ACCESS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fuente:</label>
+                        <select id="fuenteLogs" class="w-full border border-gray-300 rounded-lg p-3" onchange="LogsConsole.actualizarLogs()">
+                            <option value="todos" selected>Todas las fuentes</option>
+                            <option value="flask">Flask App</option>
+                            <option value="access">Acceso HTTP</option>
+                            <option value="app">Aplicación</option>
+                            <option value="system">Sistema</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Orden:</label>
+                        <select id="ordenLogs" class="w-full border border-gray-300 rounded-lg p-3" onchange="LogsConsole.actualizarLogs()">
+                            <option value="desc" selected>Más recientes primero</option>
+                            <option value="asc">Más antiguos primero</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Modo:</label>
+                        <select id="modoLogs" class="w-full border border-gray-300 rounded-lg p-3" onchange="LogsConsole.actualizarLogs()">
+                            <option value="tail" selected>Seguimiento (tail)</option>
+                            <option value="head">Desde inicio</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <div class="flex gap-2 w-full">
+                            <button onclick="LogsConsole.autoRefreshToggle()" id="autoRefreshBtn" class="flex-1 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
+                                <i class="fas fa-play mr-2"></i>Auto-Refresh
+                            </button>
+                            <button onclick="LogsConsole.buscarLogs()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 btn-touch">
+                                <i class="fas fa-search mr-2"></i>Buscar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Barra de búsqueda -->
+                <div class="mt-4">
+                    <div class="flex gap-2">
+                        <input type="text" id="buscarLogs" placeholder="Buscar en logs (texto, IP, endpoint, etc.)" 
+                               class="flex-1 border border-gray-300 rounded-lg p-3" 
+                               onkeypress="if(event.key === 'Enter') LogsConsole.buscarLogs()">
+                        <button onclick="LogsConsole.buscarLogs()" class="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-900 btn-touch">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas rápidas -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="glass-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Logs Hoy</p>
+                            <p id="totalLogsHoy" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-lg">
+                            <i class="fas fa-file-alt text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Errores</p>
+                            <p id="erroresHoy" class="text-2xl font-bold text-red-600">0</p>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded-lg">
+                            <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Accesos HTTP</p>
+                            <p id="accesosHoy" class="text-2xl font-bold text-green-600">0</p>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-lg">
+                            <i class="fas fa-signal text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Usuarios Activos</p>
+                            <p id="usuariosActivos" class="text-2xl font-bold text-purple-600">0</p>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-lg">
+                            <i class="fas fa-users text-purple-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Consola de Logs -->
+            <div class="glass-card mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-desktop mr-2 text-blue-600"></i>Consola en Tiempo Real
+                    </h3>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-gray-600" id="contadorLogs">Mostrando 0 logs</span>
+                        <div class="flex items-center">
+                            <span class="text-xs mr-2 text-gray-500">Auto-refresh:</span>
+                            <div class="relative">
+                                <input type="checkbox" id="autoRefreshToggle" class="hidden" onchange="LogsConsole.autoRefreshToggle()">
+                                <label for="autoRefreshToggle" class="cursor-pointer">
+                                    <div class="w-12 h-6 bg-gray-300 rounded-full relative">
+                                        <div id="autoRefreshThumb" class="w-6 h-6 bg-blue-600 rounded-full absolute left-0 top-0 transform transition-transform"></div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="log-console" id="consolaLogs">
+                    <div class="text-center py-8">
+                        <div class="loading mx-auto mb-2"></div>
+                        <p class="text-gray-400">Cargando logs del sistema...</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="text-sm text-gray-600">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        <span id="ultimaActualizacion">Última actualización: --:--:--</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="LogsConsole.scrollToTop()" class="text-sm bg-gray-200 text-gray-800 px-3 py-1 rounded-lg hover:bg-gray-300">
+                            <i class="fas fa-arrow-up mr-1"></i>Arriba
+                        </button>
+                        <button onclick="LogsConsole.scrollToBottom()" class="text-sm bg-gray-200 text-gray-800 px-3 py-1 rounded-lg hover:bg-gray-300">
+                            <i class="fas fa-arrow-down mr-1"></i>Abajo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leyenda -->
+            <div class="glass-card">
+                <h3 class="text-lg font-semibold mb-3 text-gray-800">
+                    <i class="fas fa-key mr-2 text-orange-600"></i>Leyenda
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    <div class="flex items-center">
+                        <span class="log-level log-level-INFO mr-2">INFO</span>
+                        <span class="text-sm text-gray-600">Información</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="log-level log-level-WARNING mr-2">WARNING</span>
+                        <span class="text-sm text-gray-600">Advertencia</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="log-level log-level-ERROR mr-2">ERROR</span>
+                        <span class="text-sm text-gray-600">Error</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="log-level log-level-ACCESS mr-2">ACCESS</span>
+                        <span class="text-sm text-gray-600">Acceso HTTP</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="log-level log-level-DEBUG mr-2">DEBUG</span>
+                        <span class="text-sm text-gray-600">Depuración</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="log-level log-level-SYSTEM mr-2">SYSTEM</span>
+                        <span class="text-sm text-gray-600">Sistema</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const LogsConsole = {
+    autoRefreshInterval: null,
+    isAutoRefreshing: false,
+    currentFilters: {},
+    
+    init: function() {
+        // Configurar partículas
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 30, density: { enable: true, value_area: 600 } },
+                color: { value: '#10b981' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.1, random: true },
+                size: { value: 2, random: true },
+                line_linked: { enable: true, distance: 150, color: '#10b981', opacity: 0.05, width: 1 },
+                move: { enable: true, speed: 0.3, direction: 'none', random: true }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                }
+            }
+        });
+        
+        // Cargar logs iniciales
+        this.cargarLogs();
+        this.cargarEstadisticas();
+        
+        // Actualizar hora cada segundo
+        this.actualizarHora();
+        setInterval(() => this.actualizarHora(), 1000);
+        
+        console.log("Consola de Logs inicializada");
+    },
+    
+    actualizarHora: function() {
+        const ahora = new Date();
+        const hora = ahora.toLocaleTimeString('es-ES');
+        document.getElementById('horaActual').textContent = hora;
+    },
+    
+    cargarLogs: function() {
+        const consola = document.getElementById('consolaLogs');
+        consola.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-2"></div><p class="text-gray-400">Cargando logs del sistema...</p></div>';
+        
+        // Obtener filtros
+        const params = new URLSearchParams({
+            limit: document.getElementById('cantidadLogs').value,
+            nivel: document.getElementById('nivelLogs').value,
+            buscar: document.getElementById('buscarLogs').value || '',
+            fuente: document.getElementById('fuenteLogs').value,
+            tail: document.getElementById('modoLogs').value === 'tail'
+        });
+        
+        console.log('📝 Cargando logs con parámetros:', params.toString());
+        
+        fetch(`/api/logs/consola-completa?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('📝 Logs recibidos:', data.logs.length, 'registros');
+                this.mostrarLogsEnConsola(data.logs);
+                this.currentFilters = data.filters || {};
+                
+                // Actualizar contador
+                document.getElementById('contadorLogs').textContent = `Mostrando ${data.logs.length} logs`;
+                document.getElementById('ultimaActualizacion').textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString('es-ES')}`;
+            })
+            .catch(error => {
+                console.error('❌ Error cargando logs:', error);
+                consola.innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-3xl mb-3"></i>
+                        <p class="text-red-400">Error cargando logs: ${error.message}</p>
+                        <button onclick="LogsConsole.cargarLogs()" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-redo mr-2"></i>Reintentar
+                        </button>
+                    </div>
+                `;
+            });
+    },
+    
+    mostrarLogsEnConsola: function(logs) {
+        const consola = document.getElementById('consolaLogs');
+        const orden = document.getElementById('ordenLogs').value;
+        
+        // Ordenar logs según selección
+        if (orden === 'asc') {
+            logs.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+        } else {
+            logs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+        }
+        
+        let html = '';
+        
+        if (logs.length === 0) {
+            html = '<div class="text-center py-8"><p class="text-gray-400">No se encontraron logs con los filtros actuales</p></div>';
+        } else {
+            logs.forEach(log => {
+                const timestamp = log.timestamp || '--:--:--';
+                const level = log.level || 'INFO';
+                const message = log.message || log.raw || '';
+                const source = log.source || 'unknown';
+                const type = log.type || 'unknown';
+                
+                // Determinar clase CSS basada en nivel
+                const levelClass = `log-level-${level}`;
+                const lineClass = `log-line-${type === 'access' ? 'access' : level.toLowerCase()}`;
+                
+                // Formatear la línea
+                html += `
+                    <div class="log-line ${lineClass}">
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span class="log-level ${levelClass}">${level}</span>
+                        <span class="${log.color || 'text-gray-300'}">${message}</span>
+                        ${source && source !== 'unknown' ? `<span class="text-gray-500 text-xs">(${source})</span>` : ''}
+                    </div>
+                `;
+            });
+        }
+        
+        consola.innerHTML = html;
+        
+        // Auto-scroll al final si está en modo tail
+        if (document.getElementById('modoLogs').value === 'tail' && orden === 'desc') {
+            this.scrollToBottom();
+        }
+    },
+    
+    actualizarLogs: function() {
+        this.cargarLogs();
+    },
+    
+    buscarLogs: function() {
+        this.cargarLogs();
+    },
+    
+    autoRefreshToggle: function() {
+        const toggle = document.getElementById('autoRefreshToggle');
+        const thumb = document.getElementById('autoRefreshThumb');
+        const btn = document.getElementById('autoRefreshBtn');
+        
+        this.isAutoRefreshing = !this.isAutoRefreshing;
+        
+        if (this.isAutoRefreshing) {
+            // Activar auto-refresh
+            thumb.classList.remove('left-0');
+            thumb.classList.add('left-6');
+            btn.innerHTML = '<i class="fas fa-pause mr-2"></i>Pausar';
+            btn.classList.remove('bg-purple-600');
+            btn.classList.add('bg-green-600');
+            
+            this.autoRefreshInterval = setInterval(() => {
+                this.cargarLogs();
+                this.cargarEstadisticas();
+            }, 5000); // Actualizar cada 5 segundos
+        } else {
+            // Desactivar auto-refresh
+            thumb.classList.remove('left-6');
+            thumb.classList.add('left-0');
+            btn.innerHTML = '<i class="fas fa-play mr-2"></i>Auto-Refresh';
+            btn.classList.remove('bg-green-600');
+            btn.classList.add('bg-purple-600');
+            
+            if (this.autoRefreshInterval) {
+                clearInterval(this.autoRefreshInterval);
+                this.autoRefreshInterval = null;
+            }
+        }
+    },
+    
+    cargarEstadisticas: function() {
+        fetch('/api/logs/estadisticas')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('totalLogsHoy').textContent = data.total_logs_hoy || 0;
+                document.getElementById('erroresHoy').textContent = data.errores_hoy || 0;
+                document.getElementById('accesosHoy').textContent = data.accesos_hoy || 0;
+                document.getElementById('usuariosActivos').textContent = data.usuarios_activos_hoy || 0;
+            })
+            .catch(error => {
+                console.error('Error cargando estadísticas:', error);
+            });
+    },
+    
+    limpiarConsola: function() {
+        if (confirm('¿Estás seguro de que quieres limpiar la consola? Esto solo limpiará la vista, no los archivos de log.')) {
+            const consola = document.getElementById('consolaLogs');
+            consola.innerHTML = '<div class="text-center py-8"><p class="text-gray-400">Consola limpiada</p></div>';
+            document.getElementById('contadorLogs').textContent = 'Mostrando 0 logs';
+        }
+    },
+    
+    descargarLogs: function() {
+        const dias = prompt('¿Exportar logs de cuántos días? (1-30)', '1');
+        if (dias && parseInt(dias) >= 1 && parseInt(dias) <= 30) {
+            const nivel = document.getElementById('nivelLogs').value;
+            const fuente = document.getElementById('fuenteLogs').value;
+            
+            const url = `/api/logs/exportar?dias=${dias}&nivel=${nivel}&fuente=${fuente}`;
+            window.open(url, '_blank');
+            
+            this.mostrarNotificacion(`Exportando logs de los últimos ${dias} días...`, 'info');
+        }
+    },
+    
+    scrollToTop: function() {
+        const consola = document.getElementById('consolaLogs');
+        consola.scrollTop = 0;
+    },
+    
+    scrollToBottom: function() {
+        const consola = document.getElementById('consolaLogs');
+        consola.scrollTop = consola.scrollHeight;
+    },
+    
+    mostrarNotificacion: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    tipo === 'success' ? 'check-circle' : 
+                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 3000);
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    LogsConsole.init();
+});
+    </script>
+    <script>
+function hacerBackupManual() {
+    fetch('/admin/logs/backup-manual', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `logs_backup_${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        alert('Backup creado exitosamente');
+    })
+    .catch(error => {
+        alert('Error creando backup: ' + error.message);
+    });
+}
+</script>
+</body>
+</html>

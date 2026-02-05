@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from flask import Flask, json, request, jsonify, render_template, redirect, url_for, session, send_file
 import mysql.connector
 from mysql.connector import pooling
 from flask_cors import CORS
@@ -11,6 +11,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 from functools import lru_cache, wraps
 import re
+import io 
+import json
+import csv
+import zipfile
+import traceback
 
 # ==================== CONFIGURACIÓN DE ZONA HORARIA ====================
 
@@ -63,6 +68,42 @@ file_handler.setLevel(logging.INFO)
 app.logger.addHandler(file_handler)
 app.logger.setLevel(logging.INFO)
 app.logger.info('Iniciando aplicación Máquinas Medellín')
+
+# Configurar logging mejorado
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# Handler para archivo con rotación
+from logging.handlers import RotatingFileHandler
+
+file_handler = RotatingFileHandler(
+    'logs/maquinas.log',
+    maxBytes=10 * 1024 * 1024,  # 10 MB
+    backupCount=10
+)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+
+# Handler para consola
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# Configurar app logger
+app.logger.addHandler(file_handler)
+app.logger.addHandler(console_handler)
+app.logger.setLevel(logging.INFO)
+
+# Configurar werkzeug logger para acceso HTTP
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.addHandler(file_handler)
+werkzeug_logger.addHandler(console_handler)
+werkzeug_logger.setLevel(logging.INFO)
+
+# Opcional: Reducir verbosidad de algunos loggers
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 
 # ==================== CLASE DE SERVICIO DE MENSAJES ====================
 
@@ -8578,6 +8619,1190 @@ def obtener_socio_actual_simple():
             cursor.close()
         if connection:
             connection.close()
+
+# ==================== MIDDLEWARE PARA LOGGING ====================
+
+@app.before_request
+def log_request_info():
+    """Middleware para registrar información de cada request"""
+    try:
+        if request.path.startswith('/static/'):
+            return
+            
+        # Registrar en access_logs
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            
+            start_time = datetime.now()
+            
+            # Almacenar para usar después del request
+            request.start_time = start_time
+            
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        app.logger.debug(f"Error en log_request_info: {e}")
+
+@app.after_request
+def log_response_info(response):
+    """Middleware para registrar información de cada response"""
+    try:
+        if request.path.startswith('/static/'):
+            return response
+            
+        if hasattr(request, 'start_time'):
+            response_time = (datetime.now() - request.start_time).total_seconds() * 1000
+            
+            connection = get_db_connection()
+            if connection:
+                cursor = get_db_cursor(connection)
+                
+                try:
+                    cursor.execute("""
+                        INSERT INTO access_logs 
+                        (method, path, query_string, status_code, response_time_ms, 
+                         ip_address, user_agent, user_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        request.method,
+                        request.path,
+                        request.query_string.decode('utf-8') if request.query_string else '',
+                        response.status_code,
+                        int(response_time),
+                        request.remote_addr,
+                        request.user_agent.string if request.user_agent else '',
+                        session.get('user_id')
+                    ))
+                    
+                    connection.commit()
+                    
+                    # Actualizar estadísticas diarias
+                    update_daily_statistics()
+                    
+                except Exception as e:
+                    app.logger.error(f"Error insertando access log: {e}")
+                    connection.rollback()
+                
+                cursor.close()
+                connection.close()
+        
+    except Exception as e:
+        app.logger.debug(f"Error en log_response_info: {e}")
+    
+    return response
+
+def log_app_event(level, message, module=None, details=None, user_id=None):
+    """Función para registrar eventos de la aplicación"""
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            
+            cursor.execute("""
+                INSERT INTO app_logs 
+                (level, module, message, details, ip_address, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                level,
+                module or 'app',
+                str(message)[:1000],
+                json.dumps(details) if details else None,
+                request.remote_addr if hasattr(request, 'remote_addr') else None,
+                user_id or session.get('user_id')
+            ))
+            
+            connection.commit()
+            
+            # Verificar alertas
+            check_alerts(level, message, module)
+            
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        # Fallback a archivo de log si la BD falla
+        app.logger.error(f"Error en log_app_event: {e}")
+
+def log_error(error_type, error_message, stack_trace=None, module=None, user_id=None):
+    """Función para registrar errores"""
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            
+            cursor.execute("""
+                INSERT INTO error_logs 
+                (error_type, error_message, stack_trace, module, 
+                 request_path, request_method, ip_address, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                error_type,
+                str(error_message)[:2000],
+                str(stack_trace)[:5000] if stack_trace else None,
+                module or 'app',
+                request.path if hasattr(request, 'path') else None,
+                request.method if hasattr(request, 'method') else None,
+                request.remote_addr if hasattr(request, 'remote_addr') else None,
+                user_id or session.get('user_id')
+            ))
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error en log_error: {e}")
+
+def update_daily_statistics():
+    """Actualizar estadísticas diarias"""
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            today = datetime.now().date()
+            
+            # Contar logs por nivel hoy
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_logs,
+                    COUNT(CASE WHEN level = 'INFO' THEN 1 END) as info_logs,
+                    COUNT(CASE WHEN level = 'WARNING' THEN 1 END) as warning_logs,
+                    COUNT(CASE WHEN level = 'ERROR' THEN 1 END) as error_logs
+                FROM app_logs 
+                WHERE DATE(created_at) = %s
+            """, (today,))
+            
+            app_stats = cursor.fetchone()
+            
+            # Contar access logs
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as access_logs,
+                    COUNT(DISTINCT ip_address) as unique_ips,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    AVG(response_time_ms) as avg_response_time
+                FROM access_logs 
+                WHERE DATE(created_at) = %s
+            """, (today,))
+            
+            access_stats = cursor.fetchone()
+            
+            # Insertar o actualizar estadísticas
+            cursor.execute("""
+                INSERT INTO log_statistics 
+                (date, total_logs, info_logs, warning_logs, error_logs, 
+                 access_logs, unique_ips, unique_users, avg_response_time_ms)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                total_logs = VALUES(total_logs),
+                info_logs = VALUES(info_logs),
+                warning_logs = VALUES(warning_logs),
+                error_logs = VALUES(error_logs),
+                access_logs = VALUES(access_logs),
+                unique_ips = VALUES(unique_ips),
+                unique_users = VALUES(unique_users),
+                avg_response_time_ms = VALUES(avg_response_time_ms),
+                updated_at = NOW()
+            """, (
+                today,
+                app_stats['total_logs'] or 0,
+                app_stats['info_logs'] or 0,
+                app_stats['warning_logs'] or 0,
+                app_stats['error_logs'] or 0,
+                access_stats['access_logs'] or 0,
+                access_stats['unique_ips'] or 0,
+                access_stats['unique_users'] or 0,
+                access_stats['avg_response_time'] or 0
+            ))
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        app.logger.debug(f"Error en update_daily_statistics: {e}")
+
+def check_alerts(level, message, module):
+    """Verificar si se dispara alguna alerta"""
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            
+            # Verificar alertas activas
+            cursor.execute("SELECT * FROM log_alerts WHERE is_active = TRUE")
+            alerts = cursor.fetchall()
+            
+            for alert in alerts:
+                # Aquí iría la lógica para evaluar cada condición
+                # Por ahora solo logueamos
+                if level == 'ERROR' and 'error' in alert['condition'].lower():
+                    cursor.execute("""
+                        UPDATE log_alerts 
+                        SET last_triggered = NOW() 
+                        WHERE id = %s
+                    """, (alert['id'],))
+                    
+                    # En una implementación real, aquí enviarías notificaciones
+                    app.logger.warning(f"ALERTA: {alert['alert_message']}")
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+            
+    except Exception as e:
+        app.logger.debug(f"Error en check_alerts: {e}")
+
+# ==================== APIS PARA LOGS ====================
+
+@app.route('/api/logs/consola-completa', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_logs_consola():
+    """Obtener logs de múltiples fuentes"""
+    try:
+        limit = int(request.args.get('limit', 200))
+        nivel = request.args.get('nivel', 'todos')
+        buscar = request.args.get('buscar', '').strip()
+        fuente = request.args.get('fuente', 'todos')
+        orden = request.args.get('orden', 'desc')
+        fecha_inicio = request.args.get('fecha_inicio')
+        fecha_fin = request.args.get('fecha_fin')
+        
+        logs_data = []
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Construir consultas dinámicas para cada fuente
+        queries = []
+        
+        # 1. Logs de aplicación
+        if fuente in ['todos', 'app']:
+            app_query = """
+                SELECT 
+                    'app' as fuente,
+                    level as nivel,
+                    message as mensaje,
+                    module as modulo,
+                    details,
+                    ip_address,
+                    user_id,
+                    created_at,
+                    NULL as metodo,
+                    NULL as path,
+                    NULL as status_code,
+                    NULL as response_time_ms
+                FROM app_logs 
+                WHERE 1=1
+            """
+            params = []
+            
+            if nivel != 'todos':
+                app_query += " AND level = %s"
+                params.append(nivel)
+            
+            if buscar:
+                app_query += " AND (message LIKE %s OR module LIKE %s)"
+                params.extend([f'%{buscar}%', f'%{buscar}%'])
+            
+            if fecha_inicio:
+                app_query += " AND DATE(created_at) >= %s"
+                params.append(fecha_inicio)
+            
+            if fecha_fin:
+                app_query += " AND DATE(created_at) <= %s"
+                params.append(fecha_fin)
+            
+            queries.append((app_query, params))
+        
+        # 2. Logs de acceso HTTP
+        if fuente in ['todos', 'access']:
+            access_query = """
+                SELECT 
+                    'access' as fuente,
+                    CASE 
+                        WHEN status_code >= 500 THEN 'ERROR'
+                        WHEN status_code >= 400 THEN 'WARNING'
+                        ELSE 'INFO'
+                    END as nivel,
+                    CONCAT(method, ' ', path, ' -> ', status_code) as mensaje,
+                    'http' as modulo,
+                    NULL as details,
+                    ip_address,
+                    user_id,
+                    created_at,
+                    method,
+                    path,
+                    status_code,
+                    response_time_ms
+                FROM access_logs 
+                WHERE 1=1
+            """
+            params = []
+            
+            if nivel != 'todos':
+                if nivel == 'ERROR':
+                    access_query += " AND status_code >= 500"
+                elif nivel == 'WARNING':
+                    access_query += " AND status_code BETWEEN 400 AND 499"
+                elif nivel == 'INFO':
+                    access_query += " AND status_code < 400"
+            
+            if buscar:
+                access_query += " AND (path LIKE %s OR method LIKE %s OR ip_address LIKE %s)"
+                params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
+            
+            if fecha_inicio:
+                access_query += " AND DATE(created_at) >= %s"
+                params.append(fecha_inicio)
+            
+            if fecha_fin:
+                access_query += " AND DATE(created_at) <= %s"
+                params.append(fecha_fin)
+            
+            queries.append((access_query, params))
+        
+        # 3. Logs de sesión
+        if fuente in ['todos', 'session']:
+            session_query = """
+                SELECT 
+                    'session' as fuente,
+                    'INFO' as nivel,
+                    action as mensaje,
+                    'session' as modulo,
+                    NULL as details,
+                    ip_address,
+                    user_id,
+                    created_at,
+                    NULL as metodo,
+                    NULL as path,
+                    NULL as status_code,
+                    NULL as response_time_ms
+                FROM sessionlog 
+                WHERE 1=1
+            """
+            params = []
+            
+            if buscar:
+                session_query += " AND (action LIKE %s OR ip_address LIKE %s)"
+                params.extend([f'%{buscar}%', f'%{buscar}%'])
+            
+            if fecha_inicio:
+                session_query += " AND DATE(created_at) >= %s"
+                params.append(fecha_inicio)
+            
+            if fecha_fin:
+                session_query += " AND DATE(created_at) <= %s"
+                params.append(fecha_fin)
+            
+            queries.append((session_query, params))
+        
+        # 4. Logs de errores
+        if fuente in ['todos', 'error']:
+            error_query = """
+                SELECT 
+                    'error' as fuente,
+                    'ERROR' as nivel,
+                    CONCAT(error_type, ': ', error_message) as mensaje,
+                    module as modulo,
+                    stack_trace as details,
+                    ip_address,
+                    user_id,
+                    created_at,
+                    request_method as metodo,
+                    request_path as path,
+                    NULL as status_code,
+                    NULL as response_time_ms
+                FROM error_logs 
+                WHERE 1=1
+            """
+            params = []
+            
+            if buscar:
+                error_query += " AND (error_message LIKE %s OR error_type LIKE %s OR module LIKE %s)"
+                params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
+            
+            if fecha_inicio:
+                error_query += " AND DATE(created_at) >= %s"
+                params.append(fecha_inicio)
+            
+            if fecha_fin:
+                error_query += " AND DATE(created_at) <= %s"
+                params.append(fecha_fin)
+            
+            queries.append((error_query, params))
+        
+        # Ejecutar todas las consultas y combinar resultados
+        all_logs = []
+        for query, params in queries:
+            query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
+            params.append(limit)
+            
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            all_logs.extend(results)
+        
+        # Ordenar combinado
+        all_logs.sort(key=lambda x: x['created_at'], reverse=(orden.lower() == 'desc'))
+        
+        # Limitar resultados finales
+        all_logs = all_logs[:limit]
+        
+        # Formatear logs para la respuesta
+        for log in all_logs:
+            log_entry = {
+                'fuente': log['fuente'],
+                'nivel': log['nivel'],
+                'mensaje': log['mensaje'],
+                'modulo': log['modulo'],
+                'timestamp': log['created_at'].isoformat() if log['created_at'] else '',
+                'ip': log['ip_address'],
+                'user_id': log['user_id'],
+                'detalles': log['details']
+            }
+            
+            # Agregar información específica por fuente
+            if log['fuente'] == 'access':
+                log_entry.update({
+                    'metodo': log['metodo'],
+                    'path': log['path'],
+                    'status_code': log['status_code'],
+                    'response_time': log['response_time_ms']
+                })
+            
+            logs_data.append(log_entry)
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            'logs': logs_data,
+            'total': len(logs_data),
+            'filtros': {
+                'limit': limit,
+                'nivel': nivel,
+                'buscar': buscar,
+                'fuente': fuente,
+                'orden': orden,
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo logs consola: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_estadisticas_logs():
+    """Obtener estadísticas de logs"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        hoy = datetime.now().date()
+        
+        # Estadísticas del día
+        cursor.execute("""
+            SELECT 
+                COALESCE(total_logs, 0) as total_logs_hoy,
+                COALESCE(error_logs, 0) as errores_hoy,
+                COALESCE(warning_logs, 0) as warnings_hoy,
+                COALESCE(access_logs, 0) as accesos_hoy,
+                COALESCE(unique_ips, 0) as ips_unicas_hoy,
+                COALESCE(unique_users, 0) as usuarios_unicos_hoy,
+                COALESCE(avg_response_time_ms, 0) as tiempo_respuesta_promedio
+            FROM log_statistics 
+            WHERE date = %s
+        """, (hoy,))
+        
+        hoy_stats = cursor.fetchone() or {}
+        
+        # Top endpoints del día
+        cursor.execute("""
+            SELECT 
+                CONCAT(method, ' ', path) as endpoint,
+                COUNT(*) as total,
+                AVG(response_time_ms) as avg_time,
+                COUNT(DISTINCT ip_address) as ips_unicas
+            FROM access_logs 
+            WHERE DATE(created_at) = %s
+            GROUP BY method, path
+            ORDER BY total DESC
+            LIMIT 10
+        """, (hoy,))
+        
+        top_endpoints = cursor.fetchall()
+        
+        # Errores por tipo hoy
+        cursor.execute("""
+            SELECT 
+                error_type,
+                COUNT(*) as total,
+                GROUP_CONCAT(DISTINCT module) as modulos
+            FROM error_logs 
+            WHERE DATE(created_at) = %s
+            GROUP BY error_type
+            ORDER BY total DESC
+            LIMIT 10
+        """, (hoy,))
+        
+        errores_por_tipo = cursor.fetchall()
+        
+        # Usuarios más activos hoy
+        cursor.execute("""
+            SELECT 
+                u.name as usuario,
+                COUNT(DISTINCT al.id) as accesos,
+                COUNT(DISTINCT el.id) as errores
+            FROM access_logs al
+            LEFT JOIN users u ON al.user_id = u.id
+            LEFT JOIN error_logs el ON el.user_id = al.user_id AND DATE(el.created_at) = %s
+            WHERE DATE(al.created_at) = %s
+            GROUP BY al.user_id, u.name
+            ORDER BY accesos DESC
+            LIMIT 10
+        """, (hoy, hoy))
+        
+        usuarios_activos = cursor.fetchall()
+        
+        # Alertas activas hoy
+        cursor.execute("""
+            SELECT 
+                alert_type,
+                alert_message,
+                severity,
+                last_triggered
+            FROM log_alerts 
+            WHERE is_active = TRUE 
+            AND (last_triggered IS NULL OR DATE(last_triggered) = %s)
+            ORDER BY severity DESC
+        """, (hoy,))
+        
+        alertas_activas = cursor.fetchall()
+        
+        # Tendencia últimos 7 días
+        cursor.execute("""
+            SELECT 
+                date,
+                total_logs,
+                error_logs,
+                access_logs
+            FROM log_statistics 
+            WHERE date >= DATE_SUB(%s, INTERVAL 7 DAY)
+            ORDER BY date
+        """, (hoy,))
+        
+        tendencia_7dias = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            'hoy': hoy_stats,
+            'top_endpoints': top_endpoints,
+            'errores_por_tipo': errores_por_tipo,
+            'usuarios_activos': usuarios_activos,
+            'alertas_activas': alertas_activas,
+            'tendencia_7dias': tendencia_7dias,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo estadísticas: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/config', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_config_logs():
+    """Obtener configuración de logs"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("SELECT * FROM log_config ORDER BY config_key")
+        config = cursor.fetchall()
+        
+        cursor.execute("SELECT * FROM log_alerts WHERE is_active = TRUE ORDER BY severity")
+        alertas = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            'config': config,
+            'alertas': alertas,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo configuración: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/config', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['config_key', 'config_value'])
+def actualizar_config_logs():
+    """Actualizar configuración de logs"""
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            INSERT INTO log_config (config_key, config_value, config_type, description, updated_by)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            config_value = VALUES(config_value),
+            config_type = VALUES(config_type),
+            description = VALUES(description),
+            updated_by = VALUES(updated_by),
+            updated_at = NOW()
+        """, (
+            data['config_key'],
+            data['config_value'],
+            data.get('config_type', 'string'),
+            data.get('description', ''),
+            session.get('user_id')
+        ))
+        
+        connection.commit()
+        
+        log_app_event('INFO', f'Configuración actualizada: {data["config_key"]}', 
+                     'logs', data, session.get('user_id'))
+        
+        cursor.close()
+        connection.close()
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error actualizando configuración: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/alertas', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['alert_type', 'alert_message', 'condition'])
+def crear_alerta_logs():
+    """Crear nueva alerta"""
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            INSERT INTO log_alerts 
+            (alert_type, alert_message, severity, condition, notification_method)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            data['alert_type'],
+            data['alert_message'],
+            data.get('severity', 'medium'),
+            data['condition'],
+            data.get('notification_method', 'console')
+        ))
+        
+        connection.commit()
+        
+        log_app_event('INFO', f'Alerta creada: {data["alert_type"]}', 
+                     'logs', data, session.get('user_id'))
+        
+        cursor.close()
+        connection.close()
+        
+        return api_response('S002', status='success', data={'alerta_id': cursor.lastrowid})
+        
+    except Exception as e:
+        app.logger.error(f"Error creando alerta: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/alertas/<int:alerta_id>/toggle', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+def toggle_alerta_logs(alerta_id):
+    """Activar/desactivar alerta"""
+    try:
+        data = request.get_json()
+        activa = data.get('activa', True)
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            UPDATE log_alerts 
+            SET is_active = %s,
+                updated_at = NOW()
+            WHERE id = %s
+        """, (activa, alerta_id))
+        
+        connection.commit()
+        
+        estado = 'activada' if activa else 'desactivada'
+        log_app_event('INFO', f'Alerta {alerta_id} {estado}', 
+                     'logs', {'alerta_id': alerta_id, 'estado': estado}, session.get('user_id'))
+        
+        cursor.close()
+        connection.close()
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error toggle alerta: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/limpiar', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def limpiar_logs_sistema():
+    """Limpiar logs antiguos"""
+    try:
+        data = request.get_json()
+        dias = int(data.get('dias', 30))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        fecha_limite = (datetime.now() - timedelta(days=dias)).strftime('%Y-%m-%d')
+        
+        # Limpiar logs antiguos
+        tablas = ['app_logs', 'access_logs', 'error_logs', 'sessionlog']
+        total_eliminados = 0
+        
+        for tabla in tablas:
+            cursor.execute(f"""
+                DELETE FROM {tabla} 
+                WHERE DATE(created_at) < %s
+            """, (fecha_limite,))
+            total_eliminados += cursor.rowcount
+        
+        # Crear backup de estadísticas
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS log_statistics_backup_%s 
+            SELECT * FROM log_statistics 
+            WHERE date < %s
+        """, (datetime.now().strftime('%Y%m%d'), fecha_limite))
+        
+        cursor.execute("""
+            DELETE FROM log_statistics 
+            WHERE date < %s
+        """, (fecha_limite,))
+        
+        connection.commit()
+        
+        log_app_event('INFO', f'Logs limpiados: {total_eliminados} registros eliminados (>{dias} días)', 
+                     'logs', {'dias': dias, 'eliminados': total_eliminados}, session.get('user_id'))
+        
+        cursor.close()
+        connection.close()
+        
+        return api_response('S001', status='success', data={
+            'eliminados': total_eliminados,
+            'dias': dias,
+            'fecha_limite': fecha_limite
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error limpiando logs: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/exportar', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def exportar_logs_sistema():
+    """Exportar logs a archivo"""
+    try:
+        data = request.get_json()
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin') or datetime.now().strftime('%Y-%m-%d')
+        formatos = data.get('formatos', ['json', 'csv'])
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Crear registro de exportación
+        cursor.execute("""
+            INSERT INTO log_exports 
+            (export_name, start_date, end_date, filters, exported_by)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            fecha_inicio,
+            fecha_fin,
+            json.dumps(data),
+            session.get('user_id')
+        ))
+        
+        export_id = cursor.lastrowid
+        
+        # Obtener logs para exportar
+        logs_data = []
+        
+        # App logs
+        cursor.execute("""
+            SELECT * FROM app_logs 
+            WHERE DATE(created_at) BETWEEN %s AND %s
+            ORDER BY created_at
+        """, (fecha_inicio, fecha_fin))
+        app_logs = cursor.fetchall()
+        
+        # Access logs
+        cursor.execute("""
+            SELECT * FROM access_logs 
+            WHERE DATE(created_at) BETWEEN %s AND %s
+            ORDER BY created_at
+        """, (fecha_inicio, fecha_fin))
+        access_logs = cursor.fetchall()
+        
+        # Error logs
+        cursor.execute("""
+            SELECT * FROM error_logs 
+            WHERE DATE(created_at) BETWEEN %s AND %s
+            ORDER BY created_at
+        """, (fecha_inicio, fecha_fin))
+        error_logs = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        # Crear archivo temporal
+        import tempfile
+        import zipfile
+        import csv
+        
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+        temp_path = temp_file.name
+        temp_file.close()
+        
+        with zipfile.ZipFile(temp_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # Exportar en JSON
+            if 'json' in formatos:
+                export_json = {
+                    'app_logs': app_logs,
+                    'access_logs': access_logs,
+                    'error_logs': error_logs,
+                    'metadata': {
+                        'fecha_inicio': fecha_inicio,
+                        'fecha_fin': fecha_fin,
+                        'exportado_el': datetime.now().isoformat(),
+                        'exportado_por': session.get('user_name')
+                    }
+                }
+                
+                json_str = json.dumps(export_json, default=str, indent=2)
+                zipf.writestr('logs.json', json_str)
+            
+            # Exportar en CSV
+            if 'csv' in formatos:
+                # App logs CSV
+                if app_logs:
+                    csv_str = io.StringIO()
+                    csv_writer = csv.DictWriter(csv_str, fieldnames=app_logs[0].keys())
+                    csv_writer.writeheader()
+                    csv_writer.writerows(app_logs)
+                    zipf.writestr('app_logs.csv', csv_str.getvalue())
+                
+                # Access logs CSV
+                if access_logs:
+                    csv_str = io.StringIO()
+                    csv_writer = csv.DictWriter(csv_str, fieldnames=access_logs[0].keys())
+                    csv_writer.writeheader()
+                    csv_writer.writerows(access_logs)
+                    zipf.writestr('access_logs.csv', csv_str.getvalue())
+                
+                # Error logs CSV
+                if error_logs:
+                    csv_str = io.StringIO()
+                    csv_writer = csv.DictWriter(csv_str, fieldnames=error_logs[0].keys())
+                    csv_writer.writeheader()
+                    csv_writer.writerows(error_logs)
+                    zipf.writestr('error_logs.csv', csv_str.getvalue())
+        
+        # Actualizar registro de exportación
+        file_size = os.path.getsize(temp_path)
+        
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            
+            cursor.execute("""
+                UPDATE log_exports 
+                SET file_path = %s,
+                    file_size = %s,
+                    status = 'completed',
+                    completed_at = NOW()
+                WHERE id = %s
+            """, (temp_path, file_size, export_id))
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+        
+        log_app_event('INFO', f'Exportación de logs completada: {export_id}', 
+                     'logs', {'export_id': export_id, 'tamano': file_size}, session.get('user_id'))
+        
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=f'logs_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip',
+            mimetype='application/zip'
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error exportando logs: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/errores/<int:error_id>/resolver', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+def resolver_error_log(error_id):
+    """Marcar error como resuelto"""
+    try:
+        data = request.get_json()
+        comentarios = data.get('comentarios', '')
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            UPDATE error_logs 
+            SET resolved = TRUE,
+                resolved_at = NOW(),
+                resolved_by = %s
+            WHERE id = %s
+        """, (session.get('user_id'), error_id))
+        
+        connection.commit()
+        
+        log_app_event('INFO', f'Error {error_id} marcado como resuelto', 
+                     'logs', {'error_id': error_id, 'comentarios': comentarios}, session.get('user_id'))
+        
+        cursor.close()
+        connection.close()
+        
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error resolviendo error: {e}")
+        return api_response('E001', http_status=500)
+
+@app.route('/api/logs/dashboard', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_dashboard_logs():
+    """Obtener datos para dashboard de logs"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        hoy = datetime.now().date()
+        ayer = (datetime.now() - timedelta(days=1)).date()
+        
+        # Resumen rápido
+        cursor.execute("""
+            SELECT 
+                (SELECT COUNT(*) FROM app_logs WHERE DATE(created_at) = %s) as total_logs_hoy,
+                (SELECT COUNT(*) FROM app_logs WHERE DATE(created_at) = %s AND level = 'ERROR') as errores_hoy,
+                (SELECT COUNT(*) FROM access_logs WHERE DATE(created_at) = %s) as accesos_hoy,
+                (SELECT COUNT(*) FROM error_logs WHERE DATE(created_at) = %s AND resolved = FALSE) as errores_pendientes
+        """, (hoy, hoy, hoy, hoy))
+        
+        resumen = cursor.fetchone()
+        
+        # Evolución últimos 7 días
+        cursor.execute("""
+            SELECT 
+                date,
+                total_logs,
+                error_logs,
+                access_logs
+            FROM log_statistics 
+            WHERE date >= DATE_SUB(%s, INTERVAL 7 DAY)
+            ORDER BY date
+        """, (hoy,))
+        
+        evolucion = cursor.fetchall()
+        
+        # Top errores no resueltos
+        cursor.execute("""
+            SELECT 
+                error_type,
+                COUNT(*) as total,
+                MIN(created_at) as primer_error,
+                MAX(created_at) as ultimo_error
+            FROM error_logs 
+            WHERE resolved = FALSE
+            GROUP BY error_type
+            ORDER BY total DESC
+            LIMIT 5
+        """)
+        
+        top_errores = cursor.fetchall()
+        
+        # Actividad por hora hoy
+        cursor.execute("""
+            SELECT 
+                HOUR(created_at) as hora,
+                COUNT(*) as total
+            FROM access_logs 
+            WHERE DATE(created_at) = %s
+            GROUP BY HOUR(created_at)
+            ORDER BY hora
+        """, (hoy,))
+        
+        actividad_hora = cursor.fetchall()
+        
+        # Métricas de rendimiento
+        cursor.execute("""
+            SELECT 
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY response_time_ms) as p50,
+                PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time_ms) as p95,
+                AVG(response_time_ms) as promedio,
+                MAX(response_time_ms) as maximo
+            FROM access_logs 
+            WHERE DATE(created_at) = %s
+        """, (hoy,))
+        
+        rendimiento = cursor.fetchone()
+        
+        # Alertas recientes
+        cursor.execute("""
+            SELECT 
+                alert_type,
+                alert_message,
+                severity,
+                last_triggered
+            FROM log_alerts 
+            WHERE last_triggered >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            ORDER BY last_triggered DESC
+            LIMIT 5
+        """)
+        
+        alertas_recientes = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            'resumen': resumen,
+            'evolucion': evolucion,
+            'top_errores': top_errores,
+            'actividad_hora': actividad_hora,
+            'rendimiento': rendimiento,
+            'alertas_recientes': alertas_recientes,
+            'timestamp': get_colombia_time().isoformat()
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo dashboard: {e}")
+        return api_response('E001', http_status=500)
+
+# ==================== FUNCIONES DE LOGGING MEJORADAS ====================
+
+def log_info(message, module=None, details=None, user_id=None):
+    """Log de nivel INFO"""
+    log_app_event('INFO', message, module, details, user_id or session.get('user_id'))
+
+def log_warning(message, module=None, details=None, user_id=None):
+    """Log de nivel WARNING"""
+    log_app_event('WARNING', message, module, details, user_id or session.get('user_id'))
+
+def log_error_system(error, module=None, user_id=None):
+    """Log de error del sistema"""
+    log_error(
+        type(error).__name__,
+        str(error),
+        traceback.format_exc(),
+        module,
+        user_id or session.get('user_id')
+    )
+
+def log_user_action(action, details=None, user_id=None):
+    """Log de acción de usuario"""
+    log_info(f"Usuario {user_id or session.get('user_id')}: {action}", 
+             'user_action', details, user_id)
+
+def log_system_event(event, details=None):
+    """Log de evento del sistema"""
+    log_info(f"Evento del sistema: {event}", 'system', details)
+
+@app.route('/admin/logs/backup-manual', methods=['POST'])
+@require_login(['admin'])
+def backup_logs_manual():
+    """Backup manual de logs"""
+    try:
+        from datetime import datetime
+        import tempfile
+        import zipfile
+        
+        # Crear archivo ZIP temporal
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+        temp_path = temp_file.name
+        temp_file.close()
+        
+        with zipfile.ZipFile(temp_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # Incluir archivo de log principal
+            log_file = 'logs/maquinas.log'
+            if os.path.exists(log_file):
+                zipf.write(log_file, 'maquinas.log')
+            
+            # Incluir archivos de log rotados
+            for i in range(1, 11):
+                rotated_file = f'logs/maquinas.log.{i}'
+                if os.path.exists(rotated_file):
+                    zipf.write(rotated_file, f'maquinas.log.{i}')
+        
+        filename = f'logs_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
+        
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/zip'
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error en backup manual: {e}")
+        return api_response('E001', http_status=500)
 
 # ==================== INICIAR SERVIDOR ====================
 

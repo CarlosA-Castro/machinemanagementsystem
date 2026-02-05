@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Logs - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            top: 0;
+            left: 0;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-touch {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-error { background-color: #fee2e2; color: #dc2626; }
+        .badge-warning { background-color: #fef3c7; color: #d97706; }
+        .badge-info { background-color: #dbeafe; color: #2563eb; }
+        .badge-success { background-color: #d1fae5; color: #059669; }
+        .badge-purple { background-color: #f3e8ff; color: #7c3aed; }
+        
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Fondo de partículas -->
+    <div id="particles-js"></div>
+
+    <!-- Barra lateral y contenido -->
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Barra lateral -->
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-cogs mr-2"></i>Gestión
+                </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/logs/consola-completa" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-terminal mr-2"></i>Consola de Logs
+                    </a>
+                    <a href="/admin/logs/gestion-logs" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-cogs mr-2"></i>Gestión de Logs
+                    </a>
+                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                </nav>
+            </div>
+            <!-- Información de usuario -->
+            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">Gestión de Logs</div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
+            </div>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+            <!-- Header -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-cogs mr-3 text-blue-600"></i>Gestión Avanzada de Logs
+                        </h1>
+                        <p class="text-gray-600">
+                            <i class="fas fa-user mr-2"></i>Bienvenido, <strong>{{ nombre_usuario }}</strong> | 
+                            <i class="fas fa-calendar mr-2 ml-4"></i>{{ fecha_actual }}
+                        </p>
+                    </div>
+                    <div class="mt-4 lg:mt-0 flex gap-3">
+                        <button onclick="LogsManager.actualizarTodo()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                            <i class="fas fa-sync-alt mr-2"></i>Actualizar Todo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Herramientas de Gestión -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Limpieza y Mantenimiento -->
+                <div class="glass-card">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-broom mr-2 text-orange-600"></i>Limpieza y Mantenimiento
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Limpiar logs antiguos:</p>
+                            <div class="flex gap-2">
+                                <select id="limpiarDias" class="flex-1 border border-gray-300 rounded-lg p-3">
+                                    <option value="7">Conservar últimos 7 días</option>
+                                    <option value="30" selected>Conservar últimos 30 días</option>
+                                    <option value="90">Conservar últimos 90 días</option>
+                                </select>
+                                <button onclick="LogsManager.limpiarLogs()" class="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 btn-touch">
+                                    <i class="fas fa-trash-alt mr-2"></i>Limpiar
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Los logs más antiguos se moverán a archivos de backup.</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Rotar logs actuales:</p>
+                            <button onclick="LogsManager.rotarLogs()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 btn-touch">
+                                <i class="fas fa-rotate mr-2"></i>Rotar Archivos de Log
+                            </button>
+                            <p class="text-xs text-gray-500 mt-2">Crea un nuevo archivo de log y comprime el anterior.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exportación y Backup -->
+                <div class="glass-card">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                        <i class="fas fa-download mr-2 text-green-600"></i>Exportación y Backup
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Exportar logs:</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="LogsManager.exportarLogs(1)" class="bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 btn-touch">
+                                    1 Día
+                                </button>
+                                <button onclick="LogsManager.exportarLogs(7)" class="bg-green-700 text-white py-2 rounded-lg hover:bg-green-800 btn-touch">
+                                    7 Días
+                                </button>
+                                <button onclick="LogsManager.exportarLogs(30)" class="bg-green-800 text-white py-2 rounded-lg hover:bg-green-900 btn-touch">
+                                    30 Días
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Backup completo:</p>
+                            <button onclick="LogsManager.crearBackup()" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 btn-touch">
+                                <i class="fas fa-save mr-2"></i>Crear Backup Completo
+                            </button>
+                            <p class="text-xs text-gray-500 mt-2">Copia todos los archivos de log actuales.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monitoreo y Alertas -->
+            <div class="glass-card mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-bell mr-2 text-red-600"></i>Monitoreo y Alertas
+                </h2>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Umbral de Errores:</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="umbralErrores" value="10" min="1" max="100" 
+                                       class="flex-1 border border-gray-300 rounded-lg p-3">
+                                <span class="text-gray-600">por hora</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Notificaciones:</label>
+                            <select id="tipoNotificaciones" class="w-full border border-gray-300 rounded-lg p-3">
+                                <option value="ninguna">Sin notificaciones</option>
+                                <option value="consola" selected>Solo en consola</option>
+                                <option value="email">Email (si está configurado)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="LogsManager.guardarConfiguracion()" class="w-full bg-gray-800 text-white py-3 rounded-lg hover:bg-gray-900 btn-touch">
+                                <i class="fas fa-save mr-2"></i>Guardar Config
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle text-yellow-600 text-xl mr-3"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">Alertas activas</p>
+                                <p class="text-xs text-gray-600">Se notificarán errores críticos automáticamente</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas Detalladas -->
+            <div class="glass-card mb-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Estadísticas Detalladas
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="estadisticasDetalladas">
+                    <div class="text-center py-8">
+                        <div class="loading mx-auto mb-2"></div>
+                        <p class="text-gray-600">Cargando estadísticas...</p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-700">Endpoints Más Accedidos</h3>
+                    <select id="periodoEstadisticas" class="text-sm border border-gray-300 rounded-lg px-3 py-1" onchange="LogsManager.cargarEstadisticas()">
+                        <option value="hoy">Hoy</option>
+                        <option value="semana">Esta semana</option>
+                        <option value="mes" selected>Este mes</option>
+                    </select>
+                </div>
+                
+                <div class="space-y-3" id="topEndpoints">
+                    <div class="text-center py-8">
+                        <div class="loading mx-auto mb-2"></div>
+                        <p class="text-gray-600">Cargando endpoints...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado del Sistema -->
+            <div class="glass-card">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-server mr-2 text-blue-600"></i>Estado del Sistema
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="estadoSistema">
+                    <div class="text-center py-8">
+                        <div class="loading mx-auto mb-2"></div>
+                        <p class="text-gray-600">Cargando estado...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const LogsManager = {
+    init: function() {
+        // Configurar partículas
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 20, density: { enable: true, value_area: 600 } },
+                color: { value: '#8b5cf6' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.1, random: true },
+                size: { value: 2, random: true },
+                line_linked: { enable: true, distance: 150, color: '#8b5cf6', opacity: 0.05, width: 1 },
+                move: { enable: true, speed: 0.3, direction: 'none', random: true }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                }
+            }
+        });
+        
+        // Cargar datos iniciales
+        this.cargarEstadisticas();
+        this.cargarEstadoSistema();
+        
+        console.log("Gestor de Logs inicializado");
+    },
+    
+    cargarEstadisticas: function() {
+        const periodo = document.getElementById('periodoEstadisticas').value;
+        const container = document.getElementById('estadisticasDetalladas');
+        const endpointsContainer = document.getElementById('topEndpoints');
+        
+        // Mostrar loading
+        container.innerHTML = '<div class="text-center py-8 col-span-4"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando estadísticas...</p></div>';
+        endpointsContainer.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando endpoints...</p></div>';
+        
+        fetch('/api/logs/estadisticas')
+            .then(response => response.json())
+            .then(data => {
+                // Actualizar estadísticas principales
+                container.innerHTML = `
+                    <div class="glass-card">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-gray-800">${data.total_logs_hoy || 0}</p>
+                            <p class="text-sm text-gray-600">Total Logs Hoy</p>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-red-600">${data.errores_hoy || 0}</p>
+                            <p class="text-sm text-gray-600">Errores</p>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-green-600">${data.accesos_hoy || 0}</p>
+                            <p class="text-sm text-gray-600">Accesos HTTP</p>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-purple-600">${data.usuarios_activos_hoy || 0}</p>
+                            <p class="text-sm text-gray-600">Usuarios Activos</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Actualizar top endpoints
+                if (data.endpoints_mas_usados && data.endpoints_mas_usados.length > 0) {
+                    let endpointsHtml = '';
+                    data.endpoints_mas_usados.forEach((endpoint, index) => {
+                        endpointsHtml += `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-lg">${index + 1}.</span>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">${endpoint.endpoint}</p>
+                                        <p class="text-xs text-gray-600">${endpoint.count} accesos</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs ${endpoint.count > 1000 ? 'text-red-600' : endpoint.count > 100 ? 'text-yellow-600' : 'text-green-600'}">
+                                    ${endpoint.count > 1000 ? 'Alto tráfico' : endpoint.count > 100 ? 'Medio tráfico' : 'Bajo tráfico'}
+                                </span>
+                            </div>
+                        `;
+                    });
+                    endpointsContainer.innerHTML = endpointsHtml;
+                } else {
+                    endpointsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos de endpoints</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error cargando estadísticas:', error);
+                container.innerHTML = '<div class="text-center py-8 col-span-4"><p class="text-red-500">Error cargando estadísticas</p></div>';
+                endpointsContainer.innerHTML = '<p class="text-red-500 text-center py-4">Error cargando endpoints</p>';
+            });
+    },
+    
+    cargarEstadoSistema: function() {
+        const container = document.getElementById('estadoSistema');
+        
+        // En una implementación real, esto consultaría el estado del sistema
+        // Por ahora, mostramos información estática
+        
+        container.innerHTML = `
+            <div class="glass-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-700">Archivos de Log</h3>
+                    <span class="badge badge-success">Activo</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">maquinas.log</span>
+                        <span class="font-medium">${this.formatBytes(1024 * 1024)}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">access.log</span>
+                        <span class="font-medium">${this.formatBytes(512 * 1024)}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">error.log</span>
+                        <span class="font-medium">${this.formatBytes(256 * 1024)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-700">Rendimiento</h3>
+                    <span class="badge badge-success">Óptimo</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">CPU Usage</span>
+                        <span class="font-medium">15%</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Memory</span>
+                        <span class="font-medium">45%</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Disk I/O</span>
+                        <span class="font-medium">Bajo</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-700">Alertas</h3>
+                    <span class="badge badge-info">2 Activas</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="text-sm p-2 bg-red-50 rounded">
+                        <p class="font-medium text-red-700">10+ errores en última hora</p>
+                    </div>
+                    <div class="text-sm p-2 bg-yellow-50 rounded">
+                        <p class="font-medium text-yellow-700">Log file > 1GB</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+    
+    limpiarLogs: function() {
+        const dias = document.getElementById('limpiarDias').value;
+        
+        if (confirm(`¿Estás seguro de que quieres limpiar logs antiguos (conservando solo últimos ${dias} días)?`)) {
+            fetch('/api/logs/limpiar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ dias: parseInt(dias) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(`Logs limpiados exitosamente. Backup creado: ${data.data.backup || 'N/A'}`);
+                    this.cargarEstadisticas();
+                } else {
+                    alert('Error limpiando logs: ' + (data.message || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                alert('Error limpiando logs: ' + error.message);
+            });
+        }
+    },
+    
+    rotarLogs: function() {
+        if (confirm('¿Rotar archivos de log actuales? Esto creará nuevos archivos y comprimirá los anteriores.')) {
+            fetch('/api/logs/limpiar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rotar: true })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Logs rotados exitosamente');
+                    this.cargarEstadisticas();
+                } else {
+                    alert('Error rotando logs: ' + (data.message || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                alert('Error rotando logs: ' + error.message);
+            });
+        }
+    },
+    
+    exportarLogs: function(dias) {
+        const nivel = 'todos';
+        const fuente = 'todos';
+        
+        const url = `/api/logs/exportar?dias=${dias}&nivel=${nivel}&fuente=${fuente}`;
+        window.open(url, '_blank');
+        
+        this.mostrarNotificacion(`Exportando logs de los últimos ${dias} días...`, 'info');
+    },
+    
+    crearBackup: function() {
+        if (confirm('¿Crear backup completo de todos los logs? Esto puede tomar algunos segundos.')) {
+            fetch('/api/logs/exportar?dias=365&nivel=todos&fuente=todos')
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    }
+                    throw new Error('Error en la respuesta');
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `backup_logs_completo_${new Date().toISOString().split('T')[0]}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    this.mostrarNotificacion('Backup creado exitosamente', 'success');
+                })
+                .catch(error => {
+                    this.mostrarNotificacion('Error creando backup: ' + error.message, 'error');
+                });
+        }
+    },
+    
+    guardarConfiguracion: function() {
+        const umbral = document.getElementById('umbralErrores').value;
+        const notificaciones = document.getElementById('tipoNotificaciones').value;
+        
+        // Aquí iría la lógica para guardar la configuración
+        this.mostrarNotificacion('Configuración guardada exitosamente', 'success');
+    },
+    
+    actualizarTodo: function() {
+        this.cargarEstadisticas();
+        this.cargarEstadoSistema();
+        this.mostrarNotificacion('Todo actualizado', 'success');
+    },
+    
+    formatBytes: function(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    },
+    
+    mostrarNotificacion: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 
+            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    tipo === 'success' ? 'check-circle' : 
+                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 3000);
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    LogsManager.init();
+});
+    </script>
+</body>
+</html>
