@@ -2956,6 +2956,28 @@ def mostrar_gestion_mensajes():
                          hora_actual=hora_colombia.strftime('%H:%M:%S'),
                          fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
+@app.route('/admin/logs/gestionlogs')
+@require_login(['admin'])
+def mostrar_gestion_logs():
+    """Mostrar gestión de logs"""
+    hora_colombia = get_colombia_time()
+    return render_template('admin/logs/gestionlogs.html',
+                         nombre_usuario=session.get('user_name', 'Administrador'),
+                         local_usuario=session.get('user_local', 'Sistema'),
+                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+
+@app.route('/admin/logs/consola-completa')
+@require_login(['admin'])
+def mostrar_consola_completa():
+    """Mostrar consola completa de logs"""
+    hora_colombia = get_colombia_time()
+    return render_template('admin/logs/consola-completa.html',
+                         nombre_usuario=session.get('user_name', 'Administrador'),
+                         local_usuario=session.get('user_local', 'Sistema'),
+                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+
 # ==================== APIS PARA GESTIÓN DE USUARIOS ====================
 
 @app.route('/debug/usuarios')
