@@ -4823,7 +4823,7 @@ def obtener_graficas_dashboard():
 @handle_api_errors
 @require_login(['admin', 'cajero', 'admin_restaurante'])
 def obtener_top_maquinas():
-    """Obtener top 5 máquinas por rendimiento"""
+    """Obtener top 5 máquinas por rendimiento - VERSIÓN CORREGIDA"""
     connection = None
     cursor = None
     try:
@@ -4838,19 +4838,17 @@ def obtener_top_maquinas():
         cursor.execute("""
             SELECT 
                 m.name as nombre,
-                COUNT(DISTINCT qh.qr_code) as ventas,
+                COUNT(tu.id) as ventas,
                 COALESCE(SUM(tp.price), 0) as ingresos,
-                COUNT(DISTINCT tu.id) as usos
+                COUNT(tu.id) as usos
             FROM machine m
-            LEFT JOIN machine tu ON tu.machineId = m.id AND DATE(tu.usedAt) = %s
-            LEFT JOIN qrhistory qh ON DATE(qh.fecha_hora) = %s
-            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = %s
+            LEFT JOIN qrcode qr ON qr.id = tu.qrCodeId
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE qh.fecha_hora IS NOT NULL
             GROUP BY m.id, m.name
             ORDER BY ingresos DESC
             LIMIT 5
-        """, (fecha_hoy, fecha_hoy))
+        """, (fecha_hoy,))
         
         top_maquinas = cursor.fetchall()
         
@@ -8883,7 +8881,7 @@ def check_alerts(level, message, module):
 @handle_api_errors
 @require_login(['admin'])
 def obtener_logs_consola():
-    """Obtener logs de múltiples fuentes"""
+    """Obtener logs de múltiples fuentes - VERSIÓN CORREGIDA"""
     try:
         limit = int(request.args.get('limit', 200))
         nivel = request.args.get('nivel', 'todos')
@@ -8892,6 +8890,7 @@ def obtener_logs_consola():
         orden = request.args.get('orden', 'desc')
         fecha_inicio = request.args.get('fecha_inicio')
         fecha_fin = request.args.get('fecha_fin')
+        tail = request.args.get('tail', 'false').lower() == 'true'
         
         logs_data = []
         
@@ -8990,37 +8989,39 @@ def obtener_logs_consola():
             
             queries.append((access_query, params))
         
-        # 3. Logs de sesión
+        # 3. Logs de sesión (CORREGIDO: sin columna 'action')
         if fuente in ['todos', 'session']:
             session_query = """
                 SELECT 
                     'session' as fuente,
                     'INFO' as nivel,
-                    action as mensaje,
+                    CONCAT('Sesión usuario: ', COALESCE(u.name, 'Desconocido'), 
+                           ' - Login: ', DATE_FORMAT(s.loginTime, '%H:%i:%s')) as mensaje,
                     'session' as modulo,
                     NULL as details,
-                    ip_address,
-                    user_id,
-                    created_at,
+                    NULL as ip_address,
+                    s.userId as user_id,
+                    s.loginTime as created_at,
                     NULL as metodo,
                     NULL as path,
                     NULL as status_code,
                     NULL as response_time_ms
-                FROM sessionlog 
+                FROM sessionlog s
+                LEFT JOIN users u ON s.userId = u.id
                 WHERE 1=1
             """
             params = []
             
             if buscar:
-                session_query += " AND (action LIKE %s OR ip_address LIKE %s)"
-                params.extend([f'%{buscar}%', f'%{buscar}%'])
+                session_query += " AND u.name LIKE %s"
+                params.append(f'%{buscar}%')
             
             if fecha_inicio:
-                session_query += " AND DATE(created_at) >= %s"
+                session_query += " AND DATE(s.loginTime) >= %s"
                 params.append(fecha_inicio)
             
             if fecha_fin:
-                session_query += " AND DATE(created_at) <= %s"
+                session_query += " AND DATE(s.loginTime) <= %s"
                 params.append(fecha_fin)
             
             queries.append((session_query, params))
@@ -9031,7 +9032,7 @@ def obtener_logs_consola():
                 SELECT 
                     'error' as fuente,
                     'ERROR' as nivel,
-                    CONCAT(error_type, ': ', error_message) as mensaje,
+                    CONCAT(error_type, ': ', SUBSTRING(error_message, 1, 200)) as mensaje,
                     module as modulo,
                     stack_trace as details,
                     ip_address,
@@ -9063,15 +9064,24 @@ def obtener_logs_consola():
         # Ejecutar todas las consultas y combinar resultados
         all_logs = []
         for query, params in queries:
-            query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
-            params.append(limit)
-            
-            cursor.execute(query, params)
-            results = cursor.fetchall()
-            all_logs.extend(results)
+            try:
+                query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
+                params.append(limit)
+                
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+                all_logs.extend(results)
+            except Exception as e:
+                app.logger.error(f"Error ejecutando consulta de logs: {e}")
+                continue
         
         # Ordenar combinado
-        all_logs.sort(key=lambda x: x['created_at'], reverse=(orden.lower() == 'desc'))
+        try:
+            all_logs.sort(key=lambda x: x['created_at'] if x['created_at'] else datetime.min, 
+                         reverse=(orden.lower() == 'desc'))
+        except:
+            # Si hay error en ordenamiento, continuar sin ordenar
+            pass
         
         # Limitar resultados finales
         all_logs = all_logs[:limit]
@@ -9081,10 +9091,10 @@ def obtener_logs_consola():
             log_entry = {
                 'fuente': log['fuente'],
                 'nivel': log['nivel'],
-                'mensaje': log['mensaje'],
-                'modulo': log['modulo'],
+                'mensaje': log['mensaje'] or '',
+                'modulo': log['modulo'] or '',
                 'timestamp': log['created_at'].isoformat() if log['created_at'] else '',
-                'ip': log['ip_address'],
+                'ip': log['ip_address'] or '',
                 'user_id': log['user_id'],
                 'detalles': log['details']
             }
@@ -9113,19 +9123,20 @@ def obtener_logs_consola():
                 'fuente': fuente,
                 'orden': orden,
                 'fecha_inicio': fecha_inicio,
-                'fecha_fin': fecha_fin
+                'fecha_fin': fecha_fin,
+                'tail': tail
             }
         })
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo logs consola: {e}")
+        app.logger.error(f"Error obteniendo logs consola: {e}", exc_info=True)
         return api_response('E001', http_status=500)
 
 @app.route('/api/logs/estadisticas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
 def obtener_estadisticas_logs():
-    """Obtener estadísticas de logs"""
+    """Obtener estadísticas de logs - VERSIÓN CORREGIDA"""
     try:
         connection = get_db_connection()
         if not connection:
@@ -9133,25 +9144,47 @@ def obtener_estadisticas_logs():
             
         cursor = get_db_cursor(connection)
         
-        hoy = datetime.now().date()
+        hoy = get_colombia_time().date()
         
-        # Estadísticas del día
+        # Estadísticas del día desde las tablas reales
+        # 1. Total logs hoy
         cursor.execute("""
-            SELECT 
-                COALESCE(total_logs, 0) as total_logs_hoy,
-                COALESCE(error_logs, 0) as errores_hoy,
-                COALESCE(warning_logs, 0) as warnings_hoy,
-                COALESCE(access_logs, 0) as accesos_hoy,
-                COALESCE(unique_ips, 0) as ips_unicas_hoy,
-                COALESCE(unique_users, 0) as usuarios_unicos_hoy,
-                COALESCE(avg_response_time_ms, 0) as tiempo_respuesta_promedio
-            FROM log_statistics 
-            WHERE date = %s
+            SELECT COUNT(*) as total_logs_hoy
+            FROM app_logs 
+            WHERE DATE(created_at) = %s
         """, (hoy,))
         
-        hoy_stats = cursor.fetchone() or {}
+        total_logs = cursor.fetchone()
         
-        # Top endpoints del día
+        # 2. Errores hoy
+        cursor.execute("""
+            SELECT COUNT(*) as errores_hoy
+            FROM error_logs 
+            WHERE DATE(created_at) = %s
+        """, (hoy,))
+        
+        errores = cursor.fetchone()
+        
+        # 3. Accesos hoy
+        cursor.execute("""
+            SELECT COUNT(*) as accesos_hoy
+            FROM access_logs 
+            WHERE DATE(created_at) = %s
+        """, (hoy,))
+        
+        accesos = cursor.fetchone()
+        
+        # 4. Usuarios activos hoy (distintos que han iniciado sesión)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT user_id) as usuarios_activos_hoy
+            FROM access_logs 
+            WHERE DATE(created_at) = %s
+            AND user_id IS NOT NULL
+        """, (hoy,))
+        
+        usuarios_activos = cursor.fetchone()
+        
+        # 5. Top endpoints del día
         cursor.execute("""
             SELECT 
                 CONCAT(method, ' ', path) as endpoint,
@@ -9162,12 +9195,12 @@ def obtener_estadisticas_logs():
             WHERE DATE(created_at) = %s
             GROUP BY method, path
             ORDER BY total DESC
-            LIMIT 10
+            LIMIT 5
         """, (hoy,))
         
         top_endpoints = cursor.fetchall()
         
-        # Errores por tipo hoy
+        # 6. Errores por tipo hoy
         cursor.execute("""
             SELECT 
                 error_type,
@@ -9177,72 +9210,27 @@ def obtener_estadisticas_logs():
             WHERE DATE(created_at) = %s
             GROUP BY error_type
             ORDER BY total DESC
-            LIMIT 10
+            LIMIT 5
         """, (hoy,))
         
         errores_por_tipo = cursor.fetchall()
-        
-        # Usuarios más activos hoy
-        cursor.execute("""
-            SELECT 
-                u.name as usuario,
-                COUNT(DISTINCT al.id) as accesos,
-                COUNT(DISTINCT el.id) as errores
-            FROM access_logs al
-            LEFT JOIN users u ON al.user_id = u.id
-            LEFT JOIN error_logs el ON el.user_id = al.user_id AND DATE(el.created_at) = %s
-            WHERE DATE(al.created_at) = %s
-            GROUP BY al.user_id, u.name
-            ORDER BY accesos DESC
-            LIMIT 10
-        """, (hoy, hoy))
-        
-        usuarios_activos = cursor.fetchall()
-        
-        # Alertas activas hoy
-        cursor.execute("""
-            SELECT 
-                alert_type,
-                alert_message,
-                severity,
-                last_triggered
-            FROM log_alerts 
-            WHERE is_active = TRUE 
-            AND (last_triggered IS NULL OR DATE(last_triggered) = %s)
-            ORDER BY severity DESC
-        """, (hoy,))
-        
-        alertas_activas = cursor.fetchall()
-        
-        # Tendencia últimos 7 días
-        cursor.execute("""
-            SELECT 
-                date,
-                total_logs,
-                error_logs,
-                access_logs
-            FROM log_statistics 
-            WHERE date >= DATE_SUB(%s, INTERVAL 7 DAY)
-            ORDER BY date
-        """, (hoy,))
-        
-        tendencia_7dias = cursor.fetchall()
         
         cursor.close()
         connection.close()
         
         return jsonify({
-            'hoy': hoy_stats,
+            'total_logs_hoy': total_logs['total_logs_hoy'] or 0,
+            'errores_hoy': errores['errores_hoy'] or 0,
+            'accesos_hoy': accesos['accesos_hoy'] or 0,
+            'usuarios_activos_hoy': usuarios_activos['usuarios_activos_hoy'] or 0,
             'top_endpoints': top_endpoints,
             'errores_por_tipo': errores_por_tipo,
-            'usuarios_activos': usuarios_activos,
-            'alertas_activas': alertas_activas,
-            'tendencia_7dias': tendencia_7dias,
+            'fecha': hoy.isoformat(),
             'timestamp': get_colombia_time().isoformat()
         })
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo estadísticas: {e}")
+        app.logger.error(f"Error obteniendo estadísticas: {e}", exc_info=True)
         return api_response('E001', http_status=500)
 
 @app.route('/api/logs/config', methods=['GET'])
