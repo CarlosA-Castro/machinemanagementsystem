@@ -493,51 +493,45 @@
 },
     
     mostrarLogsEnConsola: function(logs) {
-        const consola = document.getElementById('consolaLogs');
-        const orden = document.getElementById('ordenLogs').value;
-        
-        // Ordenar logs según selección
-        if (orden === 'asc') {
-            logs.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
-        } else {
-            logs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-        }
-        
-        let html = '';
-        
-        if (logs.length === 0) {
-            html = '<div class="text-center py-8"><p class="text-gray-400">No se encontraron logs con los filtros actuales</p></div>';
-        } else {
-            logs.forEach(log => {
-                const timestamp = log.timestamp || '--:--:--';
-                const level = log.level || 'INFO';
-                const message = log.message || log.raw || '';
-                const source = log.source || 'unknown';
-                const type = log.type || 'unknown';
-                
-                // Determinar clase CSS basada en nivel
-                const levelClass = `log-level-${level}`;
-                const lineClass = `log-line-${type === 'access' ? 'access' : level.toLowerCase()}`;
-                
-                // Formatear la línea
-                html += `
-                    <div class="log-line ${lineClass}">
-                        <span class="log-timestamp">${timestamp}</span>
-                        <span class="log-level ${levelClass}">${level}</span>
-                        <span class="${log.color || 'text-gray-300'}">${message}</span>
-                        ${source && source !== 'unknown' ? `<span class="text-gray-500 text-xs">(${source})</span>` : ''}
-                    </div>
-                `;
-            });
-        }
-        
-        consola.innerHTML = html;
-        
-        // Auto-scroll al final si está en modo tail
-        if (document.getElementById('modoLogs').value === 'tail' && orden === 'desc') {
-            this.scrollToBottom();
-        }
-    },
+    const consola = document.getElementById('consolaLogs');
+    const orden = document.getElementById('ordenLogs').value;
+    
+    let html = '';
+    
+    if (!logs || logs.length === 0) {
+        html = '<div class="text-center py-8"><p class="text-gray-400">No se encontraron logs con los filtros actuales</p></div>';
+    } else {
+        // Los logs ya vienen ordenados del servidor
+        logs.forEach(log => {
+            const timestamp = log.timestamp || '--:--:--';
+            const level = log.nivel || 'INFO';  // Cambié de log.level a log.nivel
+            const message = log.mensaje || '';  // Cambié de log.message a log.mensaje
+            const source = log.fuente || 'unknown';  // Cambié de log.source a log.fuente
+            const modulo = log.modulo || '';
+            
+            // Determinar clase CSS basada en nivel
+            const levelClass = `log-level-${level}`;
+            const lineClass = `log-line-${source === 'access' ? 'access' : level.toLowerCase()}`;
+            
+            // Formatear la línea
+            html += `
+                <div class="log-line ${lineClass}">
+                    <span class="log-timestamp">${timestamp}</span>
+                    <span class="log-level ${levelClass}">${level}</span>
+                    <span class="text-gray-300">${message}</span>
+                    ${modulo ? `<span class="text-gray-500 text-xs">(${modulo})</span>` : ''}
+                </div>
+            `;
+        });
+    }
+    
+    consola.innerHTML = html;
+    
+    // Auto-scroll al final si está en modo tail
+    if (document.getElementById('modoLogs').value === 'tail' && orden === 'desc') {
+        this.scrollToBottom();
+    }
+},
     
     actualizarLogs: function() {
         this.cargarLogs();

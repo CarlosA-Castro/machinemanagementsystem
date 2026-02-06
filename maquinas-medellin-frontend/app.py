@@ -8901,217 +8901,248 @@ def obtener_logs_consola():
         cursor = get_db_cursor(connection)
         
         # Construir consultas dinámicas para cada fuente
-        queries = []
+        all_logs = []
         
         # 1. Logs de aplicación
         if fuente in ['todos', 'app']:
-            app_query = """
-                SELECT 
-                    'app' as fuente,
-                    level as nivel,
-                    message as mensaje,
-                    module as modulo,
-                    details,
-                    ip_address,
-                    user_id,
-                    created_at,
-                    NULL as metodo,
-                    NULL as path,
-                    NULL as status_code,
-                    NULL as response_time_ms
-                FROM app_logs 
-                WHERE 1=1
-            """
-            params = []
-            
-            if nivel != 'todos':
-                app_query += " AND level = %s"
-                params.append(nivel)
-            
-            if buscar:
-                app_query += " AND (message LIKE %s OR module LIKE %s)"
-                params.extend([f'%{buscar}%', f'%{buscar}%'])
-            
-            if fecha_inicio:
-                app_query += " AND DATE(created_at) >= %s"
-                params.append(fecha_inicio)
-            
-            if fecha_fin:
-                app_query += " AND DATE(created_at) <= %s"
-                params.append(fecha_fin)
-            
-            queries.append((app_query, params))
+            try:
+                app_query = """
+                    SELECT 
+                        'app' as fuente,
+                        level as nivel,
+                        message as mensaje,
+                        module as modulo,
+                        details,
+                        ip_address,
+                        user_id,
+                        created_at,
+                        NULL as metodo,
+                        NULL as path,
+                        NULL as status_code,
+                        NULL as response_time_ms
+                    FROM app_logs 
+                    WHERE 1=1
+                """
+                params = []
+                
+                if nivel != 'todos':
+                    app_query += " AND level = %s"
+                    params.append(nivel)
+                
+                if buscar:
+                    app_query += " AND (message LIKE %s OR module LIKE %s)"
+                    params.extend([f'%{buscar}%', f'%{buscar}%'])
+                
+                if fecha_inicio:
+                    app_query += " AND DATE(created_at) >= %s"
+                    params.append(fecha_inicio)
+                
+                if fecha_fin:
+                    app_query += " AND DATE(created_at) <= %s"
+                    params.append(fecha_fin)
+                
+                app_query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
+                params.append(limit)
+                
+                cursor.execute(app_query, params)
+                results = cursor.fetchall()
+                all_logs.extend(results)
+                app.logger.info(f"App logs obtenidos: {len(results)} registros")
+                
+            except Exception as e:
+                app.logger.error(f"Error ejecutando consulta app logs: {e}")
         
         # 2. Logs de acceso HTTP
         if fuente in ['todos', 'access']:
-            access_query = """
-                SELECT 
-                    'access' as fuente,
-                    CASE 
-                        WHEN status_code >= 500 THEN 'ERROR'
-                        WHEN status_code >= 400 THEN 'WARNING'
-                        ELSE 'INFO'
-                    END as nivel,
-                    CONCAT(method, ' ', path, ' -> ', status_code) as mensaje,
-                    'http' as modulo,
-                    NULL as details,
-                    ip_address,
-                    user_id,
-                    created_at,
-                    method,
-                    path,
-                    status_code,
-                    response_time_ms
-                FROM access_logs 
-                WHERE 1=1
-            """
-            params = []
-            
-            if nivel != 'todos':
-                if nivel == 'ERROR':
-                    access_query += " AND status_code >= 500"
-                elif nivel == 'WARNING':
-                    access_query += " AND status_code BETWEEN 400 AND 499"
-                elif nivel == 'INFO':
-                    access_query += " AND status_code < 400"
-            
-            if buscar:
-                access_query += " AND (path LIKE %s OR method LIKE %s OR ip_address LIKE %s)"
-                params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
-            
-            if fecha_inicio:
-                access_query += " AND DATE(created_at) >= %s"
-                params.append(fecha_inicio)
-            
-            if fecha_fin:
-                access_query += " AND DATE(created_at) <= %s"
-                params.append(fecha_fin)
-            
-            queries.append((access_query, params))
+            try:
+                access_query = """
+                    SELECT 
+                        'access' as fuente,
+                        CASE 
+                            WHEN status_code >= 500 THEN 'ERROR'
+                            WHEN status_code >= 400 THEN 'WARNING'
+                            ELSE 'INFO'
+                        END as nivel,
+                        CONCAT(method, ' ', path, ' -> ', status_code) as mensaje,
+                        'http' as modulo,
+                        NULL as details,
+                        ip_address,
+                        user_id,
+                        created_at,
+                        method,
+                        path,
+                        status_code,
+                        response_time_ms
+                    FROM access_logs 
+                    WHERE 1=1
+                """
+                params = []
+                
+                if nivel != 'todos':
+                    if nivel == 'ERROR':
+                        access_query += " AND status_code >= 500"
+                    elif nivel == 'WARNING':
+                        access_query += " AND status_code BETWEEN 400 AND 499"
+                    elif nivel == 'INFO':
+                        access_query += " AND status_code < 400"
+                
+                if buscar:
+                    access_query += " AND (path LIKE %s OR method LIKE %s OR ip_address LIKE %s)"
+                    params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
+                
+                if fecha_inicio:
+                    access_query += " AND DATE(created_at) >= %s"
+                    params.append(fecha_inicio)
+                
+                if fecha_fin:
+                    access_query += " AND DATE(created_at) <= %s"
+                    params.append(fecha_fin)
+                
+                access_query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
+                params.append(limit)
+                
+                cursor.execute(access_query, params)
+                results = cursor.fetchall()
+                all_logs.extend(results)
+                app.logger.info(f"Access logs obtenidos: {len(results)} registros")
+                
+            except Exception as e:
+                app.logger.error(f"Error ejecutando consulta access logs: {e}")
         
         # 3. Logs de sesión (CORREGIDO: sin columna 'action')
         if fuente in ['todos', 'session']:
-            session_query = """
-                SELECT 
-                    'session' as fuente,
-                    'INFO' as nivel,
-                    CONCAT('Sesión usuario: ', COALESCE(u.name, 'Desconocido'), 
-                           ' - Login: ', DATE_FORMAT(s.loginTime, '%H:%i:%s')) as mensaje,
-                    'session' as modulo,
-                    NULL as details,
-                    NULL as ip_address,
-                    s.userId as user_id,
-                    s.loginTime as created_at,
-                    NULL as metodo,
-                    NULL as path,
-                    NULL as status_code,
-                    NULL as response_time_ms
-                FROM sessionlog s
-                LEFT JOIN users u ON s.userId = u.id
-                WHERE 1=1
-            """
-            params = []
-            
-            if buscar:
-                session_query += " AND u.name LIKE %s"
-                params.append(f'%{buscar}%')
-            
-            if fecha_inicio:
-                session_query += " AND DATE(s.loginTime) >= %s"
-                params.append(fecha_inicio)
-            
-            if fecha_fin:
-                session_query += " AND DATE(s.loginTime) <= %s"
-                params.append(fecha_fin)
-            
-            queries.append((session_query, params))
+            try:
+                session_query = """
+                    SELECT 
+                        'session' as fuente,
+                        'INFO' as nivel,
+                        CONCAT('Sesión usuario: ', COALESCE(u.name, 'Desconocido'), 
+                               ' - Login: ', DATE_FORMAT(s.loginTime, '%%H:%%i:%%s')) as mensaje,
+                        'session' as modulo,
+                        NULL as details,
+                        NULL as ip_address,
+                        s.userId as user_id,
+                        s.loginTime as created_at,
+                        NULL as metodo,
+                        NULL as path,
+                        NULL as status_code,
+                        NULL as response_time_ms
+                    FROM sessionlog s
+                    LEFT JOIN users u ON s.userId = u.id
+                    WHERE 1=1
+                """
+                params = []
+                
+                if buscar:
+                    session_query += " AND u.name LIKE %s"
+                    params.append(f'%{buscar}%')
+                
+                if fecha_inicio:
+                    session_query += " AND DATE(s.loginTime) >= %s"
+                    params.append(fecha_inicio)
+                
+                if fecha_fin:
+                    session_query += " AND DATE(s.loginTime) <= %s"
+                    params.append(fecha_fin)
+                
+                session_query += f" ORDER BY s.loginTime {orden.upper()} LIMIT %s"
+                params.append(limit)
+                
+                cursor.execute(session_query, params)
+                results = cursor.fetchall()
+                all_logs.extend(results)
+                app.logger.info(f"Session logs obtenidos: {len(results)} registros")
+                
+            except Exception as e:
+                app.logger.error(f"Error ejecutando consulta session logs: {e}")
         
         # 4. Logs de errores
         if fuente in ['todos', 'error']:
-            error_query = """
-                SELECT 
-                    'error' as fuente,
-                    'ERROR' as nivel,
-                    CONCAT(error_type, ': ', SUBSTRING(error_message, 1, 200)) as mensaje,
-                    module as modulo,
-                    stack_trace as details,
-                    ip_address,
-                    user_id,
-                    created_at,
-                    request_method as metodo,
-                    request_path as path,
-                    NULL as status_code,
-                    NULL as response_time_ms
-                FROM error_logs 
-                WHERE 1=1
-            """
-            params = []
-            
-            if buscar:
-                error_query += " AND (error_message LIKE %s OR error_type LIKE %s OR module LIKE %s)"
-                params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
-            
-            if fecha_inicio:
-                error_query += " AND DATE(created_at) >= %s"
-                params.append(fecha_inicio)
-            
-            if fecha_fin:
-                error_query += " AND DATE(created_at) <= %s"
-                params.append(fecha_fin)
-            
-            queries.append((error_query, params))
-        
-        # Ejecutar todas las consultas y combinar resultados
-        all_logs = []
-        for query, params in queries:
             try:
-                query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
+                error_query = """
+                    SELECT 
+                        'error' as fuente,
+                        'ERROR' as nivel,
+                        CONCAT(error_type, ': ', SUBSTRING(error_message, 1, 200)) as mensaje,
+                        module as modulo,
+                        stack_trace as details,
+                        ip_address,
+                        user_id,
+                        created_at,
+                        request_method as metodo,
+                        request_path as path,
+                        NULL as status_code,
+                        NULL as response_time_ms
+                    FROM error_logs 
+                    WHERE 1=1
+                """
+                params = []
+                
+                if buscar:
+                    error_query += " AND (error_message LIKE %s OR error_type LIKE %s OR module LIKE %s)"
+                    params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
+                
+                if fecha_inicio:
+                    error_query += " AND DATE(created_at) >= %s"
+                    params.append(fecha_inicio)
+                
+                if fecha_fin:
+                    error_query += " AND DATE(created_at) <= %s"
+                    params.append(fecha_fin)
+                
+                error_query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
                 params.append(limit)
                 
-                cursor.execute(query, params)
+                cursor.execute(error_query, params)
                 results = cursor.fetchall()
                 all_logs.extend(results)
+                app.logger.info(f"Error logs obtenidos: {len(results)} registros")
+                
             except Exception as e:
-                app.logger.error(f"Error ejecutando consulta de logs: {e}")
-                continue
+                app.logger.error(f"Error ejecutando consulta error logs: {e}")
+        
+        cursor.close()
+        connection.close()
         
         # Ordenar combinado
         try:
             all_logs.sort(key=lambda x: x['created_at'] if x['created_at'] else datetime.min, 
                          reverse=(orden.lower() == 'desc'))
-        except:
-            # Si hay error en ordenamiento, continuar sin ordenar
-            pass
+        except Exception as e:
+            app.logger.warning(f"Error ordenando logs: {e}")
         
         # Limitar resultados finales
         all_logs = all_logs[:limit]
         
         # Formatear logs para la respuesta
         for log in all_logs:
-            log_entry = {
-                'fuente': log['fuente'],
-                'nivel': log['nivel'],
-                'mensaje': log['mensaje'] or '',
-                'modulo': log['modulo'] or '',
-                'timestamp': log['created_at'].isoformat() if log['created_at'] else '',
-                'ip': log['ip_address'] or '',
-                'user_id': log['user_id'],
-                'detalles': log['details']
-            }
-            
-            # Agregar información específica por fuente
-            if log['fuente'] == 'access':
-                log_entry.update({
-                    'metodo': log['metodo'],
-                    'path': log['path'],
-                    'status_code': log['status_code'],
-                    'response_time': log['response_time_ms']
-                })
-            
-            logs_data.append(log_entry)
+            try:
+                log_entry = {
+                    'fuente': log.get('fuente', 'unknown'),
+                    'nivel': log.get('nivel', 'INFO'),
+                    'mensaje': log.get('mensaje', '') or '',
+                    'modulo': log.get('modulo', '') or '',
+                    'timestamp': log.get('created_at').isoformat() if log.get('created_at') else '',
+                    'ip': log.get('ip_address', '') or '',
+                    'user_id': log.get('user_id'),
+                    'detalles': log.get('details')
+                }
+                
+                # Agregar información específica por fuente
+                if log.get('fuente') == 'access':
+                    log_entry.update({
+                        'metodo': log.get('metodo', ''),
+                        'path': log.get('path', ''),
+                        'status_code': log.get('status_code'),
+                        'response_time': log.get('response_time_ms')
+                    })
+                
+                logs_data.append(log_entry)
+            except Exception as e:
+                app.logger.error(f"Error formateando log: {e}")
+                continue
         
-        cursor.close()
-        connection.close()
+        app.logger.info(f"Total logs preparados: {len(logs_data)}")
         
         return jsonify({
             'logs': logs_data,
