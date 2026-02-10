@@ -815,131 +815,179 @@
       },
 
       procesarDevolucion: async function(isForced = false) {
-        try {
-          this.mostrarCargandoProcesando();
-          
-          const notes = this.refundNotes.value.trim();
-          const userRole = "{{ session.get('user_role', 'Usuario') }}";
-          
-          // 1. Guardar en el historial
-          await fetch('/api/guardar-qr', {
+    try {
+        this.mostrarCargandoProcesando();
+        
+        const notes = this.refundNotes.value.trim();
+        const userRole = "{{ session.get('user_role', 'Usuario') }}";
+        const userName = "{{ session.get('user_name', 'Usuario') }}";
+        
+        // 1. Guardar en el historial
+        await fetch('/api/guardar-qr', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
-              qr_code: this.paqueteActual.codigo
+                qr_code: this.paqueteActual.codigo
             })
-          });
-          
-          // 2. Procesar la devolución
-          const response = await fetch('/api/reportar-falla', {
+        });
+        
+        // 2. Procesar la devolución
+        const response = await fetch('/api/reportar-falla', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
-              qr_code: this.paqueteActual.codigo,
-              machine_id: 0,
-              machine_name: isForced ? 'Devolución Forzada' : 'Devolución Manual',
-              turnos_devueltos: 1,
-              is_forced: isForced,
-              forced_by: userRole,
-              notes: notes || null
+                qr_code: this.paqueteActual.codigo,
+                machine_id: 0,
+                machine_name: isForced ? 'Devolución Forzada' : 'Devolución Manual',
+                turnos_devueltos: 1,
+                is_forced: isForced,
+                forced_by: userName,
+                notes: notes || null
             })
-          });
+        });
 
-          if (!response.ok) {
-            throw new Error('Error en la respuesta del servidor');
-          }
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error ${response.status}: ${errorText}`);
+        }
 
-          const result = await response.json();
+        const result = await response.json();
 
-          if (result.success) {
+        if (result.status === 'success') {
             let message = '';
             if (isForced) {
-              message = `
-                <div class="text-center">
-                  <div class="text-4xl mb-4">⚠️</div>
-                  <h3 class="text-xl font-semibold text-orange-600 mb-2">Devolución Forzada Exitosa</h3>
-                  <p class="text-gray-700">Se ha procesado una devolución forzada de 1 turno para el paquete:</p>
-                  <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
-                  <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
-                  <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <p class="text-orange-700 text-sm"><i class="fas fa-exclamation-triangle mr-1"></i> Esta devolución ha sido marcada como excepción.</p>
-                    ${notes ? `<p class="text-orange-700 text-sm mt-1"><strong>Notas:</strong> ${notes}</p>` : ''}
-                  </div>
-                </div>
-              `;
+                message = `
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⚠️</div>
+                        <h3 class="text-xl font-semibold text-orange-600 mb-2">Devolución Forzada Exitosa</h3>
+                        <p class="text-gray-700">Se ha procesado una devolución forzada de 1 turno para el paquete:</p>
+                        <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
+                        <p class="text-gray-700">El cliente ahora tiene <strong>${result.data.nuevos_turnos}</strong> turnos disponibles.</p>
+                        <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <p class="text-orange-700 text-sm"><i class="fas fa-exclamation-triangle mr-1"></i> Esta devolución ha sido marcada como excepción.</p>
+                            ${notes ? `<p class="text-orange-700 text-sm mt-1"><strong>Notas:</strong> ${notes}</p>` : ''}
+                        </div>
+                    </div>
+                `;
             } else {
-              message = `
-                <div class="text-center">
-                  <div class="text-4xl mb-4">✅</div>
-                  <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
-                  <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
-                  <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
-                  <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
-                </div>
-              `;
+                message = `
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">✅</div>
+                        <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
+                        <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
+                        <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
+                        <p class="text-gray-700">El cliente ahora tiene <strong>${result.data.nuevos_turnos}</strong> turnos disponibles.</p>
+                    </div>
+                `;
             }
             
             this.resultContent.innerHTML = message;
-          } else {
-            throw new Error(result.error || 'Error desconocido');
-          }
-          
-          this.resultMessage.classList.remove('hidden');
-          this.btnProcessRefund.classList.add('hidden');
-          this.btnForceRefund.classList.add('hidden');
-          
-        } catch (error) {
-          console.error("Error procesando devolución:", error);
-          this.mostrarError("❌ Error en devolución", "No se pudo procesar la devolución: " + error.message);
+        } else {
+            throw new Error(result.message || 'Error desconocido');
         }
-      },
+        
+        this.resultMessage.classList.remove('hidden');
+        this.btnProcessRefund.classList.add('hidden');
+        this.btnForceRefund.classList.add('hidden');
+        
+    } catch (error) {
+        console.error("Error procesando devolución:", error);
+        this.mostrarError("❌ Error en devolución", "No se pudo procesar la devolución: " + error.message);
+    }
+},
 
-      limpiarFormulario: function() {
-        this.qrResult.value = "";
-        this.refundNotes.value = "";
-        this.packageInfo.classList.add('hidden');
-        this.resultMessage.classList.add('hidden');
-        this.gameHistorySection.classList.add('hidden');
-        this.refundHistorySection.classList.add('hidden');
+// Modificar la función determinarEstadoDevolucion para permitir a todos los usuarios:
+
+determinarEstadoDevolucion: function() {
+    const validations = this.paqueteActual.validationResults;
+    const statusElement = document.getElementById('package-status');
+    
+    // Verificar condiciones obligatorias
+    const requiredConditions = [
+        validations.hasPackage,
+        validations.hasTurns,
+        validations.hasSingleUse,
+        validations.noRecentRefunds
+    ];
+    
+    const allRequiredPassed = requiredConditions.every(cond => cond === true);
+    
+    if (allRequiredPassed) {
+        // Todas las condiciones obligatorias pasaron
+        statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
+        statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete cumple todas las condiciones para devolución.</p>';
+        this.btnProcessRefund.classList.remove('hidden');
+        this.btnForceRefund.classList.add('hidden');
         this.forceRefundWarning.classList.add('hidden');
-        this.paqueteActual = null;
-      },
+    } else {
+        // No cumple todas las condiciones
+        let reason = '';
+        
+        if (!validations.hasPackage) reason = 'No tiene paquete asignado.';
+        else if (!validations.hasTurns) reason = 'No tiene turnos disponibles.';
+        else if (!validations.hasSingleUse) reason = `Tiene ${this.paqueteActual.turnos_usados} usos registrados.`;
+        else if (!validations.noRecentRefunds) reason = 'Ya tiene devoluciones anteriores.';
+        
+        statusElement.innerHTML = `<span class="status-invalid">❌ NO CUMPLE CONDICIONES NORMALES</span>`;
+        statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">${reason}</p>`;
+        
+        // MOSTRAR BOTÓN DE DEVOLUCIÓN FORZADA PARA TODOS LOS USUARIOS
+        // (Eliminada la restricción de roles)
+        this.btnForceRefund.classList.remove('hidden');
+        this.forceRefundWarning.classList.remove('hidden');
+        statusElement.innerHTML += '<p class="text-sm text-yellow-600 mt-2">Se puede realizar devolución forzada como excepción.</p>';
+        
+        this.btnProcessRefund.classList.add('hidden');
+    }
+},
 
       mostrarCargando: function() {
+        this.packageInfo.classList.add('hidden');
+        this.resultMessage.classList.remove('hidden');
         this.resultContent.innerHTML = `
-          <div class="text-center">
-            <div class="loading mx-auto mb-4"></div>
-            <p class="text-gray-700">Verificando paquete...</p>
+          <div class="text-center py-10">
+            <div class="loading mb-4"></div>
+            <p class="text-gray-700">Verificando el paquete, por favor espera...</p>
           </div>
         `;
-        this.resultMessage.classList.remove('hidden');
       },
 
       mostrarCargandoProcesando: function() {
+        this.resultMessage.classList.remove('hidden');
         this.resultContent.innerHTML = `
-          <div class="text-center">
-            <div class="loading mx-auto mb-4"></div>
-            <p class="text-gray-700">Procesando devolución...</p>
+          <div class="text-center py-10">
+            <div class="loading mb-4"></div>
+            <p class="text-gray-700">Procesando la devolución, por favor espera...</p>
           </div>
         `;
-        this.resultMessage.classList.remove('hidden');
       },
 
-      mostrarError: function(titulo, mensaje) {
+      mostrarError: function(title, message) {
+        this.packageInfo.classList.add('hidden');
+        this.resultMessage.classList.remove('hidden');
         this.resultContent.innerHTML = `
-          <div class="text-center">
-            <div class="text-4xl mb-4">❌</div>
-            <h3 class="text-xl font-semibold text-red-600 mb-2">${titulo}</h3>
-            <p class="text-gray-700">${mensaje}</p>
+          <div class="text-center py-10">
+            <div class="text-4xl text-red-500 mb-4">❌</div>
+            <h3 class="text-xl font-semibold text-red-600 mb-2">${title}</h3>
+            <p class="text-gray-700">${message}</p>
           </div>
         `;
-        this.resultMessage.classList.remove('hidden');
+      },
+
+      limpiarFormulario: function() {
+        this.qrResult.value = '';
+        this.packageInfo.classList.add('hidden');
+        this.resultMessage.classList.add('hidden');
+        this.validationChecks.innerHTML = '';
+        this.gameHistorySection.classList.add('hidden');
+        this.refundHistorySection.classList.add('hidden');
+        this.refundNotes.value = '';
       }
     };
 

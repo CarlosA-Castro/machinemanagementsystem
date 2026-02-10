@@ -1468,17 +1468,20 @@ def registrar_uso():
 
 @app.route('/api/reportar-falla', methods=['POST'])
 @handle_api_errors
-@validate_required_fields(['qr_code', 'machine_id', 'turnos_devueltos'])
+@validate_required_fields(['qr_code', 'turnos_devueltos'])
 def reportar_falla():
-    """Reportar falla en una máquina"""
+    """Reportar falla en una máquina - VERSIÓN CORREGIDA"""
     connection = None
     cursor = None
     try:
         data = request.get_json()
         qr_code = data['qr_code']
-        machine_id = data['machine_id']
-        machine_name = data.get('machine_name')
+        machine_id = data.get('machine_id', 0)  # Usar 0 por defecto
+        machine_name = data.get('machine_name', 'Sistema')
         turnos_devueltos = data['turnos_devueltos']
+        is_forced = data.get('is_forced', False)
+        forced_by = data.get('forced_by', '')
+        notes = data.get('notes', '')
         
         connection = get_db_connection()
         if not connection:
@@ -1486,36 +1489,125 @@ def reportar_falla():
             
         cursor = get_db_cursor(connection)
         
+        # 1. Obtener ID del QR
         cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
         
         qr_id = qr_data['id']
+        
+        # 2. Verificar turnos restantes
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         if not turnos_data:
             return api_response('Q003', http_status=400)
         
-        cursor.execute("""
-            INSERT INTO machinefailures (qr_code_id, machine_id, machine_name, turnos_devueltos)
-            VALUES (%s, %s, %s, %s)
-        """, (qr_id, machine_id, machine_name, turnos_devueltos))
+        # 3. Insertar en machinefailures - USAR NULL si machine_id es 0
+        actual_machine_id = None if machine_id == 0 else machine_id
+        actual_machine_name = 'Devolución Manual' if machine_id == 0 else machine_name
         
+        # Construir consulta dependiendo de si hay machine_id
+        if actual_machine_id is None:
+            cursor.execute("""
+                INSERT INTO machinefailures (qr_code_id, machine_id, machine_name, turnos_devueltos, notes)
+                VALUES (%s, NULL, %s, %s, %s)
+            """, (qr_id, actual_machine_name, turnos_devueltos, notes))
+        else:
+            # Verificar que la máquina existe
+            cursor.execute("SELECT id FROM machine WHERE id = %s", (actual_machine_id,))
+            if not cursor.fetchone():
+                return api_response('M001', http_status=404, data={'machine_id': actual_machine_id})
+            
+            cursor.execute("""
+                INSERT INTO machinefailures (qr_code_id, machine_id, machine_name, turnos_devueltos, notes)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (qr_id, actual_machine_id, actual_machine_name, turnos_devueltos, notes))
+        
+        # 4. Actualizar turnos
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
                        (turnos_devueltos, qr_id))
+        
+        # 5. Registrar en logs si es forzado
+        if is_forced:
+            user_name = session.get('user_name', 'Sistema')
+            cursor.execute("""
+                INSERT INTO error_logs (error_type, error_message, module, user_id, details)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                'REFUND_FORCED',
+                f'Devolución forzada de {turnos_devueltos} turnos para QR {qr_code}',
+                'packfailure',
+                session.get('user_id'),
+                json.dumps({
+                    'forced_by': forced_by,
+                    'notes': notes,
+                    'original_turns': turnos_data['turns_remaining'],
+                    'new_turns': turnos_data['turns_remaining'] + turnos_devueltos
+                })
+            ))
+        
         connection.commit()
         
-        app.logger.info(f"Falla reportada - Máquina: {machine_id}, Turnos devueltos: {turnos_devueltos}")
+        # Obtener información actualizada
+        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
+        nuevos_turnos = cursor.fetchone()
+        
+        app.logger.info(f"Falla reportada - QR: {qr_code}, Turnos devueltos: {turnos_devueltos}, Forzado: {is_forced}")
         
         return api_response(
             'S003',
             status='success',
             data={
-                'nuevos_turnos': turnos_data['turns_remaining'] + turnos_devueltos
+                'nuevos_turnos': nuevos_turnos['turns_remaining'],
+                'is_forced': is_forced,
+                'machine_id': actual_machine_id,
+                'qr_code': qr_code
             }
         )
         
+    except mysql.connector.Error as e:
+        app.logger.error(f"Error MySQL reportando falla: {e}")
+        if connection:
+            connection.rollback()
+        
+        # Si es error de clave foránea, intentar con NULL
+        if e.errno == 1452:  # Foreign key constraint fails
+            try:
+                if connection:
+                    connection.rollback()
+                    cursor = connection.cursor()
+                    
+                    # Intentar con NULL
+                    cursor.execute("""
+                        INSERT INTO machinefailures (qr_code_id, machine_name, turnos_devueltos, notes)
+                        VALUES (%s, %s, %s, %s)
+                    """, (qr_id, 'Sistema', turnos_devueltos, notes))
+                    
+                    cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
+                                   (turnos_devueltos, qr_id))
+                    
+                    connection.commit()
+                    
+                    cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
+                    nuevos_turnos = cursor.fetchone()
+                    
+                    return api_response(
+                        'S003',
+                        status='success',
+                        data={
+                            'nuevos_turnos': nuevos_turnos['turns_remaining'],
+                            'is_forced': is_forced,
+                            'machine_id': None,
+                            'qr_code': qr_code,
+                            'note': 'Insertado con machine_id NULL debido a restricción de clave foránea'
+                        }
+                    )
+            except Exception as retry_error:
+                app.logger.error(f"Error en reintento: {retry_error}")
+                return api_response('E001', http_status=500)
+        
+        return api_response('E001', http_status=500)
     except Exception as e:
         app.logger.error(f"Error reportando falla: {e}")
         sentry_sdk.capture_exception(e)
