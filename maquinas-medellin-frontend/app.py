@@ -9845,6 +9845,121 @@ def backup_logs_manual():
         app.logger.error(f"Error en backup manual: {e}")
         return api_response('E001', http_status=500)
 
+# ==================== DEVOLUCIÓN TURNOS ====================
+
+@app.route('/api/qr-id/<qr_code>', methods=['GET'])
+@handle_api_errors
+def obtener_id_qr(qr_code):
+    """Obtener ID de un código QR"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
+        qr_data = cursor.fetchone()
+        
+        if not qr_data:
+            return api_response('Q001', http_status=404)
+        
+        return jsonify({'id': qr_data['id']})
+            
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ID QR: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/historial-juegos/<qr_code>', methods=['GET'])
+@handle_api_errors
+def obtener_historial_juegos(qr_code):
+    """Obtener historial de juegos de un QR"""
+    connection = None
+    cursor = None
+    try:
+        limit = request.args.get('limit', 5)
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT tu.usedAt, m.name as machine_name
+            FROM qrcode qr
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            WHERE qr.code = %s
+            ORDER BY tu.usedAt DESC
+            LIMIT %s
+        """, (qr_code, int(limit)))
+        
+        juegos = cursor.fetchall()
+        
+        # Formatear fechas
+        for juego in juegos:
+            if juego['usedAt']:
+                fecha_colombia = parse_db_datetime(juego['usedAt'])
+                juego['usedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify(juegos)
+            
+    except Exception as e:
+        app.logger.error(f"Error obteniendo historial de juegos: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/historial-devoluciones/<qr_code>', methods=['GET'])
+@handle_api_errors
+def obtener_historial_devoluciones(qr_code):
+    """Obtener historial de devoluciones de un QR"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT mf.turnos_devueltos, mf.reported_at, mf.machine_name
+            FROM qrcode qr
+            JOIN machinefailures mf ON qr.id = mf.qr_code_id
+            WHERE qr.code = %s
+            ORDER BY mf.reported_at DESC
+        """, (qr_code,))
+        
+        devoluciones = cursor.fetchall()
+        
+        # Formatear fechas
+        for devolucion in devoluciones:
+            if devolucion['reported_at']:
+                fecha_colombia = parse_db_datetime(devolucion['reported_at'])
+                devolucion['reported_at'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify(devoluciones)
+            
+    except Exception as e:
+        app.logger.error(f"Error obteniendo historial de devoluciones: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 # ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':

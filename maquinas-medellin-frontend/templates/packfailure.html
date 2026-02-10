@@ -64,6 +64,11 @@
       font-weight: bold;
     }
     
+    .status-warning {
+      color: #f59e0b;
+      font-weight: bold;
+    }
+    
     .loading {
       display: inline-block;
       width: 20px;
@@ -234,8 +239,13 @@
             <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>Devolución de Turnos
           </h1>
           <p class="text-gray-700">
-            Sistema de devolución para paquetes con un solo uso registrado
+            Sistema de devolución con validación completa de paquetes
           </p>
+          <div class="mt-4 flex flex-wrap gap-2 justify-center">
+            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Validación QR</span>
+            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Historial de juegos</span>
+            <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Devolución forzada</span>
+          </div>
         </div>
 
         <!-- Sección de escaneo QR -->
@@ -269,12 +279,13 @@
           </div>
         </div>
 
-        <!-- Información del paquete -->
+        <!-- Información del paquete con validación extendida -->
         <div id="package-info" class="glass-card hidden">
           <h2 class="text-xl font-semibold mb-4">
-            <i class="fas fa-info-circle text-purple-600 mr-2"></i>Información del Paquete
+            <i class="fas fa-info-circle text-purple-600 mr-2"></i>Información Detallada del Paquete
           </h2>
           
+          <!-- Información básica -->
           <div class="info-grid grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
             <div class="bg-gray-50 p-3 rounded-lg">
               <h3 class="font-semibold text-gray-700">Código QR:</h3>
@@ -295,11 +306,48 @@
               <h3 class="font-semibold text-gray-700">Turnos totales:</h3>
               <p id="package-turns" class=""></p>
             </div>
+
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <h3 class="font-semibold text-gray-700">Turnos restantes:</h3>
+              <p id="package-remaining" class="font-bold"></p>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded-lg">
+              <h3 class="font-semibold text-gray-700">ID QR:</h3>
+              <p id="package-qr-id" class="font-mono text-sm"></p>
+            </div>
           </div>
 
+          <!-- Historial de juegos -->
+          <div id="game-history-section" class="bg-gray-50 p-3 rounded-lg mb-4 hidden">
+            <h3 class="font-semibold text-gray-700 mb-2">Historial de Juegos Recientes:</h3>
+            <div id="game-history-list" class="text-sm space-y-1"></div>
+            <p id="no-game-history" class="text-gray-500 text-sm hidden">No hay juegos registrados recientemente.</p>
+          </div>
+
+          <!-- Historial de devoluciones -->
+          <div id="refund-history-section" class="bg-gray-50 p-3 rounded-lg mb-4 hidden">
+            <h3 class="font-semibold text-gray-700 mb-2">Devoluciones Anteriores:</h3>
+            <div id="refund-history-list" class="text-sm space-y-1"></div>
+            <p id="no-refund-history" class="text-gray-500 text-sm hidden">No hay devoluciones anteriores.</p>
+          </div>
+
+          <!-- Estado para devolución -->
           <div class="bg-gray-50 p-3 rounded-lg mb-4">
-            <h3 class="font-semibold text-gray-700">Estado para devolución:</h3>
-            <p id="package-status" class=""></p>
+            <h3 class="font-semibold text-gray-700 mb-2">Validación para devolución:</h3>
+            <div id="validation-checks" class="space-y-2 mb-2"></div>
+            <p id="package-status" class="font-bold text-lg"></p>
+          </div>
+
+          <!-- Notas adicionales -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Notas de la devolución:</label>
+            <textarea 
+              id="refund-notes" 
+              class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50"
+              rows="2"
+              placeholder="Motivo de la devolución (opcional)"
+            ></textarea>
           </div>
 
           <!-- Botones de acción -->
@@ -312,11 +360,29 @@
             </button>
             
             <button 
+              id="btn-force-refund" 
+              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg btn-touch hidden"
+            >
+              <i class="fas fa-exclamation-triangle mr-2"></i> Devolución Forzada
+            </button>
+            
+            <button 
               id="btn-cancel" 
               class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg btn-touch"
             >
               <i class="fas fa-sync mr-2"></i> Escanear otro
             </button>
+          </div>
+          
+          <!-- Advertencia de devolución forzada -->
+          <div id="force-refund-warning" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg hidden">
+            <div class="flex items-start">
+              <i class="fas fa-exclamation-triangle text-red-500 mt-1 mr-2"></i>
+              <div>
+                <p class="font-semibold text-red-700">Devolución Forzada</p>
+                <p class="text-red-600 text-sm">Esta acción devolverá turnos aunque no se cumplan todas las condiciones de validación. Se registrará como devolución excepcional.</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -369,6 +435,13 @@
         this.html5QrCodeScanner = null;
         this.scannerActivo = false;
         this.paqueteActual = null;
+        this.validationResults = {
+          hasPackage: false,
+          hasTurns: false,
+          hasSingleUse: false,
+          noRecentRefunds: true,
+          hasRecentGames: false
+        };
         
         // Elementos del DOM
         this.qrResult = document.getElementById('qr-result');
@@ -379,11 +452,22 @@
         this.resultMessage = document.getElementById('result-message');
         this.resultContent = document.getElementById('result-content');
         this.btnProcessRefund = document.getElementById('btn-process-refund');
+        this.btnForceRefund = document.getElementById('btn-force-refund');
         this.btnCancel = document.getElementById('btn-cancel');
+        this.validationChecks = document.getElementById('validation-checks');
+        this.gameHistorySection = document.getElementById('game-history-section');
+        this.gameHistoryList = document.getElementById('game-history-list');
+        this.noGameHistory = document.getElementById('no-game-history');
+        this.refundHistorySection = document.getElementById('refund-history-section');
+        this.refundHistoryList = document.getElementById('refund-history-list');
+        this.noRefundHistory = document.getElementById('no-refund-history');
+        this.forceRefundWarning = document.getElementById('force-refund-warning');
+        this.refundNotes = document.getElementById('refund-notes');
 
         // Event listeners
         this.btnScanQR.addEventListener('click', () => this.toggleScanner());
-        this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion());
+        this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion(false));
+        this.btnForceRefund.addEventListener('click', () => this.procesarDevolucion(true));
         this.btnCancel.addEventListener('click', () => this.limpiarFormulario());
 
         console.log("PackFailure App inicializada correctamente");
@@ -446,7 +530,7 @@
               this.scannerActivo = false;
               
               // Verificar el paquete con la API real
-              this.verificarPaquete(decodedText);
+              this.verificarPaqueteCompleto(decodedText);
             },
             (errorMessage) => {
               console.log("Error escaneando:", errorMessage);
@@ -468,75 +552,274 @@
         this.scannerActivo = false;
       },
 
-      // Función para verificar el paquete con la API real
-      verificarPaquete: async function(codigoQR) {
+      // Función para verificar el paquete con información completa
+      verificarPaqueteCompleto: async function(codigoQR) {
         try {
           this.mostrarCargando();
           
-          const response = await fetch(`/api/verificar-qr/${codigoQR}`, {
+          // 1. Obtener información básica del QR
+          const qrResponse = await fetch(`/api/verificar-qr/${codigoQR}`, {
             headers: {
               'X-Requested-With': 'XMLHttpRequest'
             }
           });
           
-          if (!response.ok) {
+          if (!qrResponse.ok) {
             throw new Error('Error en la respuesta del servidor');
           }
           
-          const data = await response.json();
+          const qrData = await qrResponse.json();
           
-          if (data.existe) {
-            const turnosUsados = data.total_turns - data.turns_remaining;
-            
-            this.paqueteActual = {
-              codigo: codigoQR,
-              turns_remaining: data.turns_remaining,
-              total_turns: data.total_turns,
-              turnos_usados: turnosUsados,
-              package_name: data.package_name,
-              validoParaDevolucion: turnosUsados === 1 // Solo válido si tiene exactamente 1 uso
-            };
-            
-            this.mostrarInformacionPaquete();
-          } else {
+          if (!qrData.existe) {
             this.mostrarError("❌ QR no encontrado", "El código QR escaneado no existe en el sistema.");
+            return;
           }
+          
+          // 2. Obtener ID del QR para consultas adicionales
+          const qrIdResponse = await fetch(`/api/qr-id/${codigoQR}`);
+          let qrId = null;
+          if (qrIdResponse.ok) {
+            const qrIdData = await qrIdResponse.json();
+            qrId = qrIdData.id;
+          }
+          
+          // 3. Obtener historial de juegos
+          let gameHistory = [];
+          try {
+            const gameResponse = await fetch(`/api/historial-juegos/${codigoQR}?limit=5`);
+            if (gameResponse.ok) {
+              gameHistory = await gameResponse.json();
+            }
+          } catch (e) {
+            console.log("Error obteniendo historial de juegos:", e);
+          }
+          
+          // 4. Obtener historial de devoluciones
+          let refundHistory = [];
+          try {
+            const refundResponse = await fetch(`/api/historial-devoluciones/${codigoQR}`);
+            if (refundResponse.ok) {
+              refundHistory = await refundResponse.json();
+            }
+          } catch (e) {
+            console.log("Error obteniendo historial de devoluciones:", e);
+          }
+          
+          // Calcular turnos usados
+          const turnosUsados = qrData.total_turns - qrData.turns_remaining;
+          
+          this.paqueteActual = {
+            codigo: codigoQR,
+            qr_id: qrId,
+            turns_remaining: qrData.turns_remaining,
+            total_turns: qrData.total_turns,
+            turnos_usados: turnosUsados,
+            package_name: qrData.package_name,
+            package_id: qrData.turnPackageId,
+            game_history: gameHistory,
+            refund_history: refundHistory,
+            validationResults: this.validarPaquete(qrData, turnosUsados, gameHistory, refundHistory)
+          };
+          
+          this.mostrarInformacionCompletaPaquete();
+          
         } catch (error) {
-          console.error("Error verificando paquete:", error);
+          console.error("Error verificando paquete completo:", error);
           this.mostrarError("❌ Error de conexión", "No se pudo verificar el paquete. Intenta nuevamente.");
         }
       },
 
-      mostrarInformacionPaquete: function() {
+      // Función para validar el paquete según todas las condiciones
+      validarPaquete: function(qrData, turnosUsados, gameHistory, refundHistory) {
+        const validations = {
+          hasPackage: qrData.turnPackageId && qrData.turnPackageId != 1,
+          hasTurns: qrData.turns_remaining > 0,
+          hasSingleUse: turnosUsados === 1,
+          noRecentRefunds: refundHistory.length === 0,
+          hasRecentGames: gameHistory.length > 0,
+          recentGamesWithin24h: false
+        };
+        
+        // Verificar si hay juegos en las últimas 24 horas
+        if (gameHistory.length > 0) {
+          const now = new Date();
+          const lastGame = new Date(gameHistory[0].usedAt);
+          const hoursDiff = (now - lastGame) / (1000 * 60 * 60);
+          validations.recentGamesWithin24h = hoursDiff <= 24;
+        }
+        
+        return validations;
+      },
+
+      mostrarInformacionCompletaPaquete: function() {
+        // Información básica
         document.getElementById('package-code').textContent = this.paqueteActual.codigo;
         document.getElementById('package-usage').textContent = `${this.paqueteActual.turnos_usados} de ${this.paqueteActual.total_turns}`;
-        document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'N/A';
+        document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'Sin paquete asignado';
         document.getElementById('package-turns').textContent = this.paqueteActual.total_turns;
+        document.getElementById('package-remaining').textContent = this.paqueteActual.turns_remaining;
+        document.getElementById('package-qr-id').textContent = this.paqueteActual.qr_id || 'N/A';
         
-        const statusElement = document.getElementById('package-status');
-        
-        if (this.paqueteActual.validoParaDevolucion) {
-          statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
-          statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete tiene exactamente 1 uso registrado.</p>';
-          this.btnProcessRefund.classList.remove('hidden');
+        // Mostrar historial de juegos
+        if (this.paqueteActual.game_history && this.paqueteActual.game_history.length > 0) {
+          this.gameHistorySection.classList.remove('hidden');
+          this.gameHistoryList.innerHTML = '';
+          
+          this.paqueteActual.game_history.forEach(game => {
+            const gameTime = new Date(game.usedAt).toLocaleString('es-CO');
+            const gameItem = document.createElement('div');
+            gameItem.className = 'flex justify-between items-center border-b pb-1';
+            gameItem.innerHTML = `
+              <span>${gameTime}</span>
+              <span class="font-medium">${game.machine_name || 'Máquina N/A'}</span>
+            `;
+            this.gameHistoryList.appendChild(gameItem);
+          });
+          this.noGameHistory.classList.add('hidden');
         } else {
-          if (this.paqueteActual.turnos_usados === 0) {
-            statusElement.innerHTML = '<span class="status-invalid">❌ NO USADO</span>';
-            statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete no ha sido usado aún.</p>';
-          } else {
-            statusElement.innerHTML = '<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>';
-            statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">Este paquete tiene ${this.paqueteActual.turnos_usados} usos registrados.</p>`;
-          }
-          this.btnProcessRefund.classList.add('hidden');
+          this.gameHistorySection.classList.remove('hidden');
+          this.noGameHistory.classList.remove('hidden');
+          this.gameHistoryList.innerHTML = '';
         }
+        
+        // Mostrar historial de devoluciones
+        if (this.paqueteActual.refund_history && this.paqueteActual.refund_history.length > 0) {
+          this.refundHistorySection.classList.remove('hidden');
+          this.refundHistoryList.innerHTML = '';
+          
+          this.paqueteActual.refund_history.forEach(refund => {
+            const refundTime = new Date(refund.reported_at).toLocaleString('es-CO');
+            const refundItem = document.createElement('div');
+            refundItem.className = 'flex justify-between items-center border-b pb-1';
+            refundItem.innerHTML = `
+              <span>${refundTime}</span>
+              <span class="font-medium">${refund.turnos_devueltos} turnos</span>
+            `;
+            this.refundHistoryList.appendChild(refundItem);
+          });
+          this.noRefundHistory.classList.add('hidden');
+        } else {
+          this.refundHistorySection.classList.add('hidden');
+          this.noRefundHistory.classList.add('hidden');
+          this.refundHistoryList.innerHTML = '';
+        }
+        
+        // Mostrar validaciones
+        this.mostrarValidaciones();
+        
+        // Determinar estado final
+        this.determinarEstadoDevolucion();
         
         this.packageInfo.classList.remove('hidden');
         this.resultMessage.classList.add('hidden');
+        this.forceRefundWarning.classList.add('hidden');
       },
 
-      procesarDevolucion: async function() {
+      mostrarValidaciones: function() {
+        const validations = this.paqueteActual.validationResults;
+        this.validationChecks.innerHTML = '';
+        
+        const checks = [
+          {
+            key: 'hasPackage',
+            label: 'Paquete válido asignado',
+            required: true
+          },
+          {
+            key: 'hasTurns',
+            label: 'Tiene turnos disponibles',
+            required: true
+          },
+          {
+            key: 'hasSingleUse',
+            label: 'Único uso registrado',
+            required: true
+          },
+          {
+            key: 'noRecentRefunds',
+            label: 'Sin devoluciones recientes',
+            required: true
+          },
+          {
+            key: 'hasRecentGames',
+            label: 'Tiene juegos registrados',
+            required: false
+          },
+          {
+            key: 'recentGamesWithin24h',
+            label: 'Juegos en últimas 24h',
+            required: false
+          }
+        ];
+        
+        checks.forEach(check => {
+          const isValid = validations[check.key];
+          const checkDiv = document.createElement('div');
+          checkDiv.className = 'flex items-center';
+          
+          checkDiv.innerHTML = `
+            <i class="fas fa-${isValid ? 'check-circle text-green-500' : check.required ? 'times-circle text-red-500' : 'exclamation-circle text-yellow-500'} mr-2"></i>
+            <span class="${check.required && !isValid ? 'text-red-600 font-medium' : ''}">
+              ${check.label}
+              ${check.required ? '' : ' (opcional)'}
+            </span>
+          `;
+          
+          this.validationChecks.appendChild(checkDiv);
+        });
+      },
+
+      determinarEstadoDevolucion: function() {
+        const validations = this.paqueteActual.validationResults;
+        const statusElement = document.getElementById('package-status');
+        
+        // Verificar condiciones obligatorias
+        const requiredConditions = [
+          validations.hasPackage,
+          validations.hasTurns,
+          validations.hasSingleUse,
+          validations.noRecentRefunds
+        ];
+        
+        const allRequiredPassed = requiredConditions.every(cond => cond === true);
+        
+        if (allRequiredPassed) {
+          // Todas las condiciones obligatorias pasaron
+          statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
+          statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete cumple todas las condiciones para devolución.</p>';
+          this.btnProcessRefund.classList.remove('hidden');
+          this.btnForceRefund.classList.add('hidden');
+          this.forceRefundWarning.classList.add('hidden');
+        } else {
+          // No cumple todas las condiciones
+          let reason = '';
+          
+          if (!validations.hasPackage) reason = 'No tiene paquete asignado.';
+          else if (!validations.hasTurns) reason = 'No tiene turnos disponibles.';
+          else if (!validations.hasSingleUse) reason = `Tiene ${this.paqueteActual.turnos_usados} usos registrados.`;
+          else if (!validations.noRecentRefunds) reason = 'Ya tiene devoluciones anteriores.';
+          
+          statusElement.innerHTML = `<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>`;
+          statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">${reason}</p>`;
+          
+          // Mostrar botón de devolución forzada si es socio o admin
+          const userRole = "{{ session.get('user_role', 'Usuario') }}";
+          if (userRole === 'admin' || userRole === 'socio') {
+            this.btnForceRefund.classList.remove('hidden');
+            this.forceRefundWarning.classList.remove('hidden');
+            statusElement.innerHTML += '<p class="text-sm text-yellow-600 mt-2">Se puede realizar devolución forzada como excepción.</p>';
+          }
+          
+          this.btnProcessRefund.classList.add('hidden');
+        }
+      },
+
+      procesarDevolucion: async function(isForced = false) {
         try {
           this.mostrarCargandoProcesando();
+          
+          const notes = this.refundNotes.value.trim();
+          const userRole = "{{ session.get('user_role', 'Usuario') }}";
           
           // 1. Guardar en el historial
           await fetch('/api/guardar-qr', {
@@ -550,7 +833,7 @@
             })
           });
           
-          // 2. Procesar la devolución con la API 
+          // 2. Procesar la devolución
           const response = await fetch('/api/reportar-falla', {
             method: 'POST',
             headers: {
@@ -559,9 +842,12 @@
             },
             body: JSON.stringify({
               qr_code: this.paqueteActual.codigo,
-              machine_id: 0, // ID genérico para devolución
-              machine_name: 'Devolución Manual',
-              turnos_devueltos: 1
+              machine_id: 0,
+              machine_name: isForced ? 'Devolución Forzada' : 'Devolución Manual',
+              turnos_devueltos: 1,
+              is_forced: isForced,
+              forced_by: userRole,
+              notes: notes || null
             })
           });
 
@@ -572,21 +858,42 @@
           const result = await response.json();
 
           if (result.success) {
-            this.resultContent.innerHTML = `
-              <div class="text-center">
-                <div class="text-4xl mb-4">✅</div>
-                <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
-                <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
-                <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
-                <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
-              </div>
-            `;
+            let message = '';
+            if (isForced) {
+              message = `
+                <div class="text-center">
+                  <div class="text-4xl mb-4">⚠️</div>
+                  <h3 class="text-xl font-semibold text-orange-600 mb-2">Devolución Forzada Exitosa</h3>
+                  <p class="text-gray-700">Se ha procesado una devolución forzada de 1 turno para el paquete:</p>
+                  <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
+                  <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
+                  <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p class="text-orange-700 text-sm"><i class="fas fa-exclamation-triangle mr-1"></i> Esta devolución ha sido marcada como excepción.</p>
+                    ${notes ? `<p class="text-orange-700 text-sm mt-1"><strong>Notas:</strong> ${notes}</p>` : ''}
+                  </div>
+                </div>
+              `;
+            } else {
+              message = `
+                <div class="text-center">
+                  <div class="text-4xl mb-4">✅</div>
+                  <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
+                  <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
+                  <p class="font-mono text-blue-600 my-2">${this.paqueteActual.codigo}</p>
+                  <p class="text-gray-700">El cliente ahora tiene <strong>${this.paqueteActual.turns_remaining + 1}</strong> turnos disponibles.</p>
+                </div>
+              `;
+            }
+            
+            this.resultContent.innerHTML = message;
           } else {
             throw new Error(result.error || 'Error desconocido');
           }
           
           this.resultMessage.classList.remove('hidden');
           this.btnProcessRefund.classList.add('hidden');
+          this.btnForceRefund.classList.add('hidden');
+          
         } catch (error) {
           console.error("Error procesando devolución:", error);
           this.mostrarError("❌ Error en devolución", "No se pudo procesar la devolución: " + error.message);
@@ -595,8 +902,12 @@
 
       limpiarFormulario: function() {
         this.qrResult.value = "";
+        this.refundNotes.value = "";
         this.packageInfo.classList.add('hidden');
         this.resultMessage.classList.add('hidden');
+        this.gameHistorySection.classList.add('hidden');
+        this.refundHistorySection.classList.add('hidden');
+        this.forceRefundWarning.classList.add('hidden');
         this.paqueteActual = null;
       },
 
