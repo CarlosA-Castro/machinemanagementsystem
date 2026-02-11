@@ -192,7 +192,6 @@
           <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-home mr-2"></i>Home
           </a>
-      
           <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
             <i class="fas fa-exclamation-triangle mr-2"></i>Falla Paq.
           </a>
@@ -231,7 +230,6 @@
 
     <!-- Contenido principal -->
     <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
-      <!-- Contenido específico de devolución -->
       <div class="contenido max-w-4xl mx-auto space-y-6">
         <!-- Encabezado -->
         <div class="glass-card text-center">
@@ -273,7 +271,6 @@
             <span id="scanner-text">Escanear QR</span>
           </button>
 
-          <!-- Contenedor para el escáner -->
           <div id="html5-qrcode-container" class="mt-4 hidden mx-auto w-full max-w-md">
             <div id="html5-qrcode-scanner" class="border-2 border-gray-300 rounded-lg overflow-hidden"></div>
           </div>
@@ -350,21 +347,77 @@
             ></textarea>
           </div>
 
-          <!-- Botones de acción -->
-          <div id="action-buttons" class="flex flex-col sm:flex-row gap-2 justify-center">
-            <button 
-              id="btn-process-refund" 
-              class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg btn-touch hidden"
-            >
-              <i class="fas fa-check-circle mr-2"></i> Devolver 1 Turno
-            </button>
+          <!-- Botones de acción con selector de turnos -->
+          <div id="action-buttons" class="flex flex-col gap-2 justify-center">
+            <!-- Selector de turnos para devolución normal -->
+            <div id="normal-refund-controls" class="hidden w-full">
+              <div class="bg-green-50 p-4 rounded-lg border border-green-200 mb-2">
+                <label class="block text-sm font-medium text-green-800 mb-2">
+                  <i class="fas fa-ticket-alt mr-1"></i> Selecciona turnos a devolver:
+                </label>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="decrease-turns" class="bg-green-200 hover:bg-green-300 text-green-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <input 
+                    type="number" 
+                    id="turnos-devolver" 
+                    class="flex-1 text-center p-3 border-2 border-green-300 rounded-lg bg-white font-bold text-lg"
+                    value="1"
+                    min="1"
+                    max="10"
+                    readonly
+                  >
+                  <button type="button" id="increase-turns" class="bg-green-200 hover:bg-green-300 text-green-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+                <p class="text-xs text-green-600 mt-2">
+                  <i class="fas fa-info-circle"></i> Máximo 10 turnos por devolución
+                </p>
+              </div>
+              <button 
+                id="btn-process-refund" 
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg btn-touch font-bold w-full"
+              >
+                <i class="fas fa-check-circle mr-2"></i> Devolver <span id="turnos-normal-label">1</span> turno(s)
+              </button>
+            </div>
             
-            <button 
-              id="btn-force-refund" 
-              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg btn-touch hidden"
-            >
-              <i class="fas fa-exclamation-triangle mr-2"></i> Devolución Forzada
-            </button>
+            <!-- Selector de turnos para devolución forzada -->
+            <div id="forced-refund-controls" class="hidden w-full">
+              <div class="bg-red-50 p-4 rounded-lg border border-red-200 mb-2">
+                <label class="block text-sm font-medium text-red-800 mb-2">
+                  <i class="fas fa-exclamation-triangle mr-1"></i> Devolución Forzada - Selecciona turnos:
+                </label>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="decrease-forced-turns" class="bg-red-200 hover:bg-red-300 text-red-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <input 
+                    type="number" 
+                    id="turnos-forzados-devolver" 
+                    class="flex-1 text-center p-3 border-2 border-red-300 rounded-lg bg-white font-bold text-lg"
+                    value="1"
+                    min="1"
+                    max="20"
+                    readonly
+                  >
+                  <button type="button" id="increase-forced-turns" class="bg-red-200 hover:bg-red-300 text-red-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+                <p class="text-xs text-red-600 mt-2">
+                  <i class="fas fa-info-circle"></i> Máximo 20 turnos por devolución forzada
+                </p>
+              </div>
+              <button 
+                id="btn-force-refund" 
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg btn-touch font-bold w-full"
+              >
+                <i class="fas fa-exclamation-triangle mr-2"></i> Devolver <span id="turnos-forzados-label">1</span> turno(s) (Forzado)
+              </button>
+            </div>
             
             <button 
               id="btn-cancel" 
@@ -400,6 +453,14 @@
   <script>
     // Namespace para PackFailure App
     const PackFailureApp = {
+      // Selector de turnos
+      turnSelector: {
+        normal: 1,
+        forced: 1,
+        maxNormal: 10,
+        maxForced: 20
+      },
+
       init: function() {
         // Configuración de partículas optimizada
         particlesJS('particles-js', {
@@ -430,6 +491,9 @@
         // Inicializar hora en tiempo real
         this.actualizarHora();
         setInterval(() => this.actualizarHora(), 1000);
+
+        // Inicializar controles de turnos
+        this.initTurnControls();
 
         // Variables para el escáner QR
         this.html5QrCodeScanner = null;
@@ -473,6 +537,65 @@
         console.log("PackFailure App inicializada correctamente");
       },
 
+      // Inicializar controles de turnos
+      initTurnControls: function() {
+        // Controles para devolución normal
+        const decreaseBtn = document.getElementById('decrease-turns');
+        const increaseBtn = document.getElementById('increase-turns');
+        const turnosInput = document.getElementById('turnos-devolver');
+        const turnosLabel = document.getElementById('turnos-normal-label');
+        
+        if (decreaseBtn && increaseBtn && turnosInput) {
+          decreaseBtn.addEventListener('click', () => {
+            let valor = parseInt(turnosInput.value);
+            if (valor > 1) {
+              valor--;
+              turnosInput.value = valor;
+              this.turnSelector.normal = valor;
+              if (turnosLabel) turnosLabel.textContent = valor;
+            }
+          });
+          
+          increaseBtn.addEventListener('click', () => {
+            let valor = parseInt(turnosInput.value);
+            if (valor < this.turnSelector.maxNormal) {
+              valor++;
+              turnosInput.value = valor;
+              this.turnSelector.normal = valor;
+              if (turnosLabel) turnosLabel.textContent = valor;
+            }
+          });
+        }
+        
+        // Controles para devolución forzada
+        const decreaseForcedBtn = document.getElementById('decrease-forced-turns');
+        const increaseForcedBtn = document.getElementById('increase-forced-turns');
+        const turnosForcedInput = document.getElementById('turnos-forzados-devolver');
+        const turnosForcedLabel = document.getElementById('turnos-forzados-label');
+        
+        if (decreaseForcedBtn && increaseForcedBtn && turnosForcedInput) {
+          decreaseForcedBtn.addEventListener('click', () => {
+            let valor = parseInt(turnosForcedInput.value);
+            if (valor > 1) {
+              valor--;
+              turnosForcedInput.value = valor;
+              this.turnSelector.forced = valor;
+              if (turnosForcedLabel) turnosForcedLabel.textContent = valor;
+            }
+          });
+          
+          increaseForcedBtn.addEventListener('click', () => {
+            let valor = parseInt(turnosForcedInput.value);
+            if (valor < this.turnSelector.maxForced) {
+              valor++;
+              turnosForcedInput.value = valor;
+              this.turnSelector.forced = valor;
+              if (turnosForcedLabel) turnosForcedLabel.textContent = valor;
+            }
+          });
+        }
+      },
+
       // Función para actualizar la hora en tiempo real
       actualizarHora: function() {
         const ahora = new Date();
@@ -494,7 +617,6 @@
         const hora = ahora.toLocaleTimeString('es-CO', opciones);
         const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
         
-        // Actualizar en sidebar
         const horaSidebar = document.getElementById('horaActualSidebar');
         const fechaSidebar = document.getElementById('fechaActualSidebar');
         
@@ -528,8 +650,6 @@
               this.html5QrcodeContainer.classList.add("hidden");
               this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
               this.scannerActivo = false;
-              
-              // Verificar el paquete con la API real
               this.verificarPaqueteCompleto(decodedText);
             },
             (errorMessage) => {
@@ -552,12 +672,10 @@
         this.scannerActivo = false;
       },
 
-      // Función para verificar el paquete con información completa
       verificarPaqueteCompleto: async function(codigoQR) {
         try {
           this.mostrarCargando();
           
-          // 1. Obtener información básica del QR
           const qrResponse = await fetch(`/api/verificar-qr/${codigoQR}`, {
             headers: {
               'X-Requested-With': 'XMLHttpRequest'
@@ -575,7 +693,6 @@
             return;
           }
           
-          // 2. Obtener ID del QR para consultas adicionales
           const qrIdResponse = await fetch(`/api/qr-id/${codigoQR}`);
           let qrId = null;
           if (qrIdResponse.ok) {
@@ -583,7 +700,6 @@
             qrId = qrIdData.id;
           }
           
-          // 3. Obtener historial de juegos
           let gameHistory = [];
           try {
             const gameResponse = await fetch(`/api/historial-juegos/${codigoQR}?limit=5`);
@@ -594,7 +710,6 @@
             console.log("Error obteniendo historial de juegos:", e);
           }
           
-          // 4. Obtener historial de devoluciones
           let refundHistory = [];
           try {
             const refundResponse = await fetch(`/api/historial-devoluciones/${codigoQR}`);
@@ -605,7 +720,6 @@
             console.log("Error obteniendo historial de devoluciones:", e);
           }
           
-          // Calcular turnos usados
           const turnosUsados = qrData.total_turns - qrData.turns_remaining;
           
           this.paqueteActual = {
@@ -629,7 +743,6 @@
         }
       },
 
-      // Función para validar el paquete según todas las condiciones
       validarPaquete: function(qrData, turnosUsados, gameHistory, refundHistory) {
         const validations = {
           hasPackage: qrData.turnPackageId && qrData.turnPackageId != 1,
@@ -640,7 +753,6 @@
           recentGamesWithin24h: false
         };
         
-        // Verificar si hay juegos en las últimas 24 horas
         if (gameHistory.length > 0) {
           const now = new Date();
           const lastGame = new Date(gameHistory[0].usedAt);
@@ -652,7 +764,6 @@
       },
 
       mostrarInformacionCompletaPaquete: function() {
-        // Información básica
         document.getElementById('package-code').textContent = this.paqueteActual.codigo;
         document.getElementById('package-usage').textContent = `${this.paqueteActual.turnos_usados} de ${this.paqueteActual.total_turns}`;
         document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'Sin paquete asignado';
@@ -660,7 +771,6 @@
         document.getElementById('package-remaining').textContent = this.paqueteActual.turns_remaining;
         document.getElementById('package-qr-id').textContent = this.paqueteActual.qr_id || 'N/A';
         
-        // Mostrar historial de juegos
         if (this.paqueteActual.game_history && this.paqueteActual.game_history.length > 0) {
           this.gameHistorySection.classList.remove('hidden');
           this.gameHistoryList.innerHTML = '';
@@ -682,7 +792,6 @@
           this.gameHistoryList.innerHTML = '';
         }
         
-        // Mostrar historial de devoluciones
         if (this.paqueteActual.refund_history && this.paqueteActual.refund_history.length > 0) {
           this.refundHistorySection.classList.remove('hidden');
           this.refundHistoryList.innerHTML = '';
@@ -704,10 +813,7 @@
           this.refundHistoryList.innerHTML = '';
         }
         
-        // Mostrar validaciones
         this.mostrarValidaciones();
-        
-        // Determinar estado final
         this.determinarEstadoDevolucion();
         
         this.packageInfo.classList.remove('hidden');
@@ -772,8 +878,35 @@
       determinarEstadoDevolucion: function() {
         const validations = this.paqueteActual.validationResults;
         const statusElement = document.getElementById('package-status');
+        const normalControls = document.getElementById('normal-refund-controls');
+        const forcedControls = document.getElementById('forced-refund-controls');
         
-        // Verificar condiciones obligatorias
+        // Resetear selectores
+        this.turnSelector.normal = 1;
+        this.turnSelector.forced = 1;
+        if (document.getElementById('turnos-devolver')) {
+          document.getElementById('turnos-devolver').value = 1;
+          document.getElementById('turnos-normal-label').textContent = '1';
+        }
+        if (document.getElementById('turnos-forzados-devolver')) {
+          document.getElementById('turnos-forzados-devolver').value = 1;
+          document.getElementById('turnos-forzados-label').textContent = '1';
+        }
+        
+        // Calcular máximo de turnos a devolver
+        const maxNormalTurns = Math.min(10, this.paqueteActual.turns_remaining);
+        const maxForcedTurns = Math.min(20, this.paqueteActual.turns_remaining + 10);
+        
+        this.turnSelector.maxNormal = maxNormalTurns;
+        this.turnSelector.maxForced = maxForcedTurns;
+        
+        if (document.getElementById('turnos-devolver')) {
+          document.getElementById('turnos-devolver').max = maxNormalTurns;
+        }
+        if (document.getElementById('turnos-forzados-devolver')) {
+          document.getElementById('turnos-forzados-devolver').max = maxForcedTurns;
+        }
+        
         const requiredConditions = [
           validations.hasPackage,
           validations.hasTurns,
@@ -783,182 +916,170 @@
         
         const allRequiredPassed = requiredConditions.every(cond => cond === true);
         
-        if (allRequiredPassed) {
-          // Todas las condiciones obligatorias pasaron
+        if (allRequiredPassed && this.paqueteActual.turns_remaining >= 1) {
           statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
           statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete cumple todas las condiciones para devolución.</p>';
+          
+          normalControls.classList.remove('hidden');
+          forcedControls.classList.add('hidden');
           this.btnProcessRefund.classList.remove('hidden');
           this.btnForceRefund.classList.add('hidden');
           this.forceRefundWarning.classList.add('hidden');
         } else {
-          // No cumple todas las condiciones
           let reason = '';
-          
           if (!validations.hasPackage) reason = 'No tiene paquete asignado.';
           else if (!validations.hasTurns) reason = 'No tiene turnos disponibles.';
           else if (!validations.hasSingleUse) reason = `Tiene ${this.paqueteActual.turnos_usados} usos registrados.`;
           else if (!validations.noRecentRefunds) reason = 'Ya tiene devoluciones anteriores.';
           
-          statusElement.innerHTML = `<span class="status-invalid">❌ NO APTO PARA DEVOLUCIÓN</span>`;
+          statusElement.innerHTML = `<span class="status-invalid">❌ NO CUMPLE CONDICIONES NORMALES</span>`;
           statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">${reason}</p>`;
           
-          // Mostrar botón de devolución forzada si es socio o admin
-          const userRole = "{{ session.get('user_role', 'Usuario') }}";
-          if (userRole === 'admin' || userRole === 'socio') {
-            this.btnForceRefund.classList.remove('hidden');
-            this.forceRefundWarning.classList.remove('hidden');
-            statusElement.innerHTML += '<p class="text-sm text-yellow-600 mt-2">Se puede realizar devolución forzada como excepción.</p>';
+          normalControls.classList.add('hidden');
+          forcedControls.classList.remove('hidden');
+          this.btnProcessRefund.classList.add('hidden');
+          this.btnForceRefund.classList.remove('hidden');
+          this.forceRefundWarning.classList.remove('hidden');
+          
+          const maxMsg = document.querySelector('#forced-refund-controls .text-xs');
+          if (maxMsg) {
+            maxMsg.innerHTML = `<i class="fas fa-info-circle"></i> Máximo ${maxForcedTurns} turnos disponibles para devolución forzada`;
           }
           
-          this.btnProcessRefund.classList.add('hidden');
+          statusElement.innerHTML += '<p class="text-sm text-yellow-600 mt-2">Se puede realizar devolución forzada como excepción.</p>';
         }
       },
 
       procesarDevolucion: async function(isForced = false) {
-    try {
-        this.mostrarCargandoProcesando();
-        
-        const userRole = "{{ session.get('user_role', 'Usuario') }}";
-        const userName = "{{ session.get('user_name', 'Usuario') }}";
-        
-        // 1. Guardar en el historial
-        await fetch('/api/guardar-qr', {
+        try {
+          let turnosADevolver = 1;
+          
+          if (isForced) {
+            turnosADevolver = this.turnSelector.forced;
+            if (turnosADevolver > this.paqueteActual.turns_remaining + 10) {
+              if (!confirm(`¿Estás seguro de devolver ${turnosADevolver} turnos? El paquete solo tiene ${this.paqueteActual.turns_remaining} turnos disponibles actualmente.`)) {
+                return;
+              }
+            }
+          } else {
+            turnosADevolver = this.turnSelector.normal;
+            if (turnosADevolver > this.paqueteActual.turns_remaining) {
+              this.mostrarError("❌ Error", `No puedes devolver ${turnosADevolver} turnos porque solo hay ${this.paqueteActual.turns_remaining} turnos disponibles.`);
+              return;
+            }
+          }
+          
+          this.mostrarCargandoProcesando();
+          
+          const userName = "{{ session.get('user_name', 'Usuario') }}";
+          
+          await fetch('/api/guardar-qr', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
-                qr_code: this.paqueteActual.codigo
+              qr_code: this.paqueteActual.codigo
             })
-        });
-        
-        // 2. Preparar datos para la devolución
-        const refundData = {
+          });
+          
+          const refundData = {
             qr_code: this.paqueteActual.codigo,
             machine_id: 0,
             machine_name: isForced ? 'Devolución Forzada' : 'Devolución Manual',
-            turnos_devueltos: 1,
+            turnos_devueltos: turnosADevolver,
             is_forced: isForced,
-            forced_by: userName
-        };
-        
-        // Solo agregar notes si el campo existe y tiene valor
-        const notesInput = document.getElementById('refund-notes');
-        if (notesInput && notesInput.value.trim()) {
-            refundData.notes = notesInput.value.trim();
-        }
-        
-        console.log('Enviando devolución:', refundData);
-        
-        const response = await fetch('/api/reportar-falla', {
+            forced_by: userName,
+            notes: `Devolución de ${turnosADevolver} turnos`
+          };
+          
+          const notesInput = document.getElementById('refund-notes');
+          if (notesInput && notesInput.value.trim()) {
+            refundData.notes += ` - ${notesInput.value.trim()}`;
+          }
+          
+          console.log('Enviando devolución:', refundData);
+          
+          const response = await fetch('/api/reportar-falla', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(refundData)
-        });
+          });
 
-        const result = await response.json();
+          const result = await response.json();
 
-        if (!response.ok) {
+          if (!response.ok) {
             throw new Error(result.message || `Error ${response.status}`);
-        }
+          }
 
-        if (result.status === 'success') {
+          if (result.status === 'success') {
             let message = '';
             if (isForced) {
-                message = `
-                    <div class="text-center">
-                        <div class="text-4xl mb-4">⚠️</div>
-                        <h3 class="text-xl font-semibold text-orange-600 mb-2">✅ Devolución Forzada Exitosa</h3>
-                        <p class="text-gray-700">Se ha procesado una devolución forzada de 1 turno para el paquete:</p>
-                        <p class="font-mono text-blue-600 my-2 text-lg">${this.paqueteActual.codigo}</p>
-                        <div class="bg-orange-50 p-3 rounded-lg mt-3">
-                            <p class="text-orange-700"><strong>Turnos anteriores:</strong> ${this.paqueteActual.turns_remaining}</p>
-                            <p class="text-orange-700"><strong>Turnos actuales:</strong> ${result.data.nuevos_turnos}</p>
-                        </div>
-                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p class="text-yellow-700 text-sm"><i class="fas fa-exclamation-triangle mr-1"></i> Esta devolución ha sido marcada como EXCEPCIÓN.</p>
-                        </div>
+              message = `
+                <div class="text-center">
+                  <div class="text-4xl mb-4">⚠️</div>
+                  <h3 class="text-xl font-semibold text-orange-600 mb-2">✅ Devolución Forzada Exitosa</h3>
+                  <p class="text-gray-700">Se ha procesado una devolución forzada de <strong>${turnosADevolver} turno(s)</strong> para el paquete:</p>
+                  <p class="font-mono text-blue-600 my-2 text-lg">${this.paqueteActual.codigo}</p>
+                  <div class="bg-orange-50 p-4 rounded-lg mt-3">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                      <div class="text-left text-orange-700">Turnos anteriores:</div>
+                      <div class="text-right font-bold">${this.paqueteActual.turns_remaining}</div>
+                      <div class="text-left text-orange-700">Turnos devueltos:</div>
+                      <div class="text-right font-bold text-green-600">+${turnosADevolver}</div>
+                      <div class="text-left text-orange-700 font-semibold">Turnos actuales:</div>
+                      <div class="text-right font-bold text-lg">${result.data.nuevos_turnos}</div>
                     </div>
-                `;
+                  </div>
+                  <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-yellow-700 text-sm"><i class="fas fa-exclamation-triangle mr-1"></i> Esta devolución ha sido marcada como EXCEPCIÓN.</p>
+                  </div>
+                </div>
+              `;
             } else {
-                message = `
-                    <div class="text-center">
-                        <div class="text-4xl mb-4">✅</div>
-                        <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
-                        <p class="text-gray-700">Se ha procesado la devolución de 1 turno para el paquete:</p>
-                        <p class="font-mono text-blue-600 my-2 text-lg">${this.paqueteActual.codigo}</p>
-                        <div class="bg-green-50 p-3 rounded-lg mt-3">
-                            <p class="text-green-700"><strong>Turnos anteriores:</strong> ${this.paqueteActual.turns_remaining}</p>
-                            <p class="text-green-700"><strong>Turnos actuales:</strong> ${result.data.nuevos_turnos}</p>
-                        </div>
+              message = `
+                <div class="text-center">
+                  <div class="text-4xl mb-4">✅</div>
+                  <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
+                  <p class="text-gray-700">Se ha procesado la devolución de <strong>${turnosADevolver} turno(s)</strong> para el paquete:</p>
+                  <p class="font-mono text-blue-600 my-2 text-lg">${this.paqueteActual.codigo}</p>
+                  <div class="bg-green-50 p-4 rounded-lg mt-3">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                      <div class="text-left text-green-700">Turnos anteriores:</div>
+                      <div class="text-right font-bold">${this.paqueteActual.turns_remaining}</div>
+                      <div class="text-left text-green-700">Turnos devueltos:</div>
+                      <div class="text-right font-bold text-green-600">+${turnosADevolver}</div>
+                      <div class="text-left text-green-700 font-semibold">Turnos actuales:</div>
+                      <div class="text-right font-bold text-lg">${result.data.nuevos_turnos}</div>
                     </div>
-                `;
+                  </div>
+                </div>
+              `;
             }
             
-            // Actualizar turnos restantes en la UI
             this.paqueteActual.turns_remaining = result.data.nuevos_turnos;
             document.getElementById('package-remaining').textContent = result.data.nuevos_turnos;
             
             this.resultContent.innerHTML = message;
             this.resultMessage.classList.remove('hidden');
+            
+            document.getElementById('normal-refund-controls').classList.add('hidden');
+            document.getElementById('forced-refund-controls').classList.add('hidden');
             this.btnProcessRefund.classList.add('hidden');
             this.btnForceRefund.classList.add('hidden');
-        } else {
+          } else {
             throw new Error(result.message || 'Error desconocido');
+          }
+          
+        } catch (error) {
+          console.error("Error procesando devolución:", error);
+          this.mostrarError("❌ Error en devolución", error.message);
         }
-        
-    } catch (error) {
-        console.error("Error procesando devolución:", error);
-        this.mostrarError("❌ Error en devolución", error.message);
-    }
-},
-
-determinarEstadoDevolucion: function() {
-    const validations = this.paqueteActual.validationResults;
-    const statusElement = document.getElementById('package-status');
-    
-    // Verificar condiciones obligatorias
-    const requiredConditions = [
-        validations.hasPackage,
-        validations.hasTurns,
-        validations.hasSingleUse,
-        validations.noRecentRefunds
-    ];
-    
-    const allRequiredPassed = requiredConditions.every(cond => cond === true);
-    
-    if (allRequiredPassed) {
-        // Todas las condiciones obligatorias pasaron
-        statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
-        statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete cumple todas las condiciones para devolución.</p>';
-        this.btnProcessRefund.classList.remove('hidden');
-        this.btnForceRefund.classList.add('hidden');
-        this.forceRefundWarning.classList.add('hidden');
-    } else {
-        // No cumple todas las condiciones
-        let reason = '';
-        
-        if (!validations.hasPackage) reason = 'No tiene paquete asignado.';
-        else if (!validations.hasTurns) reason = 'No tiene turnos disponibles.';
-        else if (!validations.hasSingleUse) reason = `Tiene ${this.paqueteActual.turnos_usados} usos registrados.`;
-        else if (!validations.noRecentRefunds) reason = 'Ya tiene devoluciones anteriores.';
-        
-        statusElement.innerHTML = `<span class="status-invalid">❌ NO CUMPLE CONDICIONES NORMALES</span>`;
-        statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">${reason}</p>`;
-        
-        // MOSTRAR BOTÓN DE DEVOLUCIÓN FORZADA PARA TODOS LOS USUARIOS
-        // (Eliminada la restricción de roles)
-        this.btnForceRefund.classList.remove('hidden');
-        this.forceRefundWarning.classList.remove('hidden');
-        statusElement.innerHTML += '<p class="text-sm text-yellow-600 mt-2">Se puede realizar devolución forzada como excepción.</p>';
-        
-        this.btnProcessRefund.classList.add('hidden');
-    }
-},
+      },
 
       mostrarCargando: function() {
         this.packageInfo.classList.add('hidden');
@@ -1001,10 +1122,10 @@ determinarEstadoDevolucion: function() {
         this.gameHistorySection.classList.add('hidden');
         this.refundHistorySection.classList.add('hidden');
         this.refundNotes.value = '';
+        this.paqueteActual = null;
       }
     };
 
-    // Inicializar la aplicación cuando el DOM esté listo
     document.addEventListener('DOMContentLoaded', function() {
       PackFailureApp.init();
     });
