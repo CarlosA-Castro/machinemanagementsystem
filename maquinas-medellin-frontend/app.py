@@ -1532,8 +1532,8 @@ def reportar_falla():
         if is_forced:
             user_name = session.get('user_name', 'Sistema')
             cursor.execute("""
-                INSERT INTO error_logs (error_type, error_message, module, user_id, details)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO error_logs (error_type, error_message, module, user_id )
+                VALUES (%s, %s, %s, %s)
             """, (
                 'REFUND_FORCED',
                 f'Devolución forzada de {turnos_devueltos} turnos para QR {qr_code}',
@@ -8805,8 +8805,8 @@ def log_response_info(response):
     
     return response
 
-def log_app_event(level, message, module=None, details=None, user_id=None):
-    """Función para registrar eventos de la aplicación"""
+def log_app_event(level, message, module=None, user_id=None):
+    """Función para registrar eventos de la aplicación - CORREGIDA"""
     try:
         connection = get_db_connection()
         if connection:
@@ -8814,31 +8814,25 @@ def log_app_event(level, message, module=None, details=None, user_id=None):
             
             cursor.execute("""
                 INSERT INTO app_logs 
-                (level, module, message, details, ip_address, user_id)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                (level, module, message, ip_address, user_id)
+                VALUES (%s, %s, %s, %s, %s)
             """, (
                 level,
                 module or 'app',
                 str(message)[:1000],
-                json.dumps(details) if details else None,
                 request.remote_addr if hasattr(request, 'remote_addr') else None,
                 user_id or session.get('user_id')
             ))
             
             connection.commit()
-            
-            # Verificar alertas
-            check_alerts(level, message, module)
-            
             cursor.close()
             connection.close()
             
     except Exception as e:
-        # Fallback a archivo de log si la BD falla
         app.logger.error(f"Error en log_app_event: {e}")
 
 def log_error(error_type, error_message, stack_trace=None, module=None, user_id=None):
-    """Función para registrar errores"""
+    """Función para registrar errores - CORREGIDA"""
     try:
         connection = get_db_connection()
         if connection:
@@ -9004,7 +8998,6 @@ def obtener_logs_consola():
                         level as nivel,
                         message as mensaje,
                         module as modulo,
-                        details,
                         ip_address,
                         user_id,
                         created_at,
@@ -9057,7 +9050,6 @@ def obtener_logs_consola():
                         END as nivel,
                         CONCAT(method, ' ', path, ' -> ', status_code) as mensaje,
                         'http' as modulo,
-                        NULL as details,
                         ip_address,
                         user_id,
                         created_at,
@@ -9111,7 +9103,6 @@ def obtener_logs_consola():
                         CONCAT('Sesión usuario: ', COALESCE(u.name, 'Desconocido'), 
                                ' - Login: ', DATE_FORMAT(s.loginTime, '%%H:%%i:%%s')) as mensaje,
                         'session' as modulo,
-                        NULL as details,
                         NULL as ip_address,
                         s.userId as user_id,
                         s.loginTime as created_at,
@@ -9157,7 +9148,6 @@ def obtener_logs_consola():
                         'ERROR' as nivel,
                         CONCAT(error_type, ': ', SUBSTRING(error_message, 1, 200)) as mensaje,
                         module as modulo,
-                        stack_trace as details,
                         ip_address,
                         user_id,
                         created_at,
@@ -9217,7 +9207,6 @@ def obtener_logs_consola():
                     'timestamp': log.get('created_at').isoformat() if log.get('created_at') else '',
                     'ip': log.get('ip_address', '') or '',
                     'user_id': log.get('user_id'),
-                    'detalles': log.get('details')
                 }
                 
                 # Agregar información específica por fuente
@@ -9871,13 +9860,13 @@ def obtener_dashboard_logs():
 
 # ==================== FUNCIONES DE LOGGING MEJORADAS ====================
 
-def log_info(message, module=None, details=None, user_id=None):
+def log_info(message, module=None, user_id=None):
     """Log de nivel INFO"""
-    log_app_event('INFO', message, module, details, user_id or session.get('user_id'))
+    log_app_event('INFO', message, module, user_id or session.get('user_id'))
 
-def log_warning(message, module=None, details=None, user_id=None):
+def log_warning(message, module=None,  user_id=None):
     """Log de nivel WARNING"""
-    log_app_event('WARNING', message, module, details, user_id or session.get('user_id'))
+    log_app_event('WARNING', message, module, user_id or session.get('user_id'))
 
 def log_error_system(error, module=None, user_id=None):
     """Log de error del sistema"""
@@ -9889,14 +9878,13 @@ def log_error_system(error, module=None, user_id=None):
         user_id or session.get('user_id')
     )
 
-def log_user_action(action, details=None, user_id=None):
+def log_user_action(action, user_id=None):
     """Log de acción de usuario"""
-    log_info(f"Usuario {user_id or session.get('user_id')}: {action}", 
-             'user_action', details, user_id)
+    log_info(f"Usuario {user_id or session.get('user_id')}: {action}", 'user_action')
 
-def log_system_event(event, details=None):
+def log_system_event(event):
     """Log de evento del sistema"""
-    log_info(f"Evento del sistema: {event}", 'system', details)
+    log_info(f"Evento del sistema: {event}", 'system')
 
 @app.route('/admin/logs/backup-manual', methods=['POST'])
 @require_login(['admin'])
