@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
+    /* ===== ESTILOS ORIGINALES CONSERVADOS ===== */
     html, body {
       margin: 0;
       padding: 0;
@@ -83,7 +84,144 @@
       to { transform: rotate(360deg); }
     }
     
-    /* Responsive para tablets y móviles */
+    /* BADGES ORIGINALES */
+    .badge-apto {
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .badge-no-apto {
+      background: #ef4444;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .badge-sin-reporte {
+      background: #f59e0b;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .badge-info {
+      background: #e5e7eb;
+      color: #1f2937;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+    
+    /* TARJETAS HORIZONTALES - ESTILO ORIGINAL */
+    .machines-horizontal {
+      display: flex;
+      overflow-x: auto;
+      gap: 1rem;
+      padding: 0.5rem 0.25rem 1.5rem 0.25rem;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .machine-horizontal-card {
+      min-width: 350px;
+      max-width: 400px;
+      flex: 0 0 auto;
+      background: white;
+      border-radius: 12px;
+      border-left: 6px solid;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 1.25rem;
+    }
+    
+    .machine-horizontal-card.apto {
+      border-left-color: #10b981;
+    }
+    
+    .machine-horizontal-card.no-apto {
+      border-left-color: #ef4444;
+    }
+    
+    .machine-horizontal-card.sin-reporte {
+      border-left-color: #f59e0b;
+    }
+    
+    /* QR INPUT */
+    .qr-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #d1d5db;
+      border-radius: 0.5rem;
+      background-color: #f9fafb;
+      text-align: center;
+      font-family: monospace;
+      font-weight: 500;
+    }
+    
+    .qr-input:focus {
+        border-color: #3b82f6;
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+    }
+    
+    /* BOTONES ORIGINALES */
+    .btn-primary {
+      background-color: #2563eb;
+      color: white;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+    
+    .btn-refund {
+      background-color: #059669;
+      color: white;
+      font-weight: 700;
+      padding: 0.75rem 2rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      transition: all 0.3s;
+    }
+    
+    .btn-refund:hover:not(:disabled) {
+      background-color: #047857;
+    }
+    
+    .btn-refund:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* RESPONSIVE */
     @media (max-width: 1024px) {
       .flex.h-screen {
         flex-direction: column;
@@ -101,80 +239,42 @@
         padding: 1rem !important;
       }
       
-      .sidebar-nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        padding: 1rem;
-      }
-      
-      .sidebar-nav a {
-        flex: 1;
-        min-width: 120px;
-        text-align: center;
-        padding: 0.75rem 0.5rem !important;
-      }
-      
-      .user-info {
-        text-align: center;
-        padding: 1rem;
-      }
-      
-      .contenido {
-        padding: 1rem !important;
-      }
-      
-      .glass-card {
-        padding: 1rem;
-        margin-bottom: 1rem;
+      .machine-horizontal-card {
+        min-width: 300px;
       }
     }
     
     @media (max-width: 768px) {
-      h1 {
-        font-size: 1.5rem !important;
+      .glass-card {
+        padding: 1rem;
       }
       
-      h2 {
-        font-size: 1.25rem !important;
-      }
-      
-      .grid-cols-1 {
-        grid-template-columns: 1fr !important;
-      }
-      
-      .info-grid {
-        grid-template-columns: 1fr !important;
-        gap: 0.5rem !important;
-      }
-      
-      .btn-touch {
-        width: 100%;
-      }
-      
-      #html5-qrcode-container {
-        max-width: 100% !important;
+      .machine-horizontal-card {
+        min-width: 280px;
       }
     }
     
-    @media (max-width: 480px) {
-      .glass-card {
-        padding: 0.75rem;
-      }
-      
-      .btn-touch {
-        padding: 1rem 0.5rem;
-        font-size: 0.9rem;
-      }
-      
-      .text-lg {
-        font-size: 1rem !important;
-      }
-      
-      .text-3xl {
-        font-size: 1.75rem !important;
-      }
+    /* TIMESTAMP */
+    .timestamp {
+      color: #6b7280;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
     }
+    
+    /* STATUS DOT */
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .status-dot.green { background: #10b981; }
+    .status-dot.red { background: #ef4444; }
+    .status-dot.yellow { background: #f59e0b; }
+    .status-dot.blue { background: #3b82f6; }
   </style>
 </head>
 
@@ -182,7 +282,7 @@
   <div id="particles-js"></div>
 
   <div class="flex flex-col lg:flex-row min-h-screen">
-    <!-- Barra lateral responsive -->
+    <!-- ===== SIDEBAR ORIGINAL ===== -->
     <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
         <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
@@ -213,7 +313,7 @@
           </a>
         </div>
       </div>
-      <!-- Información de usuario CON HORA ACTUAL -->
+      <!-- INFO USUARIO ORIGINAL -->
       <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
         <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
@@ -228,25 +328,27 @@
       </div>
     </aside>
 
-    <!-- Contenido principal -->
+    <!-- ===== CONTENIDO PRINCIPAL ===== -->
     <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
-      <div class="contenido max-w-4xl mx-auto space-y-6">
-        <!-- Encabezado -->
+      <div class="contenido max-w-6xl mx-auto space-y-6">
+        
+        <!-- ===== HEADER ORIGINAL ===== -->
         <div class="glass-card text-center">
           <h1 class="text-3xl font-bold mb-3">
             <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>Devolución de Turnos
           </h1>
           <p class="text-gray-700">
-            Sistema de devolución con validación completa de paquetes
+            Sistema de devolución con validación completa - 1 devolución por QR
           </p>
           <div class="mt-4 flex flex-wrap gap-2 justify-center">
             <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Validación QR</span>
             <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Historial de juegos</span>
-            <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Devolución forzada</span>
+            <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Línea de tiempo</span>
+            <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">1 devolución</span>
           </div>
         </div>
 
-        <!-- Sección de escaneo QR -->
+        <!-- ===== ESCÁNER QR - ORIGINAL ===== -->
         <div class="glass-card">
           <h2 class="text-xl font-semibold mb-4">
             <i class="fas fa-qrcode text-green-600 mr-2"></i>Escanear Código QR del Paquete
@@ -276,193 +378,153 @@
           </div>
         </div>
 
-        <!-- Información del paquete con validación extendida -->
-        <div id="package-info" class="glass-card hidden">
-          <h2 class="text-xl font-semibold mb-4">
-            <i class="fas fa-info-circle text-purple-600 mr-2"></i>Información Detallada del Paquete
-          </h2>
+        <!-- ===== INFO GENERAL QR (aparece después del scan) ===== -->
+        <div id="qr-info-panel" class="glass-card hidden">
+          <div class="flex justify-between items-start mb-4">
+            <h2 class="text-xl font-semibold">
+              <i class="fas fa-cube text-purple-600 mr-2"></i>Información del Paquete
+            </h2>
+            <span id="qr-status-badge" class="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full">Activo</span>
+          </div>
           
-          <!-- Información básica -->
-          <div class="info-grid grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Código QR -->
             <div class="bg-gray-50 p-3 rounded-lg">
-              <h3 class="font-semibold text-gray-700">Código QR:</h3>
-              <p id="package-code" class="font-mono text-blue-600 text-sm"></p>
+              <h3 class="font-semibold text-gray-700 text-sm">Código QR</h3>
+              <p id="info-qr-code" class="font-mono text-blue-600 text-sm font-medium mt-1 truncate">-</p>
+              <p id="info-qr-id" class="text-xs text-gray-500 mt-0.5">ID: -</p>
             </div>
             
+            <!-- Paquete -->
             <div class="bg-gray-50 p-3 rounded-lg">
-              <h3 class="font-semibold text-gray-700">Turnos usados:</h3>
-              <p id="package-usage" class="font-bold"></p>
+              <h3 class="font-semibold text-gray-700 text-sm">Paquete</h3>
+              <p id="info-package-name" class="font-medium text-gray-900 mt-1">-</p>
+              <p id="info-package-price" class="text-xs text-green-600 mt-0.5">-</p>
             </div>
-
+            
+            <!-- Turnos Totales -->
             <div class="bg-gray-50 p-3 rounded-lg">
-              <h3 class="font-semibold text-gray-700">Paquete:</h3>
-              <p id="package-name" class="text-sm"></p>
+              <h3 class="font-semibold text-gray-700 text-sm">Turnos Totales</h3>
+              <p id="info-total-turns" class="text-2xl font-bold text-gray-900 mt-1">-</p>
             </div>
-
+            
+            <!-- Turnos Restantes -->
             <div class="bg-gray-50 p-3 rounded-lg">
-              <h3 class="font-semibold text-gray-700">Turnos totales:</h3>
-              <p id="package-turns" class=""></p>
-            </div>
-
-            <div class="bg-gray-50 p-3 rounded-lg">
-              <h3 class="font-semibold text-gray-700">Turnos restantes:</h3>
-              <p id="package-remaining" class="font-bold"></p>
-            </div>
-
-            <div class="bg-gray-50 p-3 rounded-lg">
-              <h3 class="font-semibold text-gray-700">ID QR:</h3>
-              <p id="package-qr-id" class="font-mono text-sm"></p>
+              <h3 class="font-semibold text-gray-700 text-sm">Disponibles</h3>
+              <p id="info-remaining-turns" class="text-2xl font-bold text-green-600 mt-1">-</p>
             </div>
           </div>
+          
+          <!-- Estado de devolución -->
+          <div id="devolucion-status-container" class="mt-4 hidden"></div>
+        </div>
 
-          <!-- Historial de juegos -->
-          <div id="game-history-section" class="bg-gray-50 p-3 rounded-lg mb-4 hidden">
-            <h3 class="font-semibold text-gray-700 mb-2">Historial de Juegos Recientes:</h3>
-            <div id="game-history-list" class="text-sm space-y-1"></div>
-            <p id="no-game-history" class="text-gray-500 text-sm hidden">No hay juegos registrados recientemente.</p>
+        <!-- ===== HISTORIAL HORIZONTAL POR MÁQUINA (NUEVO, CON ESTILO ORIGINAL) ===== -->
+        <div id="historial-container" class="glass-card hidden">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold">
+              <i class="fas fa-history text-blue-600 mr-2"></i>Línea de tiempo por máquina
+            </h2>
+            <span id="games-counter" class="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700">
+              <i class="fas fa-gamepad mr-1 text-blue-600"></i>
+              <span id="games-count">0</span> juegos
+            </span>
           </div>
-
-          <!-- Historial de devoluciones -->
-          <div id="refund-history-section" class="bg-gray-50 p-3 rounded-lg mb-4 hidden">
-            <h3 class="font-semibold text-gray-700 mb-2">Devoluciones Anteriores:</h3>
-            <div id="refund-history-list" class="text-sm space-y-1"></div>
-            <p id="no-refund-history" class="text-gray-500 text-sm hidden">No hay devoluciones anteriores.</p>
+          
+          <!-- CONTENEDOR HORIZONTAL SCROLL -->
+          <div id="machines-horizontal-container" class="machines-horizontal">
+            <!-- Las tarjetas se inyectan con JS -->
           </div>
-
-          <!-- Estado para devolución -->
-          <div class="bg-gray-50 p-3 rounded-lg mb-4">
-            <h3 class="font-semibold text-gray-700 mb-2">Validación para devolución:</h3>
-            <div id="validation-checks" class="space-y-2 mb-2"></div>
-            <p id="package-status" class="font-bold text-lg"></p>
+          
+          <!-- LEYENDA -->
+          <div class="mt-4 pt-3 border-t border-gray-200 flex flex-wrap gap-4 justify-center text-xs">
+            <span class="flex items-center gap-1.5">
+              <span class="status-dot green"></span> Apto para devolución
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="status-dot yellow"></span> Sin reporte de falla
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="status-dot red"></span> No apto - alguien jugó después
+            </span>
+            <span class="flex items-center gap-1.5">
+              <i class="fas fa-check-circle text-green-600 text-xs"></i> Reportado TFT
+            </span>
+            <span class="flex items-center gap-1.5">
+              <i class="fas fa-exclamation-triangle text-yellow-600 text-xs"></i> Devolución forzada
+            </span>
           </div>
+        </div>
 
-          <!-- Notas adicionales -->
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Notas de la devolución:</label>
-            <textarea 
-              id="refund-notes" 
-              class="w-full p-3 border-2 border-gray-300 rounded-lg bg-gray-50"
-              rows="2"
-              placeholder="Motivo de la devolución (opcional)"
-            ></textarea>
-          </div>
-
-          <!-- Botones de acción con selector de turnos -->
-          <div id="action-buttons" class="flex flex-col gap-2 justify-center">
-            <!-- Selector de turnos para devolución normal -->
-            <div id="normal-refund-controls" class="hidden w-full">
-              <div class="bg-green-50 p-4 rounded-lg border border-green-200 mb-2">
-                <label class="block text-sm font-medium text-green-800 mb-2">
-                  <i class="fas fa-ticket-alt mr-1"></i> Selecciona turnos a devolver:
-                </label>
-                <div class="flex items-center gap-2">
-                  <button type="button" id="decrease-turns" class="bg-green-200 hover:bg-green-300 text-green-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
-                    <i class="fas fa-minus"></i>
-                  </button>
-                  <input 
-                    type="number" 
-                    id="turnos-devolver" 
-                    class="flex-1 text-center p-3 border-2 border-green-300 rounded-lg bg-white font-bold text-lg"
-                    value="1"
-                    min="1"
-                    max="10"
-                    readonly
-                  >
-                  <button type="button" id="increase-turns" class="bg-green-200 hover:bg-green-300 text-green-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-                <p class="text-xs text-green-600 mt-2">
-                  <i class="fas fa-info-circle"></i> Máximo 10 turnos por devolución
+        <!-- ===== BOTÓN DE DEVOLUCIÓN GLOBAL ===== -->
+        <div id="refund-action-container" class="glass-card hidden">
+          <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="bg-green-100 p-3 rounded-lg">
+                <i class="fas fa-ticket-alt text-green-600 text-xl"></i>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600">Acción disponible</p>
+                <h3 id="refund-title" class="text-xl font-bold text-gray-900">Devolver 1 turno</h3>
+                <p id="refund-subtitle" class="text-xs text-gray-500 mt-0.5">
+                  Límite: 1 devolución por QR
                 </p>
               </div>
+            </div>
+            
+            <div class="flex flex-col items-end gap-1">
               <button 
                 id="btn-process-refund" 
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg btn-touch font-bold w-full"
+                class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 btn-touch"
+                disabled
               >
-                <i class="fas fa-check-circle mr-2"></i> Devolver <span id="turnos-normal-label">1</span> turno(s)
+                <i class="fas fa-rotate-left"></i>
+                <span id="btn-refund-text">DEVOLVER 1 TURNO</span>
               </button>
-            </div>
-            
-            <!-- Selector de turnos para devolución forzada -->
-            <div id="forced-refund-controls" class="hidden w-full">
-              <div class="bg-red-50 p-4 rounded-lg border border-red-200 mb-2">
-                <label class="block text-sm font-medium text-red-800 mb-2">
-                  <i class="fas fa-exclamation-triangle mr-1"></i> Devolución Forzada - Selecciona turnos:
-                </label>
-                <div class="flex items-center gap-2">
-                  <button type="button" id="decrease-forced-turns" class="bg-red-200 hover:bg-red-300 text-red-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
-                    <i class="fas fa-minus"></i>
-                  </button>
-                  <input 
-                    type="number" 
-                    id="turnos-forzados-devolver" 
-                    class="flex-1 text-center p-3 border-2 border-red-300 rounded-lg bg-white font-bold text-lg"
-                    value="1"
-                    min="1"
-                    max="20"
-                    readonly
-                  >
-                  <button type="button" id="increase-forced-turns" class="bg-red-200 hover:bg-red-300 text-red-800 w-10 h-10 rounded-lg font-bold text-xl flex items-center justify-center">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-                <p class="text-xs text-red-600 mt-2">
-                  <i class="fas fa-info-circle"></i> Máximo 20 turnos por devolución forzada
-                </p>
-              </div>
-              <button 
-                id="btn-force-refund" 
-                class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg btn-touch font-bold w-full"
-              >
-                <i class="fas fa-exclamation-triangle mr-2"></i> Devolver <span id="turnos-forzados-label">1</span> turno(s) (Forzado)
-              </button>
-            </div>
-            
-            <button 
-              id="btn-cancel" 
-              class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg btn-touch"
-            >
-              <i class="fas fa-sync mr-2"></i> Escanear otro
-            </button>
-          </div>
-          
-          <!-- Advertencia de devolución forzada -->
-          <div id="force-refund-warning" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg hidden">
-            <div class="flex items-start">
-              <i class="fas fa-exclamation-triangle text-red-500 mt-1 mr-2"></i>
-              <div>
-                <p class="font-semibold text-red-700">Devolución Forzada</p>
-                <p class="text-red-600 text-sm">Esta acción devolverá turnos aunque no se cumplan todas las condiciones de validación. Se registrará como devolución excepcional.</p>
-              </div>
+              <p id="refund-warning" class="text-xs text-red-600 hidden">
+                <i class="fas fa-info-circle"></i> Límite alcanzado (1/1)
+              </p>
             </div>
           </div>
         </div>
 
-        <!-- Mensaje de resultado -->
-        <div id="result-message" class="glass-card hidden">
-          <h2 class="text-xl font-semibold mb-3">
-            <i class="fas fa-clipboard-list text-orange-600 mr-2"></i>Resultado
-          </h2>
-          <div id="result-content" class="p-3 rounded-lg bg-gray-50"></div>
-        </div>
+        <!-- ===== MENSAJES DE RESULTADO ===== -->
+        <div id="result-message" class="glass-card hidden"></div>
+        
       </div>
     </main>
   </div>
 
   <script>
-    // Namespace para PackFailure App
+    // ==========================================
+    // PACKFAILURE APP - ESTILO ORIGINAL
+    // ==========================================
     const PackFailureApp = {
-      // Selector de turnos
-      turnSelector: {
-        normal: 1,
-        forced: 1,
-        maxNormal: 10,
-        maxForced: 20
-      },
-
+      
+      qrActual: null,
+      historialCompleto: null,
+      juegoSeleccionado: null,
+      scannerActivo: false,
+      html5QrCodeScanner: null,
+      
       init: function() {
-        // Configuración de partículas optimizada
+        console.log('🚀 Inicializando PackFailure App');
+        
+        // Partículas originales
+        this.initParticles();
+        
+        // Elementos DOM
+        this.cacheElements();
+        
+        // Event listeners
+        this.initEventListeners();
+        
+        // Hora actual
+        this.actualizarHora();
+        setInterval(() => this.actualizarHora(), 1000);
+      },
+      
+      initParticles: function() {
         particlesJS('particles-js', {
           particles: {
             number: { value: 50, density: { enable: true, value_area: 600 } },
@@ -487,132 +549,383 @@
           },
           retina_detect: true
         });
-
-        // Inicializar hora en tiempo real
-        this.actualizarHora();
-        setInterval(() => this.actualizarHora(), 1000);
-
-        // Inicializar controles de turnos
-        this.initTurnControls();
-
-        // Variables para el escáner QR
-        this.html5QrCodeScanner = null;
-        this.scannerActivo = false;
-        this.paqueteActual = null;
-        this.validationResults = {
-          hasPackage: false,
-          hasTurns: false,
-          hasSingleUse: false,
-          noRecentRefunds: true,
-          hasRecentGames: false
-        };
-        
-        // Elementos del DOM
+      },
+      
+      cacheElements: function() {
+        // Escáner
         this.qrResult = document.getElementById('qr-result');
         this.btnScanQR = document.getElementById('btn-scan-qr');
         this.scannerText = document.getElementById('scanner-text');
         this.html5QrcodeContainer = document.getElementById('html5-qrcode-container');
-        this.packageInfo = document.getElementById('package-info');
+        
+        // Paneles
+        this.qrInfoPanel = document.getElementById('qr-info-panel');
+        this.historialContainer = document.getElementById('historial-container');
+        this.refundActionContainer = document.getElementById('refund-action-container');
         this.resultMessage = document.getElementById('result-message');
-        this.resultContent = document.getElementById('result-content');
+        this.machinesContainer = document.getElementById('machines-horizontal-container');
+        
+        // Info QR
+        this.infoQrCode = document.getElementById('info-qr-code');
+        this.infoQrId = document.getElementById('info-qr-id');
+        this.infoPackageName = document.getElementById('info-package-name');
+        this.infoPackagePrice = document.getElementById('info-package-price');
+        this.infoTotalTurns = document.getElementById('info-total-turns');
+        this.infoRemainingTurns = document.getElementById('info-remaining-turns');
+        
+        // Botón devolución
         this.btnProcessRefund = document.getElementById('btn-process-refund');
-        this.btnForceRefund = document.getElementById('btn-force-refund');
-        this.btnCancel = document.getElementById('btn-cancel');
-        this.validationChecks = document.getElementById('validation-checks');
-        this.gameHistorySection = document.getElementById('game-history-section');
-        this.gameHistoryList = document.getElementById('game-history-list');
-        this.noGameHistory = document.getElementById('no-game-history');
-        this.refundHistorySection = document.getElementById('refund-history-section');
-        this.refundHistoryList = document.getElementById('refund-history-list');
-        this.noRefundHistory = document.getElementById('no-refund-history');
-        this.forceRefundWarning = document.getElementById('force-refund-warning');
-        this.refundNotes = document.getElementById('refund-notes');
-
-        // Event listeners
+        this.btnRefundText = document.getElementById('btn-refund-text');
+        this.refundWarning = document.getElementById('refund-warning');
+        this.refundTitle = document.getElementById('refund-title');
+        this.refundSubtitle = document.getElementById('refund-subtitle');
+        
+        // Contador
+        this.gamesCount = document.getElementById('games-count');
+        this.devolucionStatusContainer = document.getElementById('devolucion-status-container');
+      },
+      
+      initEventListeners: function() {
         this.btnScanQR.addEventListener('click', () => this.toggleScanner());
-        this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion(false));
-        this.btnForceRefund.addEventListener('click', () => this.procesarDevolucion(true));
-        this.btnCancel.addEventListener('click', () => this.limpiarFormulario());
-
-        console.log("PackFailure App inicializada correctamente");
+        this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion());
       },
-
-      // Inicializar controles de turnos
-      initTurnControls: function() {
-        // Controles para devolución normal
-        const decreaseBtn = document.getElementById('decrease-turns');
-        const increaseBtn = document.getElementById('increase-turns');
-        const turnosInput = document.getElementById('turnos-devolver');
-        const turnosLabel = document.getElementById('turnos-normal-label');
-        
-        if (decreaseBtn && increaseBtn && turnosInput) {
-          decreaseBtn.addEventListener('click', () => {
-            let valor = parseInt(turnosInput.value);
-            if (valor > 1) {
-              valor--;
-              turnosInput.value = valor;
-              this.turnSelector.normal = valor;
-              if (turnosLabel) turnosLabel.textContent = valor;
-            }
-          });
-          
-          increaseBtn.addEventListener('click', () => {
-            let valor = parseInt(turnosInput.value);
-            if (valor < this.turnSelector.maxNormal) {
-              valor++;
-              turnosInput.value = valor;
-              this.turnSelector.normal = valor;
-              if (turnosLabel) turnosLabel.textContent = valor;
-            }
-          });
-        }
-        
-        // Controles para devolución forzada
-        const decreaseForcedBtn = document.getElementById('decrease-forced-turns');
-        const increaseForcedBtn = document.getElementById('increase-forced-turns');
-        const turnosForcedInput = document.getElementById('turnos-forzados-devolver');
-        const turnosForcedLabel = document.getElementById('turnos-forzados-label');
-        
-        if (decreaseForcedBtn && increaseForcedBtn && turnosForcedInput) {
-          decreaseForcedBtn.addEventListener('click', () => {
-            let valor = parseInt(turnosForcedInput.value);
-            if (valor > 1) {
-              valor--;
-              turnosForcedInput.value = valor;
-              this.turnSelector.forced = valor;
-              if (turnosForcedLabel) turnosForcedLabel.textContent = valor;
-            }
-          });
-          
-          increaseForcedBtn.addEventListener('click', () => {
-            let valor = parseInt(turnosForcedInput.value);
-            if (valor < this.turnSelector.maxForced) {
-              valor++;
-              turnosForcedInput.value = valor;
-              this.turnSelector.forced = valor;
-              if (turnosForcedLabel) turnosForcedLabel.textContent = valor;
-            }
-          });
+      
+      toggleScanner: function() {
+        if (this.scannerActivo) {
+          this.detenerScanner();
+          this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+        } else {
+          this.iniciarScanner();
+          this.scannerText.innerHTML = '<div class="loading mr-2"></div> Escaneando...';
         }
       },
-
-      // Función para actualizar la hora en tiempo real
+      
+      iniciarScanner: function() {
+        if (!this.html5QrCodeScanner) {
+          this.html5QrCodeScanner = new Html5QrcodeScanner(
+            'html5-qrcode-scanner',
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            false
+          );
+          
+          this.html5QrCodeScanner.render(
+            (decodedText) => {
+              this.qrResult.value = decodedText;
+              this.detenerScanner();
+              this.html5QrcodeContainer.classList.add('hidden');
+              this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
+              this.scannerActivo = false;
+              this.cargarHistorialCompleto(decodedText);
+            },
+            (error) => {}
+          );
+        }
+        
+        this.html5QrcodeContainer.classList.remove('hidden');
+        this.scannerActivo = true;
+      },
+      
+      detenerScanner: function() {
+        if (this.html5QrCodeScanner) {
+          this.html5QrCodeScanner.clear().catch(() => {});
+        }
+        this.html5QrcodeContainer.classList.add('hidden');
+        this.scannerActivo = false;
+      },
+      
+      cargarHistorialCompleto: async function(qrCode) {
+        try {
+          this.mostrarCargando('Verificando el paquete, por favor espera...');
+          
+          const response = await fetch(`/api/qr/historial-completo/${qrCode}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+          
+          if (!response.ok) throw new Error('Error cargando historial');
+          
+          const data = await response.json();
+          this.historialCompleto = data;
+          this.qrActual = qrCode;
+          
+          // Renderizar
+          this.renderizarInfoGeneral(data);
+          this.renderizarHistorialHorizontal(data.historial);
+          this.renderizarBotonDevolucion(data);
+          
+          // Mostrar paneles
+          this.qrInfoPanel.classList.remove('hidden');
+          this.historialContainer.classList.remove('hidden');
+          this.refundActionContainer.classList.remove('hidden');
+          this.resultMessage.classList.add('hidden');
+          
+        } catch (error) {
+          console.error(error);
+          this.mostrarError('Error de conexión', 'No se pudo verificar el paquete. Intenta nuevamente.');
+        }
+      },
+      
+      renderizarInfoGeneral: function(data) {
+        // Datos básicos
+        this.infoQrCode.textContent = data.qr.codigo || '-';
+        this.infoQrId.textContent = `ID: ${data.qr.id || '-'}`;
+        this.infoPackageName.textContent = data.paquete.nombre || 'Sin paquete';
+        this.infoPackagePrice.textContent = data.paquete.precio ? `$${data.paquete.precio.toLocaleString()}` : '-';
+        this.infoTotalTurns.textContent = data.turnos.totales || 0;
+        this.infoRemainingTurns.textContent = data.turnos.restantes || 0;
+        
+        // Estado de devolución
+        this.devolucionStatusContainer.classList.remove('hidden');
+        
+        if (data.devolucion.ya_tuvo) {
+          this.devolucionStatusContainer.innerHTML = `
+            <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
+              <div class="flex items-center gap-2">
+                <i class="fas fa-ban text-red-500"></i>
+                <span class="font-medium text-red-700">Límite de devolución alcanzado</span>
+              </div>
+              <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
+                ${data.devolucion.turnos_devueltos_total || 1} turno devuelto
+              </span>
+            </div>
+          `;
+        } else {
+          this.devolucionStatusContainer.innerHTML = `
+            <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
+              <div class="flex items-center gap-2">
+                <i class="fas fa-check-circle text-green-500"></i>
+                <span class="font-medium text-green-700">Disponible para devolución</span>
+              </div>
+              <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                1 devolución disponible
+              </span>
+            </div>
+          `;
+        }
+      },
+      
+      renderizarHistorialHorizontal: function(historial) {
+        if (!historial || historial.length === 0) {
+          this.machinesContainer.innerHTML = `
+            <div class="bg-gray-50 p-8 text-center rounded-lg w-full">
+              <i class="fas fa-history text-3xl text-gray-400 mb-2"></i>
+              <p class="text-gray-500">Este QR no tiene juegos registrados</p>
+            </div>
+          `;
+          this.gamesCount.textContent = '0';
+          return;
+        }
+        
+        this.gamesCount.textContent = historial.length;
+        
+        let html = '';
+        
+        historial.forEach((juego) => {
+          let borderClass = '';
+          let badgeHtml = '';
+          
+          if (juego.validacion.estado === 'APTO') {
+            borderClass = 'apto';
+            badgeHtml = `<span class="badge-apto"><i class="fas fa-check-circle mr-1"></i>APTO</span>`;
+          } else if (juego.validacion.estado === 'NO_APTO') {
+            borderClass = 'no-apto';
+            badgeHtml = `<span class="badge-no-apto"><i class="fas fa-times-circle mr-1"></i>NO APTO</span>`;
+          } else {
+            borderClass = 'sin-reporte';
+            badgeHtml = `<span class="badge-sin-reporte"><i class="fas fa-exclamation-triangle mr-1"></i>SIN REPORTE</span>`;
+          }
+          
+          let fallaBadge = '';
+          if (juego.falla.hubo) {
+            fallaBadge = juego.falla.forzada 
+              ? `<span class="badge-info"><i class="fas fa-exclamation-triangle text-yellow-600 mr-1"></i>Dev. forzada</span>`
+              : `<span class="badge-info"><i class="fas fa-check-circle text-green-600 mr-1"></i>Reportado TFT</span>`;
+          } else {
+            fallaBadge = `<span class="badge-info"><i class="fas fa-circle text-gray-500 mr-1"></i>Sin reporte</span>`;
+          }
+          
+          html += `
+            <div class="machine-horizontal-card ${borderClass}">
+              <div class="flex justify-between items-start mb-3">
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <i class="fas fa-gamepad text-gray-700"></i>
+                    <h3 class="font-semibold text-gray-900">${juego.machine.nombre}</h3>
+                  </div>
+                  <div class="timestamp mt-0.5">
+                    <i class="far fa-clock"></i>
+                    ${juego.fecha_formateada || ''}
+                  </div>
+                </div>
+                ${badgeHtml}
+              </div>
+              
+              <div class="grid grid-cols-3 gap-1 mb-3">
+                <div class="bg-gray-100 p-2 rounded text-center">
+                  <p class="text-xs text-gray-600">ANTES</p>
+                  <p class="text-lg font-bold text-gray-900">${juego.turnos.antes || '?'}</p>
+                </div>
+                <div class="bg-blue-100 p-2 rounded text-center">
+                  <p class="text-xs text-blue-700">GASTADO</p>
+                  <p class="text-lg font-bold text-blue-700">-1</p>
+                </div>
+                <div class="bg-gray-100 p-2 rounded text-center">
+                  <p class="text-xs text-gray-600">DESPUÉS</p>
+                  <p class="text-lg font-bold text-gray-900">${juego.turnos.despues || juego.turnos.antes - 1 || '?'}</p>
+                </div>
+              </div>
+              
+              <div class="border-t border-gray-200 pt-2 mt-1">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-gray-600">Falla:</span>
+                  ${fallaBadge}
+                </div>
+                
+                ${juego.uso_posterior.hubo ? `
+                  <div class="flex items-center gap-1.5 mt-1.5 text-xs">
+                    <span class="status-dot red"></span>
+                    <span class="text-gray-600">Alguien jugó después: ${juego.uso_posterior.fecha_formateada || ''}</span>
+                  </div>
+                ` : ''}
+              </div>
+              
+              <div class="mt-3 pt-2 border-t border-gray-200">
+                <button 
+                  onclick="PackFailureApp.seleccionarJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}')"
+                  class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${this.historialCompleto?.devolucion?.ya_tuvo ? 'opacity-50 cursor-not-allowed' : ''}"
+                  ${this.historialCompleto?.devolucion?.ya_tuvo ? 'disabled' : ''}
+                >
+                  <i class="fas fa-rotate-left"></i>
+                  Seleccionar este juego
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        
+        this.machinesContainer.innerHTML = html;
+      },
+      
+      renderizarBotonDevolucion: function(data) {
+        if (data.devolucion.ya_tuvo) {
+          this.btnProcessRefund.disabled = true;
+          this.btnProcessRefund.classList.add('opacity-50', 'cursor-not-allowed');
+          this.btnRefundText.textContent = 'LÍMITE ALCANZADO';
+          this.refundWarning.classList.remove('hidden');
+          this.refundTitle.textContent = 'Devolución no disponible';
+          this.refundSubtitle.textContent = 'Este QR ya utilizó su única devolución';
+        } else {
+          this.btnProcessRefund.disabled = true;
+          this.btnProcessRefund.classList.remove('opacity-50', 'cursor-not-allowed');
+          this.btnRefundText.textContent = 'DEVOLVER 1 TURNO';
+          this.refundWarning.classList.add('hidden');
+          this.refundTitle.textContent = 'Devolver 1 turno';
+          this.refundSubtitle.textContent = 'Selecciona un juego de la línea de tiempo';
+        }
+      },
+      
+      seleccionarJuego: function(usageId, machineId, fecha) {
+        if (this.historialCompleto?.devolucion?.ya_tuvo) {
+          alert('❌ Este QR ya recibió su única devolución');
+          return;
+        }
+        
+        this.juegoSeleccionado = {
+          usage_id: usageId,
+          machine_id: machineId,
+          fecha: fecha
+        };
+        
+        this.btnProcessRefund.disabled = false;
+      },
+      
+      procesarDevolucion: async function() {
+        if (!this.juegoSeleccionado) {
+          alert('⚠️ Debes seleccionar un juego de la línea de tiempo');
+          return;
+        }
+        
+        if (!confirm('¿Estás seguro de devolver 1 turno para este juego?')) {
+          return;
+        }
+        
+        try {
+          this.btnProcessRefund.disabled = true;
+          this.btnProcessRefund.innerHTML = '<div class="loading mr-2"></div> Procesando...';
+          
+          const response = await fetch('/api/qr/procesar-devolucion', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+              qr_code: this.qrActual,
+              machine_id: this.juegoSeleccionado.machine_id,
+              usage_id: this.juegoSeleccionado.usage_id,
+              is_forced: false,
+              notes: `Devolución - Juego: ${this.juegoSeleccionado.fecha}`
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) throw new Error(result.message || 'Error en devolución');
+          
+          this.mostrarExito(`✅ Devolución exitosa. Turnos restantes: ${result.data.turnos_restantes}`);
+          await this.cargarHistorialCompleto(this.qrActual);
+          
+        } catch (error) {
+          console.error(error);
+          alert(`Error: ${error.message}`);
+          this.btnProcessRefund.disabled = false;
+          this.btnProcessRefund.innerHTML = '<i class="fas fa-rotate-left"></i> DEVOLVER 1 TURNO';
+        }
+      },
+      
+      mostrarCargando: function(mensaje) {
+        this.resultMessage.classList.remove('hidden');
+        this.resultMessage.innerHTML = `
+          <div class="text-center py-6">
+            <div class="loading mx-auto mb-3"></div>
+            <p class="text-gray-700">${mensaje}</p>
+          </div>
+        `;
+      },
+      
+      mostrarExito: function(mensaje) {
+        this.resultMessage.classList.remove('hidden');
+        this.resultMessage.innerHTML = `
+          <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div class="bg-green-100 p-2 rounded-full">
+              <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+            <div>
+              <p class="font-medium text-green-800">${mensaje}</p>
+              <p class="text-sm text-gray-600 mt-0.5">La devolución ha sido registrada exitosamente</p>
+            </div>
+          </div>
+        `;
+      },
+      
+      mostrarError: function(titulo, mensaje) {
+        this.resultMessage.classList.remove('hidden');
+        this.resultMessage.innerHTML = `
+          <div class="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div class="bg-red-100 p-2 rounded-full">
+              <i class="fas fa-exclamation-circle text-red-600"></i>
+            </div>
+            <div>
+              <p class="font-medium text-red-800">${titulo}</p>
+              <p class="text-sm text-gray-600 mt-0.5">${mensaje}</p>
+            </div>
+          </div>
+        `;
+      },
+      
       actualizarHora: function() {
         const ahora = new Date();
-        const opciones = { 
-          timeZone: 'America/Bogota',
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        };
-        
-        const opcionesFecha = {
-          timeZone: 'America/Bogota',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        };
+        const opciones = { timeZone: 'America/Bogota', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const opcionesFecha = { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' };
         
         const hora = ahora.toLocaleTimeString('es-CO', opciones);
         const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
@@ -622,511 +935,10 @@
         
         if (horaSidebar) horaSidebar.textContent = hora;
         if (fechaSidebar) fechaSidebar.textContent = fecha;
-      },
-
-      toggleScanner: function() {
-        if (this.scannerActivo) {
-          this.detenerScanner();
-          this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-          return;
-        }
-        
-        this.iniciarScanner();
-        this.scannerText.innerHTML = '<div class="loading mr-2"></div> Escaneando...';
-      },
-
-      iniciarScanner: function() {
-        if (!this.html5QrCodeScanner) {
-          this.html5QrCodeScanner = new Html5QrcodeScanner(
-            "html5-qrcode-scanner",
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            false
-          );
-
-          this.html5QrCodeScanner.render(
-            (decodedText) => {
-              this.qrResult.value = decodedText;
-              this.detenerScanner();
-              this.html5QrcodeContainer.classList.add("hidden");
-              this.scannerText.innerHTML = '<i class="fas fa-camera mr-2"></i>Escanear QR';
-              this.scannerActivo = false;
-              this.verificarPaqueteCompleto(decodedText);
-            },
-            (errorMessage) => {
-              console.log("Error escaneando:", errorMessage);
-            }
-          );
-        }
-        
-        this.html5QrcodeContainer.classList.remove("hidden");
-        this.scannerActivo = true;
-      },
-
-      detenerScanner: function() {
-        if (this.html5QrCodeScanner) {
-          this.html5QrCodeScanner.clear().catch(error => {
-            console.error("Error al detener el escáner:", error);
-          });
-        }
-        this.html5QrcodeContainer.classList.add("hidden");
-        this.scannerActivo = false;
-      },
-
-      verificarPaqueteCompleto: async function(codigoQR) {
-        try {
-          this.mostrarCargando();
-          
-          const qrResponse = await fetch(`/api/verificar-qr/${codigoQR}`, {
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          });
-          
-          if (!qrResponse.ok) {
-            throw new Error('Error en la respuesta del servidor');
-          }
-          
-          const qrData = await qrResponse.json();
-          
-          if (!qrData.existe) {
-            this.mostrarError("❌ QR no encontrado", "El código QR escaneado no existe en el sistema.");
-            return;
-          }
-          
-          const qrIdResponse = await fetch(`/api/qr-id/${codigoQR}`);
-          let qrId = null;
-          if (qrIdResponse.ok) {
-            const qrIdData = await qrIdResponse.json();
-            qrId = qrIdData.id;
-          }
-          
-          let gameHistory = [];
-          try {
-            const gameResponse = await fetch(`/api/historial-juegos/${codigoQR}?limit=5`);
-            if (gameResponse.ok) {
-              gameHistory = await gameResponse.json();
-            }
-          } catch (e) {
-            console.log("Error obteniendo historial de juegos:", e);
-          }
-          
-          let refundHistory = [];
-          try {
-            const refundResponse = await fetch(`/api/historial-devoluciones/${codigoQR}`);
-            if (refundResponse.ok) {
-              refundHistory = await refundResponse.json();
-            }
-          } catch (e) {
-            console.log("Error obteniendo historial de devoluciones:", e);
-          }
-          
-          const turnosUsados = qrData.total_turns - qrData.turns_remaining;
-          
-          this.paqueteActual = {
-            codigo: codigoQR,
-            qr_id: qrId,
-            turns_remaining: qrData.turns_remaining,
-            total_turns: qrData.total_turns,
-            turnos_usados: turnosUsados,
-            package_name: qrData.package_name,
-            package_id: qrData.turnPackageId,
-            game_history: gameHistory,
-            refund_history: refundHistory,
-            validationResults: this.validarPaquete(qrData, turnosUsados, gameHistory, refundHistory)
-          };
-          
-          this.mostrarInformacionCompletaPaquete();
-          
-        } catch (error) {
-          console.error("Error verificando paquete completo:", error);
-          this.mostrarError("❌ Error de conexión", "No se pudo verificar el paquete. Intenta nuevamente.");
-        }
-      },
-
-      validarPaquete: function(qrData, turnosUsados, gameHistory, refundHistory) {
-        const validations = {
-          hasPackage: qrData.turnPackageId && qrData.turnPackageId != 1,
-          hasTurns: qrData.turns_remaining > 0,
-          hasSingleUse: turnosUsados === 1,
-          noRecentRefunds: refundHistory.length === 0,
-          hasRecentGames: gameHistory.length > 0,
-          recentGamesWithin24h: false
-        };
-        
-        if (gameHistory.length > 0) {
-          const now = new Date();
-          const lastGame = new Date(gameHistory[0].usedAt);
-          const hoursDiff = (now - lastGame) / (1000 * 60 * 60);
-          validations.recentGamesWithin24h = hoursDiff <= 24;
-        }
-        
-        return validations;
-      },
-
-      mostrarInformacionCompletaPaquete: function() {
-        document.getElementById('package-code').textContent = this.paqueteActual.codigo;
-        document.getElementById('package-usage').textContent = `${this.paqueteActual.turnos_usados} de ${this.paqueteActual.total_turns}`;
-        document.getElementById('package-name').textContent = this.paqueteActual.package_name || 'Sin paquete asignado';
-        document.getElementById('package-turns').textContent = this.paqueteActual.total_turns;
-        document.getElementById('package-remaining').textContent = this.paqueteActual.turns_remaining;
-        document.getElementById('package-qr-id').textContent = this.paqueteActual.qr_id || 'N/A';
-        
-        if (this.paqueteActual.game_history && this.paqueteActual.game_history.length > 0) {
-          this.gameHistorySection.classList.remove('hidden');
-          this.gameHistoryList.innerHTML = '';
-          
-          this.paqueteActual.game_history.forEach(game => {
-            const gameTime = new Date(game.usedAt).toLocaleString('es-CO');
-            const gameItem = document.createElement('div');
-            gameItem.className = 'flex justify-between items-center border-b pb-1';
-            gameItem.innerHTML = `
-              <span>${gameTime}</span>
-              <span class="font-medium">${game.machine_name || 'Máquina N/A'}</span>
-            `;
-            this.gameHistoryList.appendChild(gameItem);
-          });
-          this.noGameHistory.classList.add('hidden');
-        } else {
-          this.gameHistorySection.classList.remove('hidden');
-          this.noGameHistory.classList.remove('hidden');
-          this.gameHistoryList.innerHTML = '';
-        }
-        
-        if (this.paqueteActual.refund_history && this.paqueteActual.refund_history.length > 0) {
-          this.refundHistorySection.classList.remove('hidden');
-          this.refundHistoryList.innerHTML = '';
-          
-          this.paqueteActual.refund_history.forEach(refund => {
-            const refundTime = new Date(refund.reported_at).toLocaleString('es-CO');
-            const refundItem = document.createElement('div');
-            refundItem.className = 'flex justify-between items-center border-b pb-1';
-            refundItem.innerHTML = `
-              <span>${refundTime}</span>
-              <span class="font-medium">${refund.turnos_devueltos} turnos</span>
-            `;
-            this.refundHistoryList.appendChild(refundItem);
-          });
-          this.noRefundHistory.classList.add('hidden');
-        } else {
-          this.refundHistorySection.classList.add('hidden');
-          this.noRefundHistory.classList.add('hidden');
-          this.refundHistoryList.innerHTML = '';
-        }
-        
-        this.mostrarValidaciones();
-        this.determinarEstadoDevolucion();
-        
-        this.packageInfo.classList.remove('hidden');
-        this.resultMessage.classList.add('hidden');
-        this.forceRefundWarning.classList.add('hidden');
-      },
-
-      mostrarValidaciones: function() {
-        const validations = this.paqueteActual.validationResults;
-        this.validationChecks.innerHTML = '';
-        
-        const checks = [
-          {
-            key: 'hasPackage',
-            label: 'Paquete válido asignado',
-            required: true
-          },
-          {
-            key: 'hasTurns',
-            label: 'Tiene turnos disponibles',
-            required: true
-          },
-          {
-            key: 'hasSingleUse',
-            label: 'Único uso registrado',
-            required: true
-          },
-          {
-            key: 'noRecentRefunds',
-            label: 'Sin devoluciones recientes',
-            required: true
-          },
-          {
-            key: 'hasRecentGames',
-            label: 'Tiene juegos registrados',
-            required: false
-          },
-          {
-            key: 'recentGamesWithin24h',
-            label: 'Juegos en últimas 24h',
-            required: false
-          }
-        ];
-        
-        checks.forEach(check => {
-          const isValid = validations[check.key];
-          const checkDiv = document.createElement('div');
-          checkDiv.className = 'flex items-center';
-          
-          checkDiv.innerHTML = `
-            <i class="fas fa-${isValid ? 'check-circle text-green-500' : check.required ? 'times-circle text-red-500' : 'exclamation-circle text-yellow-500'} mr-2"></i>
-            <span class="${check.required && !isValid ? 'text-red-600 font-medium' : ''}">
-              ${check.label}
-              ${check.required ? '' : ' (opcional)'}
-            </span>
-          `;
-          
-          this.validationChecks.appendChild(checkDiv);
-        });
-      },
-
-      determinarEstadoDevolucion: function() {
-        const validations = this.paqueteActual.validationResults;
-        const statusElement = document.getElementById('package-status');
-        const normalControls = document.getElementById('normal-refund-controls');
-        const forcedControls = document.getElementById('forced-refund-controls');
-        
-        // Resetear selectores
-        this.turnSelector.normal = 1;
-        this.turnSelector.forced = 1;
-        if (document.getElementById('turnos-devolver')) {
-          document.getElementById('turnos-devolver').value = 1;
-          document.getElementById('turnos-normal-label').textContent = '1';
-        }
-        if (document.getElementById('turnos-forzados-devolver')) {
-          document.getElementById('turnos-forzados-devolver').value = 1;
-          document.getElementById('turnos-forzados-label').textContent = '1';
-        }
-        
-        // Calcular máximo de turnos a devolver
-        const maxNormalTurns = Math.min(10, this.paqueteActual.turns_remaining);
-        const maxForcedTurns = Math.min(20, this.paqueteActual.turns_remaining + 10);
-        
-        this.turnSelector.maxNormal = maxNormalTurns;
-        this.turnSelector.maxForced = maxForcedTurns;
-        
-        if (document.getElementById('turnos-devolver')) {
-          document.getElementById('turnos-devolver').max = maxNormalTurns;
-        }
-        if (document.getElementById('turnos-forzados-devolver')) {
-          document.getElementById('turnos-forzados-devolver').max = maxForcedTurns;
-        }
-        
-        const requiredConditions = [
-          validations.hasPackage,
-          validations.hasTurns,
-          validations.hasSingleUse,
-          validations.noRecentRefunds
-        ];
-        
-        const allRequiredPassed = requiredConditions.every(cond => cond === true);
-        
-        if (allRequiredPassed && this.paqueteActual.turns_remaining >= 1) {
-          statusElement.innerHTML = '<span class="status-valid">✅ APTO PARA DEVOLUCIÓN</span>';
-          statusElement.innerHTML += '<p class="text-sm text-gray-600 mt-2">Este paquete cumple todas las condiciones para devolución.</p>';
-          
-          normalControls.classList.remove('hidden');
-          forcedControls.classList.add('hidden');
-          this.btnProcessRefund.classList.remove('hidden');
-          this.btnForceRefund.classList.add('hidden');
-          this.forceRefundWarning.classList.add('hidden');
-        } else {
-          let reason = '';
-          if (!validations.hasPackage) reason = 'No tiene paquete asignado.';
-          else if (!validations.hasTurns) reason = 'No tiene turnos disponibles.';
-          else if (!validations.hasSingleUse) reason = `Tiene ${this.paqueteActual.turnos_usados} usos registrados.`;
-          else if (!validations.noRecentRefunds) reason = 'Ya tiene devoluciones anteriores.';
-          
-          statusElement.innerHTML = `<span class="status-invalid">❌ NO CUMPLE CONDICIONES NORMALES</span>`;
-          statusElement.innerHTML += `<p class="text-sm text-gray-600 mt-2">${reason}</p>`;
-          
-          normalControls.classList.add('hidden');
-          forcedControls.classList.remove('hidden');
-          this.btnProcessRefund.classList.add('hidden');
-          this.btnForceRefund.classList.remove('hidden');
-          this.forceRefundWarning.classList.remove('hidden');
-          
-          const maxMsg = document.querySelector('#forced-refund-controls .text-xs');
-          if (maxMsg) {
-            maxMsg.innerHTML = `<i class="fas fa-info-circle"></i> Máximo ${maxForcedTurns} turnos disponibles para devolución forzada`;
-          }
-          
-          statusElement.innerHTML += '<p class="text-sm text-yellow-600 mt-2">Se puede realizar devolución forzada como excepción.</p>';
-        }
-      },
-
-      procesarDevolucion: async function(isForced = false) {
-        try {
-          let turnosADevolver = 1;
-          
-          if (isForced) {
-            turnosADevolver = this.turnSelector.forced;
-            if (turnosADevolver > this.paqueteActual.turns_remaining + 10) {
-              if (!confirm(`¿Estás seguro de devolver ${turnosADevolver} turnos? El paquete solo tiene ${this.paqueteActual.turns_remaining} turnos disponibles actualmente.`)) {
-                return;
-              }
-            }
-          } else {
-            turnosADevolver = this.turnSelector.normal;
-            if (turnosADevolver > this.paqueteActual.turns_remaining) {
-              this.mostrarError("❌ Error", `No puedes devolver ${turnosADevolver} turnos porque solo hay ${this.paqueteActual.turns_remaining} turnos disponibles.`);
-              return;
-            }
-          }
-          
-          this.mostrarCargandoProcesando();
-          
-          const userName = "{{ session.get('user_name', 'Usuario') }}";
-          
-          await fetch('/api/guardar-qr', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-              qr_code: this.paqueteActual.codigo
-            })
-          });
-          
-          const refundData = {
-            qr_code: this.paqueteActual.codigo,
-            machine_id: 0,
-            machine_name: isForced ? 'Devolución Forzada' : 'Devolución Manual',
-            turnos_devueltos: turnosADevolver,
-            is_forced: isForced,
-            forced_by: userName,
-            notes: `Devolución de ${turnosADevolver} turnos`
-          };
-          
-          const notesInput = document.getElementById('refund-notes');
-          if (notesInput && notesInput.value.trim()) {
-            refundData.notes += ` - ${notesInput.value.trim()}`;
-          }
-          
-          console.log('Enviando devolución:', refundData);
-          
-          const response = await fetch('/api/reportar-falla', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(refundData)
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.message || `Error ${response.status}`);
-          }
-
-          if (result.status === 'success') {
-            let message = '';
-            if (isForced) {
-              message = `
-                <div class="text-center">
-                  <div class="text-4xl mb-4">⚠️</div>
-                  <h3 class="text-xl font-semibold text-orange-600 mb-2">✅ Devolución Forzada Exitosa</h3>
-                  <p class="text-gray-700">Se ha procesado una devolución forzada de <strong>${turnosADevolver} turno(s)</strong> para el paquete:</p>
-                  <p class="font-mono text-blue-600 my-2 text-lg">${this.paqueteActual.codigo}</p>
-                  <div class="bg-orange-50 p-4 rounded-lg mt-3">
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                      <div class="text-left text-orange-700">Turnos anteriores:</div>
-                      <div class="text-right font-bold">${this.paqueteActual.turns_remaining}</div>
-                      <div class="text-left text-orange-700">Turnos devueltos:</div>
-                      <div class="text-right font-bold text-green-600">+${turnosADevolver}</div>
-                      <div class="text-left text-orange-700 font-semibold">Turnos actuales:</div>
-                      <div class="text-right font-bold text-lg">${result.data.nuevos_turnos}</div>
-                    </div>
-                  </div>
-                  <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p class="text-yellow-700 text-sm"><i class="fas fa-exclamation-triangle mr-1"></i> Esta devolución ha sido marcada como EXCEPCIÓN.</p>
-                  </div>
-                </div>
-              `;
-            } else {
-              message = `
-                <div class="text-center">
-                  <div class="text-4xl mb-4">✅</div>
-                  <h3 class="text-xl font-semibold text-green-600 mb-2">Devolución Exitosa</h3>
-                  <p class="text-gray-700">Se ha procesado la devolución de <strong>${turnosADevolver} turno(s)</strong> para el paquete:</p>
-                  <p class="font-mono text-blue-600 my-2 text-lg">${this.paqueteActual.codigo}</p>
-                  <div class="bg-green-50 p-4 rounded-lg mt-3">
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                      <div class="text-left text-green-700">Turnos anteriores:</div>
-                      <div class="text-right font-bold">${this.paqueteActual.turns_remaining}</div>
-                      <div class="text-left text-green-700">Turnos devueltos:</div>
-                      <div class="text-right font-bold text-green-600">+${turnosADevolver}</div>
-                      <div class="text-left text-green-700 font-semibold">Turnos actuales:</div>
-                      <div class="text-right font-bold text-lg">${result.data.nuevos_turnos}</div>
-                    </div>
-                  </div>
-                </div>
-              `;
-            }
-            
-            this.paqueteActual.turns_remaining = result.data.nuevos_turnos;
-            document.getElementById('package-remaining').textContent = result.data.nuevos_turnos;
-            
-            this.resultContent.innerHTML = message;
-            this.resultMessage.classList.remove('hidden');
-            
-            document.getElementById('normal-refund-controls').classList.add('hidden');
-            document.getElementById('forced-refund-controls').classList.add('hidden');
-            this.btnProcessRefund.classList.add('hidden');
-            this.btnForceRefund.classList.add('hidden');
-          } else {
-            throw new Error(result.message || 'Error desconocido');
-          }
-          
-        } catch (error) {
-          console.error("Error procesando devolución:", error);
-          this.mostrarError("❌ Error en devolución", error.message);
-        }
-      },
-
-      mostrarCargando: function() {
-        this.packageInfo.classList.add('hidden');
-        this.resultMessage.classList.remove('hidden');
-        this.resultContent.innerHTML = `
-          <div class="text-center py-10">
-            <div class="loading mb-4"></div>
-            <p class="text-gray-700">Verificando el paquete, por favor espera...</p>
-          </div>
-        `;
-      },
-
-      mostrarCargandoProcesando: function() {
-        this.resultMessage.classList.remove('hidden');
-        this.resultContent.innerHTML = `
-          <div class="text-center py-10">
-            <div class="loading mb-4"></div>
-            <p class="text-gray-700">Procesando la devolución, por favor espera...</p>
-          </div>
-        `;
-      },
-
-      mostrarError: function(title, message) {
-        this.packageInfo.classList.add('hidden');
-        this.resultMessage.classList.remove('hidden');
-        this.resultContent.innerHTML = `
-          <div class="text-center py-10">
-            <div class="text-4xl text-red-500 mb-4">❌</div>
-            <h3 class="text-xl font-semibold text-red-600 mb-2">${title}</h3>
-            <p class="text-gray-700">${message}</p>
-          </div>
-        `;
-      },
-
-      limpiarFormulario: function() {
-        this.qrResult.value = '';
-        this.packageInfo.classList.add('hidden');
-        this.resultMessage.classList.add('hidden');
-        this.validationChecks.innerHTML = '';
-        this.gameHistorySection.classList.add('hidden');
-        this.refundHistorySection.classList.add('hidden');
-        this.refundNotes.value = '';
-        this.paqueteActual = null;
       }
     };
-
-    document.addEventListener('DOMContentLoaded', function() {
+    
+    document.addEventListener('DOMContentLoaded', () => {
       PackFailureApp.init();
     });
   </script>
