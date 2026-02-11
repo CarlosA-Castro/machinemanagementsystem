@@ -9942,29 +9942,12 @@ def obtener_historial_completo_qr(qr_code):
                 tu.usedAt as fecha_hora,
                 tu.machineId as machine_id,
                 m.name as machine_name,
-                m.status as machine_status,
-                (
-                    SELECT ut2.turns_remaining 
-                    FROM userturns ut2 
-                    WHERE ut2.qr_code_id = %s 
-                    AND ut2.created_at <= tu.usedAt
-                    ORDER BY ut2.created_at DESC 
-                    LIMIT 1
-                ) as turnos_antes,
-                1 as turno_gastado,
-                (
-                    SELECT turns_remaining 
-                    FROM userturns 
-                    WHERE qr_code_id = %s 
-                    AND created_at > tu.usedAt 
-                    ORDER BY created_at ASC 
-                    LIMIT 1
-                ) as turnos_despues
+                m.status as machine_status
             FROM turnusage tu
             JOIN machine m ON tu.machineId = m.id
             WHERE tu.qrCodeId = %s
             ORDER BY tu.usedAt DESC
-        """, (qr_data['qr_id'], qr_data['qr_id'], qr_data['qr_id']))
+        """, (qr_data['qr_id'],))
         
         juegos = cursor.fetchall()
         
@@ -9978,7 +9961,17 @@ def obtener_historial_completo_qr(qr_code):
             machine_id = juego['machine_id']
             fecha_juego = juego['fecha_hora']
             
-            # ---------- A) ¿HUBO FALLA REPORTADA EN ESTE JUEGO? ----------
+            # ---------- A) CALCULAR TURNOS ANTES DEL JUEGO ----------
+            cursor.execute("""
+                SELECT COUNT(*) as usos_previos
+                FROM turnusage
+                WHERE qrCodeId = %s AND usedAt < %s
+            """, (qr_data['qr_id'], fecha_juego))
+            
+            usos_previos = cursor.fetchone()['usos_previos']
+            turnos_antes = (qr_data['total_turns'] or 0) - usos_previos
+            
+            # ---------- B) ¿HUBO FALLA REPORTADA EN ESTE JUEGO? ----------
             cursor.execute("""
                 SELECT 
                     id,
@@ -10002,17 +9995,14 @@ def obtener_historial_completo_qr(qr_code):
             falla_id = falla['id'] if falla else None
             falla_notas = falla['notes'] if falla else None
             
-            # ---------- B) ¿ALGUIEN JUGÓ EXITOSAMENTE DESPUÉS? ----------
+            # ---------- C) ¿ALGUIEN JUGÓ EXITOSAMENTE DESPUÉS? ----------
             cursor.execute("""
                 SELECT 
                     tu.id,
                     tu.usedAt,
-                    m.name as machine_name,
-                    u.name as user_name
+                    m.name as machine_name
                 FROM turnusage tu
                 JOIN machine m ON tu.machineId = m.id
-                LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
-                LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
                 WHERE tu.machineId = %s
                 AND tu.usedAt > %s
                 AND tu.qrCodeId != %s
@@ -10031,9 +10021,8 @@ def obtener_historial_completo_qr(qr_code):
             
             alguien_jugo_despues = uso_posterior is not None
             fecha_uso_posterior = uso_posterior['usedAt'] if uso_posterior else None
-            usuario_posterior = uso_posterior['user_name'] if uso_posterior else None
             
-            # ---------- C) CALCULAR ESTADO PARA UI ----------
+            # ---------- D) CALCULAR ESTADO PARA UI ----------
             if hubo_falla and not alguien_jugo_despues:
                 estado_validacion = 'APTO'
                 color_estado = 'green'
@@ -10051,21 +10040,10 @@ def obtener_historial_completo_qr(qr_code):
                 color_estado = 'orange'
                 mensaje_estado = '🔍 Revisar caso'
             
-            # ---------- D) TURNOS PARA MOSTRAR ----------
-            turnos_antes = juego['turnos_antes']
-            if turnos_antes is None:
-                # Si no hay registro histórico, calcular desde total_turns - usos anteriores
-                cursor.execute("""
-                    SELECT COUNT(*) as usos_previos
-                    FROM turnusage
-                    WHERE qrCodeId = %s AND usedAt < %s
-                """, (qr_data['qr_id'], fecha_juego))
-                usos_previos = cursor.fetchone()['usos_previos']
-                turnos_antes = qr_data['total_turns'] - usos_previos
-            
-            turnos_despues = juego['turnos_despues']
-            if turnos_despues is None:
-                turnos_despues = turnos_antes - 1
+            # ---------- E) TURNOS DESPUÉS ----------
+            turnos_despues = turnos_antes - 1
+            if turnos_despues < 0:
+                turnos_despues = 0
             
             # ==========================================
             # 5. ARMAR OBJETO DEL JUEGO
@@ -10095,8 +10073,7 @@ def obtener_historial_completo_qr(qr_code):
                 'uso_posterior': {
                     'hubo': alguien_jugo_despues,
                     'fecha': fecha_uso_posterior.isoformat() if fecha_uso_posterior else None,
-                    'fecha_formateada': fecha_uso_posterior.strftime('%d/%m/%Y %H:%M') if fecha_uso_posterior else None,
-                    'usuario': usuario_posterior
+                    'fecha_formateada': fecha_uso_posterior.strftime('%d/%m/%Y %H:%M') if fecha_uso_posterior else None
                 },
                 'validacion': {
                     'estado': estado_validacion,
@@ -10148,7 +10125,6 @@ def obtener_historial_completo_qr(qr_code):
             cursor.close()
         if connection:
             connection.close()
-
 
 @app.route('/api/qr/estado-devolucion/<qr_code>', methods=['GET'])
 @handle_api_errors
