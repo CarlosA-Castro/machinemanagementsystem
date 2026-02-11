@@ -9865,7 +9865,7 @@ def obtener_dashboard_logs():
         app.logger.error(f"Error obteniendo dashboard: {e}")
         return api_response('E001', http_status=500)
 
-# ==================== APIS PARA HISTORIAL COMPLETO DE QR (PACKFAILURE) ====================
+# ==================== APIS PARA HISTORIAL PACKFAILURE ====================
 
 @app.route('/api/qr/historial-completo/<qr_code>', methods=['GET'])
 @handle_api_errors
@@ -9873,12 +9873,7 @@ def obtener_dashboard_logs():
 def obtener_historial_completo_qr(qr_code):
     """
     ENDPOINT PRINCIPAL para packfailure.html
-    Retorna TODA la información necesaria para la interfaz:
-    - Datos del QR (paquete, turnos, etc)
-    - Historial de juegos con turnos en ese momento
-    - Por cada juego: ¿hubo falla reportada?
-    - Por cada juego: ¿alguien jugó exitosamente después?
-    - Estado de devolución (si ya tuvo o no)
+    SIN LÍMITE de devoluciones - AHORA ILIMITADO
     """
     connection = None
     cursor = None
@@ -9891,9 +9886,7 @@ def obtener_historial_completo_qr(qr_code):
             
         cursor = get_db_cursor(connection)
         
-        # ==========================================
         # 1. INFORMACIÓN BÁSICA DEL QR
-        # ==========================================
         cursor.execute("""
             SELECT 
                 qr.id as qr_id,
@@ -9918,24 +9911,18 @@ def obtener_historial_completo_qr(qr_code):
         if not qr_data:
             return api_response('Q001', http_status=404, data={'qr_code': qr_code})
         
-        # ==========================================
-        # 2. VERIFICAR SI YA TUVO DEVOLUCIÓN
-        # ==========================================
+        # 2. CONTAR DEVOLUCIONES (SOLO INFORMATIVO, SIN BLOQUEO)
         cursor.execute("""
             SELECT 
                 COUNT(*) as total_devoluciones,
-                MAX(reported_at) as ultima_devolucion,
                 SUM(turnos_devueltos) as turnos_devueltos_total
             FROM machinefailures
             WHERE qr_code_id = %s
         """, (qr_data['qr_id'],))
         
         devolucion_data = cursor.fetchone()
-        ya_tuvo_devolucion = devolucion_data['total_devoluciones'] > 0
         
-        # ==========================================
-        # 3. HISTORIAL DE JUEGOS COMPLETO
-        # ==========================================
+        # 3. HISTORIAL DE JUEGOS
         cursor.execute("""
             SELECT 
                 tu.id as usage_id,
@@ -9951,9 +9938,7 @@ def obtener_historial_completo_qr(qr_code):
         
         juegos = cursor.fetchall()
         
-        # ==========================================
-        # 4. PROCESAR CADA JUEGO CON SUS VALIDACIONES
-        # ==========================================
+        # 4. PROCESAR CADA JUEGO
         historial_juegos = []
         
         for juego in juegos:
@@ -9961,7 +9946,7 @@ def obtener_historial_completo_qr(qr_code):
             machine_id = juego['machine_id']
             fecha_juego = juego['fecha_hora']
             
-            # ---------- A) CALCULAR TURNOS ANTES DEL JUEGO ----------
+            # A) TURNOS ANTES DEL JUEGO
             cursor.execute("""
                 SELECT COUNT(*) as usos_previos
                 FROM turnusage
@@ -9970,8 +9955,11 @@ def obtener_historial_completo_qr(qr_code):
             
             usos_previos = cursor.fetchone()['usos_previos']
             turnos_antes = (qr_data['total_turns'] or 0) - usos_previos
+            turnos_despues = turnos_antes - 1
+            if turnos_despues < 0:
+                turnos_despues = 0
             
-            # ---------- B) ¿HUBO FALLA REPORTADA EN ESTE JUEGO? ----------
+            # B) ¿HUBO FALLA REPORTADA?
             cursor.execute("""
                 SELECT 
                     id,
@@ -9993,9 +9981,8 @@ def obtener_historial_completo_qr(qr_code):
             hubo_falla = falla is not None
             falla_forzada = falla['is_forced'] if falla else False
             falla_id = falla['id'] if falla else None
-            falla_notas = falla['notes'] if falla else None
             
-            # ---------- C) ¿ALGUIEN JUGÓ EXITOSAMENTE DESPUÉS? ----------
+            # C) ¿ALGUIEN JUGÓ DESPUÉS?
             cursor.execute("""
                 SELECT 
                     tu.id,
@@ -10022,7 +10009,7 @@ def obtener_historial_completo_qr(qr_code):
             alguien_jugo_despues = uso_posterior is not None
             fecha_uso_posterior = uso_posterior['usedAt'] if uso_posterior else None
             
-            # ---------- D) CALCULAR ESTADO PARA UI ----------
+            # D) ESTADO DE VALIDACIÓN
             if hubo_falla and not alguien_jugo_despues:
                 estado_validacion = 'APTO'
                 color_estado = 'green'
@@ -10040,14 +10027,6 @@ def obtener_historial_completo_qr(qr_code):
                 color_estado = 'orange'
                 mensaje_estado = '🔍 Revisar caso'
             
-            # ---------- E) TURNOS DESPUÉS ----------
-            turnos_despues = turnos_antes - 1
-            if turnos_despues < 0:
-                turnos_despues = 0
-            
-            # ==========================================
-            # 5. ARMAR OBJETO DEL JUEGO
-            # ==========================================
             historial_juegos.append({
                 'usage_id': juego_id,
                 'fecha_hora': fecha_juego.isoformat() if fecha_juego else None,
@@ -10059,16 +10038,12 @@ def obtener_historial_completo_qr(qr_code):
                 },
                 'turnos': {
                     'antes': turnos_antes,
-                    'gastado': 1,
-                    'despues': turnos_despues,
-                    'restantes_actual': qr_data['turns_remaining'] if juego == juegos[0] else None
+                    'despues': turnos_despues
                 },
                 'falla': {
                     'hubo': hubo_falla,
                     'forzada': falla_forzada,
-                    'id': falla_id,
-                    'notas': falla_notas,
-                    'reportada_en': falla['reported_at'].isoformat() if falla else None
+                    'id': falla_id
                 },
                 'uso_posterior': {
                     'hubo': alguien_jugo_despues,
@@ -10082,9 +10057,6 @@ def obtener_historial_completo_qr(qr_code):
                 }
             })
         
-        # ==========================================
-        # 6. RESPONSE FINAL
-        # ==========================================
         response_data = {
             'qr': {
                 'id': qr_data['qr_id'],
@@ -10103,22 +10075,19 @@ def obtener_historial_completo_qr(qr_code):
                 'restantes': qr_data['turns_remaining'] or 0,
                 'usados': (qr_data['total_turns'] or 0) - (qr_data['turns_remaining'] or 0)
             },
-            'devolucion': {
-                'ya_tuvo': ya_tuvo_devolucion,
-                'total_devoluciones': devolucion_data['total_devoluciones'] or 0,
-                'turnos_devueltos_total': devolucion_data['turnos_devueltos_total'] or 0,
-                'limite_alcanzado': ya_tuvo_devolucion,
-                'maximo_permitido': 1
+            'devoluciones': {
+                'total': devolucion_data['total_devoluciones'] or 0,
+                'turnos_devueltos': devolucion_data['turnos_devueltos_total'] or 0
             },
             'historial': historial_juegos,
             'timestamp': get_colombia_time().isoformat()
         }
         
-        app.logger.info(f"✅ Historial completo generado para {qr_code}: {len(historial_juegos)} juegos")
+        app.logger.info(f"✅ Historial generado para {qr_code}: {len(historial_juegos)} juegos")
         return jsonify(response_data)
         
     except Exception as e:
-        app.logger.error(f"❌ Error obteniendo historial completo QR: {e}", exc_info=True)
+        app.logger.error(f"❌ Error: {e}", exc_info=True)
         return api_response('E001', http_status=500)
     finally:
         if cursor:

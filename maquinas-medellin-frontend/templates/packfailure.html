@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
-    /* ===== ESTILOS ORIGINALES CONSERVADOS ===== */
+    /* ===== ESTILOS ORIGINALES ===== */
     html, body {
       margin: 0;
       padding: 0;
@@ -55,20 +55,9 @@
       margin-bottom: 1.5rem;
     }
     
-    .status-valid {
-      color: #10b981;
-      font-weight: bold;
-    }
-    
-    .status-invalid {
-      color: #ef4444;
-      font-weight: bold;
-    }
-    
-    .status-warning {
-      color: #f59e0b;
-      font-weight: bold;
-    }
+    .status-valid { color: #10b981; font-weight: bold; }
+    .status-invalid { color: #ef4444; font-weight: bold; }
+    .status-warning { color: #f59e0b; font-weight: bold; }
     
     .loading {
       display: inline-block;
@@ -80,11 +69,9 @@
       animation: spin 1s ease-in-out infinite;
     }
     
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     
-    /* BADGES ORIGINALES */
+    /* BADGES */
     .badge-apto {
       background: #10b981;
       color: white;
@@ -130,7 +117,7 @@
       font-weight: 500;
     }
     
-    /* TARJETAS HORIZONTALES - ESTILO ORIGINAL */
+    /* TARJETAS HORIZONTALES */
     .machines-horizontal {
       display: flex;
       overflow-x: auto;
@@ -141,8 +128,8 @@
     }
     
     .machine-horizontal-card {
-      min-width: 350px;
-      max-width: 400px;
+      min-width: 320px;
+      max-width: 360px;
       flex: 0 0 auto;
       background: white;
       border-radius: 12px;
@@ -151,19 +138,10 @@
       padding: 1.25rem;
     }
     
-    .machine-horizontal-card.apto {
-      border-left-color: #10b981;
-    }
+    .machine-horizontal-card.apto { border-left-color: #10b981; }
+    .machine-horizontal-card.no-apto { border-left-color: #ef4444; }
+    .machine-horizontal-card.sin-reporte { border-left-color: #f59e0b; }
     
-    .machine-horizontal-card.no-apto {
-      border-left-color: #ef4444;
-    }
-    
-    .machine-horizontal-card.sin-reporte {
-      border-left-color: #f59e0b;
-    }
-    
-    /* QR INPUT */
     .qr-input {
       width: 100%;
       padding: 0.75rem;
@@ -176,12 +154,11 @@
     }
     
     .qr-input:focus {
-        border-color: #3b82f6;
-        outline: 2px solid #3b82f6;
-        outline-offset: 2px;
+      border-color: #3b82f6;
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
     }
     
-    /* BOTONES ORIGINALES */
     .btn-primary {
       background-color: #2563eb;
       color: white;
@@ -195,66 +172,26 @@
       transition: all 0.3s;
     }
     
-    .btn-primary:hover {
-      background-color: #1d4ed8;
-    }
+    .btn-primary:hover { background-color: #1d4ed8; }
     
-    .btn-refund {
+    .btn-refund-card {
       background-color: #059669;
       color: white;
-      font-weight: 700;
-      padding: 0.75rem 2rem;
+      font-weight: 600;
+      padding: 0.6rem 1rem;
       border-radius: 0.5rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
+      gap: 0.5rem;
       transition: all 0.3s;
+      width: 100%;
+      font-size: 0.9rem;
     }
     
-    .btn-refund:hover:not(:disabled) {
-      background-color: #047857;
-    }
+    .btn-refund-card:hover { background-color: #047857; }
+    .btn-refund-card:disabled { opacity: 0.5; cursor: not-allowed; }
     
-    .btn-refund:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    /* RESPONSIVE */
-    @media (max-width: 1024px) {
-      .flex.h-screen {
-        flex-direction: column;
-        height: auto;
-        min-height: 100vh;
-      }
-      
-      aside {
-        width: 100% !important;
-        order: 1;
-      }
-      
-      main {
-        order: 2;
-        padding: 1rem !important;
-      }
-      
-      .machine-horizontal-card {
-        min-width: 300px;
-      }
-    }
-    
-    @media (max-width: 768px) {
-      .glass-card {
-        padding: 1rem;
-      }
-      
-      .machine-horizontal-card {
-        min-width: 280px;
-      }
-    }
-    
-    /* TIMESTAMP */
     .timestamp {
       color: #6b7280;
       font-size: 0.75rem;
@@ -263,18 +200,22 @@
       gap: 0.25rem;
     }
     
-    /* STATUS DOT */
     .status-dot {
       width: 10px;
       height: 10px;
       border-radius: 50%;
       display: inline-block;
     }
-    
     .status-dot.green { background: #10b981; }
     .status-dot.red { background: #ef4444; }
     .status-dot.yellow { background: #f59e0b; }
-    .status-dot.blue { background: #3b82f6; }
+    
+    @media (max-width: 1024px) {
+      .flex.h-screen { flex-direction: column; height: auto; min-height: 100vh; }
+      aside { width: 100% !important; order: 1; }
+      main { order: 2; padding: 1rem !important; }
+      .machine-horizontal-card { min-width: 280px; }
+    }
   </style>
 </head>
 
@@ -282,7 +223,7 @@
   <div id="particles-js"></div>
 
   <div class="flex flex-col lg:flex-row min-h-screen">
-    <!-- ===== SIDEBAR ORIGINAL ===== -->
+    <!-- SIDEBAR ORIGINAL -->
     <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
         <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
@@ -313,7 +254,6 @@
           </a>
         </div>
       </div>
-      <!-- INFO USUARIO ORIGINAL -->
       <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
         <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
@@ -328,27 +268,26 @@
       </div>
     </aside>
 
-    <!-- ===== CONTENIDO PRINCIPAL ===== -->
+    <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
       <div class="contenido max-w-6xl mx-auto space-y-6">
         
-        <!-- ===== HEADER ORIGINAL ===== -->
+        <!-- HEADER -->
         <div class="glass-card text-center">
           <h1 class="text-3xl font-bold mb-3">
             <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>Devolución de Turnos
           </h1>
           <p class="text-gray-700">
-            Sistema de devolución con validación completa - 1 devolución por QR
+            Sistema de devolución con validación completa - Devoluciones ilimitadas
           </p>
           <div class="mt-4 flex flex-wrap gap-2 justify-center">
             <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Validación QR</span>
             <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Historial de juegos</span>
-            <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Línea de tiempo</span>
-            <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">1 devolución</span>
+            <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Devolución por juego</span>
           </div>
         </div>
 
-        <!-- ===== ESCÁNER QR - ORIGINAL ===== -->
+        <!-- ESCÁNER QR -->
         <div class="glass-card">
           <h2 class="text-xl font-semibold mb-4">
             <i class="fas fa-qrcode text-green-600 mr-2"></i>Escanear Código QR del Paquete
@@ -378,7 +317,7 @@
           </div>
         </div>
 
-        <!-- ===== INFO GENERAL QR (aparece después del scan) ===== -->
+        <!-- INFO GENERAL QR -->
         <div id="qr-info-panel" class="glass-card hidden">
           <div class="flex justify-between items-start mb-4">
             <h2 class="text-xl font-semibold">
@@ -388,38 +327,33 @@
           </div>
           
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <!-- Código QR -->
             <div class="bg-gray-50 p-3 rounded-lg">
               <h3 class="font-semibold text-gray-700 text-sm">Código QR</h3>
               <p id="info-qr-code" class="font-mono text-blue-600 text-sm font-medium mt-1 truncate">-</p>
               <p id="info-qr-id" class="text-xs text-gray-500 mt-0.5">ID: -</p>
             </div>
-            
-            <!-- Paquete -->
             <div class="bg-gray-50 p-3 rounded-lg">
               <h3 class="font-semibold text-gray-700 text-sm">Paquete</h3>
               <p id="info-package-name" class="font-medium text-gray-900 mt-1">-</p>
               <p id="info-package-price" class="text-xs text-green-600 mt-0.5">-</p>
             </div>
-            
-            <!-- Turnos Totales -->
             <div class="bg-gray-50 p-3 rounded-lg">
               <h3 class="font-semibold text-gray-700 text-sm">Turnos Totales</h3>
               <p id="info-total-turns" class="text-2xl font-bold text-gray-900 mt-1">-</p>
             </div>
-            
-            <!-- Turnos Restantes -->
             <div class="bg-gray-50 p-3 rounded-lg">
               <h3 class="font-semibold text-gray-700 text-sm">Disponibles</h3>
               <p id="info-remaining-turns" class="text-2xl font-bold text-green-600 mt-1">-</p>
             </div>
           </div>
           
-          <!-- Estado de devolución -->
-          <div id="devolucion-status-container" class="mt-4 hidden"></div>
+          <!-- CONTADOR DE DEVOLUCIONES (SOLO INFORMATIVO) -->
+          <div id="devoluciones-counter" class="mt-4 text-sm text-gray-600 border-t border-gray-200 pt-3 hidden">
+            <!-- Se llena con JS -->
+          </div>
         </div>
 
-        <!-- ===== HISTORIAL HORIZONTAL POR MÁQUINA (NUEVO, CON ESTILO ORIGINAL) ===== -->
+        <!-- HISTORIAL HORIZONTAL - CON BOTÓN EN CADA TARJETA -->
         <div id="historial-container" class="glass-card hidden">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-semibold">
@@ -431,64 +365,20 @@
             </span>
           </div>
           
-          <!-- CONTENEDOR HORIZONTAL SCROLL -->
-          <div id="machines-horizontal-container" class="machines-horizontal">
-            <!-- Las tarjetas se inyectan con JS -->
-          </div>
+          <!-- CONTENEDOR HORIZONTAL -->
+          <div id="machines-horizontal-container" class="machines-horizontal"></div>
           
           <!-- LEYENDA -->
           <div class="mt-4 pt-3 border-t border-gray-200 flex flex-wrap gap-4 justify-center text-xs">
-            <span class="flex items-center gap-1.5">
-              <span class="status-dot green"></span> Apto para devolución
-            </span>
-            <span class="flex items-center gap-1.5">
-              <span class="status-dot yellow"></span> Sin reporte de falla
-            </span>
-            <span class="flex items-center gap-1.5">
-              <span class="status-dot red"></span> No apto - alguien jugó después
-            </span>
-            <span class="flex items-center gap-1.5">
-              <i class="fas fa-check-circle text-green-600 text-xs"></i> Reportado TFT
-            </span>
-            <span class="flex items-center gap-1.5">
-              <i class="fas fa-exclamation-triangle text-yellow-600 text-xs"></i> Devolución forzada
-            </span>
+            <span class="flex items-center gap-1.5"><span class="status-dot green"></span> Apto para devolución</span>
+            <span class="flex items-center gap-1.5"><span class="status-dot yellow"></span> Sin reporte de falla</span>
+            <span class="flex items-center gap-1.5"><span class="status-dot red"></span> No apto - alguien jugó después</span>
+            <span class="flex items-center gap-1.5"><i class="fas fa-check-circle text-green-600 text-xs"></i> Reportado TFT</span>
+            <span class="flex items-center gap-1.5"><i class="fas fa-exclamation-triangle text-yellow-600 text-xs"></i> Devolución forzada</span>
           </div>
         </div>
 
-        <!-- ===== BOTÓN DE DEVOLUCIÓN GLOBAL ===== -->
-        <div id="refund-action-container" class="glass-card hidden">
-          <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <div class="bg-green-100 p-3 rounded-lg">
-                <i class="fas fa-ticket-alt text-green-600 text-xl"></i>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Acción disponible</p>
-                <h3 id="refund-title" class="text-xl font-bold text-gray-900">Devolver 1 turno</h3>
-                <p id="refund-subtitle" class="text-xs text-gray-500 mt-0.5">
-                  Límite: 1 devolución por QR
-                </p>
-              </div>
-            </div>
-            
-            <div class="flex flex-col items-end gap-1">
-              <button 
-                id="btn-process-refund" 
-                class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 btn-touch"
-                disabled
-              >
-                <i class="fas fa-rotate-left"></i>
-                <span id="btn-refund-text">DEVOLVER 1 TURNO</span>
-              </button>
-              <p id="refund-warning" class="text-xs text-red-600 hidden">
-                <i class="fas fa-info-circle"></i> Límite alcanzado (1/1)
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- ===== MENSAJES DE RESULTADO ===== -->
+        <!-- MENSAJES DE RESULTADO -->
         <div id="result-message" class="glass-card hidden"></div>
         
       </div>
@@ -497,29 +387,21 @@
 
   <script>
     // ==========================================
-    // PACKFAILURE APP - ESTILO ORIGINAL
+    // PACKFAILURE APP - VERSIÓN FINAL
+    // SIN LÍMITE - SIN GASTADO - BOTÓN EN TARJETA
     // ==========================================
     const PackFailureApp = {
       
       qrActual: null,
       historialCompleto: null,
-      juegoSeleccionado: null,
       scannerActivo: false,
       html5QrCodeScanner: null,
       
       init: function() {
-        console.log('🚀 Inicializando PackFailure App');
-        
-        // Partículas originales
+        console.log('🚀 PackFailure App - Versión Final');
         this.initParticles();
-        
-        // Elementos DOM
         this.cacheElements();
-        
-        // Event listeners
         this.initEventListeners();
-        
-        // Hora actual
         this.actualizarHora();
         setInterval(() => this.actualizarHora(), 1000);
       },
@@ -552,42 +434,26 @@
       },
       
       cacheElements: function() {
-        // Escáner
         this.qrResult = document.getElementById('qr-result');
         this.btnScanQR = document.getElementById('btn-scan-qr');
         this.scannerText = document.getElementById('scanner-text');
         this.html5QrcodeContainer = document.getElementById('html5-qrcode-container');
-        
-        // Paneles
         this.qrInfoPanel = document.getElementById('qr-info-panel');
         this.historialContainer = document.getElementById('historial-container');
-        this.refundActionContainer = document.getElementById('refund-action-container');
         this.resultMessage = document.getElementById('result-message');
         this.machinesContainer = document.getElementById('machines-horizontal-container');
-        
-        // Info QR
         this.infoQrCode = document.getElementById('info-qr-code');
         this.infoQrId = document.getElementById('info-qr-id');
         this.infoPackageName = document.getElementById('info-package-name');
         this.infoPackagePrice = document.getElementById('info-package-price');
         this.infoTotalTurns = document.getElementById('info-total-turns');
         this.infoRemainingTurns = document.getElementById('info-remaining-turns');
-        
-        // Botón devolución
-        this.btnProcessRefund = document.getElementById('btn-process-refund');
-        this.btnRefundText = document.getElementById('btn-refund-text');
-        this.refundWarning = document.getElementById('refund-warning');
-        this.refundTitle = document.getElementById('refund-title');
-        this.refundSubtitle = document.getElementById('refund-subtitle');
-        
-        // Contador
         this.gamesCount = document.getElementById('games-count');
-        this.devolucionStatusContainer = document.getElementById('devolucion-status-container');
+        this.devolucionesCounter = document.getElementById('devoluciones-counter');
       },
       
       initEventListeners: function() {
         this.btnScanQR.addEventListener('click', () => this.toggleScanner());
-        this.btnProcessRefund.addEventListener('click', () => this.procesarDevolucion());
       },
       
       toggleScanner: function() {
@@ -617,10 +483,9 @@
               this.scannerActivo = false;
               this.cargarHistorialCompleto(decodedText);
             },
-            (error) => {}
+            () => {}
           );
         }
-        
         this.html5QrcodeContainer.classList.remove('hidden');
         this.scannerActivo = true;
       },
@@ -635,7 +500,7 @@
       
       cargarHistorialCompleto: async function(qrCode) {
         try {
-          this.mostrarCargando('Verificando el paquete, por favor espera...');
+          this.mostrarCargando('Verificando el paquete...');
           
           const response = await fetch(`/api/qr/historial-completo/${qrCode}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -647,25 +512,20 @@
           this.historialCompleto = data;
           this.qrActual = qrCode;
           
-          // Renderizar
           this.renderizarInfoGeneral(data);
           this.renderizarHistorialHorizontal(data.historial);
-          this.renderizarBotonDevolucion(data);
           
-          // Mostrar paneles
           this.qrInfoPanel.classList.remove('hidden');
           this.historialContainer.classList.remove('hidden');
-          this.refundActionContainer.classList.remove('hidden');
           this.resultMessage.classList.add('hidden');
           
         } catch (error) {
           console.error(error);
-          this.mostrarError('Error de conexión', 'No se pudo verificar el paquete. Intenta nuevamente.');
+          this.mostrarError('Error de conexión', 'No se pudo verificar el paquete.');
         }
       },
       
       renderizarInfoGeneral: function(data) {
-        // Datos básicos
         this.infoQrCode.textContent = data.qr.codigo || '-';
         this.infoQrId.textContent = `ID: ${data.qr.id || '-'}`;
         this.infoPackageName.textContent = data.paquete.nombre || 'Sin paquete';
@@ -673,33 +533,16 @@
         this.infoTotalTurns.textContent = data.turnos.totales || 0;
         this.infoRemainingTurns.textContent = data.turnos.restantes || 0;
         
-        // Estado de devolución
-        this.devolucionStatusContainer.classList.remove('hidden');
-        
-        if (data.devolucion.ya_tuvo) {
-          this.devolucionStatusContainer.innerHTML = `
-            <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
-              <div class="flex items-center gap-2">
-                <i class="fas fa-ban text-red-500"></i>
-                <span class="font-medium text-red-700">Límite de devolución alcanzado</span>
-              </div>
-              <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                ${data.devolucion.turnos_devueltos_total || 1} turno devuelto
-              </span>
-            </div>
+        // Contador de devoluciones (solo informativo)
+        if (data.devoluciones.total > 0) {
+          this.devolucionesCounter.classList.remove('hidden');
+          this.devolucionesCounter.innerHTML = `
+            <i class="fas fa-rotate-left text-blue-600 mr-1"></i>
+            Este QR ha recibido <strong>${data.devoluciones.total}</strong> devolución(es) anteriormente 
+            (${data.devoluciones.turnos_devueltos} turnos devueltos en total)
           `;
         } else {
-          this.devolucionStatusContainer.innerHTML = `
-            <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
-              <div class="flex items-center gap-2">
-                <i class="fas fa-check-circle text-green-500"></i>
-                <span class="font-medium text-green-700">Disponible para devolución</span>
-              </div>
-              <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                1 devolución disponible
-              </span>
-            </div>
-          `;
+          this.devolucionesCounter.classList.add('hidden');
         }
       },
       
@@ -745,6 +588,7 @@
           
           html += `
             <div class="machine-horizontal-card ${borderClass}">
+              <!-- HEADER -->
               <div class="flex justify-between items-start mb-3">
                 <div>
                   <div class="flex items-center gap-1.5">
@@ -759,24 +603,22 @@
                 ${badgeHtml}
               </div>
               
-              <div class="grid grid-cols-3 gap-1 mb-3">
-                <div class="bg-gray-100 p-2 rounded text-center">
-                  <p class="text-xs text-gray-600">ANTES</p>
-                  <p class="text-lg font-bold text-gray-900">${juego.turnos.antes || '?'}</p>
+              <!-- TURNOS: SOLO ANTES Y DESPUÉS (ELIMINADO GASTADO) -->
+              <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                  <p class="text-xs text-gray-600 uppercase tracking-wider">ANTES</p>
+                  <p class="text-2xl font-bold text-gray-900">${juego.turnos.antes || '?'}</p>
                 </div>
-                <div class="bg-blue-100 p-2 rounded text-center">
-                  <p class="text-xs text-blue-700">GASTADO</p>
-                  <p class="text-lg font-bold text-blue-700">-1</p>
-                </div>
-                <div class="bg-gray-100 p-2 rounded text-center">
-                  <p class="text-xs text-gray-600">DESPUÉS</p>
-                  <p class="text-lg font-bold text-gray-900">${juego.turnos.despues || juego.turnos.antes - 1 || '?'}</p>
+                <div class="bg-gray-100 p-3 rounded-lg text-center">
+                  <p class="text-xs text-gray-600 uppercase tracking-wider">DESPUÉS</p>
+                  <p class="text-2xl font-bold text-gray-900">${juego.turnos.despues || juego.turnos.antes - 1 || '?'}</p>
                 </div>
               </div>
               
+              <!-- ESTADO DE FALLA -->
               <div class="border-t border-gray-200 pt-2 mt-1">
                 <div class="flex justify-between items-center">
-                  <span class="text-xs text-gray-600">Falla:</span>
+                  <span class="text-xs text-gray-600">Falla en máquina:</span>
                   ${fallaBadge}
                 </div>
                 
@@ -788,15 +630,18 @@
                 ` : ''}
               </div>
               
-              <div class="mt-3 pt-2 border-t border-gray-200">
+              <!-- BOTÓN DE DEVOLUCIÓN DENTRO DE LA TARJETA -->
+              <div class="mt-4 pt-2 border-t border-gray-200">
                 <button 
-                  onclick="PackFailureApp.seleccionarJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}')"
-                  class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 px-3 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${this.historialCompleto?.devolucion?.ya_tuvo ? 'opacity-50 cursor-not-allowed' : ''}"
-                  ${this.historialCompleto?.devolucion?.ya_tuvo ? 'disabled' : ''}
+                  onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}')"
+                  class="btn-refund-card"
                 >
                   <i class="fas fa-rotate-left"></i>
-                  Seleccionar este juego
+                  Devolver 1 turno - Este juego
                 </button>
+                <p class="text-xs text-gray-500 text-center mt-1.5">
+                  ${juego.validacion.mensaje || ''}
+                </p>
               </div>
             </div>
           `;
@@ -805,52 +650,17 @@
         this.machinesContainer.innerHTML = html;
       },
       
-      renderizarBotonDevolucion: function(data) {
-        if (data.devolucion.ya_tuvo) {
-          this.btnProcessRefund.disabled = true;
-          this.btnProcessRefund.classList.add('opacity-50', 'cursor-not-allowed');
-          this.btnRefundText.textContent = 'LÍMITE ALCANZADO';
-          this.refundWarning.classList.remove('hidden');
-          this.refundTitle.textContent = 'Devolución no disponible';
-          this.refundSubtitle.textContent = 'Este QR ya utilizó su única devolución';
-        } else {
-          this.btnProcessRefund.disabled = true;
-          this.btnProcessRefund.classList.remove('opacity-50', 'cursor-not-allowed');
-          this.btnRefundText.textContent = 'DEVOLVER 1 TURNO';
-          this.refundWarning.classList.add('hidden');
-          this.refundTitle.textContent = 'Devolver 1 turno';
-          this.refundSubtitle.textContent = 'Selecciona un juego de la línea de tiempo';
-        }
-      },
-      
-      seleccionarJuego: function(usageId, machineId, fecha) {
-        if (this.historialCompleto?.devolucion?.ya_tuvo) {
-          alert('❌ Este QR ya recibió su única devolución');
-          return;
-        }
-        
-        this.juegoSeleccionado = {
-          usage_id: usageId,
-          machine_id: machineId,
-          fecha: fecha
-        };
-        
-        this.btnProcessRefund.disabled = false;
-      },
-      
-      procesarDevolucion: async function() {
-        if (!this.juegoSeleccionado) {
-          alert('⚠️ Debes seleccionar un juego de la línea de tiempo');
-          return;
-        }
-        
-        if (!confirm('¿Estás seguro de devolver 1 turno para este juego?')) {
+      procesarDevolucionDesdeJuego: async function(usageId, machineId, fecha) {
+        if (!confirm(`¿Devolver 1 turno para el juego en ${fecha}?`)) {
           return;
         }
         
         try {
-          this.btnProcessRefund.disabled = true;
-          this.btnProcessRefund.innerHTML = '<div class="loading mr-2"></div> Procesando...';
+          // Mostrar loading en el botón específico
+          const btn = event.currentTarget;
+          const originalText = btn.innerHTML;
+          btn.innerHTML = '<div class="loading mr-2"></div> Procesando...';
+          btn.disabled = true;
           
           const response = await fetch('/api/qr/procesar-devolucion', {
             method: 'POST',
@@ -860,10 +670,10 @@
             },
             body: JSON.stringify({
               qr_code: this.qrActual,
-              machine_id: this.juegoSeleccionado.machine_id,
-              usage_id: this.juegoSeleccionado.usage_id,
+              machine_id: machineId,
+              usage_id: usageId,
               is_forced: false,
-              notes: `Devolución - Juego: ${this.juegoSeleccionado.fecha}`
+              notes: `Devolución desde packfailure - Juego: ${fecha}`
             })
           });
           
@@ -871,14 +681,19 @@
           
           if (!response.ok) throw new Error(result.message || 'Error en devolución');
           
+          // Éxito - Recargar todo
           this.mostrarExito(`✅ Devolución exitosa. Turnos restantes: ${result.data.turnos_restantes}`);
           await this.cargarHistorialCompleto(this.qrActual);
           
         } catch (error) {
           console.error(error);
           alert(`Error: ${error.message}`);
-          this.btnProcessRefund.disabled = false;
-          this.btnProcessRefund.innerHTML = '<i class="fas fa-rotate-left"></i> DEVOLVER 1 TURNO';
+          // Restaurar botón
+          const btn = event?.currentTarget;
+          if (btn) {
+            btn.innerHTML = '<i class="fas fa-rotate-left"></i> Devolver 1 turno - Este juego';
+            btn.disabled = false;
+          }
         }
       },
       
