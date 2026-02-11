@@ -1470,13 +1470,13 @@ def registrar_uso():
 @handle_api_errors
 @validate_required_fields(['qr_code', 'turnos_devueltos'])
 def reportar_falla():
-    """Reportar falla en una máquina - VERSIÓN CORREGIDA"""
+    """Reportar falla en una máquina - VERSIÓN FINAL CORREGIDA"""
     connection = None
     cursor = None
     try:
         data = request.get_json()
         qr_code = data['qr_code']
-        machine_id = data.get('machine_id', 0)  # Usar 0 por defecto
+        machine_id = data.get('machine_id', 0)
         machine_name = data.get('machine_name', 'Sistema')
         turnos_devueltos = data['turnos_devueltos']
         is_forced = data.get('is_forced', False)
@@ -1503,66 +1503,85 @@ def reportar_falla():
         if not turnos_data:
             return api_response('Q003', http_status=400)
         
-        # 3. Insertar en machinefailures - USAR NULL si machine_id es 0
+        turnos_originales = turnos_data['turns_remaining']
+        nuevos_turnos = turnos_originales + turnos_devueltos
+        
+        # 3. Preparar datos para inserción
         actual_machine_id = None if machine_id == 0 else machine_id
         actual_machine_name = 'Devolución Manual' if machine_id == 0 else machine_name
         
-        # Construir consulta dependiendo de si hay machine_id
-        if actual_machine_id is None:
-            cursor.execute("""
-                INSERT INTO machinefailures (qr_code_id, machine_id, machine_name, turnos_devueltos, notes)
-                VALUES (%s, NULL, %s, %s, %s)
-            """, (qr_id, actual_machine_name, turnos_devueltos, notes))
-        else:
-            # Verificar que la máquina existe
-            cursor.execute("SELECT id FROM machine WHERE id = %s", (actual_machine_id,))
-            if not cursor.fetchone():
-                return api_response('M001', http_status=404, data={'machine_id': actual_machine_id})
-            
-            cursor.execute("""
-                INSERT INTO machinefailures (qr_code_id, machine_id, machine_name, turnos_devueltos, notes)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (qr_id, actual_machine_id, actual_machine_name, turnos_devueltos, notes))
+        # 4. Insertar en machinefailures - VERSIÓN CORREGIDA
+        # Verificar qué columnas existen realmente
+        cursor.execute("DESCRIBE machinefailures")
+        columnas = cursor.fetchall()
+        columnas_existentes = [col['Field'] for col in columnas]
         
-        # 4. Actualizar turnos
-        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
-                       (turnos_devueltos, qr_id))
+        app.logger.info(f"Columnas en machinefailures: {columnas_existentes}")
         
-        # 5. Registrar en logs si es forzado
+        # Construir consulta dinámica basada en columnas existentes
+        campos = ['qr_code_id', 'machine_name', 'turnos_devueltos']
+        valores = [qr_id, actual_machine_name, turnos_devueltos]
+        
+        if 'machine_id' in columnas_existentes:
+            campos.append('machine_id')
+            valores.append(actual_machine_id)
+        
+        if 'notes' in columnas_existentes:
+            campos.append('notes')
+            valores.append(notes if notes else None)
+        
+        if 'is_forced' in columnas_existentes:
+            campos.append('is_forced')
+            valores.append(1 if is_forced else 0)
+        
+        if 'forced_by' in columnas_existentes:
+            campos.append('forced_by')
+            valores.append(forced_by if forced_by else None)
+        
+        # Construir y ejecutar la consulta
+        placeholders = ', '.join(['%s'] * len(campos))
+        query = f"INSERT INTO machinefailures ({', '.join(campos)}) VALUES ({placeholders})"
+        
+        app.logger.info(f"Query: {query}")
+        app.logger.info(f"Valores: {valores}")
+        
+        cursor.execute(query, valores)
+        
+        # 5. Actualizar turnos
+        cursor.execute("UPDATE userturns SET turns_remaining = %s WHERE qr_code_id = %s",
+                       (nuevos_turnos, qr_id))
+        
+        # 6. Registrar en error_logs si es forzado
         if is_forced:
-            user_name = session.get('user_name', 'Sistema')
-            cursor.execute("""
-                INSERT INTO error_logs (error_type, error_message, module, user_id )
-                VALUES (%s, %s, %s, %s)
-            """, (
-                'REFUND_FORCED',
-                f'Devolución forzada de {turnos_devueltos} turnos para QR {qr_code}',
-                'packfailure',
-                session.get('user_id'),
-                json.dumps({
-                    'forced_by': forced_by,
-                    'notes': notes,
-                    'original_turns': turnos_data['turns_remaining'],
-                    'new_turns': turnos_data['turns_remaining'] + turnos_devueltos
-                })
-            ))
+            try:
+                cursor.execute("""
+                    INSERT INTO error_logs 
+                    (error_type, error_message, module, user_id, request_path)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    'REFUND_FORCED',
+                    f'Devolución forzada: QR={qr_code}, Turnos={turnos_devueltos}, Por={forced_by}',
+                    'packfailure',
+                    session.get('user_id'),
+                    '/api/reportar-falla'
+                ))
+            except Exception as e:
+                app.logger.error(f"Error registrando en error_logs: {e}")
         
         connection.commit()
         
-        # Obtener información actualizada
-        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
-        nuevos_turnos = cursor.fetchone()
-        
-        app.logger.info(f"Falla reportada - QR: {qr_code}, Turnos devueltos: {turnos_devueltos}, Forzado: {is_forced}")
+        app.logger.info(f"✅ Devolución exitosa - QR: {qr_code}, Turnos: {turnos_devueltos}, Forzado: {is_forced}")
         
         return api_response(
             'S003',
             status='success',
             data={
-                'nuevos_turnos': nuevos_turnos['turns_remaining'],
+                'nuevos_turnos': nuevos_turnos,
                 'is_forced': is_forced,
                 'machine_id': actual_machine_id,
-                'qr_code': qr_code
+                'qr_code': qr_code,
+                'turnos_originales': turnos_originales,
+                'turnos_devueltos': turnos_devueltos
             }
         )
         
@@ -1571,43 +1590,34 @@ def reportar_falla():
         if connection:
             connection.rollback()
         
-        # Si es error de clave foránea, intentar con NULL
-        if e.errno == 1452:  # Foreign key constraint fails
-            try:
-                if connection:
-                    connection.rollback()
-                    cursor = connection.cursor()
-                    
-                    # Intentar con NULL
-                    cursor.execute("""
-                        INSERT INTO machinefailures (qr_code_id, machine_name, turnos_devueltos, notes)
-                        VALUES (%s, %s, %s, %s)
-                    """, (qr_id, 'Sistema', turnos_devueltos, notes))
-                    
-                    cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
-                                   (turnos_devueltos, qr_id))
-                    
-                    connection.commit()
-                    
-                    cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
-                    nuevos_turnos = cursor.fetchone()
-                    
-                    return api_response(
-                        'S003',
-                        status='success',
-                        data={
-                            'nuevos_turnos': nuevos_turnos['turns_remaining'],
-                            'is_forced': is_forced,
-                            'machine_id': None,
-                            'qr_code': qr_code,
-                            'note': 'Insertado con machine_id NULL debido a restricción de clave foránea'
-                        }
-                    )
-            except Exception as retry_error:
-                app.logger.error(f"Error en reintento: {retry_error}")
-                return api_response('E001', http_status=500)
+        # Intentar inserción mínima si falla
+        try:
+            app.logger.info("Intentando inserción mínima...")
+            cursor.execute("""
+                INSERT INTO machinefailures (qr_code_id, machine_name, turnos_devueltos)
+                VALUES (%s, %s, %s)
+            """, (qr_id, 'Sistema', turnos_devueltos))
+            
+            cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining + %s WHERE qr_code_id = %s",
+                           (turnos_devueltos, qr_id))
+            
+            connection.commit()
+            
+            return api_response(
+                'S003',
+                status='success',
+                data={
+                    'nuevos_turnos': turnos_originales + turnos_devueltos,
+                    'is_forced': is_forced,
+                    'machine_id': None,
+                    'qr_code': qr_code,
+                    'note': 'Inserción mínima exitosa'
+                }
+            )
+        except Exception as retry_error:
+            app.logger.error(f"Error en inserción mínima: {retry_error}")
+            return api_response('E001', http_status=500, data={'mysql_error': str(e)})
         
-        return api_response('E001', http_status=500)
     except Exception as e:
         app.logger.error(f"Error reportando falla: {e}")
         sentry_sdk.capture_exception(e)
@@ -1617,7 +1627,7 @@ def reportar_falla():
             cursor.close()
         if connection:
             connection.close()
-
+            
 @app.route('/api/historial-fallas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
