@@ -5285,6 +5285,204 @@ def esp32_registrar_uso():
         if connection:
             connection.close()
 
+# ==================== APIS PARA ESP32 - REPORTE DE FALLA DESDE TFT ====================
+
+@app.route('/api/esp32/reportar-falla', methods=['POST'])
+@handle_api_errors
+def esp32_reportar_falla():
+    """
+    Endpoint para recibir reportes de falla desde la TFT/ESP32
+    Cuando el usuario presiona el botón REPORTAR durante el juego
+    """
+    connection = None
+    cursor = None
+    try:
+        # ==========================================
+        # 1. OBTENER DATOS DEL ESP32
+        # ==========================================
+        data = request.get_json()
+        
+        machine_id = data.get('machine_id')
+        machine_name = data.get('machine_name')
+        qr_code = data.get('qr_code')
+        usage_id = data.get('usage_id')
+        turnos_devueltos = data.get('turnos_devueltos', 1)
+        is_forced = data.get('is_forced', False)
+        notes = data.get('notes', 'Reporte desde TFT - Botón REPORTAR')
+        
+        app.logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}")
+        
+        # ==========================================
+        # 2. VALIDACIONES BÁSICAS
+        # ==========================================
+        if not machine_id or not qr_code:
+            return api_response('E005', http_status=400, data={
+                'message': 'Faltan datos: machine_id y qr_code son requeridos'
+            })
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # ==========================================
+        # 3. VERIFICAR QUE EL QR EXISTE
+        # ==========================================
+        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
+        qr_data = cursor.fetchone()
+        
+        if not qr_data:
+            app.logger.warning(f"❌ [TFT] QR no encontrado: {qr_code}")
+            return api_response('Q001', http_status=404, data={
+                'qr_code': qr_code,
+                'message': 'Código QR no existe en el sistema'
+            })
+        
+        qr_id = qr_data['id']
+        
+        # ==========================================
+        # 4. VERIFICAR QUE EL USAGE_ID CORRESPONDA
+        # ==========================================
+        if usage_id:
+            cursor.execute("""
+                SELECT id, usedAt 
+                FROM turnusage 
+                WHERE id = %s AND qrCodeId = %s AND machineId = %s
+            """, (usage_id, qr_id, machine_id))
+            
+            uso_data = cursor.fetchone()
+            
+            if not uso_data:
+                app.logger.warning(f"⚠️ [TFT] Usage ID {usage_id} no coincide, se usará el último juego")
+                usage_id = None  # Forzar búsqueda del último
+        
+        # ==========================================
+        # 5. SI NO HAY USAGE_ID, BUSCAR EL ÚLTIMO JUEGO
+        # ==========================================
+        if not usage_id:
+            cursor.execute("""
+                SELECT id, usedAt
+                FROM turnusage
+                WHERE qrCodeId = %s AND machineId = %s
+                ORDER BY usedAt DESC
+                LIMIT 1
+            """, (qr_id, machine_id))
+            
+            ultimo_uso = cursor.fetchone()
+            
+            if not ultimo_uso:
+                app.logger.warning(f"❌ [TFT] No hay juegos registrados para QR {qr_code} en máquina {machine_id}")
+                return api_response('E002', http_status=404, data={
+                    'message': 'No hay juegos registrados para este QR en esta máquina'
+                })
+            
+            usage_id = ultimo_uso['id']
+            app.logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
+        
+        # ==========================================
+        # 6. VERIFICAR SI YA SE REPORTÓ ESTA FALLA
+        # ==========================================
+        cursor.execute("""
+            SELECT id, reported_at
+            FROM machinefailures
+            WHERE qr_code_id = %s 
+            AND machine_id = %s
+            AND ABS(TIMESTAMPDIFF(MINUTE, reported_at, NOW())) < 5
+            ORDER BY reported_at DESC
+            LIMIT 1
+        """, (qr_id, machine_id))
+        
+        falla_reciente = cursor.fetchone()
+        
+        if falla_reciente:
+            app.logger.info(f"⚠️ [TFT] Falla ya reportada hace menos de 5 minutos (ID: {falla_reciente['id']})")
+            return api_response(
+                'W007',
+                status='warning',
+                http_status=200,  # 200 para no generar error en ESP32
+                data={
+                    'message': 'Falla ya reportada recientemente',
+                    'failure_id': falla_reciente['id'],
+                    'already_reported': True
+                }
+            )
+        
+        # ==========================================
+        # 7. REGISTRAR LA FALLA EN MACHINEFAILURES
+        # ==========================================
+        cursor.execute("""
+            INSERT INTO machinefailures 
+            (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            qr_id,
+            machine_id,
+            machine_name,
+            turnos_devueltos,
+            notes,
+            0,  # is_forced = FALSE (reporte genuino desde TFT)
+            None  # forced_by = NULL
+        ))
+        
+        failure_id = cursor.lastrowid
+        
+        # ==========================================
+        # 8. DEVOLVER EL TURNO (AUTOMÁTICAMENTE)
+        # ==========================================
+        cursor.execute("""
+            UPDATE userturns 
+            SET turns_remaining = turns_remaining + %s
+            WHERE qr_code_id = %s
+        """, (turnos_devueltos, qr_id))
+        
+        cursor.execute("""
+            UPDATE qrcode 
+            SET remainingTurns = remainingTurns + %s
+            WHERE id = %s
+        """, (turnos_devueltos, qr_id))
+        
+        # ==========================================
+        # 9. OBTENER NUEVOS TURNOS
+        # ==========================================
+        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
+        nuevos_turnos = cursor.fetchone()['turns_remaining']
+        
+        connection.commit()
+        
+        app.logger.info(f"✅ [TFT] Falla reportada exitosamente - ID: {failure_id}, QR: {qr_code}, Turnos devueltos: {turnos_devueltos}, Nuevos turnos: {nuevos_turnos}")
+        
+        # ==========================================
+        # 10. RESPUESTA AL ESP32
+        # ==========================================
+        return api_response(
+            'S012',  # Código nuevo: Falla reportada desde TFT
+            status='success',
+            data={
+                'failure_id': failure_id,
+                'qr_code': qr_code,
+                'machine_id': machine_id,
+                'usage_id': usage_id,
+                'turnos_devueltos': turnos_devueltos,
+                'turnos_restantes': nuevos_turnos,
+                'message': 'Falla reportada y turno devuelto automáticamente'
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"❌ [TFT] Error procesando reporte de falla: {e}", exc_info=True)
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500, data={
+            'error': str(e),
+            'message': 'Error interno del servidor al reportar falla'
+        })
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 @app.route('/api/tft/machine-status/<machine_id>', methods=['GET'])
 def tft_machine_status(machine_id):
     """Obtener estado de máquina para pantalla TFT"""
