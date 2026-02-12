@@ -5243,6 +5243,11 @@ def esp32_registrar_uso():
         
         # Registrar uso
         cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        
+        # 🔴🔴🔴 IMPORTANTE: OBTENER EL ID DEL USO RECIÉN CREADO 🔴🔴🔴
+        usage_id = cursor.lastrowid
+        app.logger.info(f"✅ USAGE_ID generado: {usage_id}")
+        
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
         
         # Actualizar última fecha de uso de la máquina
@@ -5261,8 +5266,9 @@ def esp32_registrar_uso():
         
         info_actualizada = cursor.fetchone()
         
-        app.logger.info(f"ESP32: Uso registrado - QR: {qr_code}, Turnos restantes: {info_actualizada['turns_remaining']}")
+        app.logger.info(f"ESP32: Uso registrado - QR: {qr_code}, Turnos restantes: {info_actualizada['turns_remaining']}, Usage ID: {usage_id}")
         
+        # 🔴🔴🔴 RESPUESTA MODIFICADA - INCLUYE USAGE_ID 🔴🔴🔴
         return api_response(
             'S010',
             status='success',
@@ -5271,7 +5277,8 @@ def esp32_registrar_uso():
                 'package_name': info_actualizada['package_name'],
                 'qr_name': qr_name,
                 'qr_code': qr_code,
-                'machine_id': machine_id
+                'machine_id': machine_id,
+                'usage_id': usage_id  # <--- ESTO ES LO QUE FALTA
             }
         )
         
@@ -5279,6 +5286,44 @@ def esp32_registrar_uso():
         app.logger.error(f"Error registrando uso desde ESP32: {e}")
         sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/esp32/ultimo-usage/<qr_code>/<int:machine_id>', methods=['GET'])
+@handle_api_errors
+def esp32_ultimo_usage(qr_code, machine_id):
+    """Obtener el último usage_id para un QR y máquina específicos"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'usage_id': 0, 'error': 'Sin conexión'}), 500
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT tu.id as usage_id
+            FROM turnusage tu
+            JOIN qrcode qr ON tu.qrCodeId = qr.id
+            WHERE qr.code = %s AND tu.machineId = %s
+            ORDER BY tu.usedAt DESC
+            LIMIT 1
+        """, (qr_code, machine_id))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            return jsonify({'usage_id': result['usage_id']})
+        else:
+            return jsonify({'usage_id': 0})
+            
+    except Exception as e:
+        app.logger.error(f"Error obteniendo último usage_id: {e}")
+        return jsonify({'usage_id': 0, 'error': str(e)}), 500
     finally:
         if cursor:
             cursor.close()
