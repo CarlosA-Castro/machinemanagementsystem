@@ -5652,7 +5652,54 @@ def esp32_machine_technical(machine_id):
             cursor.close()
         if connection:
             connection.close()
-            
+
+@app.route('/api/esp32/machine-reset', methods=['POST'])
+@handle_api_errors
+def esp32_machine_reset():
+    """
+    Endpoint para registrar cuando una máquina se reinicia 
+    después de una devolución exitosa
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        machine_id = data.get('machine_id')
+        machine_name = data.get('machine_name')
+        qr_code = data.get('qr_code')
+        usage_id = data.get('usage_id')
+        failure_id = data.get('failure_id')
+        reset_time = data.get('reset_time_seconds', 5)
+        
+        app.logger.info(f"🔄🔄🔄 [REINICIO MÁQUINA] 🔄🔄🔄")
+        app.logger.info(f"   Máquina ID: {machine_id}")
+        app.logger.info(f"   Máquina Nombre: {machine_name}")
+        app.logger.info(f"   QR Code: {qr_code}")
+        app.logger.info(f"   Usage ID: {usage_id}")
+        app.logger.info(f"   Failure ID: {failure_id}")
+        app.logger.info(f"   Tiempo de reinicio: {reset_time}s")
+        app.logger.info(f"   Timestamp: {get_colombia_time().strftime('%Y-%m-%d %H:%M:%S')}")
+        app.logger.info(f"🔄🔄🔄 ==================== 🔄🔄🔄")
+        
+        return api_response(
+            'S013',
+            status='success',
+            data={
+                'message': 'Reinicio registrado',
+                'machine_id': machine_id,
+                'timestamp': get_colombia_time().isoformat()
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"❌ Error registrando reinicio de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 # ==================== RUTAS DE REDIRECCIÓN ====================
 
 @app.route('/admin/usuarios/lista')
