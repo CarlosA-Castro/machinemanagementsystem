@@ -1638,7 +1638,6 @@ def guardar_qr():
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
         
-        # Obtener información del QR
         cursor.execute("SELECT qr_name, turnPackageId FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         qr_name = qr_data['qr_name'] if qr_data and 'qr_name' in qr_data else None
@@ -1650,7 +1649,6 @@ def guardar_qr():
         if es_venta_real and not es_consulta and tiene_paquete:
             es_venta = True
         
-        # Insertar en historial
         cursor.execute("""
             INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -1658,13 +1656,12 @@ def guardar_qr():
         
         connection.commit()
         
-        # Solo actualizar contador diario si es una VENTA REAL (no consulta)
         if es_venta:
             actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
             app.logger.info(f"VENTA REAL registrada: {qr_code} por {user_name}")
             mensaje = "Venta registrada"
         else:
-            # Si es consulta, NO actualizar contador diario
+            
             app.logger.info(f"CONSULTA registrada: {qr_code} por {user_name}")
             mensaje = "Consulta registrada"
         
@@ -1705,7 +1702,6 @@ def verificar_venta_existente(qr_code):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar si ya existe venta real para este QR
         cursor.execute("""
             SELECT 
                 COUNT(*) as existe_venta,
@@ -1718,7 +1714,6 @@ def verificar_venta_existente(qr_code):
         
         venta_info = cursor.fetchone()
         
-        # Obtener información básica del QR
         cursor.execute("SELECT qr_name, turnPackageId FROM qrcode WHERE code = %s", (qr_code,))
         qr_info = cursor.fetchone()
         
@@ -1757,7 +1752,7 @@ def guardar_multiples_qr_con_paquete():
         paquete_nombre = data.get('paquete_nombre', '')
         paquete_precio = data.get('paquete_precio', 0)
         paquete_turns = data.get('paquete_turns', 0)
-        es_venta_real = data.get('es_venta_real', True)  # Por defecto es venta
+        es_venta_real = data.get('es_venta_real', True)  
         
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
@@ -1830,7 +1825,6 @@ def guardar_multiples_qr_con_paquete():
                 
                 qrs_actualizados += 1
             
-            # Registrar en historial como VENTA REAL
             cursor.execute("""
                 INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -1838,7 +1832,6 @@ def guardar_multiples_qr_con_paquete():
 
         connection.commit()
         
-        # Actualizar contador diario si es venta real
         if es_venta_real and qr_codes:
             actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
         
@@ -1917,7 +1910,6 @@ def guardar_multiples_qr():
                     UPDATE qrcode SET qr_name = %s WHERE code = %s
                 """, (nombre, qr_code))
             
-            # Registrar en historial
             cursor.execute("""
                 INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -1925,7 +1917,6 @@ def guardar_multiples_qr():
 
         connection.commit()
         
-        # Si es una venta real, actualizar el contador diario
         if es_venta_real and qr_codes:
             actualizar_contador_diario(hora_colombia.strftime('%Y-%m-%d'))
         
@@ -1969,7 +1960,6 @@ def obtener_estadisticas_tiempo_real():
             
         cursor = get_db_cursor(connection)
         
-        # QR vendidos hoy (con paquetes)
         cursor.execute("""
             SELECT COUNT(DISTINCT qh.qr_code) as vendidos_hoy,
                    COALESCE(SUM(tp.price), 0) as valor_hoy
@@ -1984,7 +1974,6 @@ def obtener_estadisticas_tiempo_real():
         
         ventas = cursor.fetchone()
         
-        # QR escaneados hoy (todos)
         cursor.execute("""
             SELECT COUNT(*) as escaneados_hoy
             FROM qrhistory
@@ -1993,7 +1982,6 @@ def obtener_estadisticas_tiempo_real():
         
         escaneados = cursor.fetchone()
         
-        # Turnos utilizados hoy
         cursor.execute("""
             SELECT COUNT(*) as turnos_hoy
             FROM turnusage
@@ -2002,7 +1990,6 @@ def obtener_estadisticas_tiempo_real():
         
         turnos = cursor.fetchone()
         
-        # QR generados hoy (nuevos)
         cursor.execute("""
             SELECT COUNT(*) as qr_generados_hoy
             FROM qrcode
@@ -2011,7 +1998,6 @@ def obtener_estadisticas_tiempo_real():
         
         generados = cursor.fetchone()
         
-        # Contador global actual
         cursor.execute("SELECT counter_value FROM globalcounter WHERE counter_type = 'QR_CODE'")
         contador_qr = cursor.fetchone()
         
@@ -2267,7 +2253,6 @@ def ventas_dia():
             
         cursor = get_db_cursor(connection)
         
-        # Solo contar ventas donde es_venta_real = TRUE
         cursor.execute("""
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
@@ -2317,7 +2302,6 @@ def obtener_ventas():
             
         cursor = get_db_cursor(connection)
         
-        # 1. Obtener ventas detalladas
         cursor.execute("""
             SELECT 
                 DATE(qh.fecha_hora) as fecha,
@@ -2341,7 +2325,6 @@ def obtener_ventas():
         
         ventas = cursor.fetchall()
         
-        # 2. Estadísticas generales
         cursor.execute("""
             SELECT 
                 COUNT(DISTINCT qh.qr_code) as total_paquetes,
@@ -2362,7 +2345,6 @@ def obtener_ventas():
         
         estadisticas_data = cursor.fetchone()
         
-        # 3. Ventas por paquete para gráfico
         cursor.execute("""
             SELECT 
                 tp.name as paquete,
@@ -2380,7 +2362,6 @@ def obtener_ventas():
         
         ventas_por_paquete = cursor.fetchall()
         
-        # 4. Ventas por hora para gráfico
         cursor.execute("""
             SELECT 
                 HOUR(qh.fecha_hora) as hora,
@@ -2397,7 +2378,6 @@ def obtener_ventas():
         
         ventas_por_hora = cursor.fetchall()
         
-        # 5. Calcular tendencias vs ayer
         fecha_inicio_ayer = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         fecha_fin_ayer = (datetime.strptime(fecha_fin, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         
@@ -2416,7 +2396,6 @@ def obtener_ventas():
         
         ayer_data = cursor.fetchone()
         
-        # Calcular porcentajes de tendencia
         total_ventas_hoy = float(estadisticas_data['total_ventas'] or 0)
         total_ventas_ayer = float(ayer_data['ventas_ayer'] or 0)
         
@@ -2431,11 +2410,8 @@ def obtener_ventas():
         if total_paquetes_ayer > 0:
             tendencia_paquetes = ((total_paquetes_hoy - total_paquetes_ayer) / total_paquetes_ayer) * 100
         
-        # Calcular eficiencia (conversión de ventas)
-        # Esto es solo un ejemplo - ajusta según tu lógica de negocio
-        eficiencia = 85  # Por defecto
+        eficiencia = 85  
         
-        # Preparar datos para gráficos
         graficos = {
             'paquetes': {
                 'labels': [item['paquete'] for item in ventas_por_paquete],
@@ -2448,7 +2424,6 @@ def obtener_ventas():
             }
         }
         
-        # Formatear fechas en las ventas
         ventas_formateadas = []
         for venta in ventas:
             ventas_formateadas.append({
@@ -2498,16 +2473,11 @@ def obtener_ventas():
 def exportar_ventas_pdf():
     """Exportar ventas como PDF"""
     try:
-        # Por ahora, simplemente redirigir a la API de ventas
-        # En una implementación real, aquí generarías un PDF
         
         fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
         fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
         
         app.logger.info(f"Exportando ventas a PDF: {fecha_inicio} - {fecha_fin}")
-        
-        # Por ahora, devolver un mensaje informativo
-        # En producción, implementar generación real de PDF con reportlab o similar
         
         return jsonify({
             'status': 'success',
@@ -2548,17 +2518,14 @@ def reportar_falla_maquina():
 )
         cursor = connection.cursor(dictionary=True)
         
-        # Verificar máquina
         cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
         maquina = cursor.fetchone()
         
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
         
-        # Determinar estado
         nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
         
-        # Insertar reporte
         cursor.execute("""
             INSERT INTO errorreport 
             (machineId, userId, description, reportedAt, isResolved)
@@ -2567,7 +2534,6 @@ def reportar_falla_maquina():
         
         error_report_id = cursor.lastrowid
         
-        # Actualizar máquina
         cursor.execute("""
             UPDATE machine 
             SET status = %s, 
@@ -2618,7 +2584,6 @@ def resolver_reporte(reporte_id):
         user_name = session.get('user_name')
         user_role = session.get('user_role')
         
-        # DEPURACIÓN DETALLADA
         app.logger.info(f"DEPURACIÓN - user_id: {user_id}, user_name: {user_name}, user_role: {user_role}")
         app.logger.info(f"Datos recibidos: {data}")
         app.logger.info(f"Comentarios: '{comentarios}'")
@@ -2638,12 +2603,10 @@ def resolver_reporte(reporte_id):
             
         cursor = get_db_cursor(connection)
         
-        # Test de conexión
         cursor.execute("SELECT 1 as test")
         test_result = cursor.fetchone()
         app.logger.info(f"Conexión BD test: {test_result}")
-        
-        # Verificar que el reporte existe
+     
         cursor.execute("SELECT id FROM errorreport WHERE id = %s", (reporte_id,))
         reporte_existe = cursor.fetchone()
         
@@ -2651,7 +2614,6 @@ def resolver_reporte(reporte_id):
             app.logger.error(f"Reporte {reporte_id} no encontrado")
             return api_response('M007', http_status=404, data={'message': 'Reporte no encontrado'})
         
-        # Obtener información completa del reporte
         cursor.execute("""
             SELECT er.*, m.name as machine_name, m.id as machine_id
             FROM errorreport er
@@ -2672,7 +2634,7 @@ def resolver_reporte(reporte_id):
         app.logger.info(f"Máquina asociada: id={machine_id}, nombre={machine_name}")
         
         try:
-            # 1. Marcar reporte como resuelto en ErrorReport
+            
             app.logger.info("Actualizando ErrorReport...")
             
             query_update_er = """
@@ -2684,10 +2646,9 @@ def resolver_reporte(reporte_id):
             cursor.execute(query_update_er, (reporte_id,))
             app.logger.info(f"ErrorReport actualizado: {cursor.rowcount} filas afectadas")
             
-            # 2. Crear registro en confirmation_logs (VERSIÓN SIMPLIFICADA)
+            
             app.logger.info("Insertando en confirmation_logs...")
             
-            # Insertar sin foreign keys primero (para debug)
             try:
                 insert_query = """
                     INSERT INTO confirmation_logs  
@@ -2701,7 +2662,7 @@ def resolver_reporte(reporte_id):
                 app.logger.info(f"Registro creado en confirmation_logs con ID: {confirmation_id}")
             except Exception as insert_error:
                 app.logger.error(f"Error insertando en confirmation_logs: {insert_error}")
-                # Si falla, intentar sin comments
+                
                 cursor.execute("""
                     INSERT INTO confirmation_logs 
                     (fault_report_id, admin_id, confirmation_status)
@@ -2710,11 +2671,10 @@ def resolver_reporte(reporte_id):
                 confirmation_id = cursor.lastrowid
                 app.logger.info(f"Registro creado (sin comments) con ID: {confirmation_id}")
             
-            # 3. Cambiar estado de la máquina si es necesario y LIMPIAR errorNote
             if machine_id:
                 app.logger.info(f"Actualizando estado de máquina {machine_id}...")
                 
-                # PRIMERO: Verificar si hay otros reportes pendientes para esta máquina
+               
                 cursor.execute("""
                     SELECT COUNT(*) as reportes_pendientes
                     FROM errorreport 
@@ -2727,7 +2687,7 @@ def resolver_reporte(reporte_id):
                 app.logger.info(f"Máquina {machine_id} tiene {reportes_pendientes} reportes pendientes adicionales")
                 
                 if reportes_pendientes == 0:
-                    # Si NO hay más reportes pendientes, limpiar errorNote y poner estado 'activa'
+                   
                     cursor.execute("""
                         UPDATE machine 
                         SET status = 'activa', 
@@ -2740,8 +2700,7 @@ def resolver_reporte(reporte_id):
                     else:
                         app.logger.info(f"Máquina {machine_id} no cambió de estado (ya estaba activa o no aplica)")
                 else:
-                    # Si todavía hay reportes pendientes, solo cambiar el estado si es necesario
-                    # pero mantener el errorNote
+                    
                     cursor.execute("""
                         UPDATE machine 
                         SET status = 'activa'
@@ -2773,12 +2732,10 @@ def resolver_reporte(reporte_id):
             app.logger.error(f"Error en transacción: {trans_error}", exc_info=True)
             connection.rollback()
             
-            # Dar más detalles del error
             error_msg = str(trans_error)
             
-            # Verificar errores específicos
             if "confirmation_logs" in error_msg:
-                # Probar estructura de la tabla
+                
                 app.logger.info("Verificando estructura de confirmation_logs...")
                 try:
                     cursor.execute("DESCRIBE confirmation_logs")
@@ -2807,15 +2764,12 @@ def debug_confirmation_logs():
         connection = get_db_connection()
         cursor = get_db_cursor(connection)
         
-        # 1. Ver estructura
         cursor.execute("DESCRIBE confirmation_logs")
         estructura = cursor.fetchall()
         
-        # 2. Ver valores ENUM
         cursor.execute("SHOW COLUMNS FROM confirmation_logs LIKE 'confirmation_status'")
         enum_info = cursor.fetchone()
         
-        # 3. Intentar insertar manualmente
         test_data = {
             'fault_report_id': 5,
             'admin_id': session.get('user_id', 1),
@@ -3053,7 +3007,6 @@ def debug_usuarios():
         
         usuarios = cursor.fetchall()
         
-        # Convertir datetime a string
         usuarios_formateados = []
         for u in usuarios:
             usuario_dict = dict(u)
@@ -3104,7 +3057,7 @@ def obtener_usuarios():
         
         usuarios_formateados = []
         for usuario in usuarios:
-            # Asegurar que isActive existe
+           
             is_active = usuario.get('isActive', True)
             if is_active is None:
                 is_active = True
@@ -3188,7 +3141,6 @@ def crear_usuario():
         role = data['role']
         notes = data.get('notes', '')
         
-        # Validaciones
         if len(password) < 6:
             return api_response('U003', http_status=400)
         
@@ -3201,12 +3153,10 @@ def crear_usuario():
             
         cursor = get_db_cursor(connection)
         
-        # Verificar si el usuario ya existe
         cursor.execute("SELECT id FROM users WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
         
-        # Crear usuario
         cursor.execute("""
             INSERT INTO users (name, password, role, createdBy, notes)
             VALUES (%s, %s, %s, %s, %s)
@@ -3257,17 +3207,14 @@ def actualizar_usuario(usuario_id):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que el usuario existe
         cursor.execute("SELECT id FROM users WHERE id = %s", (usuario_id,))
         if not cursor.fetchone():
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
         
-        # Verificar nombre duplicado
         cursor.execute("SELECT id FROM users WHERE name = %s AND id != %s", (name, usuario_id))
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
         
-        # Actualizar usuario
         if password:
             cursor.execute("""
                 UPDATE users 
@@ -3314,13 +3261,11 @@ def eliminar_usuario(usuario_id):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que el usuario existe
         cursor.execute("SELECT name FROM users WHERE id = %s", (usuario_id,))
         usuario = cursor.fetchone()
         if not usuario:
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
         
-        # Eliminar usuario
         cursor.execute("DELETE FROM users WHERE id = %s", (usuario_id,))
         connection.commit()
         
@@ -3387,7 +3332,6 @@ def crear_paquete():
         price = data['price']
         isActive = data.get('isActive', True)
         
-        # Validaciones
         if turns < 1:
             return api_response('E005', http_status=400, data={'message': 'Turnos debe ser mayor a 0'})
         
@@ -3400,12 +3344,10 @@ def crear_paquete():
             
         cursor = get_db_cursor(connection)
         
-        # Verificar si el paquete ya existe
         cursor.execute("SELECT id FROM turnpackage WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Paquete ya existe'})
         
-        # Crear paquete
         cursor.execute("""
             INSERT INTO turnpackage (name, turns, price, isActive)
             VALUES (%s, %s, %s, %s)
@@ -3446,7 +3388,6 @@ def actualizar_paquete(paquete_id):
         price = data['price']
         isActive = data.get('isActive')
         
-        # Validaciones
         if turns < 1:
             return api_response('E005', http_status=400, data={'message': 'Turnos debe ser mayor a 0'})
         
@@ -3459,17 +3400,14 @@ def actualizar_paquete(paquete_id):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que el paquete existe
         cursor.execute("SELECT id FROM turnpackage WHERE id = %s", (paquete_id,))
         if not cursor.fetchone():
             return api_response('Q004', http_status=404, data={'paquete_id': paquete_id})
         
-        # Verificar nombre duplicado
         cursor.execute("SELECT id FROM turnpackage WHERE name = %s AND id != %s", (name, paquete_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de paquete ya existe'})
         
-        # Actualizar paquete
         cursor.execute("""
             UPDATE turnpackage 
             SET name = %s, turns = %s, price = %s, isActive = %s
@@ -3506,13 +3444,11 @@ def eliminar_paquete(paquete_id):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que el paquete existe
         cursor.execute("SELECT name FROM turnpackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
         if not paquete:
             return api_response('Q004', http_status=404, data={'paquete_id': paquete_id})
-        
-        # Verificar si el paquete está en uso
+
         cursor.execute("""
             SELECT COUNT(*) as uso_count 
             FROM qrcode 
@@ -3531,7 +3467,6 @@ def eliminar_paquete(paquete_id):
                 }
             )
         
-        # Eliminar paquete
         cursor.execute("DELETE FROM turnpackage WHERE id = %s", (paquete_id,))
         connection.commit()
         
@@ -3568,7 +3503,6 @@ def obtener_locales():
             
         cursor = get_db_cursor(connection)
         
-        # Primero, obtener todos los locales
         cursor.execute("""
             SELECT 
                 l.id,
@@ -3589,7 +3523,6 @@ def obtener_locales():
         if not locales:
             return jsonify([])
         
-        # Ahora, para cada local, obtener las estadísticas de máquinas por separado
         locales_con_estadisticas = []
         for local in locales:
             cursor.execute("""
@@ -3697,12 +3630,10 @@ def crear_local():
             
         cursor = get_db_cursor(connection)
         
-        # Verificar si el local ya existe
         cursor.execute("SELECT id FROM location WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Local ya existe'})
         
-        # Crear local
         cursor.execute("""
             INSERT INTO location (name, address, city, status, telefono, horario, notas)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -3752,17 +3683,14 @@ def actualizar_local(local_id):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que el local existe
         cursor.execute("SELECT id FROM location WHERE id = %s", (local_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': local_id})
         
-        # Verificar nombre duplicado
         cursor.execute("SELECT id FROM location WHERE name = %s AND id != %s", (name, local_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de local ya existe'})
         
-        # Actualizar local
         cursor.execute("""
             UPDATE location 
             SET name = %s, address = %s, city = %s, status = %s, 
@@ -3800,13 +3728,11 @@ def eliminar_local(local_id):
             
         cursor = get_db_cursor(connection)
         
-        # Verificar que el local existe
         cursor.execute("SELECT name FROM location WHERE id = %s", (local_id,))
         local = cursor.fetchone()
         if not local:
             return api_response('E002', http_status=404, data={'local_id': local_id})
-        
-        # Verificar si el local tiene máquinas asignadas
+  
         cursor.execute("SELECT COUNT(*) as maquinas_count FROM machine WHERE location_id = %s", (local_id,))
         maquinas_count = cursor.fetchone()['maquinas_count']
         
@@ -3820,8 +3746,7 @@ def eliminar_local(local_id):
                     'maquinas_count': maquinas_count
                 }
             )
-        
-        # Eliminar local
+
         cursor.execute("DELETE FROM location WHERE id = %s", (local_id,))
         connection.commit()
         
@@ -3947,8 +3872,7 @@ def obtener_maquina(maquina_id):
         
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
-        
-        # Obtener información de propietarios
+
         cursor.execute("""
             SELECT 
                 p.id,
@@ -4007,7 +3931,6 @@ def crear_maquina():
         errorNote = data.get('errorNote', '')
         porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
         
-        # Validaciones
         if type not in ['simulador', 'arcade', 'peluchera']:
             return api_response('E005', http_status=400, data={'message': 'Tipo de máquina inválido'})
         
@@ -4022,26 +3945,22 @@ def crear_maquina():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar si la máquina ya existe
+
         cursor.execute("SELECT id FROM machine WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Máquina ya existe'})
-        
-        # Verificar que el local existe
+
         cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': location_id})
-        
-        # Crear máquina
+
         cursor.execute("""
             INSERT INTO machine (name, type, status, location_id, errorNote)
             VALUES (%s, %s, %s, %s, %s)
         """, (name, type, status, location_id, errorNote))
         
         maquina_id = cursor.lastrowid
-        
-        # Guardar porcentaje del restaurante si es diferente al default
+
         if float(porcentaje_restaurante) != 35.00:
             cursor.execute("""
                 INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
@@ -4085,8 +4004,7 @@ def actualizar_maquina(maquina_id):
         location_id = data['location_id']
         errorNote = data.get('errorNote', '')
         porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
-        
-        # Validaciones
+
         if type not in ['simulador', 'arcade', 'peluchera']:
             return api_response('E005', http_status=400, data={'message': 'Tipo de máquina inválido'})
         
@@ -4101,31 +4019,26 @@ def actualizar_maquina(maquina_id):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar que la máquina existe
+
         cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
-        
-        # Verificar nombre duplicado
+
         cursor.execute("SELECT id FROM machine WHERE name = %s AND id != %s", (name, maquina_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de máquina ya existe'})
-        
-        # Verificar que el local existe
+
         cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': location_id})
-        
-        # Actualizar máquina
+
         cursor.execute("""
             UPDATE machine 
             SET name = %s, type = %s, status = %s, location_id = %s, errorNote = %s
             WHERE id = %s
         """, (name, type, status, location_id, errorNote, maquina_id))
-        
-        # Actualizar porcentaje del restaurante
+
         if float(porcentaje_restaurante) != 35.00:
             cursor.execute("""
                 INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
@@ -4165,14 +4078,12 @@ def eliminar_maquina(maquina_id):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar que la máquina existe
+
         cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
-        
-        # Verificar si la máquina tiene uso histórico
+
         cursor.execute("SELECT COUNT(*) as uso_count FROM turnusage WHERE machineId = %s", (maquina_id,))
         uso_count = cursor.fetchone()['uso_count']
         
@@ -4187,13 +4098,11 @@ def eliminar_maquina(maquina_id):
                     'machine_name': maquina['name']
                 }
             )
-        
-        # Eliminar registros relacionados
+
         cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
         cursor.execute("DELETE FROM MaquinaPropietario WHERE maquina_id = %s", (maquina_id,))
         cursor.execute("DELETE FROM errorreport WHERE machineId = %s", (maquina_id,))
-        
-        # Eliminar máquina
+
         cursor.execute("DELETE FROM machine WHERE id = %s", (maquina_id,))
         
         connection.commit()
@@ -4236,8 +4145,7 @@ def obtener_mensajes():
         """)
         
         mensajes = cursor.fetchall()
-        
-        # Formatear fechas
+
         for mensaje in mensajes:
             if mensaje['created_at']:
                 fecha_colombia = parse_db_datetime(mensaje['created_at'])
@@ -4271,8 +4179,7 @@ def crear_mensaje():
         message_type = data['message_type']
         message_text = data['message_text']
         language_code = data.get('language_code', 'es')
-        
-        # Validar tipo de mensaje
+
         if message_type not in ['error', 'success', 'warning', 'info']:
             return api_response('E005', http_status=400, data={'field': 'message_type'})
         
@@ -4281,8 +4188,7 @@ def crear_mensaje():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar si el código ya existe para este idioma
+
         cursor.execute("""
             SELECT id FROM system_messages 
             WHERE message_code = %s AND language_code = %s
@@ -4296,8 +4202,7 @@ def crear_mensaje():
                     'message': f'El código {message_code} ya existe para el idioma {language_code}'
                 }
             )
-        
-        # Crear mensaje
+
         cursor.execute("""
             INSERT INTO system_messages 
             (message_code, message_type, message_text, language_code)
@@ -4305,8 +4210,7 @@ def crear_mensaje():
         """, (message_code, message_type, message_text, language_code))
         
         connection.commit()
-        
-        # Limpiar cache
+
         MessageService.clear_cache()
         
         app.logger.info(f"Mensaje creado: {message_code} ({message_type})")
@@ -4346,15 +4250,13 @@ def actualizar_mensaje(mensaje_id):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar que el mensaje existe
+
         cursor.execute("SELECT message_code FROM system_messages WHERE id = %s", (mensaje_id,))
         mensaje = cursor.fetchone()
         
         if not mensaje:
             return api_response('E002', http_status=404, data={'mensaje_id': mensaje_id})
-        
-        # Construir consulta dinámica
+
         update_fields = []
         update_values = []
         
@@ -4380,8 +4282,7 @@ def actualizar_mensaje(mensaje_id):
         
         cursor.execute(update_query, update_values)
         connection.commit()
-        
-        # Limpiar cache
+
         MessageService.clear_cache()
         
         app.logger.info(f"Mensaje actualizado: {mensaje['message_code']} (ID: {mensaje_id})")
@@ -4412,15 +4313,13 @@ def eliminar_mensaje(mensaje_id):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar que el mensaje existe
+
         cursor.execute("SELECT message_code FROM system_messages WHERE id = %s", (mensaje_id,))
         mensaje = cursor.fetchone()
         
         if not mensaje:
             return api_response('E002', http_status=404, data={'mensaje_id': mensaje_id})
-        
-        # No permitir eliminar mensajes del sistema esenciales
+
         codigos_esenciales = ['E001', 'E002', 'A001', 'S001']
         if mensaje['message_code'] in codigos_esenciales:
             return api_response(
@@ -4428,12 +4327,10 @@ def eliminar_mensaje(mensaje_id):
                 http_status=400,
                 data={'message': 'No se pueden eliminar mensajes del sistema esenciales'}
             )
-        
-        # Eliminar mensaje
+
         cursor.execute("DELETE FROM system_messages WHERE id = %s", (mensaje_id,))
         connection.commit()
-        
-        # Limpiar cache
+
         MessageService.clear_cache()
         
         app.logger.info(f"Mensaje eliminado: {mensaje['message_code']} (ID: {mensaje_id})")
@@ -4481,8 +4378,7 @@ def buscar_mensajes():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Construir consulta dinámica
+
         condiciones = []
         parametros = []
         
@@ -4511,8 +4407,7 @@ def buscar_mensajes():
         
         cursor.execute(sql, parametros)
         mensajes = cursor.fetchall()
-        
-        # Formatear fechas
+
         for mensaje in mensajes:
             if mensaje['created_at']:
                 fecha_colombia = parse_db_datetime(mensaje['created_at'])
@@ -4549,8 +4444,7 @@ def validar_codigo_mensaje(codigo):
     cursor = None
     try:
         import re
-        
-        # Validar formato
+
         if not re.match(r'^[A-Z][0-9]{3}$', codigo):
             return jsonify({
                 'valido': False,
@@ -4565,8 +4459,7 @@ def validar_codigo_mensaje(codigo):
             })
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar si existe en español
+
         cursor.execute("""
             SELECT language_code, message_type, message_text
             FROM system_messages
@@ -4581,8 +4474,7 @@ def validar_codigo_mensaje(codigo):
                 'disponible': True,
                 'mensaje': 'Código disponible para todos los idiomas'
             })
-        
-        # Determinar idiomas disponibles
+
         idiomas_existentes = [m['language_code'] for m in mensajes]
         idiomas_disponibles = ['es', 'en']
         idiomas_faltantes = [idioma for idioma in idiomas_disponibles if idioma not in idiomas_existentes]
@@ -4633,8 +4525,7 @@ def obtener_estadisticas_dashboard():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # 1. Ingresos totales en el período
+
         cursor.execute("""
             SELECT 
                 COALESCE(SUM(tp.price), 0) as ingresos_totales,
@@ -4649,8 +4540,7 @@ def obtener_estadisticas_dashboard():
         """, (fecha_inicio, fecha_fin))
         
         ingresos = cursor.fetchone()
-        
-        # 2. Máquinas activas vs total
+
         cursor.execute("""
             SELECT 
                 COUNT(CASE WHEN status = 'activa' THEN 1 END) as maquinas_activas,
@@ -4659,8 +4549,7 @@ def obtener_estadisticas_dashboard():
         """)
         
         maquinas = cursor.fetchone()
-        
-        # 3. Ticket promedio
+
         cursor.execute("""
             SELECT 
                 CASE 
@@ -4677,8 +4566,7 @@ def obtener_estadisticas_dashboard():
         """, (fecha_inicio, fecha_fin))
         
         ticket = cursor.fetchone()
-        
-        # 4. Comparación con período anterior para tendencias
+
         fecha_inicio_anterior = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
         fecha_fin_anterior = (datetime.strptime(fecha_fin, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
         
@@ -4695,8 +4583,7 @@ def obtener_estadisticas_dashboard():
         """, (fecha_inicio_anterior, fecha_fin_anterior))
         
         anterior = cursor.fetchone()
-        
-        # Calcular tendencias porcentuales
+
         ingresos_actual = float(ingresos['ingresos_totales'] or 0)
         ingresos_previo = float(anterior['ingresos_anterior'] or 0)
         
@@ -4756,8 +4643,7 @@ def obtener_graficas_dashboard():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # 1. Evolución de ventas por día
+
         cursor.execute("""
             SELECT 
                 DATE(qh.fecha_hora) as fecha,
@@ -4780,8 +4666,7 @@ def obtener_graficas_dashboard():
             'labels': [str(item['fecha']) for item in evolucion_data],
             'data': [float(item['ingresos']) for item in evolucion_data]
         }
-        
-        # 2. Ventas por paquete
+
         cursor.execute("""
             SELECT 
                 tp.name as paquete,
@@ -4805,8 +4690,7 @@ def obtener_graficas_dashboard():
             'labels': [item['paquete'] for item in paquetes_data],
             'data': [item['cantidad'] for item in paquetes_data]
         }
-        
-        # 3. Rendimiento por máquina
+
         cursor.execute("""
             SELECT 
                 m.name as maquina,
@@ -4830,8 +4714,7 @@ def obtener_graficas_dashboard():
             'labels': [item['maquina'] for item in maquinas_data],
             'data': [float(item['ingresos']) for item in maquinas_data]
         }
-        
-        # 4. Estado de máquinas
+
         cursor.execute("""
             SELECT 
                 COUNT(CASE WHEN status = 'activa' THEN 1 END) as activas,
@@ -4902,8 +4785,7 @@ def obtener_top_maquinas():
         """, (fecha_hoy,))
         
         top_maquinas = cursor.fetchall()
-        
-        # Formatear respuesta
+
         maquinas_formateadas = []
         for maquina in top_maquinas:
             maquinas_formateadas.append({
@@ -4957,11 +4839,10 @@ def obtener_ventas_recientes():
         """)
         
         ventas = cursor.fetchall()
-        
-        # Formatear respuesta
+
         ventas_formateadas = []
         for venta in ventas:
-            # Formatear fecha/hora
+
             fecha_hora = venta['fecha_hora']
             if fecha_hora:
                 try:
@@ -5002,7 +4883,6 @@ def obtener_ventas_recientes():
 @app.route('/api/usuarios/<int:usuario_id>/estado', methods=['PUT'])
 @handle_api_errors
 @require_login(['admin'])
-#@validate_required_fields(['isActive'])
 def cambiar_estado_usuario(usuario_id):
     """Cambiar estado activo/inactivo de un usuario"""
     connection = None
@@ -5021,14 +4901,12 @@ def cambiar_estado_usuario(usuario_id):
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar que el usuario existe
+
         cursor.execute("SELECT name FROM users WHERE id = %s", (usuario_id,))
         usuario = cursor.fetchone()
         if not usuario:
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
-        
-        # Actualizar estado
+
         cursor.execute("""
             UPDATE users 
             SET isActive = %s,
@@ -5070,8 +4948,7 @@ def obtener_estadisticas_usuarios():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Obtener conteos por rol y estado
+
         cursor.execute("""
             SELECT 
                 COUNT(*) as total,
@@ -5177,8 +5054,7 @@ def esp32_registrar_uso():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # Verificar que el QR existe y tiene turnos
+
         cursor.execute("SELECT id, qr_name FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
@@ -5192,22 +5068,18 @@ def esp32_registrar_uso():
         
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
-        
-        # Registrar uso
+
         cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
-        
-        # 🔴🔴🔴 IMPORTANTE: OBTENER EL ID DEL USO RECIÉN CREADO 🔴🔴🔴
+
         usage_id = cursor.lastrowid
         app.logger.info(f"✅ USAGE_ID generado: {usage_id}")
         
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
-        
-        # Actualizar última fecha de uso de la máquina
+
         cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
         
         connection.commit()
-        
-        # Obtener información actualizada
+
         cursor.execute("""
             SELECT ut.turns_remaining, tp.name as package_name 
             FROM userturns ut 
@@ -5219,8 +5091,7 @@ def esp32_registrar_uso():
         info_actualizada = cursor.fetchone()
         
         app.logger.info(f"ESP32: Uso registrado - QR: {qr_code}, Turnos restantes: {info_actualizada['turns_remaining']}, Usage ID: {usage_id}")
-        
-        # 🔴🔴🔴 RESPUESTA MODIFICADA - INCLUYE USAGE_ID 🔴🔴🔴
+
         return api_response(
             'S010',
             status='success',
@@ -5230,7 +5101,7 @@ def esp32_registrar_uso():
                 'qr_name': qr_name,
                 'qr_code': qr_code,
                 'machine_id': machine_id,
-                'usage_id': usage_id  # <--- ESTO ES LO QUE FALTA
+                'usage_id': usage_id  
             }
         )
         
@@ -5294,9 +5165,7 @@ def esp32_reportar_falla():
     connection = None
     cursor = None
     try:
-        # ==========================================
-        # 1. OBTENER DATOS DEL ESP32
-        # ==========================================
+
         data = request.get_json()
         
         machine_id = data.get('machine_id')
@@ -5309,9 +5178,6 @@ def esp32_reportar_falla():
         
         app.logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}")
         
-        # ==========================================
-        # 2. VALIDACIONES BÁSICAS
-        # ==========================================
         if not machine_id or not qr_code:
             return api_response('E005', http_status=400, data={
                 'message': 'Faltan datos: machine_id y qr_code son requeridos'
@@ -5322,10 +5188,7 @@ def esp32_reportar_falla():
             return api_response('E006', http_status=500)
             
         cursor = get_db_cursor(connection)
-        
-        # ==========================================
-        # 3. VERIFICAR QUE EL QR EXISTE
-        # ==========================================
+
         cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         
