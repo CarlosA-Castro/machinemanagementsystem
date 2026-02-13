@@ -17,7 +17,7 @@ import csv
 import zipfile
 import traceback
 
-# ==================== CONFIGURACIÓN DE ZONA HORARIA ====================
+#  CONFIGURACIÓN DE ZONA HORARIA 
 
 COLOMBIA_TZ = pytz.timezone('America/Bogota')
 
@@ -36,7 +36,7 @@ def parse_db_datetime(dt_str):
     naive_dt = datetime.strptime(str(dt_str), '%Y-%m-%d %H:%M:%S')
     return COLOMBIA_TZ.localize(naive_dt)
 
-# ==================== CONFIGURACIÓN SENTRY ====================
+#  CONFIGURACIÓN SENTRY 
 sentry_sdk.init(
     dsn="https://5fc281c2ace4860969f2f1f6fa10039d@o4510071013310464.ingest.us.sentry.io/4510071047454720",
     integrations=[FlaskIntegration()],
@@ -78,7 +78,7 @@ from logging.handlers import RotatingFileHandler
 
 file_handler = RotatingFileHandler(
     'logs/maquinas.log',
-    maxBytes=10 * 1024 * 1024,  # 10 MB
+    maxBytes=10 * 1024 * 1024,  
     backupCount=10
 )
 file_handler.setFormatter(logging.Formatter(
@@ -101,11 +101,11 @@ werkzeug_logger.addHandler(file_handler)
 werkzeug_logger.addHandler(console_handler)
 werkzeug_logger.setLevel(logging.INFO)
 
-# Opcional: Reducir verbosidad de algunos loggers
+# Reducir verbosidad de algunos loggers
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 
-# ==================== CLASE DE SERVICIO DE MENSAJES ====================
+# CLASE DE SERVICIO DE MENSAJES 
 
 class MessageService:
     """Servicio para gestionar mensajes desde la base de datos"""
@@ -116,10 +116,9 @@ class MessageService:
     def get_message(cls, message_code: str, language_code: str = 'es', **kwargs) -> dict:
         """Obtiene un mensaje de la base de datos y aplica formato"""
         try:
-            # Cache key
-            cache_key = f"{message_code}_{language_code}"
             
-            # Verificar cache primero
+            cache_key = f"{message_code}_{language_code}"
+
             if cache_key in cls._cache:
                 message_data = cls._cache[cache_key]
             else:
@@ -130,7 +129,6 @@ class MessageService:
                 
                 cursor = connection.cursor(dictionary=True)
                 
-                # Buscar mensaje
                 query = """
                     SELECT message_code, message_type, message_text, language_code
                     FROM system_messages 
@@ -252,7 +250,7 @@ class MessageService:
         message['formatted'] = message['text']
         return message
 
-# ==================== DECORADORES Y UTILIDADES ====================
+# DECORADORES Y UTILIDADES 
 
 def api_response(message_code: str, status: str = 'error', 
                 http_status: int = 200, data: dict = None, **kwargs):
@@ -329,7 +327,7 @@ def validate_required_fields(required_fields):
     return decorator
 
 
-# ==================== CONFIGURACIÓN DEL POOL DE CONEXIONES ====================
+# CONFIGURACIÓN DEL POOL DE CONEXIONES
 
 try:
     db_config = {
@@ -358,28 +356,28 @@ try:
     port=3306,
     auth_plugin="mysql_native_password"
 )
-    app.logger.info("✅ Conexión simple exitosa")
+    app.logger.info(" Conexión simple exitosa")
     test_conn.close()
     
     # Ahora intentar el pool
     connection_pool = pooling.MySQLConnectionPool(**db_config)
-    app.logger.info("✅ Pool de conexiones creado exitosamente")
+    app.logger.info(" Pool de conexiones creado exitosamente")
     
 except mysql.connector.Error as e:
-    app.logger.error(f"❌ Error MySQL específico: {e}")
+    app.logger.error(f" Error MySQL específico: {e}")
     app.logger.error(f"   Error number: {e.errno}")
     app.logger.error(f"   SQL state: {e.sqlstate}")
     connection_pool = None
 except Exception as e:
-    app.logger.error(f"❌ Error general creando pool: {e}")
+    app.logger.error(f" Error general creando pool: {e}")
     import traceback
     traceback.print_exc()
     connection_pool = None
 
-# Función para obtener conexión CON zona horaria
+
 def get_db_connection():
     try:
-        # Conexión directa sin pool para debugging
+       
         connection = mysql.connector.connect(
              host=os.getenv("DB_HOST", "mysql"),
     user=os.getenv("DB_USER", "myuser"),
@@ -393,21 +391,20 @@ def get_db_connection():
         cursor.close()
         return connection
     except Exception as e:
-        app.logger.error(f"❌ Error obteniendo conexión: {e}")
+        app.logger.error(f" Error obteniendo conexión: {e}")
         import traceback
         traceback.print_exc()
         return None
 
-# Función para obtener cursor
 def get_db_cursor(connection):
     try:
         cursor = connection.cursor(dictionary=True)
         return cursor
     except Exception as e:
-        app.logger.error(f"❌ Error obteniendo cursor: {e}")
+        app.logger.error(f" Error obteniendo cursor: {e}")
         return None
 
-# ==================== RUTAS PRINCIPALES ====================
+# RUTAS PRINCIPALES 
 
 @app.route('/')
 def mostrar_login():
@@ -447,20 +444,16 @@ def procesar_login():
             session['user_role'] = usuario['role']
             session['user_local'] = usuario.get('local', 'El Mekatiadero')
             session['logged_in'] = True
-            
-            # Asegurar que la sesión se guarde
             session.modified = True
             
-            app.logger.info(f"✅ Usuario {usuario['name']} inició sesión")
+            app.logger.info(f" Usuario {usuario['name']} inició sesión")
     
-            # MODIFICACIÓN: Redirigir socios directamente a su interfaz
             return jsonify({
                 'valido': True,
                 'nombre': usuario.get("name", "Usuario"),
                 'role': usuario.get("role", "Cajero"),
                 'local': usuario.get("local", "El Mekatiadero"),
                 'user_id': usuario['id'],
-                # Agregar esta propiedad para el frontend
                 'redirect_to': 'socios' if usuario.get("role") == 'socio' else None
             })
         else:
@@ -492,11 +485,11 @@ def test_db():
             resultado = cursor.fetchone()
             cursor.close()
             connection.close()
-            return f"✅ Conexión exitosa. Usuarios en BD: {resultado['count']}"
+            return f" Conexión exitosa. Usuarios en BD: {resultado['count']}"
         else:
-            return "❌ No se pudo conectar a la BD"
+            return " No se pudo conectar a la BD"
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f" Error: {str(e)}"
 
 @app.route('/local')
 def mostrar_local():
@@ -554,7 +547,7 @@ def logout():
 def redirect_login():
     return redirect('/')
 
-# ==================== APIS PARA QR Y PAQUETES ====================
+# APIS PARA QR Y PAQUETES 
 
 def generar_codigo_qr():
     """Generar código QR con formato QR0001, QR0002, etc. usando contador global con reinicio en 9999"""
@@ -576,17 +569,16 @@ def generar_codigo_qr():
         resultado = cursor.fetchone()
         
         if not resultado:
-            # Si no existe el contador, crearlo
+           
             cursor.execute("""
                 INSERT INTO globalcounter (counter_type, counter_value, description) 
                 VALUES ('QR_CODE', 1, 'Contador para códigos QR (formato QR0001, QR0002, etc.)')
             """)
             nuevo_numero = 1
         else:
-            # Incrementar el contador
+            
             nuevo_numero = resultado['counter_value'] + 1
             
-            # Reiniciar si llega a 9999
             if nuevo_numero > 9999:
                 nuevo_numero = 1
                 app.logger.warning("Contador QR reiniciado a 1 (llegó al límite de 9999)")
@@ -600,14 +592,12 @@ def generar_codigo_qr():
         # Formatear con 4 dígitos (reinicia en 1 después de 9999)
         nuevo_codigo = f"QR{nuevo_numero:04d}"  
         
-        # Obtener información del usuario actual para el historial
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
         local = session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
         
-        # Insertar en la tabla qrcode
         cursor.execute("""
             INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
             VALUES (%s, %s, %s, %s, %s)
@@ -646,7 +636,6 @@ def debug_generar_qr():
         
         print(f"DEBUG: Intentando generar {cantidad} QR")
         
-        # Llamar directamente a la función
         codigos = generar_codigos_qr_lote(cantidad, nombre)
         
         if not codigos:
@@ -692,7 +681,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
         resultado = cursor.fetchone()
         
         if not resultado:
-            # Si no existe el contador, crearlo
+            
             cursor.execute("""
                 INSERT INTO globalcounter (counter_type, counter_value, description) 
                 VALUES ('QR_CODE', %s, 'Contador para códigos QR')
@@ -700,18 +689,18 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
             numero_inicial = 1
             numero_final = cantidad_qr
         else:
-            # Tomar el valor actual y calcular el rango
+            
             numero_inicial = resultado['counter_value'] + 1
             numero_final = resultado['counter_value'] + cantidad_qr
             
-            # Manejar el caso donde el rango excede 9999
+           
             if numero_final > 9999:
-                # Parte del rango antes de 9999
+               
                 numeros_antes_reinicio = 9999 - numero_inicial + 1
-                # Parte del rango después del reinicio
+                
                 numeros_despues_reinicio = cantidad_qr - numeros_antes_reinicio
                 
-                # Configurar dos rangos
+              
                 rango1_inicio = numero_inicial
                 rango1_final = 9999
                 rango2_inicio = 1
@@ -719,7 +708,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
                 
                 nuevo_valor_contador = numeros_despues_reinicio
                 
-                # Actualizar el contador
+               
                 cursor.execute("""
                     UPDATE globalcounter 
                     SET counter_value = %s 
@@ -728,14 +717,13 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
                 
                 codigos_generados = []
                 
-                # Obtener información del usuario actual para el historial
                 user_id = session.get('user_id')
                 user_name = session.get('user_name', 'Sistema')
                 local = session.get('user_local', 'El Mekatiadero')
                 hora_colombia = get_colombia_time()
                 fecha_hora_str = format_datetime_for_db(hora_colombia)
                 
-                # Generar códigos del primer rango (hasta 9999)
+               
                 for i in range(rango1_inicio, rango1_final + 1):
                     nuevo_codigo = f"QR{i:04d}"
                     codigos_generados.append(nuevo_codigo)
@@ -785,25 +773,21 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
         
         codigos_generados = []
         
-        # Obtener información del usuario actual para el historial
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
         local = session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
         
-        # Generar todos los códigos
         for i in range(numero_inicial, numero_final + 1):
             nuevo_codigo = f"QR{i:04d}"
             codigos_generados.append(nuevo_codigo)
             
-            # Insertar en la tabla qrcode
             cursor.execute("""
                 INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                 VALUES (%s, %s, %s, %s, %s)
             """, (nuevo_codigo, 0, 1, 1, nombre))
             
-            # Registrar automáticamente en el historial
             cursor.execute("""
                 INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name)
                 VALUES (%s, %s, %s, %s, %s, %s)
@@ -837,7 +821,6 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
 
         cursor = get_db_cursor(connection)
 
-        # 🔹 Obtener información del paquete
         cursor.execute(
             "SELECT turns, price, name FROM turnpackage WHERE id = %s",
             (paquete_id,)
@@ -850,7 +833,6 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         turns_paquete = paquete['turns']
         nombre_paquete = paquete['name']
 
-        # 🔹 Bloquear contador
         cursor.execute("""
             SELECT counter_value FROM globalcounter
             WHERE counter_type = 'QR_CODE'
@@ -867,27 +849,23 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         else:
             contador_bd = resultado['counter_value']
 
-        # 🔹 Obtener el mayor QR REAL existente
         cursor.execute("""
             SELECT MAX(CAST(SUBSTRING(code, 3) AS UNSIGNED)) AS max_real
             FROM qrcode
         """)
         max_real = cursor.fetchone()['max_real'] or 0
 
-        # 🔹 Sincronizar contador
         contador_actual = max(contador_bd, max_real)
 
         numero_inicial = contador_actual + 1
         numero_final = contador_actual + cantidad_qr
 
-        # 🔹 Actualizar contador global con el valor REAL final
         cursor.execute("""
             UPDATE globalcounter
             SET counter_value = %s
             WHERE counter_type = 'QR_CODE'
         """, (numero_final,))
 
-        # 🔹 Datos del usuario
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
         local = session.get('user_local', 'El Mekatiadero')
@@ -896,24 +874,20 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
 
         codigos_generados = []
 
-        # 🔹 Generar QRs
         for i in range(numero_inicial, numero_final + 1):
             nuevo_codigo = f"QR{i:04d}"
             codigos_generados.append(nuevo_codigo)
 
-            # Insertar QR
             cursor.execute("""
                 INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
                 VALUES (%s, %s, %s, %s, %s)
             """, (nuevo_codigo, turns_paquete, 1, paquete_id, nombre))
 
-            # Insertar userturns
             cursor.execute("""
                 INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
                 VALUES (LAST_INSERT_ID(), %s, %s, %s)
             """, (turns_paquete, turns_paquete, paquete_id))
 
-            # Insertar historial
             cursor.execute("""
                 INSERT INTO qrhistory
                 (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
@@ -943,7 +917,6 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         if connection:
             connection.close()
 
-
 @app.route('/api/contador-qr/estado', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
@@ -958,7 +931,6 @@ def obtener_estado_contador():
             
         cursor = get_db_cursor(connection)
         
-        # Obtener el valor actual del contador
         cursor.execute("""
             SELECT 
                 gc.counter_value,
@@ -975,7 +947,6 @@ def obtener_estado_contador():
         if not resultado:
             return api_response('E002', http_status=404, data={'message': 'Contador no encontrado'})
         
-        # Determinar el próximo código disponible con manejo de reinicio
         proximo_numero = resultado['counter_value'] + 1
         if proximo_numero > 9999:
             proximo_numero = 1
@@ -985,7 +956,6 @@ def obtener_estado_contador():
             proximo_codigo = f"QR{proximo_numero:04d}"
             reinicio_pendiente = False
         
-        # Calcular códigos disponibles hasta el próximo reinicio
         codigos_disponibles = 9999 - resultado['counter_value']
         porcentaje_restante = (codigos_disponibles / 9999) * 100
         
@@ -1037,7 +1007,6 @@ def reiniciar_contador():
                 
             cursor = get_db_cursor(connection)
             
-            # Actualizar el contador
             cursor.execute("""
                 UPDATE globalcounter 
                 SET counter_value = %s 
@@ -1046,7 +1015,6 @@ def reiniciar_contador():
             
             connection.commit()
             
-            # Verificar el nuevo valor
             cursor.execute("SELECT counter_value FROM globalcounter WHERE counter_type = 'QR_CODE'")
             resultado = cursor.fetchone()
             
@@ -1094,7 +1062,7 @@ def get_next_qr_number():
         if resultado:
             return resultado['counter_value'] + 1
         else:
-            # Si no existe, empezar desde 1
+            
             return 1
             
     except Exception as e:
@@ -1126,24 +1094,20 @@ def generar_qr():
                 data={'message': 'Cantidad debe estar entre 1 y 1000'}
             )
         
-        # Verificar que no se exceda el límite máximo
         if cantidad > 9999:
             return api_response(
                 'E005',
                 http_status=400,
                 data={'message': 'No se pueden generar más de 9999 códigos a la vez'}
             )
-        
-        # Si se proporciona paquete_id, usar la función que incluye asignación de paquete
        
         if paquete_id:
-            # Generar códigos con el paquete incluido
+            
             codigos_generados = generar_codigos_qr_lote_con_paquete(cantidad, nombre, paquete_id)
             
             if not codigos_generados:
                 return api_response('E001', http_status=500)
             
-            # Verificar información del paquete para la respuesta
             connection = get_db_connection()
             if not connection:
                 return api_response('E006', http_status=500)
@@ -1177,7 +1141,7 @@ def generar_qr():
                 data=response_data
             )
         else:
-            # Generar códigos sin paquete asignado
+            
             codigos_generados = generar_codigos_qr_lote(cantidad, nombre)
             
             if not codigos_generados:
@@ -1211,7 +1175,6 @@ def obtener_siguiente_qr():
     if not siguiente_codigo:
         return api_response('E001', http_status=500)
     
-    # Extraer el número del código para saber si se reinició
     numero_qr = int(siguiente_codigo[2:])
     
     return api_response(
@@ -1268,7 +1231,6 @@ def asignar_paquete():
             
         cursor = get_db_cursor(connection)
         
-        # Verificar si el QR ya tiene un paquete
         cursor.execute("SELECT turnPackageId FROM qrcode WHERE code = %s", (codigo_qr,))
         qr_existente = cursor.fetchone()
         
@@ -1489,7 +1451,6 @@ def reportar_falla():
             
         cursor = get_db_cursor(connection)
         
-        # 1. Obtener ID del QR
         cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
@@ -1497,7 +1458,6 @@ def reportar_falla():
         
         qr_id = qr_data['id']
         
-        # 2. Verificar turnos restantes
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         if not turnos_data:
@@ -1506,19 +1466,15 @@ def reportar_falla():
         turnos_originales = turnos_data['turns_remaining']
         nuevos_turnos = turnos_originales + turnos_devueltos
         
-        # 3. Preparar datos para inserción
         actual_machine_id = None if machine_id == 0 else machine_id
         actual_machine_name = 'Devolución Manual' if machine_id == 0 else machine_name
         
-        # 4. Insertar en machinefailures - VERSIÓN CORREGIDA
-        # Verificar qué columnas existen realmente
         cursor.execute("DESCRIBE machinefailures")
         columnas = cursor.fetchall()
         columnas_existentes = [col['Field'] for col in columnas]
         
         app.logger.info(f"Columnas en machinefailures: {columnas_existentes}")
         
-        # Construir consulta dinámica basada en columnas existentes
         campos = ['qr_code_id', 'machine_name', 'turnos_devueltos']
         valores = [qr_id, actual_machine_name, turnos_devueltos]
         
@@ -1538,7 +1494,6 @@ def reportar_falla():
             campos.append('forced_by')
             valores.append(forced_by if forced_by else None)
         
-        # Construir y ejecutar la consulta
         placeholders = ', '.join(['%s'] * len(campos))
         query = f"INSERT INTO machinefailures ({', '.join(campos)}) VALUES ({placeholders})"
         
@@ -1547,11 +1502,9 @@ def reportar_falla():
         
         cursor.execute(query, valores)
         
-        # 5. Actualizar turnos
         cursor.execute("UPDATE userturns SET turns_remaining = %s WHERE qr_code_id = %s",
                        (nuevos_turnos, qr_id))
         
-        # 6. Registrar en error_logs si es forzado
         if is_forced:
             try:
                 cursor.execute("""
@@ -1590,7 +1543,6 @@ def reportar_falla():
         if connection:
             connection.rollback()
         
-        # Intentar inserción mínima si falla
         try:
             app.logger.info("Intentando inserción mínima...")
             cursor.execute("""
@@ -5611,7 +5563,7 @@ def esp32_machine_technical(machine_id):
                 COALESCE(mt.credits_virtual, 1) as credits_virtual,
                 COALESCE(mt.credits_machine, 1) as credits_machine,
                 COALESCE(mt.game_duration_seconds, 60) as game_duration_seconds,
-                COALESCE(mt.reset_time_seconds, 5) as reset_time_seconds,  -- ✅ NUEVO
+                COALESCE(mt.reset_time_seconds, 5) as reset_time_seconds,  
                 m.name as machine_name,
                 COALESCE(l.name, 'Sin ubicación') as location_name,
                 MAX(tu.usedAt) as last_play_time
