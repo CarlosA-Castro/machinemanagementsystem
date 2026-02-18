@@ -732,20 +732,28 @@
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
                             <td class="py-3 px-4 text-sm text-gray-600">${infoPropietarios}</td>
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.porcentaje_restaurante || 35}%</td>
-                            <td class="py-3 px-4 text-sm text-center">
-                                <div class="flex justify-center space-x-2">
-                                    <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button onclick="verReportes(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
-                                            class="text-yellow-600 hover:text-yellow-800 btn-touch" title="Ver Reportes">
-                                        <i class="fas fa-clipboard-list"></i>
-                                    </button>
-                                    <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
+<td class="py-3 px-4 text-sm text-center">
+    <div class="flex justify-center space-x-2">
+        <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button onclick="MaquinaManager.ingresarTurno(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                class="text-green-600 hover:text-green-800 btn-touch" title="Ingresar Turno (Simular)">
+            <i class="fas fa-coins"></i>
+        </button>
+        <button onclick="MaquinaManager.reiniciarMaquina(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                class="text-purple-600 hover:text-purple-800 btn-touch" title="Reiniciar Máquina">
+            <i class="fas fa-power-off"></i>
+        </button>
+        <button onclick="verReportes(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                class="text-yellow-600 hover:text-yellow-800 btn-touch" title="Ver Reportes">
+            <i class="fas fa-clipboard-list"></i>
+        </button>
+        <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+</td>
                         </tr>
                     `;
                 });
@@ -1317,6 +1325,149 @@ const HistorialManager = {
             `;
         }
     },
+
+    // ==================== NUEVAS FUNCIONES PARA ACCIONES DE MÁQUINA ====================
+
+ingresarTurno: async function(machineId, machineName) {
+    if (!confirm(`¿Estás seguro de que quieres INGRESAR UN TURNO en la máquina "${machineName}"?`)) {
+        return;
+    }
+    
+    this.mostrarAlerta('Procesando ingreso de turno...', 'info');
+    
+    try {
+        const response = await fetch('/api/maquinas/ingresar-turno', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                machine_id: machineId,
+                machine_name: machineName
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'success') {
+            this.mostrarAlerta(data.message || 'Turno ingresado correctamente', 'success');
+            
+            // Registrar en logs
+            this.registrarLogAccion('INGRESAR_TURNO', {
+                machine_id: machineId,
+                machine_name: machineName,
+                turnos_ingresados: 1,
+                success: true
+            });
+            
+            // Actualizar estadísticas
+            this.cargarMaquinas();
+        } else {
+            throw new Error(data.message || 'Error al ingresar turno');
+        }
+    } catch (error) {
+        console.error('Error ingresando turno:', error);
+        this.mostrarAlerta('Error al ingresar turno: ' + error.message, 'error');
+        
+        // Registrar error en logs
+        this.registrarLogAccion('INGRESAR_TURNO', {
+            machine_id: machineId,
+            machine_name: machineName,
+            error: error.message,
+            success: false
+        });
+    }
+},
+
+reiniciarMaquina: async function(machineId, machineName) {
+    if (!confirm(`¿Estás seguro de que quieres REINICIAR la máquina "${machineName}"?`)) {
+        return;
+    }
+    
+    this.mostrarAlerta('Enviando comando de reinicio...', 'info');
+    
+    try {
+        const response = await fetch('/api/maquinas/reiniciar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                machine_id: machineId,
+                machine_name: machineName
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'success') {
+            this.mostrarAlerta(data.message || 'Reinicio enviado correctamente', 'success');
+            
+            // Registrar en logs
+            this.registrarLogAccion('REINICIAR_MAQUINA', {
+                machine_id: machineId,
+                machine_name: machineName,
+                success: true
+            });
+            
+            // Mostrar información del reinicio
+            if (data.data) {
+                console.log('Detalles del reinicio:', data.data);
+            }
+        } else {
+            throw new Error(data.message || 'Error al reiniciar máquina');
+        }
+    } catch (error) {
+        console.error('Error reiniciando máquina:', error);
+        this.mostrarAlerta('Error al reiniciar máquina: ' + error.message, 'error');
+        
+        // Registrar error en logs
+        this.registrarLogAccion('REINICIAR_MAQUINA', {
+            machine_id: machineId,
+            machine_name: machineName,
+            error: error.message,
+            success: false
+        });
+    }
+},
+
+registrarLogAccion: function(accion, detalles) {
+    // Registrar en consola
+    console.log(`[${accion}]`, detalles);
+    
+    // Opcional: Enviar a un endpoint de logs si existe
+    fetch('/api/logs/accion', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            accion: accion,
+            detalles: detalles,
+            usuario: document.getElementById('nombreUsuario')?.textContent || 'Administrador',
+            timestamp: new Date().toISOString()
+        })
+    }).catch(err => console.log('Log no enviado:', err));
+},
+
+// Agregar botones al modal de detalles de máquina (si existe)
+agregarBotonesAccionRapida: function(maquinaId, maquinaNombre) {
+    const container = document.getElementById('acciones-rapidas-container');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="flex space-x-2 mt-2">
+            <button onclick="MaquinaManager.ingresarTurno(${maquinaId}, '${maquinaNombre.replace(/'/g, "\\'")}')" 
+                    class="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                <i class="fas fa-coins mr-1"></i> Ingresar Turno
+            </button>
+            <button onclick="MaquinaManager.reiniciarMaquina(${maquinaId}, '${maquinaNombre.replace(/'/g, "\\'")}')" 
+                    class="flex-1 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 btn-touch">
+                <i class="fas fa-power-off mr-1"></i> Reiniciar
+            </button>
+        </div>
+    `;
+},
 
     cargarSelectMaquinas: async function() {
         try {

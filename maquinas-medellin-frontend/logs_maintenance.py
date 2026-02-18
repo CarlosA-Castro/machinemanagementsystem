@@ -5,7 +5,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime, timedelta
 
-# Tu conexión a BD existente (reutiliza tu función)
 def get_db_connection():
     import mysql.connector
     return mysql.connector.connect(
