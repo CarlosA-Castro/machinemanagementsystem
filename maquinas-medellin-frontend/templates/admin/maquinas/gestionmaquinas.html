@@ -869,17 +869,20 @@
                 this.datosPendientes = {};
             },
             
-            confirmarTurno: function() {
-                this.cerrar('modalConfirmarTurno');
-                const { machineId, machineName } = this.datosPendientes;
-                MaquinaManager.ejecutarIngresarTurno(machineId, machineName);
-            },
-            
-            confirmarReinicio: function() {
-                this.cerrar('modalConfirmarReinicio');
-                const { machineId, machineName } = this.datosPendientes;
-                MaquinaManager.ejecutarReiniciarMaquina(machineId, machineName);
-            },
+           confirmarTurno: function() {
+    this.cerrar('modalConfirmarTurno');
+    const { machineId, machineName } = this.datosPendientes;
+    console.log('Confirmando turno - Datos:', { machineId, machineName });
+    MaquinaManager.ejecutarIngresarTurno(machineId, machineName);
+},
+
+confirmarReinicio: function() {
+    this.cerrar('modalConfirmarReinicio');
+    const { machineId, machineName } = this.datosPendientes;
+    console.log('Confirmando reinicio - Datos:', { machineId, machineName });
+    MaquinaManager.ejecutarReiniciarMaquina(machineId, machineName);
+},
+
             
             mostrarExito: function(mensaje) {
                 document.getElementById('modalExitoMensaje').textContent = mensaje;
@@ -1358,145 +1361,155 @@
 
             // ==================== FUNCIONES PARA ACCIONES DE MÁQUINA ====================
             
-            mostrarModalIngresarTurno: function(machineId, machineName) {
-                // Buscar información de la máquina
-                const maquina = this.maquinas.find(m => m.id === machineId);
-                const infoHTML = `
-                    <div class="machine-info-item">
-                        <span class="machine-info-label">Máquina:</span>
-                        <span class="machine-info-value">${machineName}</span>
-                    </div>
-                    <div class="machine-info-item">
-                        <span class="machine-info-label">ID:</span>
-                        <span class="machine-info-value">${machineId}</span>
-                    </div>
-                    <div class="machine-info-item">
-                        <span class="machine-info-label">Estado:</span>
-                        <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
-                    </div>
-                `;
-                document.getElementById('modalTurnoInfo').innerHTML = infoHTML;
-                
-                ModalManager.mostrar('modalConfirmarTurno', { machineId, machineName });
-            },
+mostrarModalIngresarTurno: function(machineId, machineName) {
+    console.log(`Mostrando modal ingresar turno - ID: ${machineId}, Nombre: ${machineName}`);
+    
+    // Buscar información de la máquina
+    const maquina = this.maquinas.find(m => m.id === machineId);
+    const infoHTML = `
+        <div class="machine-info-item">
+            <span class="machine-info-label">Máquina:</span>
+            <span class="machine-info-value">${machineName}</span>
+        </div>
+        <div class="machine-info-item">
+            <span class="machine-info-label">ID:</span>
+            <span class="machine-info-value">${machineId}</span>
+        </div>
+        <div class="machine-info-item">
+            <span class="machine-info-label">Estado:</span>
+            <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
+        </div>
+    `;
+    document.getElementById('modalTurnoInfo').innerHTML = infoHTML;
+    
+    ModalManager.mostrar('modalConfirmarTurno', { machineId, machineName });
+},
             
             mostrarModalReiniciar: function(machineId, machineName) {
-                // Buscar información de la máquina
-                const maquina = this.maquinas.find(m => m.id === machineId);
-                const infoHTML = `
-                    <div class="machine-info-item">
-                        <span class="machine-info-label">Máquina:</span>
-                        <span class="machine-info-value">${machineName}</span>
-                    </div>
-                    <div class="machine-info-item">
-                        <span class="machine-info-label">ID:</span>
-                        <span class="machine-info-value">${machineId}</span>
-                    </div>
-                    <div class="machine-info-item">
-                        <span class="machine-info-label">Estado:</span>
-                        <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
-                    </div>
-                `;
-                document.getElementById('modalReinicioInfo').innerHTML = infoHTML;
-                
-                ModalManager.mostrar('modalConfirmarReinicio', { machineId, machineName });
-            },
+    console.log(`Mostrando modal reiniciar - ID: ${machineId}, Nombre: ${machineName}`);
+    
+    // Buscar información de la máquina
+    const maquina = this.maquinas.find(m => m.id === machineId);
+    const infoHTML = `
+        <div class="machine-info-item">
+            <span class="machine-info-label">Máquina:</span>
+            <span class="machine-info-value">${machineName}</span>
+        </div>
+        <div class="machine-info-item">
+            <span class="machine-info-label">ID:</span>
+            <span class="machine-info-value">${machineId}</span>
+        </div>
+        <div class="machine-info-item">
+            <span class="machine-info-label">Estado:</span>
+            <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
+        </div>
+    `;
+    document.getElementById('modalReinicioInfo').innerHTML = infoHTML;
+    
+    ModalManager.mostrar('modalConfirmarReinicio', { machineId, machineName });
+},
             
             ejecutarIngresarTurno: async function(machineId, machineName) {
-                try {
-                    const response = await fetch('/api/maquinas/ingresar-turno', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            machine_id: machineId,
-                            machine_name: machineName
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok && data.status === 'success') {
-                        ModalManager.mostrarExito(data.message || 'Turno ingresado correctamente');
-                        
-                        // Registrar en logs
-                        this.registrarLogAccion('INGRESAR_TURNO', {
-                            machine_id: machineId,
-                            machine_name: machineName,
-                            turnos_ingresados: 1,
-                            usage_id: data.data?.usage_id,
-                            success: true
-                        });
-                        
-                        // Actualizar estadísticas
-                        this.cargarMaquinas();
-                    } else {
-                        throw new Error(data.message || 'Error al ingresar turno');
-                    }
-                } catch (error) {
-                    console.error('Error ingresando turno:', error);
-                    ModalManager.mostrarError('Error al ingresar turno: ' + error.message);
-                    
-                    this.registrarLogAccion('INGRESAR_TURNO', {
-                        machine_id: machineId,
-                        machine_name: machineName,
-                        error: error.message,
-                        success: false
-                    });
-                }
+    try {
+        console.log(`Enviando solicitud de ingreso de turno - ID: ${machineId}, Nombre: ${machineName}`);
+        
+        const response = await fetch('/api/maquinas/ingresar-turno', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             },
+            body: JSON.stringify({
+                machine_id: machineId,
+                machine_name: machineName
+            })
+        });
+        
+        const data = await response.json();
+        console.log('Respuesta del servidor:', data);
+        
+        if (response.ok && data.status === 'success') {
+            ModalManager.mostrarExito(data.message || 'Turno ingresado correctamente');
+            
+            // Registrar en logs
+            this.registrarLogAccion('INGRESAR_TURNO', {
+                machine_id: machineId,
+                machine_name: machineName,
+                turnos_ingresados: 1,
+                usage_id: data.data?.usage_id,
+                success: true
+            });
+            
+            // Actualizar estadísticas
+            this.cargarMaquinas();
+        } else {
+            throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('Error ingresando turno:', error);
+        ModalManager.mostrarError('Error al ingresar turno: ' + error.message);
+        
+        this.registrarLogAccion('INGRESAR_TURNO', {
+            machine_id: machineId,
+            machine_name: machineName,
+            error: error.message,
+            success: false
+        });
+    }
+},
 
             ejecutarReiniciarMaquina: async function(machineId, machineName) {
-                try {
-                    const response = await fetch('/api/maquinas/reiniciar', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            machine_id: machineId,
-                            machine_name: machineName
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok && data.status === 'success') {
-                        let mensaje = data.message || 'Reinicio enviado correctamente';
-                        if (data.data?.reset_time_seconds) {
-                            mensaje += ` (${data.data.reset_time_seconds} segundos)`;
-                        }
-                        ModalManager.mostrarExito(mensaje);
-                        
-                        this.registrarLogAccion('REINICIAR_MAQUINA', {
-                            machine_id: machineId,
-                            machine_name: machineName,
-                            reset_id: data.data?.reset_id,
-                            command_id: data.data?.command_id,
-                            reset_time: data.data?.reset_time_seconds,
-                            success: true
-                        });
-                        
-                        // Mostrar información adicional si hay command_id
-                        if (data.data?.command_id) {
-                            console.log(`✅ Comando #${data.data.command_id} encolado para ESP32`);
-                        }
-                    } else {
-                        throw new Error(data.message || 'Error al reiniciar máquina');
-                    }
-                } catch (error) {
-                    console.error('Error reiniciando máquina:', error);
-                    ModalManager.mostrarError('Error al reiniciar máquina: ' + error.message);
-                    
-                    this.registrarLogAccion('REINICIAR_MAQUINA', {
-                        machine_id: machineId,
-                        machine_name: machineName,
-                        error: error.message,
-                        success: false
-                    });
-                }
+    try {
+        console.log(`Enviando solicitud de reinicio - ID: ${machineId}, Nombre: ${machineName}`);
+        
+        const response = await fetch('/api/maquinas/reiniciar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             },
+            body: JSON.stringify({
+                machine_id: machineId,
+                machine_name: machineName
+            })
+        });
+        
+        const data = await response.json();
+        console.log('Respuesta del servidor:', data);
+        
+        if (response.ok && data.status === 'success') {
+            let mensaje = data.message || 'Reinicio enviado correctamente';
+            if (data.data?.reset_time_seconds) {
+                mensaje += ` (${data.data.reset_time_seconds} segundos)`;
+            }
+            ModalManager.mostrarExito(mensaje);
+            
+            this.registrarLogAccion('REINICIAR_MAQUINA', {
+                machine_id: machineId,
+                machine_name: machineName,
+                reset_id: data.data?.reset_id,
+                command_id: data.data?.command_id,
+                reset_time: data.data?.reset_time_seconds,
+                success: true
+            });
+            
+            // Mostrar información adicional si hay command_id
+            if (data.data?.command_id) {
+                console.log(`✅ Comando #${data.data.command_id} encolado para ESP32`);
+            }
+        } else {
+            throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('Error reiniciando máquina:', error);
+        ModalManager.mostrarError('Error al reiniciar máquina: ' + error.message);
+        
+        this.registrarLogAccion('REINICIAR_MAQUINA', {
+            machine_id: machineId,
+            machine_name: machineName,
+            error: error.message,
+            success: false
+        });
+    }
+},
 
             registrarLogAccion: function(accion, detalles) {
                 // Registrar en consola
