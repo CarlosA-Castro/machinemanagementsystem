@@ -4601,23 +4601,47 @@ def registrar_log_accion():
         
         app.logger.info(f"[LOG ACCIÓN] {accion} - {usuario} - {json.dumps(detalles)}")
         
-        # Registrar en base de datos si es necesario
+        # Registrar en base de datos
         connection = get_db_connection()
         if connection:
             cursor = get_db_cursor(connection)
             
-            # Intentar insertar en app_logs
             try:
+                # CORREGIDO: Formato de fecha correcto para MySQL
+                # Si viene timestamp ISO, convertirlo a formato MySQL
+                fecha_mysql = None
+                if timestamp:
+                    # Convertir de ISO a formato MySQL (YYYY-MM-DD HH:MM:SS)
+                    try:
+                        # Eliminar la 'Z' y reemplazar T con espacio
+                        fecha_iso = timestamp.replace('Z', '').replace('T', ' ')
+                        # Tomar solo hasta los segundos (19 caracteres)
+                        if len(fecha_iso) > 19:
+                            fecha_iso = fecha_iso[:19]
+                        fecha_mysql = fecha_iso
+                    except:
+                        fecha_mysql = format_datetime_for_db(get_colombia_time())
+                else:
+                    fecha_mysql = format_datetime_for_db(get_colombia_time())
+                
                 mensaje = f"Acción: {accion} | Detalles: {json.dumps(detalles)} | Usuario: {usuario}"
                 cursor.execute("""
                     INSERT INTO app_logs (level, module, message, user_id, created_at)
                     VALUES (%s, %s, %s, %s, %s)
-                """, ('INFO', 'frontend_action', mensaje[:500], session.get('user_id'), 
-                      timestamp if timestamp else format_datetime_for_db(get_colombia_time())))
+                """, ('INFO', 'frontend_action', mensaje[:500], session.get('user_id'), fecha_mysql))
                 
                 connection.commit()
             except Exception as db_error:
                 app.logger.warning(f"No se pudo insertar en app_logs: {db_error}")
+                # Intentar sin fecha
+                try:
+                    cursor.execute("""
+                        INSERT INTO app_logs (level, module, message, user_id)
+                        VALUES (%s, %s, %s, %s)
+                    """, ('INFO', 'frontend_action', mensaje[:500], session.get('user_id')))
+                    connection.commit()
+                except:
+                    pass
             
             cursor.close()
             connection.close()
