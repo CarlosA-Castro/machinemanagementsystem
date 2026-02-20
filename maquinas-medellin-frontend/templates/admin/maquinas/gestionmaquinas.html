@@ -96,6 +96,174 @@
             margin-bottom: 20px;
         }
         
+        /* Estilos para modales personalizados */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 450px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .modal-header.warning {
+            background: linear-gradient(135deg, #fef3c7, #fffbeb);
+        }
+        
+        .modal-header.success {
+            background: linear-gradient(135deg, #d1fae5, #ecfdf5);
+        }
+        
+        .modal-header.info {
+            background: linear-gradient(135deg, #dbeafe, #eff6ff);
+        }
+        
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .modal-icon.warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .modal-icon.success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .modal-icon.info {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        
+        .modal-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        .modal-btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .modal-btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .modal-btn-secondary {
+            background: #9ca3af;
+            color: white;
+        }
+        
+        .modal-btn-secondary:hover {
+            background: #6b7280;
+        }
+        
+        .modal-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .modal-btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .modal-btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .modal-btn-success:hover {
+            background: #059669;
+        }
+        
+        .machine-info {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .machine-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+        
+        .machine-info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .machine-info-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .machine-info-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
         @media (max-width: 1024px) {
             .contenido {
                 padding: 1rem !important;
@@ -584,7 +752,146 @@
         </div>
     </div>
 
+    <!-- MODALES PERSONALIZADOS PARA CONFIRMACIÓN -->
+    
+    <!-- Modal para confirmar Ingreso de Turno -->
+    <div id="modalConfirmarTurno" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header info">
+                <div class="modal-icon info">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">Ingresar Turno</h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-gray-600 mb-4">¿Estás seguro de que quieres ingresar un turno en esta máquina?</p>
+                <div class="machine-info" id="modalTurnoInfo">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+                <p class="text-sm text-gray-500 mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Esta acción simulará un juego y activará el relé por 500ms.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="ModalManager.cerrar('modalConfirmarTurno')" class="modal-btn modal-btn-secondary">
+                    Cancelar
+                </button>
+                <button onclick="ModalManager.confirmarTurno()" class="modal-btn modal-btn-success">
+                    <i class="fas fa-check mr-2"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para confirmar Reinicio de Máquina -->
+    <div id="modalConfirmarReinicio" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header warning">
+                <div class="modal-icon warning">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">Reiniciar Máquina</h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-gray-600 mb-4">¿Estás seguro de que quieres reiniciar esta máquina?</p>
+                <div class="machine-info" id="modalReinicioInfo">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+                <p class="text-sm text-gray-500 mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    El ESP32 recibirá el comando y activará el relé por 500ms.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="ModalManager.cerrar('modalConfirmarReinicio')" class="modal-btn modal-btn-secondary">
+                    Cancelar
+                </button>
+                <button onclick="ModalManager.confirmarReinicio()" class="modal-btn modal-btn-danger">
+                    <i class="fas fa-power-off mr-2"></i>Reiniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de éxito -->
+    <div id="modalExito" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header success">
+                <div class="modal-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">¡Operación Exitosa!</h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-gray-600" id="modalExitoMensaje">La operación se completó correctamente.</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="ModalManager.cerrar('modalExito')" class="modal-btn modal-btn-primary">
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de error -->
+    <div id="modalError" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fee2e2, #fef2f2);">
+                <div class="modal-icon" style="background: #ef4444;">
+                    <i class="fas fa-exclamation-triangle text-white"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">Error</h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-gray-600" id="modalErrorMensaje">Ha ocurrido un error.</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="ModalManager.cerrar('modalError')" class="modal-btn modal-btn-primary">
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Gestor de modales
+        const ModalManager = {
+            datosPendientes: {},
+            
+            mostrar: function(modalId, datos = {}) {
+                this.datosPendientes = datos;
+                document.getElementById(modalId).classList.add('active');
+            },
+            
+            cerrar: function(modalId) {
+                document.getElementById(modalId).classList.remove('active');
+                this.datosPendientes = {};
+            },
+            
+            confirmarTurno: function() {
+                this.cerrar('modalConfirmarTurno');
+                const { machineId, machineName } = this.datosPendientes;
+                MaquinaManager.ejecutarIngresarTurno(machineId, machineName);
+            },
+            
+            confirmarReinicio: function() {
+                this.cerrar('modalConfirmarReinicio');
+                const { machineId, machineName } = this.datosPendientes;
+                MaquinaManager.ejecutarReiniciarMaquina(machineId, machineName);
+            },
+            
+            mostrarExito: function(mensaje) {
+                document.getElementById('modalExitoMensaje').textContent = mensaje;
+                this.mostrar('modalExito');
+            },
+            
+            mostrarError: function(mensaje) {
+                document.getElementById('modalErrorMensaje').textContent = mensaje;
+                this.mostrar('modalError');
+            }
+        };
+
         const MaquinaManager = {
             maquinas: [],
             propietarios: [],
@@ -737,11 +1044,11 @@
                                     <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="MaquinaManager.ingresarTurno(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                                    <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
                                             class="text-green-600 hover:text-green-800 btn-touch" title="Ingresar Turno (Simular)">
                                         <i class="fas fa-coins"></i>
                                     </button>
-                                    <button onclick="MaquinaManager.reiniciarMaquina(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
+                                    <button onclick="MaquinaManager.mostrarModalReiniciar(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
                                             class="text-purple-600 hover:text-purple-800 btn-touch" title="Reiniciar Máquina">
                                         <i class="fas fa-power-off"></i>
                                     </button>
@@ -835,7 +1142,7 @@
                 document.getElementById('filtroTipo').value = 'todos';
                 this.maquinasFiltradas = [...this.maquinas];
                 this.actualizarListaMaquinas();
-                this.mostrarAlerta('Filtros limpiados', 'success');
+                ModalManager.mostrarExito('Filtros limpiados');
             },
 
             mostrarModalCrear: function() {
@@ -910,7 +1217,7 @@
                 });
                 
                 if (Math.abs(total - 100) > 0.01) {
-                    this.mostrarAlerta(`La suma de porcentajes es ${total.toFixed(2)}%. Debe ser exactamente 100%`, 'warning');
+                    ModalManager.mostrarError(`La suma de porcentajes es ${total.toFixed(2)}%. Debe ser exactamente 100%`);
                     return false;
                 }
                 
@@ -949,14 +1256,14 @@
                     if (response.ok) {
                         this.cerrarModal();
                         this.cargarMaquinas();
-                        this.mostrarAlerta('Máquina guardada correctamente', 'success');
+                        ModalManager.mostrarExito('Máquina guardada correctamente');
                     } else {
                         const errorData = await response.json();
                         throw new Error(errorData.message || 'Error al guardar la máquina');
                     }
                 } catch (error) {
                     console.error('Error guardando máquina:', error);
-                    this.mostrarAlerta('Error al guardar la máquina: ' + error.message, 'error');
+                    ModalManager.mostrarError('Error al guardar la máquina: ' + error.message);
                 }
             },
 
@@ -972,14 +1279,14 @@
                     
                     if (response.ok) {
                         this.cargarMaquinas();
-                        this.mostrarAlerta('Máquina eliminada correctamente', 'success');
+                        ModalManager.mostrarExito('Máquina eliminada correctamente');
                     } else {
                         const errorData = await response.json();
                         throw new Error(errorData.message || 'Error al eliminar la máquina');
                     }
                 } catch (error) {
                     console.error('Error eliminando máquina:', error);
-                    this.mostrarAlerta('Error al eliminar la máquina: ' + error.message, 'error');
+                    ModalManager.mostrarError('Error al eliminar la máquina: ' + error.message);
                 }
             },
 
@@ -989,7 +1296,7 @@
 
             actualizarTodo: function() {
                 this.cargarDatosIniciales();
-                this.mostrarAlerta('Datos actualizados completamente', 'success');
+                ModalManager.mostrarExito('Datos actualizados completamente');
             },
 
             inicializarGraficos: function() {
@@ -1049,14 +1356,53 @@
                 });
             },
 
-            // ==================== NUEVAS FUNCIONES PARA ACCIONES DE MÁQUINA ====================
-            ingresarTurno: async function(machineId, machineName) {
-                if (!confirm(`¿Estás seguro de que quieres INGRESAR UN TURNO en la máquina "${machineName}"?`)) {
-                    return;
-                }
+            // ==================== FUNCIONES PARA ACCIONES DE MÁQUINA ====================
+            
+            mostrarModalIngresarTurno: function(machineId, machineName) {
+                // Buscar información de la máquina
+                const maquina = this.maquinas.find(m => m.id === machineId);
+                const infoHTML = `
+                    <div class="machine-info-item">
+                        <span class="machine-info-label">Máquina:</span>
+                        <span class="machine-info-value">${machineName}</span>
+                    </div>
+                    <div class="machine-info-item">
+                        <span class="machine-info-label">ID:</span>
+                        <span class="machine-info-value">${machineId}</span>
+                    </div>
+                    <div class="machine-info-item">
+                        <span class="machine-info-label">Estado:</span>
+                        <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
+                    </div>
+                `;
+                document.getElementById('modalTurnoInfo').innerHTML = infoHTML;
                 
-                this.mostrarAlerta('Procesando ingreso de turno...', 'info');
+                ModalManager.mostrar('modalConfirmarTurno', { machineId, machineName });
+            },
+            
+            mostrarModalReiniciar: function(machineId, machineName) {
+                // Buscar información de la máquina
+                const maquina = this.maquinas.find(m => m.id === machineId);
+                const infoHTML = `
+                    <div class="machine-info-item">
+                        <span class="machine-info-label">Máquina:</span>
+                        <span class="machine-info-value">${machineName}</span>
+                    </div>
+                    <div class="machine-info-item">
+                        <span class="machine-info-label">ID:</span>
+                        <span class="machine-info-value">${machineId}</span>
+                    </div>
+                    <div class="machine-info-item">
+                        <span class="machine-info-label">Estado:</span>
+                        <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
+                    </div>
+                `;
+                document.getElementById('modalReinicioInfo').innerHTML = infoHTML;
                 
+                ModalManager.mostrar('modalConfirmarReinicio', { machineId, machineName });
+            },
+            
+            ejecutarIngresarTurno: async function(machineId, machineName) {
                 try {
                     const response = await fetch('/api/maquinas/ingresar-turno', {
                         method: 'POST',
@@ -1072,13 +1418,14 @@
                     const data = await response.json();
                     
                     if (response.ok && data.status === 'success') {
-                        this.mostrarAlerta(data.message || 'Turno ingresado correctamente', 'success');
+                        ModalManager.mostrarExito(data.message || 'Turno ingresado correctamente');
                         
                         // Registrar en logs
                         this.registrarLogAccion('INGRESAR_TURNO', {
                             machine_id: machineId,
                             machine_name: machineName,
                             turnos_ingresados: 1,
+                            usage_id: data.data?.usage_id,
                             success: true
                         });
                         
@@ -1089,9 +1436,8 @@
                     }
                 } catch (error) {
                     console.error('Error ingresando turno:', error);
-                    this.mostrarAlerta('Error al ingresar turno: ' + error.message, 'error');
+                    ModalManager.mostrarError('Error al ingresar turno: ' + error.message);
                     
-                    // Registrar error en logs
                     this.registrarLogAccion('INGRESAR_TURNO', {
                         machine_id: machineId,
                         machine_name: machineName,
@@ -1101,13 +1447,7 @@
                 }
             },
 
-            reiniciarMaquina: async function(machineId, machineName) {
-                if (!confirm(`¿Estás seguro de que quieres REINICIAR la máquina "${machineName}"?`)) {
-                    return;
-                }
-                
-                this.mostrarAlerta('Enviando comando de reinicio...', 'info');
-                
+            ejecutarReiniciarMaquina: async function(machineId, machineName) {
                 try {
                     const response = await fetch('/api/maquinas/reiniciar', {
                         method: 'POST',
@@ -1123,30 +1463,26 @@
                     const data = await response.json();
                     
                     if (response.ok && data.status === 'success') {
-                        this.mostrarAlerta(data.message || 'Reinicio enviado correctamente', 'success');
+                        let mensaje = data.message || 'Reinicio enviado correctamente';
+                        if (data.data?.reset_time_seconds) {
+                            mensaje += ` (${data.data.reset_time_seconds} segundos)`;
+                        }
+                        ModalManager.mostrarExito(mensaje);
                         
-                        // Registrar en logs
                         this.registrarLogAccion('REINICIAR_MAQUINA', {
                             machine_id: machineId,
                             machine_name: machineName,
+                            reset_id: data.data?.reset_id,
+                            reset_time: data.data?.reset_time_seconds,
                             success: true
                         });
-                        
-                        // Mostrar información del reinicio
-                        if (data.data) {
-                            console.log('Detalles del reinicio:', data.data);
-                            if (data.data.reset_time_seconds) {
-                                this.mostrarAlerta(`La máquina se reiniciará en ${data.data.reset_time_seconds} segundos`, 'info');
-                            }
-                        }
                     } else {
                         throw new Error(data.message || 'Error al reiniciar máquina');
                     }
                 } catch (error) {
                     console.error('Error reiniciando máquina:', error);
-                    this.mostrarAlerta('Error al reiniciar máquina: ' + error.message, 'error');
+                    ModalManager.mostrarError('Error al reiniciar máquina: ' + error.message);
                     
-                    // Registrar error en logs
                     this.registrarLogAccion('REINICIAR_MAQUINA', {
                         machine_id: machineId,
                         machine_name: machineName,
@@ -1173,26 +1509,6 @@
                         timestamp: new Date().toISOString()
                     })
                 }).catch(err => console.log('Log no enviado:', err));
-            },
-
-            mostrarAlerta: function(mensaje, tipo) {
-                const toast = document.createElement('div');
-                toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                    tipo === 'error' ? 'bg-red-500' : 
-                    tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
-                } text-white max-w-md`;
-                toast.innerHTML = `
-                    <div class="flex items-center">
-                        <i class="fas fa-${
-                            tipo === 'success' ? 'check-circle' : 
-                            tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
-                        } mr-2"></i>
-                        <span>${mensaje}</span>
-                    </div>
-                `;
-                document.body.appendChild(toast);
-                
-                setTimeout(() => toast.remove(), 4000);
             }
         };
 
@@ -1219,7 +1535,7 @@
                 })
                 .catch(error => {
                     console.error('Error cargando reportes:', error);
-                    mostrarAlerta('Error cargando reportes: ' + error.message, 'error');
+                    ModalManager.mostrarError('Error cargando reportes: ' + error.message);
                 });
         }
 
@@ -1314,7 +1630,6 @@
             const comentarios = prompt('Ingrese comentarios sobre la resolución (opcional):');
             
             if (comentarios === null) {
-                mostrarAlerta('Operación cancelada por el usuario', 'info');
                 return;
             }
             
@@ -1343,7 +1658,7 @@
             })
             .then(data => {
                 console.log('Reporte resuelto correctamente:', data);
-                mostrarAlerta('Reporte resuelto correctamente', 'success');
+                ModalManager.mostrarExito('Reporte resuelto correctamente');
                 
                 MaquinaManager.cargarMaquinas();
                 
@@ -1354,31 +1669,8 @@
             })
             .catch(error => {
                 console.error('Error resolviendo reporte:', error);
-                mostrarAlerta('Error resolviendo reporte: ' + error.message, 'error');
+                ModalManager.mostrarError('Error resolviendo reporte: ' + error.message);
             });
-        }
-
-        // Función para mostrar alertas
-        function mostrarAlerta(mensaje, tipo) {
-            const alerta = document.createElement('div');
-            alerta.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                tipo === 'error' ? 'bg-red-500' : 
-                tipo === 'success' ? 'bg-green-500' : 
-                'bg-blue-500'
-            } text-white max-w-md`;
-            alerta.innerHTML = `
-                <div class="flex items-center">
-                    ${tipo === 'success' ? '<i class="fas fa-check-circle mr-2"></i>' : 
-                      tipo === 'error' ? '<i class="fas fa-times-circle mr-2"></i>' : 
-                      '<i class="fas fa-info-circle mr-2"></i>'}
-                    <span>${mensaje}</span>
-                </div>
-            `;
-            document.body.appendChild(alerta);
-            
-            setTimeout(() => {
-                alerta.remove();
-            }, 4000);
         }
 
         // ==================== HISTORIAL MANAGER ====================
