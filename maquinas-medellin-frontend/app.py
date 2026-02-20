@@ -4275,7 +4275,7 @@ def eliminar_maquina(maquina_id):
 def ingresar_turno_manual():
     """
     Endpoint para que el administrador pueda INGRESAR UN TURNO MANUAL
-    Simula la activación de un turno para probar la máquina
+    Ahora también envía comando al ESP32 para activar el relé
     """
     connection = None
     cursor = None
@@ -4400,6 +4400,29 @@ def ingresar_turno_manual():
             WHERE id = %s
         """, (machine_id,))
         
+        # ==========================================
+        # NUEVO: ENVIAR COMANDO AL ESP32
+        # ==========================================
+        cursor.execute("""
+            INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            machine_id, 
+            'ACTIVATE_RELAY', 
+            json.dumps({
+                'duration_ms': 500, 
+                'machine_name': machine_name,
+                'qr_code': qr_prueba['code'],
+                'usage_id': usage_id
+            }), 
+            user_name, 
+            'queued',
+            format_datetime_for_db(hora_actual)
+        ))
+        
+        command_id = cursor.lastrowid
+        app.logger.info(f"✅ Comando ACTIVATE_RELAY encolado con ID: {command_id}")
+        
         connection.commit()
         
         # Registrar en logs de acción
@@ -4408,14 +4431,14 @@ def ingresar_turno_manual():
                 INSERT INTO app_logs (level, module, message, user_id, created_at)
                 VALUES (%s, %s, %s, %s, %s)
             """, ('INFO', 'machine_action', 
-                  f"Admin {user_name} ingresó turno manual en máquina {machine_name} (ID: {machine_id}) - Usage ID: {usage_id}", 
+                  f"Admin {user_name} ingresó turno manual en máquina {machine_name} (ID: {machine_id}) - Usage ID: {usage_id}, Command ID: {command_id}", 
                   user_id,
                   format_datetime_for_db(hora_actual)))
             connection.commit()
         except Exception as log_error:
             app.logger.warning(f"No se pudo registrar log: {log_error}")
         
-        app.logger.info(f"✅ Turno manual ingresado - Usage ID: {usage_id}, QR: {qr_prueba['code']}")
+        app.logger.info(f"✅ Turno manual ingresado - Usage ID: {usage_id}, QR: {qr_prueba['code']}, Command ID: {command_id}")
         
         return api_response(
             'S014',
@@ -4424,11 +4447,12 @@ def ingresar_turno_manual():
                 'machine_id': machine_id,
                 'machine_name': machine_name,
                 'usage_id': usage_id,
+                'command_id': command_id,
                 'qr_code': qr_prueba['code'],
                 'qr_name': qr_prueba['qr_name'],
                 'turns_remaining': qr_prueba['turns_remaining'] - 1,
                 'timestamp': hora_actual.isoformat(),
-                'message': f'Turno ingresado correctamente. Usage ID: {usage_id}'
+                'message': f'Turno ingresado correctamente. Comando enviado al ESP32 (ID: {command_id})'
             }
         )
         
