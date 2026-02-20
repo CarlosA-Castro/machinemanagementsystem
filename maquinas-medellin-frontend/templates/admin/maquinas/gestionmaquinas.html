@@ -857,44 +857,63 @@
     <script>
         // Gestor de modales
         const ModalManager = {
-            datosPendientes: {},
-            
-            mostrar: function(modalId, datos = {}) {
-                this.datosPendientes = datos;
-                document.getElementById(modalId).classList.add('active');
-            },
-            
-            cerrar: function(modalId) {
-                document.getElementById(modalId).classList.remove('active');
-                this.datosPendientes = {};
-            },
-            
-           confirmarTurno: function() {
-    this.cerrar('modalConfirmarTurno');
-    const { machineId, machineName } = this.datosPendientes;
-    console.log('Confirmando turno - Datos:', { machineId, machineName });
-    MaquinaManager.ejecutarIngresarTurno(machineId, machineName);
-},
-
-confirmarReinicio: function() {
-    this.cerrar('modalConfirmarReinicio');
-    const { machineId, machineName } = this.datosPendientes;
-    console.log('Confirmando reinicio - Datos:', { machineId, machineName });
-    MaquinaManager.ejecutarReiniciarMaquina(machineId, machineName);
-},
-
-            
-            mostrarExito: function(mensaje) {
-                document.getElementById('modalExitoMensaje').textContent = mensaje;
-                this.mostrar('modalExito');
-            },
-            
-            mostrarError: function(mensaje) {
-                document.getElementById('modalErrorMensaje').textContent = mensaje;
-                this.mostrar('modalError');
-            }
-        };
-
+    datosPendientes: {},
+    
+    mostrar: function(modalId, datos = {}) {
+        console.log('ModalManager.mostrar - Datos recibidos:', datos);
+        this.datosPendientes = datos; // Guardar los datos
+        document.getElementById(modalId).classList.add('active');
+        console.log('ModalManager.datosPendientes después de guardar:', this.datosPendientes);
+    },
+    
+    cerrar: function(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+        // NO limpiar datosPendientes aquí para mantenerlos disponibles
+        console.log('Modal cerrado, datosPendientes aún disponibles:', this.datosPendientes);
+    },
+    
+    confirmarTurno: function() {
+        console.log('ModalManager.confirmarTurno - datosPendientes:', this.datosPendientes);
+        const { machineId, machineName } = this.datosPendientes;
+        
+        if (machineId === undefined || machineName === undefined) {
+            console.error('ERROR: machineId o machineName es undefined', this.datosPendientes);
+            this.cerrar('modalConfirmarTurno');
+            alert('Error: No se pudo obtener la información de la máquina');
+            return;
+        }
+        
+        console.log('Confirmando turno - Datos:', { machineId, machineName });
+        this.cerrar('modalConfirmarTurno');
+        MaquinaManager.ejecutarIngresarTurno(machineId, machineName);
+    },
+    
+    confirmarReinicio: function() {
+        console.log('ModalManager.confirmarReinicio - datosPendientes:', this.datosPendientes);
+        const { machineId, machineName } = this.datosPendientes;
+        
+        if (machineId === undefined || machineName === undefined) {
+            console.error('ERROR: machineId o machineName es undefined', this.datosPendientes);
+            this.cerrar('modalConfirmarReinicio');
+            alert('Error: No se pudo obtener la información de la máquina');
+            return;
+        }
+        
+        console.log('Confirmando reinicio - Datos:', { machineId, machineName });
+        this.cerrar('modalConfirmarReinicio');
+        MaquinaManager.ejecutarReiniciarMaquina(machineId, machineName);
+    },
+    
+    mostrarExito: function(mensaje) {
+        document.getElementById('modalExitoMensaje').textContent = mensaje;
+        this.mostrar('modalExito');
+    },
+    
+    mostrarError: function(mensaje) {
+        document.getElementById('modalErrorMensaje').textContent = mensaje;
+        this.mostrar('modalError');
+    }
+};
         const MaquinaManager = {
             maquinas: [],
             propietarios: [],
@@ -1382,10 +1401,11 @@ mostrarModalIngresarTurno: function(machineId, machineName) {
     `;
     document.getElementById('modalTurnoInfo').innerHTML = infoHTML;
     
+    // Pasar los datos al ModalManager
     ModalManager.mostrar('modalConfirmarTurno', { machineId, machineName });
 },
-            
-            mostrarModalReiniciar: function(machineId, machineName) {
+
+mostrarModalReiniciar: function(machineId, machineName) {
     console.log(`Mostrando modal reiniciar - ID: ${machineId}, Nombre: ${machineName}`);
     
     // Buscar información de la máquina
@@ -1406,12 +1426,17 @@ mostrarModalIngresarTurno: function(machineId, machineName) {
     `;
     document.getElementById('modalReinicioInfo').innerHTML = infoHTML;
     
+    // Pasar los datos al ModalManager
     ModalManager.mostrar('modalConfirmarReinicio', { machineId, machineName });
 },
             
             ejecutarIngresarTurno: async function(machineId, machineName) {
     try {
         console.log(`Enviando solicitud de ingreso de turno - ID: ${machineId}, Nombre: ${machineName}`);
+        
+        if (machineId === undefined || machineName === undefined) {
+            throw new Error('machineId o machineName es undefined');
+        }
         
         const response = await fetch('/api/maquinas/ingresar-turno', {
             method: 'POST',
@@ -1430,7 +1455,6 @@ mostrarModalIngresarTurno: function(machineId, machineName) {
         if (response.ok && data.status === 'success') {
             ModalManager.mostrarExito(data.message || 'Turno ingresado correctamente');
             
-            // Registrar en logs
             this.registrarLogAccion('INGRESAR_TURNO', {
                 machine_id: machineId,
                 machine_name: machineName,
@@ -1439,7 +1463,6 @@ mostrarModalIngresarTurno: function(machineId, machineName) {
                 success: true
             });
             
-            // Actualizar estadísticas
             this.cargarMaquinas();
         } else {
             throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
@@ -1457,9 +1480,13 @@ mostrarModalIngresarTurno: function(machineId, machineName) {
     }
 },
 
-            ejecutarReiniciarMaquina: async function(machineId, machineName) {
+ejecutarReiniciarMaquina: async function(machineId, machineName) {
     try {
         console.log(`Enviando solicitud de reinicio - ID: ${machineId}, Nombre: ${machineName}`);
+        
+        if (machineId === undefined || machineName === undefined) {
+            throw new Error('machineId o machineName es undefined');
+        }
         
         const response = await fetch('/api/maquinas/reiniciar', {
             method: 'POST',
@@ -1490,11 +1517,6 @@ mostrarModalIngresarTurno: function(machineId, machineName) {
                 reset_time: data.data?.reset_time_seconds,
                 success: true
             });
-            
-            // Mostrar información adicional si hay command_id
-            if (data.data?.command_id) {
-                console.log(`✅ Comando #${data.data.command_id} encolado para ESP32`);
-            }
         } else {
             throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
         }
