@@ -4266,6 +4266,8 @@ def eliminar_maquina(maquina_id):
 
 # ==================== APIS PARA ACCIONES DE MÁQUINAS DESDE ADMIN ====================
 
+# ==================== APIS PARA ACCIONES DE MÁQUINAS DESDE ADMIN ====================
+
 @app.route('/api/maquinas/ingresar-turno', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
@@ -4280,7 +4282,7 @@ def ingresar_turno_manual():
     try:
         data = request.get_json()
         machine_id = data['machine_id']
-        machine_name = data.get('machine_name', f'Máquina {machine_id}')
+        machine_name = data['machine_name']
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Administrador')
         
@@ -4403,11 +4405,12 @@ def ingresar_turno_manual():
         # Registrar en logs de acción
         try:
             cursor.execute("""
-                INSERT INTO app_logs (level, module, message, user_id)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO app_logs (level, module, message, user_id, created_at)
+                VALUES (%s, %s, %s, %s, %s)
             """, ('INFO', 'machine_action', 
                   f"Admin {user_name} ingresó turno manual en máquina {machine_name} (ID: {machine_id}) - Usage ID: {usage_id}", 
-                  user_id))
+                  user_id,
+                  format_datetime_for_db(hora_actual)))
             connection.commit()
         except Exception as log_error:
             app.logger.warning(f"No se pudo registrar log: {log_error}")
@@ -4415,7 +4418,7 @@ def ingresar_turno_manual():
         app.logger.info(f"✅ Turno manual ingresado - Usage ID: {usage_id}, QR: {qr_prueba['code']}")
         
         return api_response(
-            'S014',  # Nuevo código: Turno ingresado manualmente
+            'S014',
             status='success',
             data={
                 'machine_id': machine_id,
@@ -4454,7 +4457,7 @@ def reiniciar_maquina_manual():
     try:
         data = request.get_json()
         machine_id = data['machine_id']
-        machine_name = data.get('machine_name', f'Máquina {machine_id}')
+        machine_name = data['machine_name']
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Administrador')
         
@@ -4495,28 +4498,8 @@ def reiniciar_maquina_manual():
         
         ultimo_uso = cursor.fetchone()
         
-        # Registrar el reinicio en una tabla específica (crear si no existe)
+        # Registrar el reinicio en machine_resets
         try:
-            # Crear tabla si no existe
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS machine_resets (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    machine_id INT NOT NULL,
-                    machine_name VARCHAR(100),
-                    triggered_by INT,
-                    triggered_by_name VARCHAR(100),
-                    reset_time_seconds INT DEFAULT 5,
-                    qr_code VARCHAR(50),
-                    usage_id INT,
-                    reset_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    status VARCHAR(20) DEFAULT 'pending',
-                    notes TEXT,
-                    INDEX idx_machine (machine_id),
-                    INDEX idx_reset_at (reset_at)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            """)
-            
-            # Insertar registro de reinicio
             cursor.execute("""
                 INSERT INTO machine_resets 
                 (machine_id, machine_name, triggered_by, triggered_by_name, reset_time_seconds, 
@@ -4537,37 +4520,50 @@ def reiniciar_maquina_manual():
             reset_id = cursor.lastrowid
             
         except Exception as e:
-            app.logger.warning(f"Error creando/insertando en machine_resets: {e}")
+            app.logger.warning(f"Error insertando en machine_resets: {e}")
             reset_id = None
+        
+        # Registrar en esp32_commands
+        hora_actual = get_colombia_time()
+        try:
+            cursor.execute("""
+                INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                machine_id, 
+                'RESET', 
+                json.dumps({'reset_time': reset_time, 'machine_name': machine_name}), 
+                user_name, 
+                'queued',
+                format_datetime_for_db(hora_actual)
+            ))
+            command_id = cursor.lastrowid
+            app.logger.info(f"✅ Comando RESET encolado con ID: {command_id}")
+        except Exception as e:
+            app.logger.error(f"Error insertando en esp32_commands: {e}")
+            command_id = None
         
         # Registrar en logs de aplicación
         cursor.execute("""
-            INSERT INTO app_logs (level, module, message, user_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO app_logs (level, module, message, user_id, created_at)
+            VALUES (%s, %s, %s, %s, %s)
         """, ('INFO', 'machine_action', 
               f"Admin {user_name} solicitó reinicio de máquina {machine_name} (ID: {machine_id})", 
-              user_id))
-        
-        # Si existe la tabla de logs de ESP32, registrar allí también
-        try:
-            cursor.execute("""
-                INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (machine_id, 'RESET', json.dumps({'reset_time': reset_time}), user_name, 'queued'))
-        except Exception:
-            pass  # Tabla no existe, ignorar
+              user_id,
+              format_datetime_for_db(hora_actual)))
         
         connection.commit()
         
-        app.logger.info(f"✅ Reinicio registrado para máquina {machine_name} - Reset ID: {reset_id}")
+        app.logger.info(f"✅ Reinicio registrado para máquina {machine_name} - Reset ID: {reset_id}, Command ID: {command_id}")
         
         return api_response(
-            'S015',  # Nuevo código: Reinicio de máquina
+            'S015',
             status='success',
             data={
                 'machine_id': machine_id,
                 'machine_name': machine_name,
                 'reset_id': reset_id,
+                'command_id': command_id,
                 'reset_time_seconds': reset_time,
                 'message': f'Comando de reinicio enviado a la máquina. Tiempo estimado: {reset_time} segundos',
                 'command': 'RESET'

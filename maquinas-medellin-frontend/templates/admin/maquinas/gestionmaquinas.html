@@ -960,7 +960,7 @@
                     }
                 } catch (error) {
                     console.error('Error cargando máquinas:', error);
-                    this.mostrarAlerta('Error al cargar las máquinas', 'error');
+                    ModalManager.mostrarError('Error al cargar las máquinas');
                 }
             },
 
@@ -1473,9 +1473,15 @@
                             machine_id: machineId,
                             machine_name: machineName,
                             reset_id: data.data?.reset_id,
+                            command_id: data.data?.command_id,
                             reset_time: data.data?.reset_time_seconds,
                             success: true
                         });
+                        
+                        // Mostrar información adicional si hay command_id
+                        if (data.data?.command_id) {
+                            console.log(`✅ Comando #${data.data.command_id} encolado para ESP32`);
+                        }
                     } else {
                         throw new Error(data.message || 'Error al reiniciar máquina');
                     }
