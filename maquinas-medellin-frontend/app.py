@@ -4269,7 +4269,7 @@ def eliminar_maquina(maquina_id):
 @app.route('/api/maquinas/ingresar-turno', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
-@validate_required_fields(['machine_id'])
+@validate_required_fields(['machine_id', 'machine_name'])
 def ingresar_turno_manual():
     """
     Endpoint para que el administrador pueda INGRESAR UN TURNO MANUAL
@@ -4443,7 +4443,7 @@ def ingresar_turno_manual():
 @app.route('/api/maquinas/reiniciar', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
-@validate_required_fields(['machine_id'])
+@validate_required_fields(['machine_id', 'machine_name'])
 def reiniciar_maquina_manual():
     """
     Endpoint para que el administrador pueda REINICIAR una máquina
