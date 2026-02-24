@@ -5775,6 +5775,44 @@ def esp32_command_executed(command_id):
         if connection:
             connection.close()
 
+@app.route('/api/esp32/machine-config/<int:machine_id>', methods=['GET'])
+def esp32_machine_config(machine_id):
+    """Endpoint para que el ESP32 obtenga su configuración completa"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        # Obtener datos de la máquina + configuración técnica
+        cursor.execute("""
+            SELECT 
+                m.id, m.name, m.type, m.status,
+                mt.credits_virtual, mt.credits_machine,
+                mt.game_duration_seconds, mt.reset_time_seconds,
+                mt.machine_subtype, mt.station_count,
+                mt.station_names, mt.relay_pins,
+                mt.game_type, mt.has_failure_report,
+                mt.show_station_selection, mt.requires_confirmation
+            FROM machine m
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+            WHERE m.id = %s
+        """, (machine_id,))
+        
+        config = cursor.fetchone()
+        
+        if not config:
+            return api_response('M001', http_status=404)
+        
+        return api_response('S001', 'success', data=config)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo configuración: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
 # ==================== APIS PARA ESP32 - REPORTE DE FALLA DESDE TFT ====================
 
 @app.route('/api/esp32/reportar-falla', methods=['POST'])
