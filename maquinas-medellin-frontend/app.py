@@ -5777,23 +5777,21 @@ def esp32_command_executed(command_id):
 
 @app.route('/api/esp32/machine-config/<int:machine_id>', methods=['GET'])
 def esp32_machine_config(machine_id):
-    """Endpoint para que el ESP32 obtenga su configuración completa"""
     connection = None
     cursor = None
     try:
         connection = get_db_connection()
         cursor = get_db_cursor(connection)
         
-        # Obtener datos de la máquina + configuración técnica
         cursor.execute("""
             SELECT 
                 m.id, m.name, m.type, m.status,
                 mt.credits_virtual, mt.credits_machine,
                 mt.game_duration_seconds, mt.reset_time_seconds,
-                mt.machine_subtype, mt.station_count,
-                mt.station_names, mt.relay_pins,
+                mt.machine_subtype, mt.station_names,
                 mt.game_type, mt.has_failure_report,
-                mt.show_station_selection, mt.requires_confirmation
+                mt.show_station_selection,
+                (SELECT MAX(usedAt) FROM turnusage WHERE machineId = m.id) as last_play_time
             FROM machine m
             LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
             WHERE m.id = %s
@@ -5804,10 +5802,37 @@ def esp32_machine_config(machine_id):
         if not config:
             return api_response('M001', http_status=404)
         
-        return api_response('S001', 'success', data=config)
+        # Convertir station_names de JSON string a array
+        station_names = []
+        if config['station_names']:
+            try:
+                station_names = json.loads(config['station_names'])
+            except:
+                station_names = [config['name']]
+        else:
+            station_names = [config['name']]
+        
+        response_data = {
+            'id': config['id'],
+            'name': config['name'],
+            'type': config['type'],
+            'status': config['status'],
+            'credits_virtual': config['credits_virtual'] or 1,
+            'credits_machine': config['credits_machine'] or 1,
+            'game_duration_seconds': config['game_duration_seconds'] or 180,
+            'reset_time_seconds': config['reset_time_seconds'] or 5,
+            'machine_subtype': config['machine_subtype'] or 'simple',
+            'station_names': station_names,
+            'game_type': config['game_type'] or 'time_based',
+            'has_failure_report': bool(config['has_failure_report']),
+            'show_station_selection': bool(config['show_station_selection']),
+            'last_play_time': config['last_play_time']
+        }
+        
+        return api_response('S001', 'success', data=response_data)
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo configuración: {e}")
+        app.logger.error(f"Error: {e}")
         return api_response('E001', http_status=500)
     finally:
         if cursor: cursor.close()
