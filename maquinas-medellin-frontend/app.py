@@ -5783,6 +5783,7 @@ def esp32_machine_config(machine_id):
         connection = get_db_connection()
         cursor = get_db_cursor(connection)
         
+        # IMPORTANTE: NO incluir station_count (no existe)
         cursor.execute("""
             SELECT 
                 m.id, m.name, m.type, m.status,
@@ -5800,17 +5801,26 @@ def esp32_machine_config(machine_id):
         config = cursor.fetchone()
         
         if not config:
-            return api_response('M001', http_status=404)
+            return jsonify({'status': 'error', 'code': 'M001', 'message': 'Máquina no encontrada'}), 404
         
-        # Convertir station_names de JSON string a array
+        # Procesar station_names (JSON string a array)
         station_names = []
         if config['station_names']:
             try:
-                station_names = json.loads(config['station_names'])
+                # Si ya es un string JSON, convertirlo
+                if isinstance(config['station_names'], str):
+                    station_names = json.loads(config['station_names'])
+                else:
+                    station_names = config['station_names']
             except:
+                # Si falla, usar un array con el nombre de la máquina
                 station_names = [config['name']]
         else:
-            station_names = [config['name']]
+            # Si está vacío, crear nombres por defecto según el subtipo
+            if config['machine_subtype'] == 'multi_station':
+                station_names = ["Estación 1", "Estación 2"]
+            else:
+                station_names = [config['name']]
         
         response_data = {
             'id': config['id'],
@@ -5829,11 +5839,11 @@ def esp32_machine_config(machine_id):
             'last_play_time': config['last_play_time']
         }
         
-        return api_response('S001', 'success', data=response_data)
+        return jsonify({'status': 'success', 'data': response_data})
         
     except Exception as e:
-        app.logger.error(f"Error: {e}")
-        return api_response('E001', http_status=500)
+        app.logger.error(f"Error obteniendo configuración: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         if cursor: cursor.close()
         if connection: connection.close()
