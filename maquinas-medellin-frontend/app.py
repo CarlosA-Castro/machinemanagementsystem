@@ -4105,9 +4105,9 @@ def crear_maquina():
         maquina_id = cursor.lastrowid
 
         if float(porcentaje_restaurante) != 35.00:
-            cursor.execute("""
-                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
-                VALUES (%s, %s)
+           cursor.execute("""
+             INSERT INTO maquinaporcentajerestaurante (maquina_id, porcentaje_restaurante)
+             VALUES (%s, %s)
             """, (maquina_id, porcentaje_restaurante))
         
         connection.commit()
@@ -4163,33 +4163,40 @@ def actualizar_maquina(maquina_id):
             
         cursor = get_db_cursor(connection)
 
+        # Verificar que la máquina existe
         cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
 
+        # Verificar que el nombre no esté duplicado
         cursor.execute("SELECT id FROM machine WHERE name = %s AND id != %s", (name, maquina_id))
         if cursor.fetchone():
             return api_response('E007', http_status=400, data={'message': 'Nombre de máquina ya existe'})
 
+        # Verificar que el local existe
         cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():
             return api_response('E002', http_status=404, data={'local_id': location_id})
 
+        # Actualizar la máquina
         cursor.execute("""
             UPDATE machine 
             SET name = %s, type = %s, status = %s, location_id = %s, errorNote = %s
             WHERE id = %s
         """, (name, type, status, location_id, errorNote, maquina_id))
 
+        # Manejar el porcentaje del restaurante - CORREGIDO: usar minúsculas
         if float(porcentaje_restaurante) != 35.00:
+            # Intentar insertar o actualizar
             cursor.execute("""
-                INSERT INTO MaquinaPorcentajeRestaurante (maquina_id, porcentaje_restaurante)
+                INSERT INTO maquinaporcentajerestaurante (maquina_id, porcentaje_restaurante)
                 VALUES (%s, %s)
                 ON DUPLICATE KEY UPDATE porcentaje_restaurante = %s
             """, (maquina_id, porcentaje_restaurante, porcentaje_restaurante))
         else:
-            cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
+            # Si es 35%, eliminar el registro si existe (es el valor por defecto)
+            cursor.execute("DELETE FROM maquinaporcentajerestaurante WHERE maquina_id = %s", (maquina_id,))
         
         connection.commit()
         
