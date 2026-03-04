@@ -174,11 +174,11 @@
 
     <div class="flex flex-col lg:flex-row min-h-screen">
 
-        <!-- Barra lateral responsive -->
+         <!-- Barra lateral -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
-                    <i class="fas fa-gamepad mr-2"></i>Inversiones Arcade
+                    <i class="fas fa-user-cog mr-2"></i>Admin
                 </div>
                 <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
                     <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -190,7 +190,7 @@
                     <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-users mr-2"></i>Usuarios
                     </a>
-                    <a href="/admin/maquinas/inventario" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                    <a href="/admin/maquinas/gestionmaquinas" class="btn-touch rounded-lg bg-blue-600 text-white transition">
                         <i class="fas fa-gamepad mr-2"></i>Máquinas
                     </a>
                     <a href="/admin/paquetes/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -199,7 +199,7 @@
                     <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-store mr-2"></i>Locales
                     </a>
-                      <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                     <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-store mr-2"></i>Mensajes
                     </a>
                     <a href="/admin/ventas/liquidaciones" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -216,7 +216,7 @@
                     </a>
                 </nav>
             </div>
-
+            
             <!-- Información de usuario CON HORA ACTUAL -->
             <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
                 <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
