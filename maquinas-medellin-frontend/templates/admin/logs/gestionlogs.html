@@ -73,10 +73,11 @@
     <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
         <!-- Barra lateral -->
+        <!-- Barra lateral -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
-                    <i class="fas fa-cogs mr-2"></i>Gestión
+                    <i class="fas fa-user-cog mr-2"></i>Admin
                 </div>
                 <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
                     <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
@@ -85,14 +86,32 @@
                     <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
                     </a>
+                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/gestionmaquinas" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                     <a href="/admin/mensajes/gestionmensajes" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-store mr-2"></i>Mensajes
+                    </a>
+                    <a href="/admin/ventas/liquidaciones" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
+                    </a>
+                      <a href="/admin/inversores/gestionsocios" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Socios
+                    </a>
                     <a href="/admin/logs/consola-completa" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
                         <i class="fas fa-terminal mr-2"></i>Consola de Logs
                     </a>
-                    <a href="/admin/logs/gestionlogs" class="btn-touch rounded-lg bg-blue-600 text-white transition">
-                        <i class="fas fa-cogs mr-2"></i>Gestión de Logs
-                    </a>
-                    <a href="/admin/usuarios/lista" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
-                        <i class="fas fa-users mr-2"></i>Usuarios
+                    <a href="/admin/logs/gestionlogs" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                        <i class="fas fa-chart-pie mr-2"></i>Gestión de Logs
                     </a>
                 </nav>
             </div>
