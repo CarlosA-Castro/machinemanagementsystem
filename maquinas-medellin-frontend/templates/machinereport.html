@@ -270,132 +270,127 @@
         </div>
         
         <!-- Sección Máquinas -->
-        <div class="glass-card space-y-4">
-          <h2 class="text-xl font-semibold">
-            <i class="fas fa-gamepad text-green-600 mr-2"></i>Máquinas Disponibles:
-          </h2>
-          <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+<div class="glass-card space-y-4">
+  <h2 class="text-xl font-semibold">
+    <i class="fas fa-gamepad text-green-600 mr-2"></i>Máquinas Disponibles:
+  </h2>
+  
+  <!-- Grid de máquinas ordenado -->
+  <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 
-            <!-- ============================================ -->
-            <!-- MÁQUINAS DE BASKETBALL                       -->
-            <!-- ============================================ -->
-
-            <!-- Basketball (existente) ID: 6 -->
-            <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200">
-                <img src="/static/img/basketball.jpg" alt="Máquina De Basket" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Basket</p>
-            </div>
-            
-            <!-- NUEVA: Basketball 2 ID: 13 -->
-            <div onclick="abrirModal('Basketball 2', 13)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-200 to-orange-300 relative">
-                <img src="/static/img/basketball 2.jpg" alt="Basketball 2" class="w-full h-full object-cover">
-              <p class="font-semibold text-center text-sm">Basketball 2</p>
-            </div>
-
-            <!-- ============================================ -->
-            <!-- MÁQUINAS DE DISCO HOCKEY                     -->
-            <!-- ============================================ -->
-            
-            <!-- NUEVA: Disco Air Hockey ID: 14 -->
-            <div onclick="abrirModal('Disco Air Hockey', 14)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
-                <img src="/static/img/disco air hockey.jpg" alt="Disco Air Hockey" class="w-full h-full object-cover">
-              <p class="font-semibold text-center text-sm">Disco Air Hockey</p>
-            </div>
-
-            <div onclick="abrirModal('Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
-                <img src="/static/img/disco hockey.jpg" alt="Disco Hockey" class="w-full h-full object-cover">
-              <p class="font-semibold text-center text-sm">Disco Hockey</p>
-            </div>
-            
-            <!-- ============================================ -->
-            <!-- MÁQUINAS DE PELUCHERAS                       -->
-            <!-- ============================================ -->
-            
-            <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-pink-100 to-pink-200">
-                <img src="/static/img/peluches1.jpg" alt="Máquina De Peluches 1" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Peluches 1</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-purple-100 to-purple-200">
-                <img src="/static/img/peluches2.jpg" alt="Máquina De Peluches 2" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Peluches 2</p>
-            </div>
-            
-            <!-- ============================================ -->
-            <!-- MÁQUINAS DE SIMULADORES                      -->
-            <!-- ============================================ -->
-            
-            <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
-                <img src="/static/img/pelea.jpg" alt="Máquina De Pelea" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Pelea</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-green-100 to-green-200">
-                <img src="/static/img/simulador1.jpg" alt="Máquina De Simulador 1" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Simulador 1</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-teal-100 to-teal-200">
-                <img src="/static/img/simulador2.jpg" alt="Máquina De Simulador 2" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Simulador 2</p>
-            </div>
-            
-            <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-yellow-100 to-yellow-200">
-                <img src="/static/img/simulador pk.jpg" alt="Máquina De Simulador Connection" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Máquina De Simulador Connection</p>
-            </div>
-
-            <!-- ============================================ -->
-            <!-- MÁQUINAS INFANTILES                          -->
-            <!-- ============================================ -->
-            
-            <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
-                <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Sillas Masajes</p>
-            </div>
-            
-            <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
-                <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">McQueen</p>
-            </div>
-            
-            <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-amber-100 to-amber-200">
-                <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Caballito</p>
-            </div>
-            
-            <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-                <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
-              </div>
-              <p class="font-semibold text-center text-sm">Trencito</p>
-            </div>
-          </div>
-        </div>
+    <!-- 1. Simulador Connection (ID: 1) -->
+    <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-yellow-100 to-yellow-200">
+        <img src="/static/img/simulador pk.jpg" alt="Máquina De Simulador Connection" class="w-full h-full object-cover">
       </div>
+      <p class="font-semibold text-center text-sm">Simulador Connection</p>
+    </div>
+
+    <!-- 2. Simulador 1 (ID: 2) -->
+    <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-green-100 to-green-200">
+        <img src="/static/img/simulador1.jpg" alt="Máquina De Simulador 1" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Simulador 1</p>
+    </div>
+
+    <!-- 3. Simulador 2 (ID: 3) -->
+    <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-teal-100 to-teal-200">
+        <img src="/static/img/simulador2.jpg" alt="Máquina De Simulador 2" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Simulador 2</p>
+    </div>
+
+    <!-- 4. Peluches 1 (ID: 4) -->
+    <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-pink-100 to-pink-200">
+        <img src="/static/img/peluches1.jpg" alt="Máquina De Peluches 1" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Peluches 1</p>
+    </div>
+
+    <!-- 5. Peluches 2 (ID: 5) -->
+    <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-purple-100 to-purple-200">
+        <img src="/static/img/peluches2.jpg" alt="Máquina De Peluches 2" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Peluches 2</p>
+    </div>
+
+    <!-- 6. Basketball 1 (ID: 6) -->
+    <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200">
+        <img src="/static/img/basketball.jpg" alt="Máquina De Basket" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Basketball 1</p>
+    </div>
+
+    <!-- 7. Pelea (ID: 7) -->
+    <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+        <img src="/static/img/pelea.jpg" alt="Máquina De Pelea" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Pelea</p>
+    </div>
+
+    <!-- 8. Sillas Masajes (ID: 9) -->
+    <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
+        <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Sillas Masajes</p>
+    </div>
+
+    <!-- 9. McQueen (ID: 10) -->
+    <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+        <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">McQueen</p>
+    </div>
+
+    <!-- 10. Caballito (ID: 11) -->
+    <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-amber-100 to-amber-200">
+        <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Caballito</p>
+    </div>
+
+    <!-- 11. Trencito (ID: 12) -->
+    <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+        <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Trencito</p>
+    </div>
+
+    <!-- 12. Basketball 2 (NUEVA - ID: 13) -->
+    <div onclick="abrirModal('Basketball 2', 13)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-200 to-orange-300 relative">
+        <img src="/static/img/basketball 2.jpg" alt="Basketball 2" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Basketball 2</p>
+    </div>
+
+    <!-- 13. Disco Air Hockey (NUEVA - ID: 14) -->
+    <div onclick="abrirModal('Disco Air Hockey', 14)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
+        <img src="/static/img/disco air hockey.jpg" alt="Disco Air Hockey" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Disco Air Hockey</p>
+    </div>
+
+    <div onclick="abrirModal('Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
+        <img src="/static/img/disco hockey.jpg" alt="Disco Hockey" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Disco Hockey</p>
+    </div>
+
+  </div>
+</div>
 
       <!-- Modal de Confirmación -->
       <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
