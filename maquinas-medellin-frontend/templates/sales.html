@@ -56,7 +56,56 @@
             to { transform: rotate(360deg); }
         }
         
+        /* ===== NUEVOS ESTILOS RESPONSIVE ===== */
         @media (max-width: 1024px) {
+            .flex.min-h-screen {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+            
+            aside {
+                width: 100% !important;
+                order: 1;
+                padding-bottom: 0 !important;
+            }
+            
+            main {
+                order: 2;
+                padding: 1rem !important;
+            }
+            
+            .sidebar-nav {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+            
+            .sidebar-nav a {
+                flex: 1;
+                min-width: 120px;
+                text-align: center;
+                padding: 0.75rem 0.5rem !important;
+            }
+            
+            .user-info-mobile {
+                order: 3;
+                width: 100%;
+                background-color: #1f2937;
+                border-top: 1px solid #374151;
+                padding: 1rem;
+                text-align: center;
+            }
+            
+            .user-info-desktop {
+                display: none;
+            }
+            
+            .user-info-mobile {
+                display: block;
+            }
+            
             .contenido {
                 padding: 1rem !important;
             }
@@ -65,6 +114,16 @@
             }
             .grid-cols-1 {
                 grid-template-columns: 1fr !important;
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            .user-info-desktop {
+                display: block;
+            }
+            
+            .user-info-mobile {
+                display: none;
             }
         }
         
@@ -82,6 +141,49 @@
                 height: 300px !important;
             }
         }
+        
+        /* ===== ESTILOS PARA INDICADOR DE PÁGINA ACTIVA ===== */
+        .nav-link {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-link.active {
+            background-color: #2563eb !important;
+            color: white !important;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        }
+        
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: white;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .nav-link:hover:not(.active) {
+            background-color: #e5e7eb !important;
+            color: #1f2937 !important;
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 1024px) {
+            .nav-link.active {
+                background-color: #2563eb !important;
+                color: white !important;
+                border: 2px solid white;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -91,35 +193,35 @@
 
     <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Barra lateral CON HORA ACTUAL -->
+        <!-- Barra lateral - MODIFICADA CON INDICADOR ACTIVO -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
                     <i class="fas fa-chart-line mr-2"></i>Ventas
                 </div>
                 <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
-                    <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                    <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-home">
                         <i class="fas fa-home mr-2"></i>Home
                     </a>
-                  
-                    <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                    <a href="/package/failure" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-failure">
                         <i class="fas fa-exchange-alt mr-2"></i>Devolución
                     </a>
-                    <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                    <a href="/machinereport" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-machine">
                         <i class="fas fa-exclamation-triangle mr-2"></i>Falla Máq.
                     </a>
-                    <a href="/sales" class="btn-touch rounded-lg bg-blue-600 text-white transition">
+                    <a href="/sales" class="nav-link btn-touch rounded-lg transition" id="nav-sales">
                         <i class="fas fa-chart-line mr-2"></i>Ventas
                     </a>
                     {% if session.get('user_role') == 'admin' %}
-                    <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+                    <a href="/admin" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-admin">
                         <i class="fas fa-user-cog mr-2"></i>Admin
                     </a>
                     {% endif %}
                 </nav>
             </div>
-            <!-- Información de usuario CON HORA ACTUAL -->
-            <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+            
+            <!-- Información de usuario - VERSIÓN DESKTOP -->
+            <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
                 <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
                 <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
                 <div class="mb-2 text-xs text-gray-400">
@@ -321,6 +423,22 @@
         </main>
     </div>
 
+    <!-- ============================================ -->
+    <!-- INFORMACIÓN DE USUARIO - VERSIÓN MÓVIL (al final) -->
+    <!-- ============================================ -->
+    <div class="user-info-mobile bg-gray-800 text-white">
+        <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuarioMobile">{{ nombre_usuario }}</span></div>
+        <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuarioMobile">{{ local_usuario }}</span></div>
+        <div class="mb-2 text-xs text-gray-400">
+            <div><i class="fas fa-clock mr-1"></i><span id="horaActualMobile">Cargando...</span></div>
+            <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualMobile">Cargando...</span></div>
+            Rol: {{ session.get('user_role', 'Usuario') }}
+        </div>
+        <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+            <i class="fas fa-sign-out-alt mr-1"></i>Salir
+        </a>
+    </div>
+
     <script>
         const VentasApp = {
     charts: {},
@@ -360,7 +478,48 @@
         // Cargar datos iniciales
         this.cargarDatosVentas();
         
+        // ===== NUEVO: Marcar el enlace activo =====
+        this.marcarEnlaceActivo();
+        
+        // Sincronizar nombre de usuario y local con versión móvil
+        const nombreUsuario = document.getElementById('nombreUsuario');
+        const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+        if (nombreUsuario && nombreUsuarioMobile) {
+            nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+        }
+        
+        const localUsuario = document.getElementById('localUsuario');
+        const localUsuarioMobile = document.getElementById('localUsuarioMobile');
+        if (localUsuario && localUsuarioMobile) {
+            localUsuarioMobile.textContent = localUsuario.textContent;
+        }
+        
         console.log("Ventas App inicializada");
+    },
+
+    // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
+    marcarEnlaceActivo: function() {
+        const currentPath = window.location.pathname;
+        
+        const pathToId = {
+            '/local': 'nav-home',
+            '/package/failure': 'nav-failure',
+            '/machinereport': 'nav-machine',
+            '/sales': 'nav-sales',
+            '/admin': 'nav-admin'
+        };
+        
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        const activeId = pathToId[currentPath];
+        if (activeId) {
+            const activeLink = document.getElementById(activeId);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
     },
 
     // Función para actualizar la hora en tiempo real
@@ -384,12 +543,17 @@
         const hora = ahora.toLocaleTimeString('es-CO', opciones);
         const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
         
-        // Actualizar en sidebar
+        // Actualizar en sidebar (desktop)
         const horaSidebar = document.getElementById('horaActualSidebar');
         const fechaSidebar = document.getElementById('fechaActualSidebar');
-        
         if (horaSidebar) horaSidebar.textContent = hora;
         if (fechaSidebar) fechaSidebar.textContent = fecha;
+        
+        // Actualizar en versión móvil
+        const horaMobile = document.getElementById('horaActualMobile');
+        const fechaMobile = document.getElementById('fechaActualMobile');
+        if (horaMobile) horaMobile.textContent = hora;
+        if (fechaMobile) fechaMobile.textContent = fecha;
     },
 
     inicializarGraficos: function() {
