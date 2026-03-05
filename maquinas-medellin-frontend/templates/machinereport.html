@@ -103,9 +103,10 @@
       to { transform: rotate(360deg); }
     }
     
-    /* Responsive para tablets y móviles */
+    /* ===== NUEVOS ESTILOS RESPONSIVE ===== */
+    /* En móvil: sidebar arriba, contenido abajo, usuario al final */
     @media (max-width: 1024px) {
-      .flex.h-screen {
+      .flex.min-h-screen {
         flex-direction: column;
         height: auto;
         min-height: 100vh;
@@ -114,6 +115,7 @@
       aside {
         width: 100% !important;
         order: 1;
+        padding-bottom: 0 !important;
       }
       
       main {
@@ -135,14 +137,36 @@
         padding: 0.75rem 0.5rem !important;
       }
       
-      .user-info {
-        text-align: center;
-        padding: 1rem;
-      }
-      
       .machine-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 1rem !important;
+      }
+      
+      .user-info-mobile {
+        order: 3;
+        width: 100%;
+        background-color: #1f2937;
+        border-top: 1px solid #374151;
+        padding: 1rem;
+        text-align: center;
+      }
+      
+      .user-info-desktop {
+        display: none;
+      }
+      
+      .user-info-mobile {
+        display: block;
+      }
+    }
+    
+    @media (min-width: 1025px) {
+      .user-info-desktop {
+        display: block;
+      }
+      
+      .user-info-mobile {
+        display: none;
       }
     }
     
@@ -198,6 +222,49 @@
         font-size: 1.5rem !important;
       }
     }
+    
+    /* ===== ESTILOS PARA INDICADOR DE PÁGINA ACTIVA ===== */
+    .nav-link {
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .nav-link.active {
+      background-color: #2563eb !important;
+      color: white !important;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+    }
+    
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: white;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(0); }
+    }
+    
+    .nav-link:hover:not(.active) {
+      background-color: #e5e7eb !important;
+      color: #1f2937 !important;
+      transform: translateY(-2px);
+    }
+    
+    @media (max-width: 1024px) {
+      .nav-link.active {
+        background-color: #2563eb !important;
+        color: white !important;
+        border: 2px solid white;
+      }
+    }
   </style>
 </head>
 
@@ -205,27 +272,27 @@
   <div id="particles-js"></div>
 
   <div class="flex flex-col lg:flex-row min-h-screen">
-    <!-- Barra lateral responsive -->
+    <!-- Barra lateral - MODIFICADA CON INDICADOR ACTIVO -->
     <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
         <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
           <i class="fas fa-gamepad mr-2"></i>Inversiones Arcade
         </div>
         <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
-          <a href="/local" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+          <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-home">
             <i class="fas fa-home mr-2"></i>Home
           </a>
-          <a href="/package/failure" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+          <a href="/package/failure" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-failure">
             <i class="fas fa-exclamation-triangle mr-2"></i>Falla Paq.
           </a>
-          <a href="/machinereport" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+          <a href="/machinereport" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-machine">
             <i class="fas fa-cogs mr-2"></i>Falla Máq.
           </a>
-          <a href="/sales" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+          <a href="/sales" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-sales">
             <i class="fas fa-chart-line mr-2"></i>Ventas
           </a>
           {% if session.get('user_role') == 'admin' %}
-          <a href="/admin" class="btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition">
+          <a href="/admin" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-admin">
             <i class="fas fa-user-cog mr-2"></i>Admin
           </a>
           {% endif %}
@@ -236,8 +303,9 @@
           </a>
         </div>
       </div>
-      <!-- Información de usuario CON HORA ACTUAL -->
-      <div class="user-info bg-gray-800 p-4 border-t border-gray-700 text-white">
+      
+      <!-- Información de usuario - VERSIÓN DESKTOP -->
+      <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
         <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
         <div class="mb-2 text-xs text-gray-400">
@@ -334,54 +402,7 @@
       <p class="font-semibold text-center text-sm">Pelea</p>
     </div>
 
-    <!-- 8. Sillas Masajes (ID: 9) -->
-    <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
-        <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Sillas Masajes</p>
-    </div>
-
-    <!-- 9. McQueen (ID: 10) -->
-    <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
-        <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">McQueen</p>
-    </div>
-
-    <!-- 10. Caballito (ID: 11) -->
-    <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-amber-100 to-amber-200">
-        <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Caballito</p>
-    </div>
-
-    <!-- 11. Trencito (ID: 12) -->
-    <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-        <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Trencito</p>
-    </div>
-
-    <!-- 12. Basketball 2 (NUEVA - ID: 13) -->
-    <div onclick="abrirModal('Basketball 2', 13)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-200 to-orange-300 relative">
-        <img src="/static/img/basketball 2.jpg" alt="Basketball 2" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Basketball 2</p>
-    </div>
-
-    <!-- 13. Disco Air Hockey (NUEVA - ID: 14) -->
-    <div onclick="abrirModal('Disco Air Hockey', 14)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
-        <img src="/static/img/disco air hockey.jpg" alt="Disco Air Hockey" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Disco Air Hockey</p>
-    </div>
-
+    <!-- 8. Disco Hockey (ID: 8) -->
     <div onclick="abrirModal('Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
       <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
         <img src="/static/img/disco hockey.jpg" alt="Disco Hockey" class="w-full h-full object-cover">
@@ -389,11 +410,59 @@
       <p class="font-semibold text-center text-sm">Disco Hockey</p>
     </div>
 
+    <!-- 9. Sillas Masajes (ID: 9) -->
+    <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
+        <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Sillas Masajes</p>
+    </div>
+
+    <!-- 10. McQueen (ID: 10) -->
+    <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+        <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">McQueen</p>
+    </div>
+
+    <!-- 11. Caballito (ID: 11) -->
+    <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-amber-100 to-amber-200">
+        <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Caballito</p>
+    </div>
+
+    <!-- 12. Trencito (ID: 12) -->
+    <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+        <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Trencito</p>
+    </div>
+
+    <!-- 13. Basketball 2 (NUEVA - ID: 13) -->
+    <div onclick="abrirModal('Basketball 2', 13)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-200 to-orange-300 relative">
+        <img src="/static/img/basketball 2.jpg" alt="Basketball 2" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Basketball 2</p>
+    </div>
+
+    <!-- 14. Disco Air Hockey (NUEVA - ID: 14) -->
+    <div onclick="abrirModal('Disco Air Hockey', 14)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
+        <img src="/static/img/disco air hockey.jpg" alt="Disco Air Hockey" class="w-full h-full object-cover">
+      </div>
+      <p class="font-semibold text-center text-sm">Disco Air Hockey</p>
+    </div>
+
   </div>
 </div>
 
       <!-- Modal de Confirmación -->
-      <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+      <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" style="display: none;">
         <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
           <h3 class="text-xl font-bold text-center text-blue-900 mb-4">
             <i class="fas fa-clipboard-check mr-2"></i>Reporte de Falla
@@ -470,6 +539,22 @@
     </main>
   </div>
 
+  <!-- ============================================ -->
+  <!-- INFORMACIÓN DE USUARIO - VERSIÓN MÓVIL (al final) -->
+  <!-- ============================================ -->
+  <div class="user-info-mobile bg-gray-800 text-white">
+    <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuarioMobile">{{ nombre_usuario }}</span></div>
+    <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuarioMobile">{{ local_usuario }}</span></div>
+    <div class="mb-2 text-xs text-gray-400">
+      <div><i class="fas fa-clock mr-1"></i><span id="horaActualMobile">Cargando...</span></div>
+      <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualMobile">Cargando...</span></div>
+      Rol: {{ session.get('user_role', 'Usuario') }}
+    </div>
+    <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+      <i class="fas fa-sign-out-alt mr-1"></i>Salir
+    </a>
+  </div>
+
   <script>
     // Variables globales
     let maquinaActual = '';
@@ -496,12 +581,17 @@
       const hora = ahora.toLocaleTimeString('es-CO', opciones);
       const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
       
-      // Actualizar en sidebar
+      // Actualizar en sidebar (desktop)
       const horaSidebar = document.getElementById('horaActualSidebar');
       const fechaSidebar = document.getElementById('fechaActualSidebar');
-      
       if (horaSidebar) horaSidebar.textContent = hora;
       if (fechaSidebar) fechaSidebar.textContent = fecha;
+      
+      // Actualizar en versión móvil
+      const horaMobile = document.getElementById('horaActualMobile');
+      const fechaMobile = document.getElementById('fechaActualMobile');
+      if (horaMobile) horaMobile.textContent = hora;
+      if (fechaMobile) fechaMobile.textContent = fecha;
     }
     
     // Configuración de partículas optimizada
@@ -535,8 +625,49 @@
       actualizarHora();
       setInterval(actualizarHora, 1000);
       
+      // ===== NUEVO: Marcar el enlace activo =====
+      marcarEnlaceActivo();
+      
+      // Sincronizar nombre de usuario y local con versión móvil
+      const nombreUsuario = document.getElementById('nombreUsuario');
+      const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+      if (nombreUsuario && nombreUsuarioMobile) {
+        nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+      }
+      
+      const localUsuario = document.getElementById('localUsuario');
+      const localUsuarioMobile = document.getElementById('localUsuarioMobile');
+      if (localUsuario && localUsuarioMobile) {
+        localUsuarioMobile.textContent = localUsuario.textContent;
+      }
+      
       console.log("Machine Report App inicializada correctamente");
     });
+
+    // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
+    function marcarEnlaceActivo() {
+      const currentPath = window.location.pathname;
+      
+      const pathToId = {
+        '/local': 'nav-home',
+        '/package/failure': 'nav-failure',
+        '/machinereport': 'nav-machine',
+        '/sales': 'nav-sales',
+        '/admin': 'nav-admin'
+      };
+      
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      const activeId = pathToId[currentPath];
+      if (activeId) {
+        const activeLink = document.getElementById(activeId);
+        if (activeLink) {
+          activeLink.classList.add('active');
+        }
+      }
+    }
 
     // Función para obtener información de la máquina desde la API
     async function obtenerInfoMaquina(machineId) {
