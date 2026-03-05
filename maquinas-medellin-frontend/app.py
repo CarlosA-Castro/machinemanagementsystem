@@ -3990,7 +3990,7 @@ def obtener_machinefailures_recientes():
 @app.route('/api/maquinas/<int:maquina_id>', methods=['GET'])
 @handle_api_errors
 def obtener_maquina(maquina_id):
-    """Obtener una máquina específica"""
+    """Obtener una máquina específica con información completa"""
     connection = None
     cursor = None
     try:
@@ -4016,6 +4016,7 @@ def obtener_maquina(maquina_id):
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': maquina_id})
 
+        # Obtener propietarios
         cursor.execute("""
             SELECT 
                 p.id,
@@ -4028,9 +4029,26 @@ def obtener_maquina(maquina_id):
         
         propietarios = cursor.fetchall()
         
-        info_propietarios = ", ".join([
-            f"{p['nombre']} ({p['porcentaje_propiedad']}%)" for p in propietarios
-        ]) if propietarios else "Sin propietarios"
+        # Calcular tiempo desde último uso
+        ultimo_uso_texto = "Nunca"
+        if maquina['dateLastQRUsed']:
+            try:
+                fecha_ultimo = parse_db_datetime(maquina['dateLastQRUsed'])
+                ahora = get_colombia_time()
+                diferencia = ahora - fecha_ultimo
+                
+                if diferencia.days > 0:
+                    ultimo_uso_texto = f"Hace {diferencia.days} días"
+                elif diferencia.seconds > 3600:
+                    horas = diferencia.seconds // 3600
+                    ultimo_uso_texto = f"Hace {horas} horas"
+                elif diferencia.seconds > 60:
+                    minutos = diferencia.seconds // 60
+                    ultimo_uso_texto = f"Hace {minutos} minutos"
+                else:
+                    ultimo_uso_texto = "Hace unos segundos"
+            except:
+                ultimo_uso_texto = maquina['dateLastQRUsed'].strftime('%Y-%m-%d %H:%M')
         
         return jsonify({
             'id': maquina['id'],
@@ -4039,17 +4057,99 @@ def obtener_maquina(maquina_id):
             'status': maquina['status'],
             'location_id': maquina['location_id'],
             'location_name': maquina['location_name'],
-            'dailyFailedTurns': maquina['dailyFailedTurns'],
+            'dailyFailedTurns': maquina['dailyFailedTurns'] or 0,
             'dateLastQRUsed': maquina['dateLastQRUsed'].isoformat() if maquina['dateLastQRUsed'] else None,
+            'ultimo_uso_texto': ultimo_uso_texto,
             'errorNote': maquina['errorNote'],
             'porcentaje_restaurante': float(maquina['porcentaje_restaurante']),
             'propietarios': propietarios,
-            'info_propietarios': info_propietarios
+            'info_propietarios': ", ".join([
+                f"{p['nombre']} ({p['porcentaje_propiedad']}%)" for p in propietarios
+            ]) if propietarios else "Sin propietarios",
+            'valor_por_turno': float(maquina['valor_por_turno'] or 3000.00)
         })
         
     except Exception as e:
         app.logger.error(f"Error obteniendo máquina: {e}")
         sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>/ultima-actividad', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_ultima_actividad_maquina(maquina_id):
+    """Obtener información sobre la última actividad de una máquina"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener último juego
+        cursor.execute("""
+            SELECT 
+                tu.usedAt,
+                qr.code as qr_code,
+                qr.qr_name,
+                tp.name as package_name
+            FROM turnusage tu
+            JOIN qrcode qr ON tu.qrCodeId = qr.id
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE tu.machineId = %s
+            ORDER BY tu.usedAt DESC
+            LIMIT 1
+        """, (maquina_id,))
+        
+        ultimo_juego = cursor.fetchone()
+        
+        # Obtener última falla
+        cursor.execute("""
+            SELECT 
+                reported_at,
+                notes,
+                is_forced,
+                turnos_devueltos
+            FROM machinefailures
+            WHERE machine_id = %s
+            ORDER BY reported_at DESC
+            LIMIT 1
+        """, (maquina_id,))
+        
+        ultima_falla = cursor.fetchone()
+        
+        resultado = {
+            'ultimo_juego': None,
+            'ultima_falla': None
+        }
+        
+        if ultimo_juego:
+            resultado['ultimo_juego'] = {
+                'fecha': ultimo_juego['usedAt'].isoformat() if ultimo_juego['usedAt'] else None,
+                'qr_code': ultimo_juego['qr_code'],
+                'qr_name': ultimo_juego['qr_name'],
+                'package': ultimo_juego['package_name']
+            }
+        
+        if ultima_falla:
+            resultado['ultima_falla'] = {
+                'fecha': ultima_falla['reported_at'].isoformat() if ultima_falla['reported_at'] else None,
+                'descripcion': ultima_falla['notes'],
+                'forzada': bool(ultima_falla['is_forced']),
+                'turnos_devueltos': ultima_falla['turnos_devueltos']
+            }
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo última actividad: {e}")
         return api_response('E001', http_status=500)
     finally:
         if cursor:
@@ -4130,6 +4230,122 @@ def crear_maquina():
             cursor.close()
         if connection:
             connection.close()
+
+@app.route('/api/maquinas-por-tipo', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_maquinas_por_tipo():
+    """
+    Obtener todas las máquinas organizadas por tipo
+    Para usar en machinereport.html
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        # Obtener todas las máquinas activas
+        cursor.execute("""
+            SELECT 
+                m.id,
+                m.name,
+                m.type,
+                m.status,
+                m.location_id,
+                l.name as location_name,
+                COALESCE(m.dailyFailedTurns, 0) as dailyFailedTurns,
+                m.dateLastQRUsed,
+                COALESCE(m.valor_por_turno, 3000.00) as valor_por_turno
+            FROM machine m
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE m.status IN ('activa', 'mantenimiento', 'inactiva')
+            ORDER BY m.type, m.name
+        """)
+        
+        maquinas = cursor.fetchall()
+        
+        # Organizar por tipo
+        resultado = {
+            'arcade': [],
+            'simulador': [],
+            'peluchera': [],
+            'otros': []
+        }
+        
+        for maquina in maquinas:
+            maquina_info = {
+                'id': maquina['id'],
+                'name': maquina['name'],
+                'type': maquina['type'],
+                'status': maquina['status'],
+                'location_id': maquina['location_id'],
+                'location_name': maquina['location_name'],
+                'dailyFailedTurns': maquina['dailyFailedTurns'],
+                'dateLastQRUsed': maquina['dateLastQRUsed'].isoformat() if maquina['dateLastQRUsed'] else None,
+                'valor_por_turno': float(maquina['valor_por_turno']),
+                'imagen': obtener_nombre_imagen(maquina['name'])  # Función para mapear nombre a imagen
+            }
+            
+            tipo = maquina['type'].lower() if maquina['type'] else 'otros'
+            if tipo in resultado:
+                resultado[tipo].append(maquina_info)
+            else:
+                resultado['otros'].append(maquina_info)
+        
+        return jsonify({
+            'status': 'success',
+            'data': resultado,
+            'totales': {
+                'arcade': len(resultado['arcade']),
+                'simulador': len(resultado['simulador']),
+                'peluchera': len(resultado['peluchera']),
+                'otros': len(resultado['otros']),
+                'total': len(maquinas)
+            }
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo máquinas por tipo: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+def obtener_nombre_imagen(nombre_maquina):
+    """
+    Función auxiliar para mapear nombre de máquina a nombre de archivo de imagen
+    """
+    # Diccionario de mapeo nombre -> archivo imagen
+    mapa_imagenes = {
+        'Simulador connection': 'simulador pk.jpg',
+        'Simulador Cruisin 1': 'simulador1.jpg',
+        'Simulador Cruisin 2': 'simulador2.jpg',
+        'Peluches 1': 'peluches1.jpg',
+        'Peluches 2': 'peluches2.jpg',
+        'Basketball': 'basketball.jpg',
+        'Pelea': 'pelea.jpg',
+        'Disco hockey': 'disco hockey.jpg',
+        'Sillas masajes': 'sillas de masajes.jpg',
+        'Mcqueen': 'mcqueen.jpg',
+        'Caballito': 'caballo.jpg',
+        'Trencito': 'tren.jpg',
+        'Basketball 2': 'basketball 2.jpg',
+        'Disco Air Hockey': 'disco air hockey.jpg'
+    }
+    
+    # Buscar coincidencia exacta o parcial
+    for key, filename in mapa_imagenes.items():
+        if key.lower() in nombre_maquina.lower() or nombre_maquina.lower() in key.lower():
+            return filename
+    
+    # Imagen por defecto según el tipo (podrías tener una imagen genérica)
+    return 'default.jpg'
 
 @app.route('/api/maquinas/<int:maquina_id>', methods=['PUT'])
 @handle_api_errors

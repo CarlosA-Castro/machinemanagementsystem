@@ -53,40 +53,189 @@
       margin-bottom: 1.5rem;
     }
     
+    /* Estilos para categorías de máquinas */
+    .machine-category-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 2rem 0 1rem 0;
+      padding-bottom: 0.5rem;
+      border-bottom: 3px solid;
+    }
+    
+    .machine-category-title.arcade {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    
+    .machine-category-title.simulador {
+      color: #7c3aed;
+      border-bottom-color: #7c3aed;
+    }
+    
+    .machine-category-title.peluchera {
+      color: #db2777;
+      border-bottom-color: #db2777;
+    }
+    
+    /* Tarjetas de máquinas por tipo */
     .machine-item {
       transition: all 0.2s ease;
       padding: 0.5rem;
       border-radius: 12px;
       cursor: pointer;
       border: 2px solid transparent;
+      position: relative;
+      overflow: hidden;
     }
     
-    .machine-item:hover, .machine-item:active {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-      border-color: rgba(59, 130, 246, 0.3);
+    .machine-item.arcade {
+      background: linear-gradient(135deg, #eff6ff, #ffffff);
     }
     
-    .machine-item div {
-      transition: all 0.3s ease;
+    .machine-item.arcade:hover {
+      border-color: #2563eb;
+      box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.2);
     }
     
-    .machine-item:hover div {
-      transform: scale(1.05);
+    .machine-item.simulador {
+      background: linear-gradient(135deg, #f5f3ff, #ffffff);
     }
     
-    .machine-item:hover i {
-      animation: pulse 1s infinite;
+    .machine-item.simulador:hover {
+      border-color: #7c3aed;
+      box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.2);
     }
     
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
+    .machine-item.peluchera {
+      background: linear-gradient(135deg, #fdf2f8, #ffffff);
     }
     
-    .machine-item:active div {
-      transform: scale(0.98);
+    .machine-item.peluchera:hover {
+      border-color: #db2777;
+      box-shadow: 0 10px 25px -5px rgba(219, 39, 119, 0.2);
+    }
+    
+    .machine-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    
+    .machine-icon.arcade {
+      color: #2563eb;
+    }
+    
+    .machine-icon.simulador {
+      color: #7c3aed;
+    }
+    
+    .machine-icon.peluchera {
+      color: #db2777;
+    }
+    
+    .machine-image {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .machine-type-badge {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      z-index: 10;
+    }
+    
+    .machine-type-badge.arcade {
+      background-color: #2563eb;
+      color: white;
+    }
+    
+    .machine-type-badge.simulador {
+      background-color: #7c3aed;
+      color: white;
+    }
+    
+    .machine-type-badge.peluchera {
+      background-color: #db2777;
+      color: white;
+    }
+    
+    /* Filtros rápidos */
+    .type-filter {
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    
+    .type-filter.arcade {
+      background-color: #dbeafe;
+      color: #2563eb;
+    }
+    
+    .type-filter.arcade:hover {
+      background-color: #2563eb;
+      color: white;
+    }
+    
+    .type-filter.simulador {
+      background-color: #ede9fe;
+      color: #7c3aed;
+    }
+    
+    .type-filter.simulador:hover {
+      background-color: #7c3aed;
+      color: white;
+    }
+    
+    .type-filter.peluchera {
+      background-color: #fce7f3;
+      color: #db2777;
+    }
+    
+    .type-filter.peluchera:hover {
+      background-color: #db2777;
+      color: white;
+    }
+    
+    .type-filter.active {
+      border-color: currentColor;
+      font-weight: 600;
+    }
+    
+    .type-filter.active.arcade {
+      background-color: #2563eb;
+      color: white;
+    }
+    
+    .type-filter.active.simulador {
+      background-color: #7c3aed;
+      color: white;
+    }
+    
+    .type-filter.active.peluchera {
+      background-color: #db2777;
+      color: white;
+    }
+    
+    .type-filter.clear {
+      background-color: #e5e7eb;
+      color: #374151;
+    }
+    
+    .type-filter.clear:hover {
+      background-color: #9ca3af;
+      color: white;
     }
     
     .loading {
@@ -103,8 +252,104 @@
       to { transform: rotate(360deg); }
     }
     
-    /* ===== NUEVOS ESTILOS RESPONSIVE ===== */
-    /* En móvil: sidebar arriba, contenido abajo, usuario al final */
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      max-width: 500px;
+      width: 90%;
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .modal-overlay.active .modal-content {
+      transform: scale(1);
+    }
+    
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .modal-header.arcade {
+      background: linear-gradient(135deg, #dbeafe, #eff6ff);
+    }
+    
+    .modal-header.simulador {
+      background: linear-gradient(135deg, #ede9fe, #f5f3ff);
+    }
+    
+    .modal-header.peluchera {
+      background: linear-gradient(135deg, #fce7f3, #fdf2f8);
+    }
+    
+    .modal-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+    .modal-icon.arcade {
+      background: #2563eb;
+      color: white;
+    }
+    
+    .modal-icon.simulador {
+      background: #7c3aed;
+      color: white;
+    }
+    
+    .modal-icon.peluchera {
+      background: #db2777;
+      color: white;
+    }
+    
+    .machine-info {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .machine-info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+    
+    .machine-info-item:last-child {
+      border-bottom: none;
+    }
+    
+    /* Responsive */
     @media (max-width: 1024px) {
       .flex.min-h-screen {
         flex-direction: column;
@@ -137,11 +382,6 @@
         padding: 0.75rem 0.5rem !important;
       }
       
-      .machine-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 1rem !important;
-      }
-      
       .user-info-mobile {
         order: 3;
         width: 100%;
@@ -158,15 +398,10 @@
       .user-info-mobile {
         display: block;
       }
-    }
-    
-    @media (min-width: 1025px) {
-      .user-info-desktop {
-        display: block;
-      }
       
-      .user-info-mobile {
-        display: none;
+      .machine-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1rem !important;
       }
     }
     
@@ -184,8 +419,8 @@
         gap: 0.75rem !important;
       }
       
-      .machine-item div {
-        height: 100px !important;
+      .machine-image {
+        height: 100px;
       }
       
       .btn-touch {
@@ -206,8 +441,8 @@
         text-align: center;
       }
       
-      .machine-item div {
-        height: 120px !important;
+      .machine-image {
+        height: 150px;
       }
       
       .glass-card {
@@ -276,16 +511,16 @@
     <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
       <div>
         <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
-          <i class="fas fa-gamepad mr-2"></i>Inversiones Arcade
+          <i class="fas fa-user-cog mr-2"></i>Admin
         </div>
         <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
-          <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-home">
+          <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-local">
             <i class="fas fa-home mr-2"></i>Home
           </a>
           <a href="/package/failure" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-failure">
-            <i class="fas fa-exclamation-triangle mr-2"></i>Falla Paq.
+            <i class="fas fa-exchange-alt mr-2"></i>Devolución
           </a>
-          <a href="/machinereport" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-machine">
+          <a href="/machinereport" class="nav-link btn-touch rounded-lg transition" id="nav-machine">
             <i class="fas fa-cogs mr-2"></i>Falla Máq.
           </a>
           <a href="/sales" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-sales">
@@ -337,154 +572,249 @@
           </p>
         </div>
         
-        <!-- Sección Máquinas -->
-<div class="glass-card space-y-4">
-  <h2 class="text-xl font-semibold">
-    <i class="fas fa-gamepad text-green-600 mr-2"></i>Máquinas Disponibles:
-  </h2>
-  
-  <!-- Grid de máquinas ordenado -->
-  <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <!-- Filtros rápidos por tipo -->
+        <div class="glass-card">
+          <h2 class="text-lg font-semibold mb-4 text-gray-800">
+            <i class="fas fa-filter mr-2 text-blue-600"></i>Filtrar por tipo
+          </h2>
+          <div class="flex flex-wrap gap-3 justify-center">
+            <span class="type-filter clear" onclick="filtrarPorTipo('todos')">
+              <i class="fas fa-undo-alt mr-2"></i>Todos
+            </span>
+            <span class="type-filter arcade" onclick="filtrarPorTipo('arcade')">
+              <i class="fas fa-gamepad mr-2"></i>Arcade
+            </span>
+            <span class="type-filter simulador" onclick="filtrarPorTipo('simulador')">
+              <i class="fas fa-car mr-2"></i>Simulador
+            </span>
+            <span class="type-filter peluchera" onclick="filtrarPorTipo('peluchera')">
+              <i class="fas fa-puzzle-piece mr-2"></i>Peluchera
+            </span>
+          </div>
+        </div>
+        
+        <!-- SECCIÓN ARCADE -->
+        <div id="categoria-arcade" class="machine-category">
+          <h2 class="machine-category-title arcade">
+            <i class="fas fa-gamepad mr-3"></i>Máquinas Arcade
+          </h2>
+          <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <!-- Basketball (ID: 6) -->
+            <div onclick="abrirModal('Máquina De Basketball', 6, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-basketball-ball"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200">
+                <img src="/static/img/basketball.jpg" alt="Máquina De Basket" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Basketball 1</p>
+            </div>
 
-    <!-- 1. Simulador Connection (ID: 1) -->
-    <div onclick="abrirModal('Máquina De Simulador Connection', 1)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-yellow-100 to-yellow-200">
-        <img src="/static/img/simulador pk.jpg" alt="Máquina De Simulador Connection" class="w-full h-full object-cover">
+            <!-- Basketball 2 (ID: 13) -->
+            <div onclick="abrirModal('Basketball 2', 13, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-basketball-ball"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-200 to-orange-300 relative">
+                <img src="/static/img/basketball 2.jpg" alt="Basketball 2" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Basketball 2</p>
+            </div>
+
+            <!-- Pelea (ID: 7) -->
+            <div onclick="abrirModal('Máquina De Pelea', 7, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-fist-raised"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+                <img src="/static/img/pelea.jpg" alt="Máquina De Pelea" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Pelea</p>
+            </div>
+
+            <!-- Disco hockey (ID: 8) -->
+            <div onclick="abrirModal('Disco Hockey', 8, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-hockey-puck"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
+                <img src="/static/img/disco hockey.jpg" alt="Disco Hockey" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Disco Hockey</p>
+            </div>
+
+            <!-- Disco Air Hockey (ID: 14) -->
+            <div onclick="abrirModal('Disco Air Hockey', 14, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-hockey-puck"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
+                <img src="/static/img/disco air hockey.jpg" alt="Disco Air Hockey" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Disco Air Hockey</p>
+            </div>
+
+            <!-- McQueen (ID: 10) -->
+            <div onclick="abrirModal('McQueen', 10, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-car"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
+                <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">McQueen</p>
+            </div>
+
+            <!-- Caballito (ID: 11) -->
+            <div onclick="abrirModal('Caballito', 11, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-horse"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-amber-100 to-amber-200">
+                <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Caballito</p>
+            </div>
+
+            <!-- Trencito (ID: 12) -->
+            <div onclick="abrirModal('Trencito', 12, 'arcade')" class="machine-item arcade cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge arcade">Arcade</span>
+              <div class="machine-icon arcade">
+                <i class="fas fa-train"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Trencito</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN SIMULADOR -->
+        <div id="categoria-simulador" class="machine-category">
+          <h2 class="machine-category-title simulador">
+            <i class="fas fa-car mr-3"></i>Máquinas Simulador
+          </h2>
+          <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <!-- Simulador Connection (ID: 1) -->
+            <div onclick="abrirModal('Simulador Connection', 1, 'simulador')" class="machine-item simulador cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge simulador">Simulador</span>
+              <div class="machine-icon simulador">
+                <i class="fas fa-car-side"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-yellow-100 to-yellow-200">
+                <img src="/static/img/simulador pk.jpg" alt="Simulador Connection" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Simulador Connection</p>
+            </div>
+
+            <!-- Simulador Cruisin 1 (ID: 2) -->
+            <div onclick="abrirModal('Simulador Cruisin 1', 2, 'simulador')" class="machine-item simulador cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge simulador">Simulador</span>
+              <div class="machine-icon simulador">
+                <i class="fas fa-car"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-green-100 to-green-200">
+                <img src="/static/img/simulador1.jpg" alt="Simulador 1" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Simulador Cruisin 1</p>
+            </div>
+
+            <!-- Simulador Cruisin 2 (ID: 3) -->
+            <div onclick="abrirModal('Simulador Cruisin 2', 3, 'simulador')" class="machine-item simulador cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge simulador">Simulador</span>
+              <div class="machine-icon simulador">
+                <i class="fas fa-car"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-teal-100 to-teal-200">
+                <img src="/static/img/simulador2.jpg" alt="Simulador 2" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Simulador Cruisin 2</p>
+            </div>
+
+            <!-- Sillas masajes (ID: 9) -->
+            <div onclick="abrirModal('Sillas Masajes', 9, 'simulador')" class="machine-item simulador cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge simulador">Simulador</span>
+              <div class="machine-icon simulador">
+                <i class="fas fa-chair"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
+                <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Sillas Masajes</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN PELUCHERA -->
+        <div id="categoria-peluchera" class="machine-category">
+          <h2 class="machine-category-title peluchera">
+            <i class="fas fa-puzzle-piece mr-3"></i>Máquinas Peluchera
+          </h2>
+          <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <!-- Peluches 1 (ID: 4) -->
+            <div onclick="abrirModal('Peluches 1', 4, 'peluchera')" class="machine-item peluchera cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge peluchera">Peluchera</span>
+              <div class="machine-icon peluchera">
+                <i class="fas fa-puzzle-piece"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-pink-100 to-pink-200">
+                <img src="/static/img/peluches1.jpg" alt="Peluches 1" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Peluches 1</p>
+            </div>
+
+            <!-- Peluches 2 (ID: 5) -->
+            <div onclick="abrirModal('Peluches 2', 5, 'peluchera')" class="machine-item peluchera cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+              <span class="machine-type-badge peluchera">Peluchera</span>
+              <div class="machine-icon peluchera">
+                <i class="fas fa-puzzle-piece"></i>
+              </div>
+              <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-purple-100 to-purple-200">
+                <img src="/static/img/peluches2.jpg" alt="Peluches 2" class="w-full h-full object-cover">
+              </div>
+              <p class="font-semibold text-center text-sm">Peluches 2</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <p class="font-semibold text-center text-sm">Simulador Connection</p>
-    </div>
 
-    <!-- 2. Simulador 1 (ID: 2) -->
-    <div onclick="abrirModal('Máquina De Simulador 1', 2)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-green-100 to-green-200">
-        <img src="/static/img/simulador1.jpg" alt="Máquina De Simulador 1" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Simulador 1</p>
-    </div>
+      <!-- Modal de Confirmación (MODIFICADO) -->
+      <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+          <div id="modal-header" class="modal-header arcade">
+            <div id="modal-icon" class="modal-icon arcade">
+              <i id="modal-icon-symbol" class="fas fa-gamepad"></i>
+            </div>
+            <h2 id="modal-title" class="text-xl font-bold text-gray-800">Reporte de Falla</h2>
+          </div>
 
-    <!-- 3. Simulador 2 (ID: 3) -->
-    <div onclick="abrirModal('Máquina De Simulador 2', 3)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-teal-100 to-teal-200">
-        <img src="/static/img/simulador2.jpg" alt="Máquina De Simulador 2" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Simulador 2</p>
-    </div>
-
-    <!-- 4. Peluches 1 (ID: 4) -->
-    <div onclick="abrirModal('Máquina De Peluches 1', 4)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-pink-100 to-pink-200">
-        <img src="/static/img/peluches1.jpg" alt="Máquina De Peluches 1" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Peluches 1</p>
-    </div>
-
-    <!-- 5. Peluches 2 (ID: 5) -->
-    <div onclick="abrirModal('Máquina De Peluches 2', 5)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-purple-100 to-purple-200">
-        <img src="/static/img/peluches2.jpg" alt="Máquina De Peluches 2" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Peluches 2</p>
-    </div>
-
-    <!-- 6. Basketball 1 (ID: 6) -->
-    <div onclick="abrirModal('Máquina De Basket', 6)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200">
-        <img src="/static/img/basketball.jpg" alt="Máquina De Basket" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Basketball 1</p>
-    </div>
-
-    <!-- 7. Pelea (ID: 7) -->
-    <div onclick="abrirModal('Máquina De Pelea', 7)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
-        <img src="/static/img/pelea.jpg" alt="Máquina De Pelea" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Pelea</p>
-    </div>
-
-    <!-- 8. Disco Hockey (ID: 8) -->
-    <div onclick="abrirModal('Disco Hockey', 8)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
-        <img src="/static/img/disco hockey.jpg" alt="Disco Hockey" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Disco Hockey</p>
-    </div>
-
-    <!-- 9. Sillas Masajes (ID: 9) -->
-    <div onclick="abrirModal('Sillas Masajes', 9)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-indigo-100 to-indigo-200">
-        <img src="/static/img/sillas de masajes.jpg" alt="Sillas Masajes" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Sillas Masajes</p>
-    </div>
-
-    <!-- 10. McQueen (ID: 10) -->
-    <div onclick="abrirModal('McQueen', 10)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-red-100 to-red-200">
-        <img src="/static/img/mcqueen.jpg" alt="McQueen" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">McQueen</p>
-    </div>
-
-    <!-- 11. Caballito (ID: 11) -->
-    <div onclick="abrirModal('Caballito', 11)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-amber-100 to-amber-200">
-        <img src="/static/img/caballo.jpg" alt="Caballito" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Caballito</p>
-    </div>
-
-    <!-- 12. Trencito (ID: 12) -->
-    <div onclick="abrirModal('Trencito', 12)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-        <img src="/static/img/tren.jpg" alt="Trencito" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Trencito</p>
-    </div>
-
-    <!-- 13. Basketball 2 (NUEVA - ID: 13) -->
-    <div onclick="abrirModal('Basketball 2', 13)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-orange-200 to-orange-300 relative">
-        <img src="/static/img/basketball 2.jpg" alt="Basketball 2" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Basketball 2</p>
-    </div>
-
-    <!-- 14. Disco Air Hockey (NUEVA - ID: 14) -->
-    <div onclick="abrirModal('Disco Air Hockey', 14)" class="machine-item cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
-      <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 relative">
-        <img src="/static/img/disco air hockey.jpg" alt="Disco Air Hockey" class="w-full h-full object-cover">
-      </div>
-      <p class="font-semibold text-center text-sm">Disco Air Hockey</p>
-    </div>
-
-  </div>
-</div>
-
-      <!-- Modal de Confirmación -->
-      <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" style="display: none;">
-        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-          <h3 class="text-xl font-bold text-center text-blue-900 mb-4">
-            <i class="fas fa-clipboard-check mr-2"></i>Reporte de Falla
-          </h3>
-
-          <div id="modal-info" class="space-y-3 mb-4">
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div class="p-6">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
               <p class="text-sm text-yellow-700 text-center">
                 <i class="fas fa-exclamation-triangle mr-1"></i>
                 <strong>¿Está seguro de reportar falla en esta máquina?</strong>
               </p>
             </div>
             
-            <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="grid grid-cols-2 gap-2 text-sm mb-4">
               <span class="font-semibold">Máquina:</span>
               <span id="maquinaSeleccionada" class="font-semibold text-blue-600"></span>
+              <span class="font-semibold">Tipo:</span>
+              <span id="maquinaTipoSeleccionada" class="font-semibold text-gray-600"></span>
               <span class="font-semibold">ID:</span>
               <span id="maquinaIdSeleccionada" class="font-semibold text-gray-600"></span>
             </div>
 
             <!-- Información de estado de la máquina -->
-            <div id="infoMaquina" class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+            <div id="infoMaquina" class="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2 mb-4">
               <div class="flex justify-between">
                 <span class="font-medium text-gray-700">Estado:</span>
                 <span id="estadoMaquina" class="font-semibold flex items-center">
@@ -502,7 +832,7 @@
               </div>
             </div>
 
-            <div class="mt-3">
+            <div class="mb-4">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 <i class="fas fa-tools mr-2"></i>Tipo de problema:
               </label>
@@ -512,7 +842,7 @@
               </select>
             </div>
 
-            <div class="mt-3">
+            <div class="mb-6">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 <i class="fas fa-comment mr-2"></i>Descripción del problema:
               </label>
@@ -524,15 +854,15 @@
                 required
               ></textarea>
             </div>
-          </div>
 
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium btn-touch flex-1">
-              <i class="fas fa-times mr-2"></i>Cancelar
-            </button>
-            <button onclick="confirmarFalla()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium btn-touch flex-1">
-              <i class="fas fa-exclamation-triangle mr-2"></i>Reportar Falla
-            </button>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+              <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium btn-touch flex-1">
+                <i class="fas fa-times mr-2"></i>Cancelar
+              </button>
+              <button onclick="confirmarFalla()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium btn-touch flex-1">
+                <i class="fas fa-exclamation-triangle mr-2"></i>Reportar Falla
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -557,8 +887,10 @@
 
   <script>
     // Variables globales
-    let maquinaActual = '';
-    let maquinaIdActual = 0;
+      let maquinasData = null;
+      let maquinaActual = '';
+      let maquinaIdActual = 0;
+      let maquinaTipoActual = '';
     
     // Inicializar hora en tiempo real
     function actualizarHora() {
@@ -592,6 +924,19 @@
       const fechaMobile = document.getElementById('fechaActualMobile');
       if (horaMobile) horaMobile.textContent = hora;
       if (fechaMobile) fechaMobile.textContent = fecha;
+      
+      // Actualizar nombre de usuario móvil
+      const nombreUsuario = document.getElementById('nombreUsuario');
+      const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+      if (nombreUsuario && nombreUsuarioMobile) {
+        nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+      }
+      
+      const localUsuario = document.getElementById('localUsuario');
+      const localUsuarioMobile = document.getElementById('localUsuarioMobile');
+      if (localUsuario && localUsuarioMobile) {
+        localUsuarioMobile.textContent = localUsuario.textContent;
+      }
     }
     
     // Configuración de partículas optimizada
@@ -625,31 +970,125 @@
       actualizarHora();
       setInterval(actualizarHora, 1000);
       
-      // ===== NUEVO: Marcar el enlace activo =====
+      // Marcar enlace activo
       marcarEnlaceActivo();
-      
-      // Sincronizar nombre de usuario y local con versión móvil
-      const nombreUsuario = document.getElementById('nombreUsuario');
-      const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
-      if (nombreUsuario && nombreUsuarioMobile) {
-        nombreUsuarioMobile.textContent = nombreUsuario.textContent;
-      }
-      
-      const localUsuario = document.getElementById('localUsuario');
-      const localUsuarioMobile = document.getElementById('localUsuarioMobile');
-      if (localUsuario && localUsuarioMobile) {
-        localUsuarioMobile.textContent = localUsuario.textContent;
-      }
+
+       // Cargar máquinas desde el backend
+       cargarMaquinasDesdeAPI();
       
       console.log("Machine Report App inicializada correctamente");
     });
 
-    // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
+    async function cargarMaquinasDesdeAPI() {
+    try {
+        const response = await fetch('/api/maquinas-por-tipo');
+        if (!response.ok) throw new Error('Error cargando máquinas');
+        
+        const data = await response.json();
+        maquinasData = data.data;
+        
+        renderizarMaquinas(maquinasData);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error cargando máquinas', 'error');
+    }
+}
+
+function renderizarMaquinas(maquinas) {
+    // Renderizar Arcade
+    if (maquinas.arcade && maquinas.arcade.length > 0) {
+        const containerArcade = document.getElementById('categoria-arcade');
+        containerArcade.innerHTML = generateCategoryHTML('arcade', maquinas.arcade);
+    }
+    
+    // Renderizar Simulador
+    if (maquinas.simulador && maquinas.simulador.length > 0) {
+        const containerSimulador = document.getElementById('categoria-simulador');
+        containerSimulador.innerHTML = generateCategoryHTML('simulador', maquinas.simulador);
+    }
+    
+    // Renderizar Peluchera
+    if (maquinas.peluchera && maquinas.peluchera.length > 0) {
+        const containerPeluchera = document.getElementById('categoria-peluchera');
+        containerPeluchera.innerHTML = generateCategoryHTML('peluchera', maquinas.peluchera);
+    }
+}
+
+function generateCategoryHTML(tipo, machines) {
+    const iconos = {
+        arcade: {
+            general: 'fa-gamepad',
+            basketball: 'fa-basketball-ball',
+            pelea: 'fa-fist-raised',
+            hockey: 'fa-hockey-puck',
+            car: 'fa-car',
+            horse: 'fa-horse',
+            train: 'fa-train'
+        },
+        simulador: {
+            general: 'fa-car',
+            connection: 'fa-car-side',
+            masajes: 'fa-chair'
+        },
+        peluchera: {
+            general: 'fa-puzzle-piece'
+        }
+    };
+    
+    let html = `<h2 class="machine-category-title ${tipo}">
+        <i class="fas ${iconos[tipo].general} mr-3"></i>Máquinas ${tipo === 'arcade' ? 'Arcade' : tipo === 'simulador' ? 'Simulador' : 'Peluchera'}
+    </h2>
+    <div class="machine-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">`;
+    
+    machines.forEach(maquina => {
+        // Determinar icono específico
+        let icono = iconos[tipo].general;
+        const nombreLower = maquina.name.toLowerCase();
+        
+        if (nombreLower.includes('basketball')) icono = iconos.arcade.basketball;
+        else if (nombreLower.includes('pelea')) icono = iconos.arcade.pelea;
+        else if (nombreLower.includes('disco')) icono = iconos.arcade.hockey;
+        else if (nombreLower.includes('mcqueen') || nombreLower.includes('cruisin')) icono = iconos.arcade.car;
+        else if (nombreLower.includes('caballito')) icono = iconos.arcade.horse;
+        else if (nombreLower.includes('trencito')) icono = iconos.arcade.train;
+        else if (nombreLower.includes('connection')) icono = iconos.simulador.connection;
+        else if (nombreLower.includes('sillas')) icono = iconos.simulador.masajes;
+        
+        html += `
+            <div onclick="abrirModal('${maquina.name}', ${maquina.id}, '${tipo}')" 
+                 class="machine-item ${tipo} cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+                <span class="machine-type-badge ${tipo}">${tipo === 'arcade' ? 'Arcade' : tipo === 'simulador' ? 'Simulador' : 'Peluchera'}</span>
+                <div class="machine-icon ${tipo}">
+                    <i class="fas ${icono}"></i>
+                </div>
+                <div class="rounded-lg shadow-md w-full h-32 flex items-center justify-center mb-2 overflow-hidden bg-gradient-to-br ${getGradientColor(tipo)}">
+                    <img src="/static/img/${maquina.imagen || 'default.jpg'}" alt="${maquina.name}" class="w-full h-full object-cover">
+                </div>
+                <p class="font-semibold text-center text-sm">${maquina.name}</p>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function getGradientColor(tipo) {
+    switch(tipo) {
+        case 'arcade': return 'from-orange-100 to-orange-200';
+        case 'simulador': return 'from-blue-100 to-blue-200';
+        case 'peluchera': return 'from-pink-100 to-pink-200';
+        default: return 'from-gray-100 to-gray-200';
+    }
+}
+
+    // ===== FUNCIÓN: Marcar el enlace activo =====
     function marcarEnlaceActivo() {
       const currentPath = window.location.pathname;
       
       const pathToId = {
-        '/local': 'nav-home',
+        '/local': 'nav-local',
         '/package/failure': 'nav-failure',
         '/machinereport': 'nav-machine',
         '/sales': 'nav-sales',
@@ -666,6 +1105,39 @@
         if (activeLink) {
           activeLink.classList.add('active');
         }
+      }
+    }
+
+    // ===== FUNCIÓN: Filtrar por tipo =====
+    function filtrarPorTipo(tipo) {
+      const categorias = {
+        arcade: document.getElementById('categoria-arcade'),
+        simulador: document.getElementById('categoria-simulador'),
+        peluchera: document.getElementById('categoria-peluchera')
+      };
+      
+      // Actualizar estilos de los filtros
+      document.querySelectorAll('.type-filter').forEach(f => {
+        f.classList.remove('active');
+      });
+      
+      if (tipo !== 'todos') {
+        event.target.classList.add('active');
+      } else {
+        document.querySelector('.type-filter.clear').classList.add('active');
+      }
+      
+      // Mostrar/ocultar categorías
+      if (tipo === 'todos') {
+        Object.values(categorias).forEach(cat => {
+          if (cat) cat.style.display = 'block';
+        });
+      } else {
+        Object.entries(categorias).forEach(([key, cat]) => {
+          if (cat) {
+            cat.style.display = key === tipo ? 'block' : 'none';
+          }
+        });
       }
     }
 
@@ -753,11 +1225,36 @@
       turnosFallados.textContent = info.dailyFailedTurns || 0;
     }
 
-    async function abrirModal(nombre, id) {
+    async function abrirModal(nombre, id, tipo) {
       maquinaActual = nombre;
       maquinaIdActual = id;
+      maquinaTipoActual = tipo;
+      
+      // Configurar el modal según el tipo
+      const modalHeader = document.getElementById('modal-header');
+      const modalIcon = document.getElementById('modal-icon');
+      const modalIconSymbol = document.getElementById('modal-icon-symbol');
+      
+      // Remover todas las clases de tipo
+      modalHeader.className = 'modal-header';
+      modalIcon.className = 'modal-icon';
+      
+      // Agregar clases específicas del tipo
+      modalHeader.classList.add(tipo);
+      modalIcon.classList.add(tipo);
+      
+      // Configurar icono según tipo
+      let icono = '';
+      if (tipo === 'arcade') icono = 'fa-gamepad';
+      else if (tipo === 'simulador') icono = 'fa-car';
+      else if (tipo === 'peluchera') icono = 'fa-puzzle-piece';
+      
+      modalIconSymbol.className = `fas ${icono}`;
       
       document.getElementById("maquinaSeleccionada").innerText = nombre;
+      document.getElementById("maquinaTipoSeleccionada").innerText = 
+        tipo === 'arcade' ? 'Arcade' : 
+        tipo === 'simulador' ? 'Simulador' : 'Peluchera';
       document.getElementById("maquinaIdSeleccionada").innerText = id;
       document.getElementById("tipoProblema").value = "mantenimiento";
       document.getElementById("descripcionFalla").value = "";
@@ -769,7 +1266,7 @@
       document.getElementById("estadoIcono").innerHTML = '<div class="loading"></div>';
       
       // Mostrar el modal inmediatamente
-      document.getElementById("modal").classList.remove("hidden");
+      document.getElementById("modal").classList.add("active");
       
       // Cargar información de la máquina en segundo plano
       try {
@@ -793,7 +1290,7 @@
     }
 
     function cerrarModal() {
-      document.getElementById("modal").classList.add("hidden");
+      document.getElementById("modal").classList.remove("active");
     }
 
     async function confirmarFalla() {
