@@ -349,7 +349,7 @@
       border-bottom: none;
     }
     
-    /* Responsive */
+     /* Responsive */
     @media (max-width: 1024px) {
       .flex.min-h-screen {
         flex-direction: column;
@@ -402,6 +402,16 @@
       .machine-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 1rem !important;
+      }
+    }
+    
+    @media (min-width: 1025px) {
+      .user-info-desktop {
+        display: block;
+      }
+      
+      .user-info-mobile {
+        display: none;
       }
     }
     
@@ -893,6 +903,7 @@
       let maquinaTipoActual = '';
     
     // Inicializar hora en tiempo real
+        // Inicializar hora en tiempo real
     function actualizarHora() {
       const ahora = new Date();
       const opciones = { 
@@ -925,7 +936,7 @@
       if (horaMobile) horaMobile.textContent = hora;
       if (fechaMobile) fechaMobile.textContent = fecha;
       
-      // Actualizar nombre de usuario móvil
+      // Sincronizar nombres de usuario entre versiones
       const nombreUsuario = document.getElementById('nombreUsuario');
       const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
       if (nombreUsuario && nombreUsuarioMobile) {

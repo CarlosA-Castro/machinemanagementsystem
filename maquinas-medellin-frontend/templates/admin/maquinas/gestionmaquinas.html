@@ -135,7 +135,7 @@
             border-radius: 12px;
         }
         
-        @media (max-width: 1024px) {
+                @media (max-width: 1024px) {
             .flex.min-h-screen {
                 flex-direction: column;
                 height: auto;
@@ -144,12 +144,53 @@
             aside {
                 width: 100% !important;
                 order: 1;
+                padding-bottom: 0 !important;
             }
             main {
                 order: 2;
                 padding: 1rem !important;
             }
+            
+            /* Estilos para el sidebar en móvil */
+            .sidebar-nav {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+            
+            .sidebar-nav a {
+                flex: 1;
+                min-width: 120px;
+                text-align: center;
+                padding: 0.75rem 0.5rem !important;
+            }
+            
+            /* Control de visualización de usuario */
+            .user-info-desktop {
+                display: none !important;
+            }
+            
+            .user-info-mobile {
+                display: block !important;
+                width: 100%;
+                background-color: #1f2937;
+                border-top: 1px solid #374151;
+                padding: 1rem;
+                text-align: center;
+            }
         }
+        
+        @media (min-width: 1025px) {
+            .user-info-desktop {
+                display: block !important;
+            }
+            
+            .user-info-mobile {
+                display: none !important;
+            }
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -682,7 +723,8 @@
                 this.configurarFechaActual();
                 this.cargarDatosIniciales();
                 this.marcarEnlaceActivo();
-                
+                this.sincronizarUsuarioMobile();
+
                 const nombreUsuario = document.getElementById('nombreUsuario');
                 const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
                 if (nombreUsuario && nombreUsuarioMobile) {
@@ -714,15 +756,52 @@
                 }
             },
 
+            sincronizarUsuarioMobile: function() {
+                const nombreUsuario = document.getElementById('nombreUsuario');
+                const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+                if (nombreUsuario && nombreUsuarioMobile) {
+                    nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+                }
+            },
+
             actualizarHora: function() {
                 const ahora = new Date();
-                const hora = ahora.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour12: false });
-                const fecha = ahora.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+                const opciones = { 
+                    timeZone: 'America/Bogota',
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                };
                 
-                document.getElementById('horaActualSidebar').textContent = hora;
-                document.getElementById('fechaActualSidebar').textContent = fecha;
-                document.getElementById('horaActualMobile').textContent = hora;
-                document.getElementById('fechaActualMobile').textContent = fecha;
+                const opcionesFecha = {
+                    timeZone: 'America/Bogota',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                };
+                
+                const hora = ahora.toLocaleTimeString('es-CO', opciones);
+                const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+                
+                // Actualizar en sidebar (desktop)
+                const horaSidebar = document.getElementById('horaActualSidebar');
+                const fechaSidebar = document.getElementById('fechaActualSidebar');
+                if (horaSidebar) horaSidebar.textContent = hora;
+                if (fechaSidebar) fechaSidebar.textContent = fecha;
+                
+                // Actualizar en versión móvil
+                const horaMobile = document.getElementById('horaActualMobile');
+                const fechaMobile = document.getElementById('fechaActualMobile');
+                if (horaMobile) horaMobile.textContent = hora;
+                if (fechaMobile) fechaMobile.textContent = fecha;
+                
+                // Sincronizar nombre de usuario en móvil
+                const nombreUsuario = document.getElementById('nombreUsuario');
+                const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+                if (nombreUsuario && nombreUsuarioMobile) {
+                    nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+                }
             },
 
             configurarFechaActual: function() {
