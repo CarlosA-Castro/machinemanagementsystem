@@ -1,4 +1,3 @@
-<!-- Reemplaza TODO el contenido de gestionmaquinas.html con este código -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -12,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
+        /* Tus estilos existentes se mantienen igual */
         #particles-js {
             position: fixed;
             width: 100%;
@@ -136,7 +136,7 @@
             border-radius: 12px;
         }
         
-        @media (max-width: 1024px) {
+                @media (max-width: 1024px) {
             .flex.min-h-screen {
                 flex-direction: column;
                 height: auto;
@@ -931,7 +931,7 @@
                         // Cargar datos técnicos para cada máquina
                         for (let maquina of this.maquinas) {
                             try {
-                                const techResponse = await fetch(`/api/esp32/machine-technical/${maquina.id}`);
+                                const techResponse = await fetch(`/api/esp32/machine-config/${maquina.id}`);
                                 if (techResponse.ok) {
                                     const techData = await techResponse.json();
                                     if (techData.status === 'success') {
@@ -1147,10 +1147,11 @@
                 
                 // Cargar datos técnicos
                 try {
-                    const techResponse = await fetch(`/api/esp32/machine-technical/${id}`);
+                    const techResponse = await fetch(`/api/esp32/machine-config/${id}`);
                     let techData = { data: {} };
                     if (techResponse.ok) {
                         techData = await techResponse.json();
+                        console.log('Datos técnicos cargados:', techData);
                     }
                     
                     document.getElementById('modalTitulo').textContent = 'Editar Máquina';
@@ -1177,18 +1178,29 @@
                     
                     // Procesar estaciones
                     const stationNames = techData.data?.station_names || [];
-                    const relayPins = techData.data?.relay_pins || [26, 27, -1, -1];
                     
                     if (stationNames.length === 0 && machineSubtype === 'multi_station') {
-                        // Crear estaciones por defecto
-                        this.estaciones = [
-                            { name: 'Estación 1', relayPin: relayPins[0] || 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                            { name: 'Estación 2', relayPin: relayPins[1] || 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                        ];
+                        // Crear estaciones por defecto según la máquina
+                        if (id === 1) {
+                            this.estaciones = [
+                                { name: 'Simulador 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                                { name: 'Simulador 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            ];
+                        } else if (id === 9) {
+                            this.estaciones = [
+                                { name: 'Silla 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                                { name: 'Silla 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            ];
+                        } else {
+                            this.estaciones = [
+                                { name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                                { name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            ];
+                        }
                     } else {
                         this.estaciones = stationNames.map((name, index) => ({
                             name: name,
-                            relayPin: relayPins[index] || (index === 0 ? 26 : index === 1 ? 27 : -1),
+                            relayPin: index === 0 ? 26 : index === 1 ? 27 : -1,
                             stats: { totalPlays: 0, lastPlay: null, failures: 0 }
                         }));
                     }
@@ -1562,43 +1574,50 @@
                 this.machineIdActual = maquinaId;
                 
                 try {
-                    const techResponse = await fetch(`/api/esp32/machine-technical/${maquinaId}`);
+                    // Intentar obtener los datos técnicos
+                    const techResponse = await fetch(`/api/esp32/machine-config/${maquinaId}`);
                     let stations = [];
-                    let relayPins = [26, 27, -1, -1];
-                    let stationNames = [];
                     
                     if (techResponse.ok) {
                         const techData = await techResponse.json();
+                        console.log('Datos técnicos para estaciones:', techData);
+                        
                         if (techData.status === 'success' && techData.data) {
-                            stationNames = techData.data.station_names || [];
-                            relayPins = techData.data.relay_pins || [26, 27, -1, -1];
-                            
-                            // Construir estaciones con estadísticas
-                            for (let i = 0; i < stationNames.length; i++) {
-                                stations.push({
-                                    index: i,
-                                    name: stationNames[i] || `Estación ${i+1}`,
-                                    relayPin: relayPins[i] || (i === 0 ? 26 : i === 1 ? 27 : -1),
+                            // Verificar si hay station_names
+                            if (techData.data.station_names && Array.isArray(techData.data.station_names)) {
+                                stations = techData.data.station_names.map((name, index) => ({
+                                    index: index,
+                                    name: name,
+                                    relayPin: techData.data.relay_pins ? techData.data.relay_pins[index] || 26 : 26,
                                     stats: {
                                         totalPlays: 0,
                                         lastPlay: null,
                                         failures: 0
                                     }
-                                });
+                                }));
                             }
                         }
                     }
                     
+                    // Si no se obtuvieron estaciones de la API, usar valores por defecto según el ID
                     if (stations.length === 0) {
-                        // Si no hay estaciones configuradas, crear por defecto
-                        stations = [
-                            { index: 0, name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                            { index: 1, name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                        ];
+                        if (maquinaId === 1) {
+                            stations = [
+                                { index: 0, name: 'Simulador 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                                { index: 1, name: 'Simulador 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            ];
+                        } else if (maquinaId === 9) {
+                            stations = [
+                                { index: 0, name: 'Silla 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                                { index: 1, name: 'Silla 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            ];
+                        } else {
+                            stations = [
+                                { index: 0, name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                                { index: 1, name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            ];
+                        }
                     }
-                    
-                    // Obtener estadísticas de uso para cada estación (simulado por ahora)
-                    // En un sistema real, aquí consultarías la base de datos
                     
                     let html = `
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
