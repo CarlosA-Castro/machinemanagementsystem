@@ -35,14 +35,6 @@
             align-items: center;
             justify-content: center;
         }
-        .stat-card {
-            transition: all 0.3s ease;
-            border-left: 4px solid;
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
         .loading {
             display: inline-block;
             width: 20px;
@@ -80,313 +72,82 @@
             background-color: #fee2e2;
             color: #991b1b;
         }
-        .percentage-bar {
-            height: 6px;
-            background-color: #e5e7eb;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .percentage-fill {
-            height: 100%;
-            border-radius: 3px;
-        }
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin-bottom: 20px;
-        }
-        
-        /* Estilos para modales personalizados */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            max-width: 450px;
-            width: 90%;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-            overflow: hidden;
-        }
-        
-        .modal-overlay.active .modal-content {
-            transform: scale(1);
-        }
-        
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .modal-header.warning {
-            background: linear-gradient(135deg, #fef3c7, #fffbeb);
-        }
-        
-        .modal-header.success {
-            background: linear-gradient(135deg, #d1fae5, #ecfdf5);
-        }
-        
-        .modal-header.info {
-            background: linear-gradient(135deg, #dbeafe, #eff6ff);
-        }
-        
-        .modal-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-        
-        .modal-icon.warning {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .modal-icon.success {
-            background: #10b981;
-            color: white;
-        }
-        
-        .modal-icon.info {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .modal-body {
-            padding: 1.5rem;
-        }
-        
-        .modal-footer {
-            padding: 1.5rem;
-            border-top: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-        }
-        
-        .modal-btn {
-            padding: 0.75rem 1.5rem;
+        .subtype-badge {
+            padding: 2px 8px;
             border-radius: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            border: none;
-            font-size: 1rem;
+            font-size: 0.7rem;
+            background-color: #e5e7eb;
+            color: #374151;
         }
-        
-        .modal-btn-primary {
-            background: #3b82f6;
+        .subtype-multi {
+            background-color: #818cf8;
             color: white;
         }
         
-        .modal-btn-primary:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-        
-        .modal-btn-secondary {
-            background: #9ca3af;
-            color: white;
-        }
-        
-        .modal-btn-secondary:hover {
-            background: #6b7280;
-        }
-        
-        .modal-btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .modal-btn-danger:hover {
-            background: #dc2626;
-        }
-        
-        .modal-btn-success {
-            background: #10b981;
-            color: white;
-        }
-        
-        .modal-btn-success:hover {
-            background: #059669;
-        }
-        
-        .machine-info {
-            background: #f9fafb;
+        /* Estilos para estaciones */
+        .station-card {
+            border: 1px solid #e5e7eb;
             border-radius: 12px;
             padding: 1rem;
-            margin: 1rem 0;
+            transition: all 0.2s;
         }
-        
-        .machine-info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px dashed #e5e7eb;
+        .station-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
-        
-        .machine-info-item:last-child {
-            border-bottom: none;
-        }
-        
-        .machine-info-label {
+        .station-stats {
+            font-size: 0.85rem;
             color: #6b7280;
-            font-size: 0.9rem;
+        }
+        .station-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 0.5rem;
         }
         
-        .machine-info-value {
-            font-weight: 600;
-            color: #1f2937;
+        /* Estilos para previsualización de imágenes */
+        .image-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .image-preview:hover {
+            border-color: #3b82f6;
+            transform: scale(1.05);
+        }
+        .image-preview.selected {
+            border-color: #3b82f6;
+            border-width: 3px;
+        }
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
         }
         
-        /* ===== NUEVOS ESTILOS RESPONSIVE ===== */
         @media (max-width: 1024px) {
             .flex.min-h-screen {
                 flex-direction: column;
                 height: auto;
                 min-height: 100vh;
             }
-            
             aside {
                 width: 100% !important;
                 order: 1;
-                padding-bottom: 0 !important;
             }
-            
             main {
                 order: 2;
                 padding: 1rem !important;
-            }
-            
-            .sidebar-nav {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.5rem;
-                padding: 1rem;
-            }
-            
-            .sidebar-nav a {
-                flex: 1;
-                min-width: 120px;
-                text-align: center;
-                padding: 0.75rem 0.5rem !important;
-            }
-            
-            .user-info-mobile {
-                order: 3;
-                width: 100%;
-                background-color: #1f2937;
-                border-top: 1px solid #374151;
-                padding: 1rem;
-                text-align: center;
-            }
-            
-            .user-info-desktop {
-                display: none;
-            }
-            
-            .user-info-mobile {
-                display: block;
-            }
-            
-            .contenido {
-                padding: 1rem !important;
-            }
-            .glass-card {
-                padding: 1.25rem;
-            }
-        }
-        
-        @media (min-width: 1025px) {
-            .user-info-desktop {
-                display: block;
-            }
-            
-            .user-info-mobile {
-                display: none;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .glass-card {
-                padding: 1rem;
-            }
-            h1 {
-                font-size: 1.75rem !important;
-            }
-            .stat-grid {
-                grid-template-columns: 1fr !important;
-            }
-            .chart-container {
-                height: 300px !important;
-            }
-        }
-        
-        /* ===== ESTILOS PARA INDICADOR DE PÁGINA ACTIVA ===== */
-        .nav-link {
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .nav-link.active {
-            background-color: #2563eb !important;
-            color: white !important;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-        }
-        
-        .nav-link.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: white;
-            animation: slideIn 0.3s ease;
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-        }
-        
-        .nav-link:hover:not(.active) {
-            background-color: #e5e7eb !important;
-            color: #1f2937 !important;
-            transform: translateY(-2px);
-        }
-        
-        @media (max-width: 1024px) {
-            .nav-link.active {
-                background-color: #2563eb !important;
-                color: white !important;
-                border: 2px solid white;
             }
         }
     </style>
@@ -398,7 +159,7 @@
 
     <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Barra lateral - MODIFICADA CON INDICADOR ACTIVO -->
+        <!-- Barra lateral con indicador activo -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
@@ -440,8 +201,7 @@
                     </a>
                 </nav>
             </div>
-            
-            <!-- Información de usuario - VERSIÓN DESKTOP -->
+            <!-- Información de usuario -->
             <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
                 <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
                 <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
@@ -493,7 +253,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="stat-card glass-card border-l-blue-500">
                     <div class="flex items-center">
                         <div class="bg-blue-100 p-3 rounded-lg mr-4">
@@ -505,7 +264,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="stat-card glass-card border-l-yellow-500">
                     <div class="flex items-center">
                         <div class="bg-yellow-100 p-3 rounded-lg mr-4">
@@ -517,7 +275,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="stat-card glass-card border-l-red-500">
                     <div class="flex items-center">
                         <div class="bg-red-100 p-3 rounded-lg mr-4">
@@ -533,10 +290,10 @@
 
             <!-- Filtros y búsqueda -->
             <div class="glass-card mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Buscar:</label>
-                        <input type="text" id="filtroBusqueda" placeholder="Nombre de máquina..." 
+                        <input type="text" id="filtroBusqueda" placeholder="Nombre..." 
                                class="w-full border border-gray-300 rounded-lg p-3" 
                                onkeyup="MaquinaManager.filtrarMaquinas()">
                     </div>
@@ -558,9 +315,17 @@
                             <option value="peluchera">Peluchera</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Subtipo:</label>
+                        <select id="filtroSubtipo" class="w-full border border-gray-300 rounded-lg p-3" onchange="MaquinaManager.filtrarMaquinas()">
+                            <option value="todos">Todos los subtipos</option>
+                            <option value="simple">Simple</option>
+                            <option value="multi_station">Multi-estación</option>
+                        </select>
+                    </div>
                     <div class="flex items-end">
                         <button onclick="MaquinaManager.limpiarFiltros()" class="w-full bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 btn-touch">
-                            <i class="fas fa-times mr-2"></i>Limpiar Filtros
+                            <i class="fas fa-times mr-2"></i>Limpiar
                         </button>
                     </div>
                 </div>
@@ -582,10 +347,10 @@
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">ID</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Máquina</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Tipo</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Subtipo</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estaciones</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estado</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Local</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Propietarios</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">% Restaurante</th>
                                 <th class="text-center py-3 px-4 text-sm font-medium text-gray-700">Acciones</th>
                             </tr>
                         </thead>
@@ -600,163 +365,10 @@
                     </table>
                 </div>
             </div>
-
-            <!-- SECCIÓN DE HISTORIAL DE MÁQUINAS -->
-            <div class="glass-card mt-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800">
-                        <i class="fas fa-history mr-2 text-indigo-600"></i>Historial de Máquinas
-                    </h3>
-                    <div class="flex gap-2">
-                        <select id="filtroHistorialMaquina" class="border border-gray-300 rounded-lg p-2 text-sm">
-                            <option value="todas">Todas las máquinas</option>
-                        </select>
-                        <select id="filtroHistorialTipo" class="border border-gray-300 rounded-lg p-2 text-sm">
-                            <option value="todos">Todos los eventos</option>
-                            <option value="juegos">Solo juegos</option>
-                            <option value="fallas">Solo fallas</option>
-                        </select>
-                        <button onclick="HistorialManager.cargarHistorialCompleto()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch">
-                            <i class="fas fa-sync-alt mr-2"></i>Actualizar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Estadísticas rápidas de historial -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-blue-50 p-4 rounded-lg">
-                        <div class="flex items-center">
-                            <div class="bg-blue-100 p-2 rounded-lg mr-3">
-                                <i class="fas fa-gamepad text-blue-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-600">Total Juegos</p>
-                                <p id="totalJuegos" class="text-xl font-bold text-gray-800">0</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-red-50 p-4 rounded-lg">
-                        <div class="flex items-center">
-                            <div class="bg-red-100 p-2 rounded-lg mr-3">
-                                <i class="fas fa-exclamation-triangle text-red-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-600">Total Fallas</p>
-                                <p id="totalFallas" class="text-xl font-bold text-gray-800">0</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-green-50 p-4 rounded-lg">
-                        <div class="flex items-center">
-                            <div class="bg-green-100 p-2 rounded-lg mr-3">
-                                <i class="fas fa-check-circle text-green-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-600">Fallas Resueltas</p>
-                                <p id="totalFallasResueltas" class="text-xl font-bold text-gray-800">0</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-yellow-50 p-4 rounded-lg">
-                        <div class="flex items-center">
-                            <div class="bg-yellow-100 p-2 rounded-lg mr-3">
-                                <i class="fas fa-clock text-yellow-600"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-600">Última Actividad</p>
-                                <p id="ultimaActividad" class="text-sm font-bold text-gray-800">-</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabs de navegación -->
-                <div class="border-b border-gray-200 mb-4">
-                    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
-                        <li class="mr-2">
-                            <button onclick="HistorialManager.cambiarTab('todos')" class="tab-button active-tab inline-block p-4 text-blue-600 border-b-2 border-blue-600 rounded-t-lg" id="tab-todos">
-                                <i class="fas fa-stream mr-2"></i>Todos
-                            </button>
-                        </li>
-                        <li class="mr-2">
-                            <button onclick="HistorialManager.cambiarTab('juegos')" class="tab-button inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-juegos">
-                                <i class="fas fa-gamepad mr-2"></i>Juegos
-                            </button>
-                        </li>
-                        <li class="mr-2">
-                            <button onclick="HistorialManager.cambiarTab('fallas')" class="tab-button inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-fallas">
-                                <i class="fas fa-exclamation-triangle mr-2"></i>Reportes de Falla
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Timeline de eventos -->
-                <div id="historialContainer" class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                    <!-- Los eventos se cargarán dinámicamente aquí -->
-                    <div class="text-center py-8 text-gray-500">
-                        <div class="loading mx-auto mb-2"></div>
-                        <p>Cargando historial...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modal para ver detalles de un juego -->
-            <div id="modalDetallesJuego" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
-                <div class="glass-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-semibold text-gray-800" id="modalJuegoTitulo">Detalles del Juego</h3>
-                        <button onclick="HistorialManager.cerrarModalJuego()" class="text-gray-500 hover:text-gray-700 btn-touch">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div id="detallesJuegoContenido" class="space-y-4">
-                        <!-- Contenido dinámico -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modal para ver detalles de una falla -->
-            <div id="modalDetallesFalla" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
-                <div class="glass-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-semibold text-gray-800" id="modalFallaTitulo">Detalles de la Falla</h3>
-                        <button onclick="HistorialManager.cerrarModalFalla()" class="text-gray-500 hover:text-gray-700 btn-touch">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div id="detallesFallaContenido" class="space-y-4">
-                        <!-- Contenido dinámico -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Gráficas de rendimiento -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                <div class="glass-card">
-                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
-                        <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Estado de Máquinas
-                    </h3>
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartEstado"></canvas>
-                    </div>
-                </div>
-
-                <div class="glass-card">
-                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
-                        <i class="fas fa-chart-pie mr-2 text-green-600"></i>Distribución por Tipo
-                    </h3>
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartTipos"></canvas>
-                    </div>
-                </div>
-            </div>
         </main>
     </div>
 
-    <!-- ============================================ -->
-    <!-- INFORMACIÓN DE USUARIO - VERSIÓN MÓVIL (al final) -->
-    <!-- ============================================ -->
+    <!-- Información de usuario móvil -->
     <div class="user-info-mobile bg-gray-800 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuarioMobile">{{ nombre_usuario }}</span></div>
         <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
@@ -770,8 +382,8 @@
     </div>
 
     <!-- Modal para crear/editar máquina -->
-    <div id="modalMaquina" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
-        <div class="glass-card max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div id="modalMaquina" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 modal-content max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold text-gray-800" id="modalTitulo">Nueva Máquina</h3>
                 <button onclick="MaquinaManager.cerrarModal()" class="text-gray-500 hover:text-gray-700 btn-touch">
@@ -782,70 +394,231 @@
             <form id="formMaquina" onsubmit="MaquinaManager.guardarMaquina(event)">
                 <input type="hidden" id="maquinaId" value="">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
-                        <input type="text" id="nombre" required class="w-full border border-gray-300 rounded-lg p-3">
+                <!-- Pestañas del modal -->
+                <div class="border-b border-gray-200 mb-4">
+                    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+                        <li class="mr-2">
+                            <button type="button" onclick="MaquinaManager.cambiarTabModal('basico')" class="tab-modal active inline-block p-4 text-blue-600 border-b-2 border-blue-600 rounded-t-lg" id="tab-basico">
+                                <i class="fas fa-info-circle mr-2"></i>Información Básica
+                            </button>
+                        </li>
+                        <li class="mr-2">
+                            <button type="button" onclick="MaquinaManager.cambiarTabModal('tecnico')" class="tab-modal inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-tecnico">
+                                <i class="fas fa-cogs mr-2"></i>Configuración Técnica
+                            </button>
+                        </li>
+                        <li class="mr-2">
+                            <button type="button" onclick="MaquinaManager.cambiarTabModal('imagen')" class="tab-modal inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-imagen">
+                                <i class="fas fa-image mr-2"></i>Imagen
+                            </button>
+                        </li>
+                        <li class="mr-2" id="tab-estaciones-li" style="display: none;">
+                            <button type="button" onclick="MaquinaManager.cambiarTabModal('estaciones')" class="tab-modal inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="tab-estaciones">
+                                <i class="fas fa-layer-group mr-2"></i>Estaciones
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Pestaña Información Básica -->
+                <div id="tab-basico-content" class="tab-content">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre *</label>
+                            <input type="text" id="nombre" required class="w-full border border-gray-300 rounded-lg p-3">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
+                            <select id="tipo" required class="w-full border border-gray-300 rounded-lg p-3" onchange="MaquinaManager.cambioTipo()">
+                                <option value="">Seleccionar tipo</option>
+                                <option value="simulador">Simulador</option>
+                                <option value="arcade">Arcade</option>
+                                <option value="peluchera">Peluchera</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
-                        <select id="tipo" required class="w-full border border-gray-300 rounded-lg p-3">
-                            <option value="">Seleccionar tipo</option>
-                            <option value="simulador">Simulador</option>
-                            <option value="arcade">Arcade</option>
-                            <option value="peluchera">Peluchera</option>
-                        </select>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Subtipo *</label>
+                            <select id="machineSubtype" required class="w-full border border-gray-300 rounded-lg p-3" onchange="MaquinaManager.cambioSubtipo()">
+                                <option value="simple">Simple (1 estación)</option>
+                                <option value="multi_station">Multi-estación</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Estado *</label>
+                            <select id="estado" required class="w-full border border-gray-300 rounded-lg p-3">
+                                <option value="activa">Activa</option>
+                                <option value="mantenimiento">Mantenimiento</option>
+                                <option value="inactiva">Inactiva</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Local *</label>
+                            <select id="localId" required class="w-full border border-gray-300 rounded-lg p-3">
+                                <option value="">Seleccionar local</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Valor por Turno (COP)</label>
+                            <input type="number" id="valorPorTurno" min="1000" step="1000" value="3000" class="w-full border border-gray-300 rounded-lg p-3">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nota de Error</label>
+                        <textarea id="errorNote" rows="3" class="w-full border border-gray-300 rounded-lg p-3" placeholder="Descripción de problemas o errores..."></textarea>
+                    </div>
+                    
+                    <!-- Sección de Propietarios -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-semibold mb-3 text-gray-800">
+                            <i class="fas fa-users mr-2"></i>Distribución de Propiedad
+                        </h4>
+                        <div id="propietarios-container" class="space-y-3">
+                            <!-- Los propietarios se cargarán dinámicamente -->
+                        </div>
+                        <div class="mt-3 text-sm text-gray-600">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            El porcentaje total debe sumar 100%
+                        </div>
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Estado *</label>
-                        <select id="estado" required class="w-full border border-gray-300 rounded-lg p-3">
-                            <option value="activa">Activa</option>
-                            <option value="mantenimiento">Mantenimiento</option>
-                            <option value="inactiva">Inactiva</option>
-                        </select>
+
+                <!-- Pestaña Configuración Técnica -->
+                <div id="tab-tecnico-content" class="tab-content hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Créditos Virtuales</label>
+                            <input type="number" id="creditsVirtual" min="1" value="1" class="w-full border border-gray-300 rounded-lg p-3">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Créditos Máquina</label>
+                            <input type="number" id="creditsMachine" min="1" value="1" class="w-full border border-gray-300 rounded-lg p-3">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Local *</label>
-                        <select id="localId" required class="w-full border border-gray-300 rounded-lg p-3">
-                            <option value="">Seleccionar local</option>
-                        </select>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Duración del Juego (segundos)</label>
+                            <input type="number" id="gameDurationSeconds" min="5" value="180" class="w-full border border-gray-300 rounded-lg p-3">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tiempo de Reinicio (segundos)</label>
+                            <input type="number" id="resetTimeSeconds" min="1" value="5" class="w-full border border-gray-300 rounded-lg p-3">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Juego</label>
+                            <select id="gameType" class="w-full border border-gray-300 rounded-lg p-3">
+                                <option value="time_based">Basado en tiempo</option>
+                                <option value="instant">Instantáneo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Opciones</label>
+                            <div class="space-y-2 mt-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="hasFailureReport" class="mr-2" checked>
+                                    <span class="text-sm">Permitir reporte de fallas</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="showStationSelection" class="mr-2">
+                                    <span class="text-sm">Mostrar selección de estación</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pines de relé -->
+                    <div class="mb-4">
+                        <h4 class="text-lg font-semibold mb-3 text-gray-800">
+                            <i class="fas fa-microchip mr-2"></i>Pines de Relé
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Relé 1 (GPIO)</label>
+                                <input type="number" id="relayPin1" value="26" class="w-full border border-gray-300 rounded-lg p-3">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Relé 2 (GPIO)</label>
+                                <input type="number" id="relayPin2" value="27" class="w-full border border-gray-300 rounded-lg p-3">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Relé 3 (GPIO)</label>
+                                <input type="number" id="relayPin3" value="-1" class="w-full border border-gray-300 rounded-lg p-3">
+                                <p class="text-xs text-gray-500">-1 para deshabilitado</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Relé 4 (GPIO)</label>
+                                <input type="number" id="relayPin4" value="-1" class="w-full border border-gray-300 rounded-lg p-3">
+                                <p class="text-xs text-gray-500">-1 para deshabilitado</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nota de Error</label>
-                    <textarea id="errorNote" rows="3" class="w-full border border-gray-300 rounded-lg p-3" placeholder="Descripción de problemas o errores..."></textarea>
-                </div>
-                
-                <!-- Sección de Propietarios -->
-                <div class="mb-6">
-                    <h4 class="text-lg font-semibold mb-3 text-gray-800">
-                        <i class="fas fa-users mr-2"></i>Distribución de Propiedad
-                    </h4>
-                    <div id="propietarios-container" class="space-y-3">
-                        <!-- Los propietarios se cargarán dinámicamente -->
+
+                <!-- Pestaña Imagen -->
+                <div id="tab-imagen-content" class="tab-content hidden">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Subir nueva imagen</label>
+                        <input type="file" id="imagenSubir" accept="image/*" class="w-full border border-gray-300 rounded-lg p-3">
+                        <p class="text-xs text-gray-500 mt-1">Formatos: JPG, PNG, GIF. Tamaño máximo: 5MB</p>
                     </div>
-                    <div class="mt-3 text-sm text-gray-600">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        El porcentaje total debe sumar 100%
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-sm font-medium text-gray-700">O seleccionar imagen existente</label>
+                            <button type="button" onclick="MaquinaManager.recargarGaleria()" class="text-sm text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-sync-alt mr-1"></i>Recargar
+                            </button>
+                        </div>
+                        <div id="galeria-imagenes" class="image-gallery">
+                            <div class="text-center py-8">
+                                <div class="loading mx-auto mb-2"></div>
+                                <p class="text-gray-600">Cargando imágenes...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Vista previa de imagen seleccionada</label>
+                        <div class="flex items-center space-x-4">
+                            <img id="imagenPreview" src="/static/img/default.jpg" alt="Preview" class="image-preview">
+                            <div>
+                                <p id="imagenSeleccionada" class="text-sm text-gray-600">default.jpg</p>
+                                <input type="hidden" id="imagenFilename" value="default.jpg">
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <!-- Porcentaje Restaurante -->
-                <div class="mb-6">
-                    <h4 class="text-lg font-semibold mb-3 text-gray-800">
-                        <i class="fas fa-utensils mr-2"></i>Porcentaje Restaurante
-                    </h4>
-                    <div class="flex items-center space-x-4">
-                        <input type="number" id="porcentajeRestaurante" min="0" max="100" step="0.01" 
-                               class="w-32 border border-gray-300 rounded-lg p-3" value="35.00">
-                        <span class="text-gray-600">%</span>
+
+                <!-- Pestaña Estaciones -->
+                <div id="tab-estaciones-content" class="tab-content hidden">
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600 mb-4">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Configura las estaciones para máquinas multi-estación. Cada estación puede tener su propio nombre y estadísticas.
+                        </p>
+                        
+                        <div id="estaciones-container">
+                            <!-- Las estaciones se generarán dinámicamente -->
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="button" onclick="MaquinaManager.agregarEstacion()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                                <i class="fas fa-plus mr-2"></i>Agregar Estación
+                            </button>
+                        </div>
                     </div>
                 </div>
-                
+
                 <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                     <button type="button" onclick="MaquinaManager.cerrarModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 btn-touch">
                         Cancelar
@@ -858,193 +631,31 @@
         </div>
     </div>
 
-    <!-- Modal para ver reportes de máquina -->
-    <div id="reportesModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full m-4 max-h-[90vh] overflow-hidden">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h2 class="text-xl font-semibold">Reportes de Falla</h2>
-                <button onclick="cerrarModal('reportesModal')" class="text-gray-500 hover:text-gray-700">
+    <!-- Modal para detalles de estación -->
+    <div id="modalEstacion" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800" id="modalEstacionTitulo">Detalles de Estación</h3>
+                <button onclick="MaquinaManager.cerrarModalEstacion()" class="text-gray-500 hover:text-gray-700 btn-touch">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-4" id="reportesContenido">
-                <!-- Contenido dinámico se insertará aquí -->
-            </div>
-        </div>
-    </div>
-
-    <!-- MODALES PERSONALIZADOS PARA CONFIRMACIÓN -->
-    
-    <!-- Modal para confirmar Ingreso de Turno -->
-    <div id="modalConfirmarTurno" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header info">
-                <div class="modal-icon info">
-                    <i class="fas fa-coins"></i>
-                </div>
-                <h2 class="text-xl font-semibold text-gray-800">Ingresar Turno</h2>
-            </div>
-            <div class="modal-body">
-                <p class="text-gray-600 mb-4">¿Estás seguro de que quieres ingresar un turno en esta máquina?</p>
-                <div class="machine-info" id="modalTurnoInfo">
-                    <!-- Se llenará dinámicamente -->
-                </div>
-                <p class="text-sm text-gray-500 mt-2">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Esta acción simulará un juego y activará el relé por 500ms.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="ModalManager.cerrar('modalConfirmarTurno')" class="modal-btn modal-btn-secondary">
-                    Cancelar
-                </button>
-                <button onclick="ModalManager.confirmarTurno()" class="modal-btn modal-btn-success">
-                    <i class="fas fa-check mr-2"></i>Confirmar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para confirmar Reinicio de Máquina -->
-    <div id="modalConfirmarReinicio" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header warning">
-                <div class="modal-icon warning">
-                    <i class="fas fa-power-off"></i>
-                </div>
-                <h2 class="text-xl font-semibold text-gray-800">Reiniciar Máquina</h2>
-            </div>
-            <div class="modal-body">
-                <p class="text-gray-600 mb-4">¿Estás seguro de que quieres reiniciar esta máquina?</p>
-                <div class="machine-info" id="modalReinicioInfo">
-                    <!-- Se llenará dinámicamente -->
-                </div>
-                <p class="text-sm text-gray-500 mt-2">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    El ESP32 recibirá el comando y activará el relé por 500ms.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="ModalManager.cerrar('modalConfirmarReinicio')" class="modal-btn modal-btn-secondary">
-                    Cancelar
-                </button>
-                <button onclick="ModalManager.confirmarReinicio()" class="modal-btn modal-btn-danger">
-                    <i class="fas fa-power-off mr-2"></i>Reiniciar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de éxito -->
-    <div id="modalExito" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header success">
-                <div class="modal-icon success">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <h2 class="text-xl font-semibold text-gray-800">¡Operación Exitosa!</h2>
-            </div>
-            <div class="modal-body">
-                <p class="text-gray-600" id="modalExitoMensaje">La operación se completó correctamente.</p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="ModalManager.cerrar('modalExito')" class="modal-btn modal-btn-primary">
-                    Aceptar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de error -->
-    <div id="modalError" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #fee2e2, #fef2f2);">
-                <div class="modal-icon" style="background: #ef4444;">
-                    <i class="fas fa-exclamation-triangle text-white"></i>
-                </div>
-                <h2 class="text-xl font-semibold text-gray-800">Error</h2>
-            </div>
-            <div class="modal-body">
-                <p class="text-gray-600" id="modalErrorMensaje">Ha ocurrido un error.</p>
-            </div>
-            <div class="modal-footer">
-                <button onclick="ModalManager.cerrar('modalError')" class="modal-btn modal-btn-primary">
-                    Aceptar
-                </button>
+            <div id="modalEstacionContenido" class="space-y-4">
+                <!-- Contenido dinámico -->
             </div>
         </div>
     </div>
 
     <script>
-        // Gestor de modales
-        const ModalManager = {
-    datosPendientes: {},
-    
-    mostrar: function(modalId, datos = {}) {
-        console.log('ModalManager.mostrar - Datos recibidos:', datos);
-        this.datosPendientes = datos; // Guardar los datos
-        document.getElementById(modalId).classList.add('active');
-        console.log('ModalManager.datosPendientes después de guardar:', this.datosPendientes);
-    },
-    
-    cerrar: function(modalId) {
-        document.getElementById(modalId).classList.remove('active');
-        // NO limpiar datosPendientes aquí para mantenerlos disponibles
-        console.log('Modal cerrado, datosPendientes aún disponibles:', this.datosPendientes);
-    },
-    
-    confirmarTurno: function() {
-        console.log('ModalManager.confirmarTurno - datosPendientes:', this.datosPendientes);
-        const { machineId, machineName } = this.datosPendientes;
-        
-        if (machineId === undefined || machineName === undefined) {
-            console.error('ERROR: machineId o machineName es undefined', this.datosPendientes);
-            this.cerrar('modalConfirmarTurno');
-            alert('Error: No se pudo obtener la información de la máquina');
-            return;
-        }
-        
-        console.log('Confirmando turno - Datos:', { machineId, machineName });
-        this.cerrar('modalConfirmarTurno');
-        MaquinaManager.ejecutarIngresarTurno(machineId, machineName);
-    },
-    
-    confirmarReinicio: function() {
-        console.log('ModalManager.confirmarReinicio - datosPendientes:', this.datosPendientes);
-        const { machineId, machineName } = this.datosPendientes;
-        
-        if (machineId === undefined || machineName === undefined) {
-            console.error('ERROR: machineId o machineName es undefined', this.datosPendientes);
-            this.cerrar('modalConfirmarReinicio');
-            alert('Error: No se pudo obtener la información de la máquina');
-            return;
-        }
-        
-        console.log('Confirmando reinicio - Datos:', { machineId, machineName });
-        this.cerrar('modalConfirmarReinicio');
-        MaquinaManager.ejecutarReiniciarMaquina(machineId, machineName);
-    },
-    
-    mostrarExito: function(mensaje) {
-        document.getElementById('modalExitoMensaje').textContent = mensaje;
-        this.mostrar('modalExito');
-    },
-    
-    mostrarError: function(mensaje) {
-        document.getElementById('modalErrorMensaje').textContent = mensaje;
-        this.mostrar('modalError');
-    }
-};
         const MaquinaManager = {
             maquinas: [],
             propietarios: [],
             locales: [],
             maquinasFiltradas: [],
-            maquinaReportesActual: null,
-            maquinaReportesNombre: '',
-
+            imagenesDisponibles: [],
+            estaciones: [],
+            
             init: function() {
-                // Configurar partículas
                 particlesJS('particles-js', {
                     particles: {
                         number: { value: 40, density: { enable: true, value_area: 600 } },
@@ -1065,41 +676,22 @@
                     }
                 });
 
-                // Inicializar hora en tiempo real
                 this.actualizarHora();
                 setInterval(() => this.actualizarHora(), 1000);
 
-                // Configurar fecha actual
-                const ahora = new Date();
-                const opciones = { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                };
-                document.getElementById('fechaActual').textContent = 
-                    ahora.toLocaleDateString('es-ES', opciones);
-                
-                // Cargar datos iniciales
+                this.configurarFechaActual();
                 this.cargarDatosIniciales();
-                
-                // ===== NUEVO: Marcar el enlace activo =====
                 this.marcarEnlaceActivo();
                 
-                // Sincronizar nombre de usuario con versión móvil
                 const nombreUsuario = document.getElementById('nombreUsuario');
                 const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
                 if (nombreUsuario && nombreUsuarioMobile) {
                     nombreUsuarioMobile.textContent = nombreUsuario.textContent;
                 }
-                
-                console.log("Gestión de Máquinas inicializada");
             },
 
-            // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
             marcarEnlaceActivo: function() {
                 const currentPath = window.location.pathname;
-                
                 const pathToId = {
                     '/local': 'nav-local',
                     '/admin': 'nav-admin',
@@ -1114,66 +706,36 @@
                     '/admin/logs/gestionlogs': 'nav-gestion-logs'
                 };
                 
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.classList.remove('active');
-                });
-                
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
                 const activeId = pathToId[currentPath];
                 if (activeId) {
                     const activeLink = document.getElementById(activeId);
-                    if (activeLink) {
-                        activeLink.classList.add('active');
-                    }
-                } else {
-                    // Si no hay match exacto, buscar por coincidencia parcial
-                    document.querySelectorAll('.nav-link').forEach(link => {
-                        const href = link.getAttribute('href');
-                        if (href && currentPath.includes(href) && href !== '/') {
-                            link.classList.add('active');
-                        }
-                    });
+                    if (activeLink) activeLink.classList.add('active');
                 }
             },
 
-            // Función para actualizar la hora en tiempo real
             actualizarHora: function() {
                 const ahora = new Date();
-                const opciones = { 
-                    timeZone: 'America/Bogota',
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                };
+                const hora = ahora.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour12: false });
+                const fecha = ahora.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
                 
-                const opcionesFecha = {
-                    timeZone: 'America/Bogota',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                };
-                
-                const hora = ahora.toLocaleTimeString('es-CO', opciones);
-                const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
-                
-                // Actualizar en sidebar (desktop)
-                const horaSidebar = document.getElementById('horaActualSidebar');
-                const fechaSidebar = document.getElementById('fechaActualSidebar');
-                if (horaSidebar) horaSidebar.textContent = hora;
-                if (fechaSidebar) fechaSidebar.textContent = fecha;
-                
-                // Actualizar en versión móvil
-                const horaMobile = document.getElementById('horaActualMobile');
-                const fechaMobile = document.getElementById('fechaActualMobile');
-                if (horaMobile) horaMobile.textContent = hora;
-                if (fechaMobile) fechaMobile.textContent = fecha;
+                document.getElementById('horaActualSidebar').textContent = hora;
+                document.getElementById('fechaActualSidebar').textContent = fecha;
+                document.getElementById('horaActualMobile').textContent = hora;
+                document.getElementById('fechaActualMobile').textContent = fecha;
+            },
+
+            configurarFechaActual: function() {
+                const ahora = new Date();
+                document.getElementById('fechaActual').textContent = 
+                    ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             },
 
             cargarDatosIniciales: function() {
                 this.cargarMaquinas();
                 this.cargarPropietarios();
                 this.cargarLocales();
-                this.inicializarGraficos();
+                this.cargarImagenes();
             },
 
             cargarMaquinas: async function() {
@@ -1181,25 +743,29 @@
                     const response = await fetch('/api/maquinas');
                     if (response.ok) {
                         this.maquinas = await response.json();
+                        
+                        // Cargar datos técnicos para cada máquina
+                        for (let maquina of this.maquinas) {
+                            const techResponse = await fetch(`/api/esp32/machine-technical/${maquina.id}`);
+                            if (techResponse.ok) {
+                                const techData = await techResponse.json();
+                                maquina.technical = techData.data;
+                            }
+                        }
+                        
                         this.maquinasFiltradas = [...this.maquinas];
                         this.actualizarListaMaquinas();
                         this.actualizarEstadisticas();
-                        this.actualizarGraficos();
-                    } else {
-                        throw new Error('Error al cargar máquinas');
                     }
                 } catch (error) {
                     console.error('Error cargando máquinas:', error);
-                    ModalManager.mostrarError('Error al cargar las máquinas');
                 }
             },
 
             cargarPropietarios: async function() {
                 try {
                     const response = await fetch('/api/propietarios');
-                    if (response.ok) {
-                        this.propietarios = await response.json();
-                    }
+                    if (response.ok) this.propietarios = await response.json();
                 } catch (error) {
                     console.error('Error cargando propietarios:', error);
                 }
@@ -1217,15 +783,22 @@
                 }
             },
 
+            cargarImagenes: async function() {
+                try {
+                    const response = await fetch('/api/imagenes/maquinas');
+                    if (response.ok) {
+                        this.imagenesDisponibles = await response.json();
+                    }
+                } catch (error) {
+                    console.error('Error cargando imágenes:', error);
+                }
+            },
+
             actualizarSelectLocales: function() {
                 const select = document.getElementById('localId');
                 select.innerHTML = '<option value="">Seleccionar local</option>';
-                
                 this.locales.forEach(local => {
-                    const option = document.createElement('option');
-                    option.value = local.id;
-                    option.textContent = local.name;
-                    select.appendChild(option);
+                    select.innerHTML += `<option value="${local.id}">${local.name}</option>`;
                 });
             },
 
@@ -1234,57 +807,46 @@
                 const contador = document.getElementById('contador-maquinas');
                 
                 if (this.maquinasFiltradas.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="8" class="text-center py-8 text-gray-500">
-                                <i class="fas fa-search mb-2 text-2xl"></i>
-                                <p>No se encontraron máquinas</p>
-                            </td>
-                        </tr>
-                    `;
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">No se encontraron máquinas</td></tr>';
                     contador.textContent = '0 máquinas';
                     return;
                 }
-                
+
                 let html = '';
                 this.maquinasFiltradas.forEach(maquina => {
                     const estadoClass = `status-badge status-${maquina.status}`;
-                    const estadoText = maquina.status === 'activa' ? 'Activa' : 
-                                     maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
-                    
-                    // Obtener información real de propietarios
-                    const infoPropietarios = this.obtenerInfoPropietarios(maquina.propietarios);
+                    const estadoText = maquina.status === 'activa' ? 'Activa' : maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
+                    const subtipo = maquina.technical?.machine_subtype || 'simple';
+                    const estaciones = maquina.technical?.station_count || 1;
                     
                     html += `
                         <tr class="border-b border-gray-100 hover:bg-gray-50 machine-card">
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.id}</td>
                             <td class="py-3 px-4">
-                                <div class="font-medium text-gray-800">${maquina.name}</div>
-                                ${maquina.errorNote ? `<div class="text-xs text-red-600 mt-1">${maquina.errorNote.substring(0, 50)}${maquina.errorNote.length > 50 ? '...' : ''}</div>` : ''}
+                                <div class="flex items-center">
+                                    <img src="/static/img/${maquina.imagen || 'default.jpg'}" alt="${maquina.name}" class="w-8 h-8 rounded-full object-cover mr-2">
+                                    <div>
+                                        <div class="font-medium text-gray-800">${maquina.name}</div>
+                                        ${maquina.errorNote ? `<div class="text-xs text-red-600">${maquina.errorNote.substring(0, 30)}...</div>` : ''}
+                                    </div>
+                                </div>
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600 capitalize">${maquina.type}</td>
                             <td class="py-3 px-4">
-                                <span class="${estadoClass}">${estadoText}</span>
+                                <span class="subtype-badge ${subtipo === 'multi_station' ? 'subtype-multi' : ''}">
+                                    ${subtipo === 'multi_station' ? 'Multi' : 'Simple'}
+                                </span>
                             </td>
+                            <td class="py-3 px-4 text-sm text-gray-600">${estaciones}</td>
+                            <td class="py-3 px-4"><span class="${estadoClass}">${estadoText}</span></td>
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
-                            <td class="py-3 px-4 text-sm text-gray-600">${infoPropietarios}</td>
-                            <td class="py-3 px-4 text-sm text-gray-600">${maquina.porcentaje_restaurante || 35}%</td>
-                            <td class="py-3 px-4 text-sm text-center">
+                            <td class="py-3 px-4 text-center">
                                 <div class="flex justify-center space-x-2">
                                     <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
-                                            class="text-green-600 hover:text-green-800 btn-touch" title="Ingresar Turno (Simular)">
-                                        <i class="fas fa-coins"></i>
-                                    </button>
-                                    <button onclick="MaquinaManager.mostrarModalReiniciar(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
-                                            class="text-purple-600 hover:text-purple-800 btn-touch" title="Reiniciar Máquina">
-                                        <i class="fas fa-power-off"></i>
-                                    </button>
-                                    <button onclick="verReportes(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" 
-                                            class="text-yellow-600 hover:text-yellow-800 btn-touch" title="Ver Reportes">
-                                        <i class="fas fa-clipboard-list"></i>
+                                    <button onclick="MaquinaManager.verEstaciones(${maquina.id})" class="text-purple-600 hover:text-purple-800 btn-touch" title="Ver Estaciones">
+                                        <i class="fas fa-layer-group"></i>
                                     </button>
                                     <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
                                         <i class="fas fa-trash"></i>
@@ -1294,24 +856,9 @@
                         </tr>
                     `;
                 });
-                
+
                 tbody.innerHTML = html;
                 contador.textContent = `${this.maquinasFiltradas.length} máquina(s)`;
-            },
-
-            obtenerInfoPropietarios: function(propietarios) {
-                if (!propietarios || propietarios.length === 0) {
-                    return "Sin propietarios";
-                }
-                
-                // Ordenar por porcentaje (mayor a menor)
-                const propietariosOrdenados = [...propietarios].sort((a, b) => b.porcentaje_propiedad - a.porcentaje_propiedad);
-                
-                const info = propietariosOrdenados.map(prop => 
-                    `${prop.nombre} (${prop.porcentaje_propiedad}%)`
-                );
-                
-                return info.join(', ');
             },
 
             actualizarEstadisticas: function() {
@@ -1326,41 +873,19 @@
                 document.getElementById('maquinas-inactivas').textContent = inactivas;
             },
 
-            actualizarGraficos: function() {
-                // Gráfico de estado de máquinas
-                const activas = this.maquinas.filter(m => m.status === 'activa').length;
-                const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
-                const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
-                
-                if (this.chartEstado) {
-                    this.chartEstado.data.datasets[0].data = [activas, mantenimiento, inactivas];
-                    this.chartEstado.update();
-                }
-
-                // Gráfico de distribución por tipo
-                const tipos = {};
-                this.maquinas.forEach(maquina => {
-                    tipos[maquina.type] = (tipos[maquina.type] || 0) + 1;
-                });
-
-                if (this.chartTipos) {
-                    this.chartTipos.data.labels = Object.keys(tipos);
-                    this.chartTipos.data.datasets[0].data = Object.values(tipos);
-                    this.chartTipos.update();
-                }
-            },
-
             filtrarMaquinas: function() {
                 const busqueda = document.getElementById('filtroBusqueda').value.toLowerCase();
                 const estado = document.getElementById('filtroEstado').value;
                 const tipo = document.getElementById('filtroTipo').value;
+                const subtipo = document.getElementById('filtroSubtipo').value;
                 
                 this.maquinasFiltradas = this.maquinas.filter(maquina => {
                     const coincideBusqueda = maquina.name.toLowerCase().includes(busqueda);
                     const coincideEstado = estado === 'todos' || maquina.status === estado;
                     const coincideTipo = tipo === 'todos' || maquina.type === tipo;
+                    const coincideSubtipo = subtipo === 'todos' || (maquina.technical?.machine_subtype || 'simple') === subtipo;
                     
-                    return coincideBusqueda && coincideEstado && coincideTipo;
+                    return coincideBusqueda && coincideEstado && coincideTipo && coincideSubtipo;
                 });
                 
                 this.actualizarListaMaquinas();
@@ -1370,23 +895,41 @@
                 document.getElementById('filtroBusqueda').value = '';
                 document.getElementById('filtroEstado').value = 'todos';
                 document.getElementById('filtroTipo').value = 'todos';
+                document.getElementById('filtroSubtipo').value = 'todos';
                 this.maquinasFiltradas = [...this.maquinas];
                 this.actualizarListaMaquinas();
-                ModalManager.mostrarExito('Filtros limpiados');
+                this.mostrarAlerta('Filtros limpiados', 'success');
             },
 
             mostrarModalCrear: function() {
                 document.getElementById('modalTitulo').textContent = 'Nueva Máquina';
                 document.getElementById('maquinaId').value = '';
                 document.getElementById('formMaquina').reset();
-                document.getElementById('porcentajeRestaurante').value = '35.00';
+                document.getElementById('creditsVirtual').value = '1';
+                document.getElementById('creditsMachine').value = '1';
+                document.getElementById('gameDurationSeconds').value = '180';
+                document.getElementById('resetTimeSeconds').value = '5';
+                document.getElementById('valorPorTurno').value = '3000';
+                document.getElementById('relayPin1').value = '26';
+                document.getElementById('relayPin2').value = '27';
+                document.getElementById('relayPin3').value = '-1';
+                document.getElementById('relayPin4').value = '-1';
+                document.getElementById('imagenFilename').value = 'default.jpg';
+                document.getElementById('imagenPreview').src = '/static/img/default.jpg';
+                document.getElementById('tab-estaciones-li').style.display = 'none';
+                
                 this.cargarPropietariosEnModal();
+                this.cambiarTabModal('basico');
                 document.getElementById('modalMaquina').classList.remove('hidden');
             },
 
-            editarMaquina: function(id) {
+            editarMaquina: async function(id) {
                 const maquina = this.maquinas.find(m => m.id === id);
                 if (!maquina) return;
+                
+                // Cargar datos técnicos
+                const techResponse = await fetch(`/api/esp32/machine-technical/${id}`);
+                const techData = techResponse.ok ? await techResponse.json() : { data: {} };
                 
                 document.getElementById('modalTitulo').textContent = 'Editar Máquina';
                 document.getElementById('maquinaId').value = maquina.id;
@@ -1395,40 +938,171 @@
                 document.getElementById('estado').value = maquina.status;
                 document.getElementById('localId').value = maquina.location_id;
                 document.getElementById('errorNote').value = maquina.errorNote || '';
-                document.getElementById('porcentajeRestaurante').value = maquina.porcentaje_restaurante || 35;
+                document.getElementById('valorPorTurno').value = maquina.valor_por_turno || 3000;
+                document.getElementById('imagenFilename').value = maquina.imagen || 'default.jpg';
+                document.getElementById('imagenPreview').src = `/static/img/${maquina.imagen || 'default.jpg'}`;
                 
-                this.cargarPropietariosEnModal(maquina.id);
+                // Datos técnicos
+                document.getElementById('machineSubtype').value = techData.data?.machine_subtype || 'simple';
+                document.getElementById('gameType').value = techData.data?.game_type || 'time_based';
+                document.getElementById('creditsVirtual').value = techData.data?.credits_virtual || 1;
+                document.getElementById('creditsMachine').value = techData.data?.credits_machine || 1;
+                document.getElementById('gameDurationSeconds').value = techData.data?.game_duration_seconds || 180;
+                document.getElementById('resetTimeSeconds').value = techData.data?.reset_time_seconds || 5;
+                document.getElementById('hasFailureReport').checked = techData.data?.has_failure_report !== false;
+                document.getElementById('showStationSelection').checked = techData.data?.show_station_selection || false;
+                
+                // Pines de relé
+                const relayPins = techData.data?.relay_pins || [26, 27, -1, -1];
+                document.getElementById('relayPin1').value = relayPins[0] || 26;
+                document.getElementById('relayPin2').value = relayPins[1] || 27;
+                document.getElementById('relayPin3').value = relayPins[2] || -1;
+                document.getElementById('relayPin4').value = relayPins[3] || -1;
+                
+                // Estaciones
+                this.estaciones = techData.data?.stations || [];
+                if (techData.data?.machine_subtype === 'multi_station') {
+                    document.getElementById('tab-estaciones-li').style.display = 'block';
+                    this.renderizarEstaciones();
+                } else {
+                    document.getElementById('tab-estaciones-li').style.display = 'none';
+                }
+                
+                this.cargarPropietariosEnModal(id);
+                this.cambiarTabModal('basico');
                 document.getElementById('modalMaquina').classList.remove('hidden');
+            },
+
+            cambioTipo: function() {
+                const tipo = document.getElementById('tipo').value;
+                // Actualizar icono o sugerencias según tipo
+            },
+
+            cambioSubtipo: function() {
+                const subtipo = document.getElementById('machineSubtype').value;
+                if (subtipo === 'multi_station') {
+                    document.getElementById('tab-estaciones-li').style.display = 'block';
+                    if (this.estaciones.length === 0) {
+                        this.estaciones = [{ name: 'Estación 1', relayPin: 26 }];
+                        this.renderizarEstaciones();
+                    }
+                } else {
+                    document.getElementById('tab-estaciones-li').style.display = 'none';
+                }
+            },
+
+            cambiarTabModal: function(tab) {
+                document.querySelectorAll('.tab-modal').forEach(t => {
+                    t.classList.remove('active', 'text-blue-600', 'border-blue-600');
+                    t.classList.add('border-transparent');
+                });
+                document.getElementById(`tab-${tab}`).classList.add('active', 'text-blue-600', 'border-blue-600');
+                
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                document.getElementById(`tab-${tab}-content`).classList.remove('hidden');
+                
+                if (tab === 'imagen') this.mostrarGaleria();
+            },
+
+            mostrarGaleria: function() {
+                const galeria = document.getElementById('galeria-imagenes');
+                if (this.imagenesDisponibles.length === 0) {
+                    galeria.innerHTML = '<div class="text-center py-8"><p class="text-gray-600">No hay imágenes disponibles</p></div>';
+                    return;
+                }
+                
+                let html = '';
+                this.imagenesDisponibles.forEach(img => {
+                    html += `
+                        <div onclick="MaquinaManager.seleccionarImagen('${img}')" class="cursor-pointer">
+                            <img src="/static/img/${img}" alt="${img}" class="image-preview ${img === document.getElementById('imagenFilename').value ? 'selected' : ''}">
+                        </div>
+                    `;
+                });
+                galeria.innerHTML = html;
+            },
+
+            seleccionarImagen: function(filename) {
+                document.getElementById('imagenFilename').value = filename;
+                document.getElementById('imagenPreview').src = `/static/img/${filename}`;
+                document.querySelectorAll('.image-preview').forEach(img => img.classList.remove('selected'));
+                event.currentTarget.querySelector('img').classList.add('selected');
+            },
+
+            recargarGaleria: function() {
+                this.cargarImagenes();
+            },
+
+            renderizarEstaciones: function() {
+                const container = document.getElementById('estaciones-container');
+                let html = '';
+                
+                this.estaciones.forEach((estacion, index) => {
+                    html += `
+                        <div class="station-card mb-3">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-semibold">Estación ${index + 1}</h4>
+                                <button type="button" onclick="MaquinaManager.eliminarEstacion(${index})" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                    <input type="text" value="${estacion.name}" onchange="MaquinaManager.actualizarEstacion(${index}, 'name', this.value)" class="w-full border border-gray-300 rounded-lg p-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Pin Relé</label>
+                                    <input type="number" value="${estacion.relayPin || 26}" onchange="MaquinaManager.actualizarEstacion(${index}, 'relayPin', this.value)" class="w-full border border-gray-300 rounded-lg p-2">
+                                </div>
+                            </div>
+                            ${estacion.stats ? `
+                                <div class="mt-2 text-sm text-gray-600">
+                                    <span class="mr-3"><i class="fas fa-play mr-1"></i>${estacion.stats.totalPlays || 0} jugadas</span>
+                                    <span><i class="fas fa-clock mr-1"></i>Último: ${estacion.stats.lastPlay || 'Nunca'}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            },
+
+            agregarEstacion: function() {
+                const num = this.estaciones.length + 1;
+                this.estaciones.push({ name: `Estación ${num}`, relayPin: 26 });
+                this.renderizarEstaciones();
+            },
+
+            eliminarEstacion: function(index) {
+                this.estaciones.splice(index, 1);
+                this.renderizarEstaciones();
+            },
+
+            actualizarEstacion: function(index, campo, valor) {
+                this.estaciones[index][campo] = valor;
             },
 
             cargarPropietariosEnModal: function(maquinaId = null) {
                 const container = document.getElementById('propietarios-container');
                 let html = '';
                 
-                // Obtener los propietarios actuales de la máquina si estamos editando
-                let propietariosActuales = [];
-                if (maquinaId) {
-                    const maquina = this.maquinas.find(m => m.id === maquinaId);
-                    if (maquina && maquina.propietarios) {
-                        propietariosActuales = maquina.propietarios;
+                this.propietarios.forEach(prop => {
+                    let porcentaje = 0;
+                    if (maquinaId) {
+                        const maquina = this.maquinas.find(m => m.id === maquinaId);
+                        const propActual = maquina?.propietarios?.find(p => p.id === prop.id);
+                        porcentaje = propActual ? propActual.porcentaje_propiedad : 0;
                     }
-                }
-                
-                this.propietarios.forEach(propietario => {
-                    // Buscar el porcentaje actual del propietario
-                    const propietarioActual = propietariosActuales.find(p => p.id === propietario.id);
-                    const porcentaje = propietarioActual ? propietarioActual.porcentaje_propiedad : 0;
                     
                     html += `
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span class="font-medium text-gray-800">${propietario.nombre}</span>
+                            <span class="font-medium">${prop.nombre}</span>
                             <div class="flex items-center space-x-3">
-                                <input type="number" 
-                                       class="w-20 border border-gray-300 rounded p-2 text-sm" 
-                                       value="${porcentaje}" 
-                                       min="0" max="100" step="0.01"
-                                       onchange="MaquinaManager.validarPorcentajes()">
-                                <span class="text-gray-600 text-sm">%</span>
+                                <input type="number" class="propietario-input w-20 border border-gray-300 rounded p-2 text-sm" 
+                                       value="${porcentaje}" min="0" max="100" step="0.01" data-id="${prop.id}">
+                                <span class="text-gray-600">%</span>
                             </div>
                         </div>
                     `;
@@ -1438,86 +1112,159 @@
             },
 
             validarPorcentajes: function() {
-                // Validar que la suma de porcentajes sea 100%
-                const inputs = document.querySelectorAll('#propietarios-container input');
                 let total = 0;
-                
-                inputs.forEach(input => {
+                document.querySelectorAll('.propietario-input').forEach(input => {
                     total += parseFloat(input.value) || 0;
                 });
-                
-                if (Math.abs(total - 100) > 0.01) {
-                    ModalManager.mostrarError(`La suma de porcentajes es ${total.toFixed(2)}%. Debe ser exactamente 100%`);
-                    return false;
-                }
-                
-                return true;
+                return Math.abs(total - 100) <= 0.01;
             },
 
             guardarMaquina: async function(event) {
                 event.preventDefault();
                 
                 if (!this.validarPorcentajes()) {
+                    this.mostrarAlerta('La suma de porcentajes debe ser 100%', 'error');
                     return;
                 }
                 
-                const formData = {
-                    id: document.getElementById('maquinaId').value,
+                const maquinaId = document.getElementById('maquinaId').value;
+                const esEdicion = !!maquinaId;
+                
+                // Datos básicos
+                const datosBasicos = {
                     name: document.getElementById('nombre').value,
                     type: document.getElementById('tipo').value,
                     status: document.getElementById('estado').value,
-                    location_id: document.getElementById('localId').value,
+                    location_id: parseInt(document.getElementById('localId').value),
                     errorNote: document.getElementById('errorNote').value,
-                    porcentaje_restaurante: document.getElementById('porcentajeRestaurante').value
+                    valor_por_turno: parseFloat(document.getElementById('valorPorTurno').value),
+                    image_filename: document.getElementById('imagenFilename').value
                 };
                 
+                // Datos técnicos
+                const datosTecnicos = {
+                    machine_subtype: document.getElementById('machineSubtype').value,
+                    game_type: document.getElementById('gameType').value,
+                    credits_virtual: parseInt(document.getElementById('creditsVirtual').value),
+                    credits_machine: parseInt(document.getElementById('creditsMachine').value),
+                    game_duration_seconds: parseInt(document.getElementById('gameDurationSeconds').value),
+                    reset_time_seconds: parseInt(document.getElementById('resetTimeSeconds').value),
+                    has_failure_report: document.getElementById('hasFailureReport').checked,
+                    show_station_selection: document.getElementById('showStationSelection').checked,
+                    relay_pins: [
+                        parseInt(document.getElementById('relayPin1').value),
+                        parseInt(document.getElementById('relayPin2').value),
+                        parseInt(document.getElementById('relayPin3').value),
+                        parseInt(document.getElementById('relayPin4').value)
+                    ]
+                };
+                
+                // Estaciones
+                if (datosTecnicos.machine_subtype === 'multi_station') {
+                    datosTecnicos.stations = this.estaciones;
+                }
+                
+                // Propietarios
+                const propietarios = [];
+                document.querySelectorAll('.propietario-input').forEach(input => {
+                    const porcentaje = parseFloat(input.value) || 0;
+                    if (porcentaje > 0) {
+                        propietarios.push({
+                            propietario_id: parseInt(input.dataset.id),
+                            porcentaje: porcentaje
+                        });
+                    }
+                });
+                
                 try {
-                    const url = formData.id ? `/api/maquinas/${formData.id}` : '/api/maquinas';
-                    const method = formData.id ? 'PUT' : 'POST';
-                    
+                    // Guardar máquina
+                    const url = esEdicion ? `/api/maquinas/${maquinaId}` : '/api/maquinas';
                     const response = await fetch(url, {
-                        method: method,
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(formData)
+                        method: esEdicion ? 'PUT' : 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datosBasicos)
                     });
                     
-                    if (response.ok) {
-                        this.cerrarModal();
-                        this.cargarMaquinas();
-                        ModalManager.mostrarExito('Máquina guardada correctamente');
-                    } else {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || 'Error al guardar la máquina');
-                    }
+                    if (!response.ok) throw new Error('Error guardando máquina');
+                    
+                    const result = await response.json();
+                    const newId = result.data?.maquina_id || maquinaId;
+                    
+                    // Guardar datos técnicos
+                    await fetch(`/api/maquinas/${newId}/technical`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datosTecnicos)
+                    });
+                    
+                    // Guardar propietarios
+                    await fetch(`/api/maquinas/${newId}/propietarios`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(propietarios)
+                    });
+                    
+                    this.mostrarAlerta(esEdicion ? 'Máquina actualizada' : 'Máquina creada', 'success');
+                    this.cerrarModal();
+                    this.cargarMaquinas();
+                    
                 } catch (error) {
                     console.error('Error guardando máquina:', error);
-                    ModalManager.mostrarError('Error al guardar la máquina: ' + error.message);
+                    this.mostrarAlerta('Error guardando máquina', 'error');
                 }
             },
 
-            eliminarMaquina: async function(id) {
-                if (!confirm('¿Estás seguro de que quieres eliminar esta máquina?')) {
-                    return;
-                }
+            verEstaciones: async function(maquinaId) {
+                const maquina = this.maquinas.find(m => m.id === maquinaId);
+                if (!maquina) return;
                 
-                try {
-                    const response = await fetch(`/api/maquinas/${id}`, {
-                        method: 'DELETE'
-                    });
-                    
-                    if (response.ok) {
-                        this.cargarMaquinas();
-                        ModalManager.mostrarExito('Máquina eliminada correctamente');
-                    } else {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || 'Error al eliminar la máquina');
-                    }
-                } catch (error) {
-                    console.error('Error eliminando máquina:', error);
-                    ModalManager.mostrarError('Error al eliminar la máquina: ' + error.message);
-                }
+                const techResponse = await fetch(`/api/esp32/machine-technical/${maquinaId}`);
+                const techData = techResponse.ok ? await techResponse.json() : { data: {} };
+                
+                const stations = techData.data?.stations || [];
+                let html = '<div class="space-y-4">';
+                
+                stations.forEach((station, index) => {
+                    html += `
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold mb-2">Estación ${index + 1}: ${station.name}</h4>
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div><span class="text-gray-600">Pin Relé:</span> GPIO${station.relayPin}</div>
+                                <div><span class="text-gray-600">Total Jugadas:</span> ${station.stats?.totalPlays || 0}</div>
+                                <div><span class="text-gray-600">Último Juego:</span> ${station.stats?.lastPlay || 'Nunca'}</div>
+                                <div><span class="text-gray-600">Fallas Reportadas:</span> ${station.stats?.failures || 0}</div>
+                            </div>
+                            <div class="mt-3 flex justify-end space-x-2">
+                                <button onclick="MaquinaManager.ingresarTurnoEstacion(${maquinaId}, ${index})" class="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
+                                    <i class="fas fa-play mr-1"></i>Simular Turno
+                                </button>
+                                <button onclick="MaquinaManager.reiniciarEstacion(${maquinaId}, ${index})" class="text-sm bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700">
+                                    <i class="fas fa-power-off mr-1"></i>Reiniciar
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                document.getElementById('modalEstacionTitulo').textContent = `Estaciones - ${maquina.name}`;
+                document.getElementById('modalEstacionContenido').innerHTML = html;
+                document.getElementById('modalEstacion').classList.remove('hidden');
+            },
+
+            ingresarTurnoEstacion: function(maquinaId, estacionIndex) {
+                this.mostrarAlerta(`Simulando turno en estación ${estacionIndex + 1}...`, 'info');
+                // Llamar a API para simular turno en estación específica
+            },
+
+            reiniciarEstacion: function(maquinaId, estacionIndex) {
+                this.mostrarAlerta(`Reiniciando estación ${estacionIndex + 1}...`, 'info');
+                // Llamar a API para reiniciar estación específica
+            },
+
+            cerrarModalEstacion: function() {
+                document.getElementById('modalEstacion').classList.add('hidden');
             },
 
             cerrarModal: function() {
@@ -1526,864 +1273,36 @@
 
             actualizarTodo: function() {
                 this.cargarDatosIniciales();
-                ModalManager.mostrarExito('Datos actualizados completamente');
+                this.mostrarAlerta('Datos actualizados', 'success');
             },
 
-            inicializarGraficos: function() {
-                // Gráfico de estado de máquinas
-                const ctxEstado = document.getElementById('chartEstado').getContext('2d');
-                this.chartEstado = new Chart(ctxEstado, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Activas', 'Mantenimiento', 'Inactivas'],
-                        datasets: [{
-                            data: [0, 0, 0],
-                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-
-                // Gráfico de tipos
-                const ctxTipos = document.getElementById('chartTipos').getContext('2d');
-                this.chartTipos = new Chart(ctxTipos, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Cargando...'],
-                        datasets: [{
-                            data: [1],
-                            backgroundColor: [
-                                '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-                                '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#06B6D4'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    padding: 20,
-                                    usePointStyle: true,
-                                    pointStyle: 'circle',
-                                    font: { size: 12 }
-                                }
-                            }
-                        },
-                        borderWidth: 1,
-                        borderColor: '#fff'
-                    }
-                });
-            },
-
-            // ==================== FUNCIONES PARA ACCIONES DE MÁQUINA ====================
-            
-mostrarModalIngresarTurno: function(machineId, machineName) {
-    console.log(`Mostrando modal ingresar turno - ID: ${machineId}, Nombre: ${machineName}`);
-    
-    // Buscar información de la máquina
-    const maquina = this.maquinas.find(m => m.id === machineId);
-    const infoHTML = `
-        <div class="machine-info-item">
-            <span class="machine-info-label">Máquina:</span>
-            <span class="machine-info-value">${machineName}</span>
-        </div>
-        <div class="machine-info-item">
-            <span class="machine-info-label">ID:</span>
-            <span class="machine-info-value">${machineId}</span>
-        </div>
-        <div class="machine-info-item">
-            <span class="machine-info-label">Estado:</span>
-            <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
-        </div>
-    `;
-    document.getElementById('modalTurnoInfo').innerHTML = infoHTML;
-    
-    // Pasar los datos al ModalManager
-    ModalManager.mostrar('modalConfirmarTurno', { machineId, machineName });
-},
-
-mostrarModalReiniciar: function(machineId, machineName) {
-    console.log(`Mostrando modal reiniciar - ID: ${machineId}, Nombre: ${machineName}`);
-    
-    // Buscar información de la máquina
-    const maquina = this.maquinas.find(m => m.id === machineId);
-    const infoHTML = `
-        <div class="machine-info-item">
-            <span class="machine-info-label">Máquina:</span>
-            <span class="machine-info-value">${machineName}</span>
-        </div>
-        <div class="machine-info-item">
-            <span class="machine-info-label">ID:</span>
-            <span class="machine-info-value">${machineId}</span>
-        </div>
-        <div class="machine-info-item">
-            <span class="machine-info-label">Estado:</span>
-            <span class="machine-info-value">${maquina ? maquina.status : 'Desconocido'}</span>
-        </div>
-    `;
-    document.getElementById('modalReinicioInfo').innerHTML = infoHTML;
-    
-    // Pasar los datos al ModalManager
-    ModalManager.mostrar('modalConfirmarReinicio', { machineId, machineName });
-},
-            
-            ejecutarIngresarTurno: async function(machineId, machineName) {
-    try {
-        console.log(`Enviando solicitud de ingreso de turno - ID: ${machineId}, Nombre: ${machineName}`);
-        
-        if (machineId === undefined || machineName === undefined) {
-            throw new Error('machineId o machineName es undefined');
-        }
-        
-        const response = await fetch('/api/maquinas/ingresar-turno', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                machine_id: machineId,
-                machine_name: machineName
-            })
-        });
-        
-        const data = await response.json();
-        console.log('Respuesta del servidor:', data);
-        
-        if (response.ok && data.status === 'success') {
-            ModalManager.mostrarExito(data.message || 'Turno ingresado correctamente');
-            
-            this.registrarLogAccion('INGRESAR_TURNO', {
-                machine_id: machineId,
-                machine_name: machineName,
-                turnos_ingresados: 1,
-                usage_id: data.data?.usage_id,
-                success: true
-            });
-            
-            this.cargarMaquinas();
-        } else {
-            throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
-        }
-    } catch (error) {
-        console.error('Error ingresando turno:', error);
-        ModalManager.mostrarError('Error al ingresar turno: ' + error.message);
-        
-        this.registrarLogAccion('INGRESAR_TURNO', {
-            machine_id: machineId,
-            machine_name: machineName,
-            error: error.message,
-            success: false
-        });
-    }
-},
-
-ejecutarReiniciarMaquina: async function(machineId, machineName) {
-    try {
-        console.log(`Enviando solicitud de reinicio - ID: ${machineId}, Nombre: ${machineName}`);
-        
-        if (machineId === undefined || machineName === undefined) {
-            throw new Error('machineId o machineName es undefined');
-        }
-        
-        const response = await fetch('/api/maquinas/reiniciar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                machine_id: machineId,
-                machine_name: machineName
-            })
-        });
-        
-        const data = await response.json();
-        console.log('Respuesta del servidor:', data);
-        
-        if (response.ok && data.status === 'success') {
-            let mensaje = data.message || 'Reinicio enviado correctamente';
-            if (data.data?.reset_time_seconds) {
-                mensaje += ` (${data.data.reset_time_seconds} segundos)`;
-            }
-            ModalManager.mostrarExito(mensaje);
-            
-            this.registrarLogAccion('REINICIAR_MAQUINA', {
-                machine_id: machineId,
-                machine_name: machineName,
-                reset_id: data.data?.reset_id,
-                command_id: data.data?.command_id,
-                reset_time: data.data?.reset_time_seconds,
-                success: true
-            });
-        } else {
-            throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
-        }
-    } catch (error) {
-        console.error('Error reiniciando máquina:', error);
-        ModalManager.mostrarError('Error al reiniciar máquina: ' + error.message);
-        
-        this.registrarLogAccion('REINICIAR_MAQUINA', {
-            machine_id: machineId,
-            machine_name: machineName,
-            error: error.message,
-            success: false
-        });
-    }
-},
-
-            registrarLogAccion: function(accion, detalles) {
-                // Registrar en consola
-                console.log(`[${accion}]`, detalles);
+            eliminarMaquina: async function(id) {
+                if (!confirm('¿Eliminar esta máquina?')) return;
                 
-                // Enviar a endpoint de logs
-                fetch('/api/logs/accion', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        accion: accion,
-                        detalles: detalles,
-                        usuario: document.getElementById('nombreUsuario')?.textContent || 'Administrador',
-                        timestamp: new Date().toISOString()
-                    })
-                }).catch(err => console.log('Log no enviado:', err));
-            }
-        };
-
-        // Función para ver reportes de una máquina
-        function verReportes(maquinaId, maquinaNombre) {
-            fetch(`/api/maquinas/${maquinaId}/reportes`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Error ${response.status}: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Datos recibidos para reportes:', data);
-                    
-                    if (data.reportes && Array.isArray(data.reportes)) {
-                        mostrarReportesModal(maquinaId, maquinaNombre, data.reportes);
-                    } else if (Array.isArray(data)) {
-                        mostrarReportesModal(maquinaId, maquinaNombre, data);
-                    } else {
-                        console.error('Estructura de datos inesperada:', data);
-                        throw new Error('Estructura de datos inesperada en la respuesta');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error cargando reportes:', error);
-                    ModalManager.mostrarError('Error cargando reportes: ' + error.message);
-                });
-        }
-
-        // Función para mostrar el modal de reportes
-        function mostrarReportesModal(maquinaId, maquinaNombre, reportes) {
-            const modal = document.getElementById('reportesModal');
-            const contenido = document.getElementById('reportesContenido');
-            
-            let html = `
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">Reportes de: ${maquinaNombre}</h3>
-                        <span class="text-sm text-gray-500">Total: ${reportes.length}</span>
-                    </div>
-                    
-                    <div class="overflow-y-auto max-h-96">
-            `;
-            
-            if (reportes.length === 0) {
-                html += `
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-clipboard-check text-4xl mb-2"></i>
-                        <p>No hay reportes para esta máquina</p>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reportado por</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                `;
-                
-                reportes.forEach((reporte) => {
-                    const fecha = reporte.reportedAt || reporte.fecha || 'N/A';
-                    const usuario = reporte.user_name || reporte.usuario || 'Desconocido';
-                    const descripcion = reporte.description || reporte.descripcion || 'Sin descripción';
-                    const estado = reporte.isResolved ? 
-                        '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Resuelto</span>' : 
-                        '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Pendiente</span>';
-                    
-                    html += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-2 text-sm">${fecha}</td>
-                            <td class="px-4 py-2 text-sm">${usuario}</td>
-                            <td class="px-4 py-2 text-sm">${descripcion}</td>
-                            <td class="px-4 py-2 text-sm">${estado}</td>
-                            <td class="px-4 py-2 text-sm">
-                                ${!reporte.isResolved ? 
-                                    `<button onclick="resolverReporte(${reporte.id}, ${maquinaId})" 
-                                             class="text-blue-600 hover:text-blue-800 text-sm">
-                                        <i class="fas fa-check-circle mr-1"></i>Resolver
-                                    </button>` : 
-                                    `<span class="text-gray-400 text-sm">Resuelto</span>`
-                                }
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                        </tbody>
-                    </table>
-                `;
-            }
-            
-            html += `
-                    </div>
-                    
-                    <div class="flex justify-end pt-4 border-t">
-                        <button onclick="cerrarModal('reportesModal')" 
-                                class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                            Cerrar
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            contenido.innerHTML = html;
-            modal.classList.remove('hidden');
-        }
-
-        // Función para resolver un reporte
-        function resolverReporte(reporteId, maquinaId) {
-            const comentarios = prompt('Ingrese comentarios sobre la resolución (opcional):');
-            
-            if (comentarios === null) {
-                return;
-            }
-            
-            console.log(`Enviando resolución para reporte ${reporteId} con comentarios: ${comentarios}`);
-            
-            fetch(`/api/reportes/${reporteId}/resolver`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    comentarios: comentarios || ''
-                })
-            })
-            .then(response => {
-                console.log(`Respuesta del servidor: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(`Error ${response.status}: ${errData.message || response.statusText}`);
-                    }).catch(() => {
-                        throw new Error(`Error ${response.status}: ${response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Reporte resuelto correctamente:', data);
-                ModalManager.mostrarExito('Reporte resuelto correctamente');
-                
-                MaquinaManager.cargarMaquinas();
-                
-                setTimeout(() => {
-                    cerrarModal('reportesModal');
-                    verReportes(maquinaId, document.getElementById('reportesModal').querySelector('h3').textContent.replace('Reportes de: ', ''));
-                }, 1500);
-            })
-            .catch(error => {
-                console.error('Error resolviendo reporte:', error);
-                ModalManager.mostrarError('Error resolviendo reporte: ' + error.message);
-            });
-        }
-
-        // ==================== HISTORIAL MANAGER ====================
-        const HistorialManager = {
-            historial: {
-                juegos: [],
-                fallas: []
-            },
-            tabActual: 'todos',
-
-            init: function() {
-                this.cargarHistorialCompleto();
-                this.cargarSelectMaquinas();
-            },
-
-            cargarHistorialCompleto: async function() {
                 try {
-                    document.getElementById('historialContainer').innerHTML = `
-                        <div class="text-center py-8 text-gray-500">
-                            <div class="loading mx-auto mb-2"></div>
-                            <p>Cargando historial...</p>
-                        </div>
-                    `;
-
-                    const juegosResponse = await fetch('/api/turnusage/recientes?limit=100');
-                    if (juegosResponse.ok) {
-                        this.historial.juegos = await juegosResponse.json();
-                    }
-
-                    const fallasResponse = await fetch('/api/machinefailures/recientes?limit=100');
-                    if (fallasResponse.ok) {
-                        this.historial.fallas = await fallasResponse.json();
-                    }
-
-                    this.actualizarEstadisticas();
-                    this.renderizarHistorial();
-
-                } catch (error) {
-                    console.error('Error cargando historial:', error);
-                    document.getElementById('historialContainer').innerHTML = `
-                        <div class="text-center py-8 text-red-500">
-                            <i class="fas fa-exclamation-circle text-4xl mb-2"></i>
-                            <p>Error al cargar el historial</p>
-                        </div>
-                    `;
-                }
-            },
-
-            cargarSelectMaquinas: async function() {
-                try {
-                    const response = await fetch('/api/maquinas');
+                    const response = await fetch(`/api/maquinas/${id}`, { method: 'DELETE' });
                     if (response.ok) {
-                        const maquinas = await response.json();
-                        const select = document.getElementById('filtroHistorialMaquina');
-                        
-                        maquinas.forEach(maquina => {
-                            const option = document.createElement('option');
-                            option.value = maquina.id;
-                            option.textContent = maquina.name;
-                            select.appendChild(option);
-                        });
+                        this.mostrarAlerta('Máquina eliminada', 'success');
+                        this.cargarMaquinas();
                     }
                 } catch (error) {
-                    console.error('Error cargando máquinas para filtro:', error);
+                    console.error('Error eliminando máquina:', error);
+                    this.mostrarAlerta('Error eliminando máquina', 'error');
                 }
             },
 
-            cambiarTab: function(tab) {
-                this.tabActual = tab;
-                
-                document.querySelectorAll('.tab-button').forEach(btn => {
-                    btn.classList.remove('active-tab', 'text-blue-600', 'border-blue-600');
-                    btn.classList.add('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
-                });
-                
-                const tabActivo = document.getElementById(`tab-${tab}`);
-                tabActivo.classList.add('active-tab', 'text-blue-600', 'border-blue-600');
-                tabActivo.classList.remove('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
-                
-                this.renderizarHistorial();
-            },
-
-            renderizarHistorial: function() {
-                const container = document.getElementById('historialContainer');
-                const maquinaId = document.getElementById('filtroHistorialMaquina').value;
-                const tipoFiltro = document.getElementById('filtroHistorialTipo').value;
-                
-                let eventos = [];
-                
-                if (this.tabActual === 'todos' || this.tabActual === 'juegos') {
-                    eventos = eventos.concat(this.historial.juegos.map(j => ({
-                        ...j,
-                        tipo: 'juego',
-                        fecha: j.usedAt || j.fecha_hora,
-                        titulo: `Juego en ${j.machine_name || j.maquina_nombre}`,
-                        icono: 'gamepad',
-                        color: 'blue'
-                    })));
-                }
-                
-                if (this.tabActual === 'todos' || this.tabActual === 'fallas') {
-                    eventos = eventos.concat(this.historial.fallas.map(f => ({
-                        ...f,
-                        tipo: 'falla',
-                        fecha: f.reported_at || f.fecha,
-                        titulo: `Falla reportada en ${f.machine_name}`,
-                        icono: 'exclamation-triangle',
-                        color: 'red'
-                    })));
-                }
-                
-                if (maquinaId !== 'todas') {
-                    eventos = eventos.filter(e => 
-                        e.machine_id == maquinaId || e.machineId == maquinaId
-                    );
-                }
-                
-                if (tipoFiltro !== 'todos') {
-                    eventos = eventos.filter(e => e.tipo === tipoFiltro);
-                }
-                
-                eventos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-                
-                if (eventos.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-calendar-times text-4xl mb-2"></i>
-                            <p>No hay eventos para mostrar</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                let html = '<div class="relative">';
-                
-                eventos.forEach((evento, index) => {
-                    const fecha = new Date(evento.fecha);
-                    const fechaFormateada = fecha.toLocaleDateString('es-ES', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    
-                    const esUltimo = index === eventos.length - 1;
-                    
-                    if (evento.tipo === 'juego') {
-                        html += this.renderJuego(evento, fechaFormateada, esUltimo);
-                    } else {
-                        html += this.renderFalla(evento, fechaFormateada, esUltimo);
-                    }
-                });
-                
-                html += '</div>';
-                container.innerHTML = html;
-            },
-
-            renderJuego: function(juego, fecha, esUltimo) {
-                return `
-                    <div class="relative pl-8 pb-6 ${!esUltimo ? 'border-l-2 border-blue-200' : ''}">
-                        <div class="absolute left-0 -translate-x-1/2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                            <i class="fas fa-gamepad text-white text-xs"></i>
-                        </div>
-                        <div class="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition cursor-pointer" 
-                             onclick="HistorialManager.verDetallesJuego(${JSON.stringify(juego).replace(/"/g, '&quot;')})">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="font-semibold text-gray-800">${juego.machine_name || juego.maquina_nombre}</h4>
-                                    <p class="text-sm text-gray-600 mt-1">
-                                        <i class="fas fa-qrcode mr-1"></i>QR: ${juego.qr_code || juego.codigo_qr}
-                                        ${juego.qr_name ? ` - ${juego.qr_name}` : ''}
-                                    </p>
-                                    ${juego.package_name ? `
-                                        <p class="text-sm text-gray-600 mt-1">
-                                            <i class="fas fa-cube mr-1"></i>Paquete: ${juego.package_name}
-                                        </p>
-                                    ` : ''}
-                                </div>
-                                <span class="text-xs text-gray-500">${fecha}</span>
-                            </div>
-                            ${juego.turns_remaining !== undefined ? `
-                                <div class="mt-2 flex items-center">
-                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                        Turnos restantes: ${juego.turns_remaining}
-                                    </span>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            },
-
-            renderFalla: function(falla, fecha, esUltimo) {
-                const estadoClass = falla.isResolved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                const estadoText = falla.isResolved ? 'Resuelta' : 'Pendiente';
-                
-                return `
-                    <div class="relative pl-8 pb-6 ${!esUltimo ? 'border-l-2 border-red-200' : ''}">
-                        <div class="absolute left-0 -translate-x-1/2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                            <i class="fas fa-exclamation-triangle text-white text-xs"></i>
-                        </div>
-                        <div class="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition cursor-pointer border-l-4 ${falla.isResolved ? 'border-green-500' : 'border-red-500'}"
-                             onclick="HistorialManager.verDetallesFalla(${JSON.stringify(falla).replace(/"/g, '&quot;')})">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="font-semibold text-gray-800">${falla.machine_name}</h4>
-                                    <p class="text-sm text-gray-600 mt-1">
-                                        <i class="fas fa-qrcode mr-1"></i>QR: ${falla.qr_code || falla.codigo_qr}
-                                        ${falla.qr_name ? ` - ${falla.qr_name}` : ''}
-                                    </p>
-                                    ${falla.notes ? `
-                                        <p class="text-sm text-gray-600 mt-1">
-                                            <i class="fas fa-comment mr-1"></i>${falla.notes.substring(0, 100)}${falla.notes.length > 100 ? '...' : ''}
-                                        </p>
-                                    ` : ''}
-                                </div>
-                                <span class="text-xs text-gray-500">${fecha}</span>
-                            </div>
-                            <div class="mt-2 flex items-center space-x-2">
-                                <span class="text-xs ${estadoClass} px-2 py-1 rounded">${estadoText}</span>
-                                ${falla.turnos_devueltos ? `
-                                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                                        Turnos devueltos: ${falla.turnos_devueltos}
-                                    </span>
-                                ` : ''}
-                                ${falla.is_forced ? `
-                                    <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                        <i class="fas fa-exclamation-circle mr-1"></i>Forzada
-                                    </span>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            },
-
-            actualizarEstadisticas: function() {
-                const totalJuegos = this.historial.juegos.length;
-                const totalFallas = this.historial.fallas.length;
-                const fallasResueltas = this.historial.fallas.filter(f => f.isResolved).length;
-                
-                document.getElementById('totalJuegos').textContent = totalJuegos;
-                document.getElementById('totalFallas').textContent = totalFallas;
-                document.getElementById('totalFallasResueltas').textContent = fallasResueltas;
-                
-                const todasFechas = [
-                    ...this.historial.juegos.map(j => j.usedAt || j.fecha_hora),
-                    ...this.historial.fallas.map(f => f.reported_at || f.fecha)
-                ].filter(f => f);
-                
-                if (todasFechas.length > 0) {
-                    const ultima = new Date(Math.max(...todasFechas.map(f => new Date(f))));
-                    document.getElementById('ultimaActividad').textContent = 
-                        ultima.toLocaleDateString('es-ES', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                }
-            },
-
-            verDetallesJuego: function(juego) {
-                const modal = document.getElementById('modalDetallesJuego');
-                const contenido = document.getElementById('detallesJuegoContenido');
-                
-                const fecha = new Date(juego.usedAt || juego.fecha_hora);
-                
-                contenido.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <div class="flex items-center mb-3">
-                                <i class="fas fa-gamepad text-blue-600 text-2xl mr-3"></i>
-                                <h4 class="font-semibold text-gray-800">Información del Juego</h4>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <p class="text-gray-600">Máquina:</p>
-                                    <p class="font-medium">${juego.machine_name || juego.maquina_nombre}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">ID Máquina:</p>
-                                    <p class="font-medium">${juego.machine_id || juego.machineId}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">Fecha y Hora:</p>
-                                    <p class="font-medium">${fecha.toLocaleString('es-ES')}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">Usage ID:</p>
-                                    <p class="font-medium">${juego.id || juego.usage_id}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="flex items-center mb-3">
-                                <i class="fas fa-qrcode text-purple-600 text-2xl mr-3"></i>
-                                <h4 class="font-semibold text-gray-800">Información del QR</h4>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <p class="text-gray-600">Código QR:</p>
-                                    <p class="font-medium">${juego.qr_code || juego.codigo_qr}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">Nombre QR:</p>
-                                    <p class="font-medium">${juego.qr_name || 'N/A'}</p>
-                                </div>
-                                ${juego.package_name ? `
-                                    <div>
-                                        <p class="text-gray-600">Paquete:</p>
-                                        <p class="font-medium">${juego.package_name}</p>
-                                    </div>
-                                ` : ''}
-                                ${juego.turns_remaining !== undefined ? `
-                                    <div>
-                                        <p class="text-gray-600">Turnos restantes:</p>
-                                        <p class="font-medium">${juego.turns_remaining}</p>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                        
-                        <div class="flex justify-end">
-                            <button onclick="HistorialManager.cerrarModalJuego()" 
-                                    class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                modal.classList.remove('hidden');
-            },
-
-            verDetallesFalla: function(falla) {
-                const modal = document.getElementById('modalDetallesFalla');
-                const contenido = document.getElementById('detallesFallaContenido');
-                
-                const fecha = new Date(falla.reported_at || falla.fecha);
-                const estadoClass = falla.isResolved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                const estadoText = falla.isResolved ? 'Resuelta' : 'Pendiente';
-                
-                contenido.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="bg-red-50 p-4 rounded-lg">
-                            <div class="flex items-center mb-3">
-                                <i class="fas fa-exclamation-triangle text-red-600 text-2xl mr-3"></i>
-                                <h4 class="font-semibold text-gray-800">Información de la Falla</h4>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <p class="text-gray-600">Máquina:</p>
-                                    <p class="font-medium">${falla.machine_name}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">ID Máquina:</p>
-                                    <p class="font-medium">${falla.machine_id}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">Fecha Reporte:</p>
-                                    <p class="font-medium">${fecha.toLocaleString('es-ES')}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">Estado:</p>
-                                    <span class="${estadoClass} px-2 py-1 rounded text-xs">${estadoText}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="flex items-center mb-3">
-                                <i class="fas fa-qrcode text-purple-600 text-2xl mr-3"></i>
-                                <h4 class="font-semibold text-gray-800">Información del QR</h4>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <p class="text-gray-600">Código QR:</p>
-                                    <p class="font-medium">${falla.qr_code || falla.codigo_qr}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600">Nombre QR:</p>
-                                    <p class="font-medium">${falla.qr_name || 'N/A'}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        ${falla.notes ? `
-                            <div class="bg-yellow-50 p-4 rounded-lg">
-                                <div class="flex items-center mb-3">
-                                    <i class="fas fa-comment text-yellow-600 text-2xl mr-3"></i>
-                                    <h4 class="font-semibold text-gray-800">Notas</h4>
-                                </div>
-                                <p class="text-gray-700 text-sm">${falla.notes}</p>
-                            </div>
-                        ` : ''}
-                        
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="grid grid-cols-3 gap-3 text-center">
-                                <div>
-                                    <p class="text-gray-600 text-xs">Turnos Devueltos</p>
-                                    <p class="text-xl font-bold text-gray-800">${falla.turnos_devueltos || 0}</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-600 text-xs">Forzada</p>
-                                    <p class="text-xl font-bold text-gray-800">${falla.is_forced ? 'Sí' : 'No'}</p>
-                                </div>
-                                ${falla.forced_by ? `
-                                    <div>
-                                        <p class="text-gray-600 text-xs">Forzado por</p>
-                                        <p class="text-sm font-bold text-gray-800">${falla.forced_by}</p>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                        
-                        <div class="flex justify-end">
-                            <button onclick="HistorialManager.cerrarModalFalla()" 
-                                    class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                modal.classList.remove('hidden');
-            },
-
-            cerrarModalJuego: function() {
-                document.getElementById('modalDetallesJuego').classList.add('hidden');
-            },
-
-            cerrarModalFalla: function() {
-                document.getElementById('modalDetallesFalla').classList.add('hidden');
+            mostrarAlerta: function(mensaje, tipo) {
+                const toast = document.createElement('div');
+                toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                    tipo === 'error' ? 'bg-red-500' : tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                } text-white max-w-md`;
+                toast.innerHTML = `<div class="flex items-center"><i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i><span>${mensaje}</span></div>`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 4000);
             }
         };
 
-        // Agregar event listeners para los filtros
-        document.getElementById('filtroHistorialMaquina').addEventListener('change', () => {
-            HistorialManager.renderizarHistorial();
-        });
-
-        document.getElementById('filtroHistorialTipo').addEventListener('change', () => {
-            HistorialManager.renderizarHistorial();
-        });
-
-        // Inicializar HistorialManager después de MaquinaManager
-        const originalInit = MaquinaManager.init;
-        MaquinaManager.init = function() {
-            originalInit.call(this);
-            HistorialManager.init();
-        };
-
-        // Función para cerrar modales
-        function cerrarModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        // Inicializar cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            MaquinaManager.init();
-        });
+        document.addEventListener('DOMContentLoaded', () => MaquinaManager.init());
     </script>
 </body>
 </html>

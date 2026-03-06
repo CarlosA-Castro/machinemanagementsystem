@@ -4157,6 +4157,141 @@ def obtener_ultima_actividad_maquina(maquina_id):
         if connection:
             connection.close()
 
+# ==================== APIS PARA GESTIÓN DE IMÁGENES ====================
+
+@app.route('/api/imagenes/maquinas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def listar_imagenes_maquinas():
+    """Listar todas las imágenes disponibles para máquinas"""
+    try:
+        import os
+        static_dir = os.path.join(os.path.dirname(__file__), 'static', 'img')
+        imagenes = []
+        
+        if os.path.exists(static_dir):
+            for file in os.listdir(static_dir):
+                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    imagenes.append(file)
+        
+        return jsonify(imagenes)
+        
+    except Exception as e:
+        app.logger.error(f"Error listando imágenes: {e}")
+        return api_response('E001', http_status=500)
+
+# ==================== APIS PARA DATOS TÉCNICOS ====================
+
+@app.route('/api/maquinas/<int:maquina_id>/technical', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def guardar_technical_maquina(maquina_id):
+    """Guardar configuración técnica de la máquina"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        # Verificar si ya existe
+        cursor.execute("SELECT id FROM machinetechnical WHERE machine_id = %s", (maquina_id,))
+        existe = cursor.fetchone()
+        
+        if existe:
+            # Actualizar
+            cursor.execute("""
+                UPDATE machinetechnical 
+                SET credits_virtual = %s,
+                    credits_machine = %s,
+                    game_duration_seconds = %s,
+                    reset_time_seconds = %s,
+                    machine_subtype = %s,
+                    station_names = %s,
+                    game_type = %s,
+                    has_failure_report = %s,
+                    show_station_selection = %s,
+                    updated_at = NOW()
+                WHERE machine_id = %s
+            """, (
+                data.get('credits_virtual', 1),
+                data.get('credits_machine', 1),
+                data.get('game_duration_seconds', 180),
+                data.get('reset_time_seconds', 5),
+                data.get('machine_subtype', 'simple'),
+                json.dumps(data.get('stations', [])),
+                data.get('game_type', 'time_based'),
+                data.get('has_failure_report', True),
+                data.get('show_station_selection', False),
+                maquina_id
+            ))
+        else:
+            # Insertar
+            cursor.execute("""
+                INSERT INTO machinetechnical 
+                (machine_id, credits_virtual, credits_machine, game_duration_seconds, 
+                 reset_time_seconds, machine_subtype, station_names, game_type, 
+                 has_failure_report, show_station_selection)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                maquina_id,
+                data.get('credits_virtual', 1),
+                data.get('credits_machine', 1),
+                data.get('game_duration_seconds', 180),
+                data.get('reset_time_seconds', 5),
+                data.get('machine_subtype', 'simple'),
+                json.dumps(data.get('stations', [])),
+                data.get('game_type', 'time_based'),
+                data.get('has_failure_report', True),
+                data.get('show_station_selection', False)
+            ))
+        
+        connection.commit()
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error guardando datos técnicos: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+# ==================== APIS PARA PROPIETARIOS ====================
+
+@app.route('/api/maquinas/<int:maquina_id>/propietarios', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def guardar_propietarios_maquina(maquina_id):
+    """Guardar propietarios de la máquina"""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        
+        # Eliminar propietarios actuales
+        cursor.execute("DELETE FROM maquinapropietario WHERE maquina_id = %s", (maquina_id,))
+        
+        # Insertar nuevos
+        for prop in data:
+            cursor.execute("""
+                INSERT INTO maquinapropietario (maquina_id, propietario_id, porcentaje_propiedad)
+                VALUES (%s, %s, %s)
+            """, (maquina_id, prop['propietario_id'], prop['porcentaje']))
+        
+        connection.commit()
+        return api_response('S003', status='success')
+        
+    except Exception as e:
+        app.logger.error(f"Error guardando propietarios: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
 @app.route('/api/maquinas', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
