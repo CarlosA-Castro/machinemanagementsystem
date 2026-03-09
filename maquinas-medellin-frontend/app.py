@@ -4366,6 +4366,146 @@ def crear_maquina():
         if connection:
             connection.close()
 
+# ==================== APIS PARA TURNUSAGE (JUEGOS) ====================
+
+@app.route('/api/turnusage/recientes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+def obtener_turnusage_recientes():
+    """Obtener historial reciente de juegos (turnusage)"""
+    connection = None
+    cursor = None
+    try:
+        limit = int(request.args.get('limit', 100))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                tu.id,
+                tu.qrCodeId,
+                tu.machineId,
+                tu.usedAt,
+                m.name as machine_name,
+                qr.code as qr_code,
+                qr.qr_name,
+                tp.name as package_name,
+                ut.turns_remaining
+            FROM turnusage tu
+            JOIN machine m ON tu.machineId = m.id
+            JOIN qrcode qr ON tu.qrCodeId = qr.id
+            LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            ORDER BY tu.usedAt DESC
+            LIMIT %s
+        """, (limit,))
+        
+        juegos = cursor.fetchall()
+        
+        for juego in juegos:
+            if juego['usedAt']:
+                fecha_colombia = parse_db_datetime(juego['usedAt'])
+                juego['usedAt'] = fecha_colombia.isoformat()
+        
+        return jsonify(juegos)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo turnusage recientes: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+# ==================== APIS PARA MACHINEFAILURES (FALLAS) ====================
+
+@app.route('/api/machinefailures/recientes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+def obtener_machinefailures_recientes():
+    """Obtener historial reciente de fallas (machinefailures + errorreport)"""
+    connection = None
+    cursor = None
+    try:
+        limit = int(request.args.get('limit', 100))
+        
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+            
+        cursor = get_db_cursor(connection)
+        
+        cursor.execute("""
+            SELECT 
+                mf.id,
+                mf.qr_code_id,
+                mf.machine_id,
+                mf.machine_name,
+                mf.turnos_devueltos,
+                mf.reported_at,
+                mf.notes,
+                mf.is_forced,
+                mf.forced_by,
+                qr.code as qr_code,
+                qr.qr_name,
+                FALSE as isResolved
+            FROM machinefailures mf
+            JOIN qrcode qr ON mf.qr_code_id = qr.id
+            ORDER BY mf.reported_at DESC
+            LIMIT %s
+        """, (limit,))
+        
+        fallas_mf = cursor.fetchall()
+        
+        cursor.execute("""
+            SELECT 
+                er.id,
+                NULL as qr_code_id,
+                er.machineId as machine_id,
+                m.name as machine_name,
+                NULL as turnos_devueltos,
+                er.reportedAt as reported_at,
+                er.description as notes,
+                FALSE as is_forced,
+                NULL as forced_by,
+                NULL as qr_code,
+                NULL as qr_name,
+                er.isResolved
+            FROM errorreport er
+            JOIN machine m ON er.machineId = m.id
+            ORDER BY er.reportedAt DESC
+            LIMIT %s
+        """, (limit,))
+        
+        fallas_er = cursor.fetchall()
+        
+        todas_fallas = fallas_mf + fallas_er
+        
+        todas_fallas.sort(key=lambda x: x['reported_at'] if x['reported_at'] else datetime.min, reverse=True)
+        
+        todas_fallas = todas_fallas[:limit]
+        
+        for falla in todas_fallas:
+            if falla['reported_at']:
+                fecha_colombia = parse_db_datetime(falla['reported_at'])
+                falla['reported_at'] = fecha_colombia.isoformat()
+        
+        return jsonify(todas_fallas)
+        
+    except Exception as e:
+        app.logger.error(f"Error obteniendo fallas recientes: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 @app.route('/api/maquinas-por-tipo', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero', 'admin_restaurante'])
