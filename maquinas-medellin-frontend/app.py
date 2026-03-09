@@ -3852,135 +3852,129 @@ def obtener_turnusage_recientes():
     connection = None
     cursor = None
     try:
-        limit = int(request.args.get('limit', 100))
-        
+        limit = request.args.get('limit', '100')
+        try:
+            limit = int(limit)
+        except:
+            limit = 100
+            
         connection = get_db_connection()
         if not connection:
-            return api_response('E006', http_status=500)
+            return jsonify([])  # Retornar array vacío en lugar de error
             
         cursor = get_db_cursor(connection)
+        if not cursor:
+            return jsonify([])
         
-        cursor.execute("""
+        query = """
             SELECT 
                 tu.id,
                 tu.qrCodeId,
                 tu.machineId,
                 tu.usedAt,
-                m.name as machine_name,
-                qr.code as qr_code,
-                qr.qr_name,
-                tp.name as package_name,
-                ut.turns_remaining
+                COALESCE(m.name, 'Máquina desconocida') as machine_name,
+                COALESCE(qr.code, '') as qr_code,
+                COALESCE(qr.qr_name, '') as qr_name,
+                COALESCE(tp.name, 'Sin paquete') as package_name,
+                COALESCE(ut.turns_remaining, 0) as turns_remaining
             FROM turnusage tu
-            JOIN machine m ON tu.machineId = m.id
-            JOIN qrcode qr ON tu.qrCodeId = qr.id
+            LEFT JOIN machine m ON tu.machineId = m.id
+            LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
             LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             ORDER BY tu.usedAt DESC
             LIMIT %s
-        """, (limit,))
+        """
+        
+        cursor.execute(query, (limit,))
         
         juegos = cursor.fetchall()
+        resultado = []
         
-        # Formatear fechas
         for juego in juegos:
-            if juego['usedAt']:
-                fecha_colombia = parse_db_datetime(juego['usedAt'])
-                juego['usedAt'] = fecha_colombia.isoformat()
+            juego_dict = dict(juego)
+            if juego_dict.get('usedAt'):
+                try:
+                    if hasattr(juego_dict['usedAt'], 'isoformat'):
+                        juego_dict['usedAt'] = juego_dict['usedAt'].isoformat()
+                except:
+                    juego_dict['usedAt'] = str(juego_dict['usedAt'])
+            resultado.append(juego_dict)
         
-        return jsonify(juegos)
+        return jsonify(resultado)
         
     except Exception as e:
         app.logger.error(f"Error obteniendo turnusage recientes: {e}")
-        return api_response('E001', http_status=500)
+        return jsonify([])  # Siempre retornar array vacío en caso de error
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
 
+
 @app.route('/api/machinefailures/recientes', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_machinefailures_recientes():
-    """Obtener historial reciente de fallas (machinefailures + errorreport)"""
+    """Obtener historial reciente de fallas"""
     connection = None
     cursor = None
     try:
-        limit = int(request.args.get('limit', 100))
-        
+        limit = request.args.get('limit', '100')
+        try:
+            limit = int(limit)
+        except:
+            limit = 100
+            
         connection = get_db_connection()
         if not connection:
-            return api_response('E006', http_status=500)
+            return jsonify([])
             
         cursor = get_db_cursor(connection)
+        if not cursor:
+            return jsonify([])
         
         # Obtener fallas de machinefailures
-        cursor.execute("""
+        query = """
             SELECT 
                 mf.id,
                 mf.qr_code_id,
-                mf.machine_id,
-                mf.machine_name,
-                mf.turnos_devueltos,
+                COALESCE(mf.machine_id, 0) as machine_id,
+                COALESCE(mf.machine_name, 'Máquina desconocida') as machine_name,
+                COALESCE(mf.turnos_devueltos, 0) as turnos_devueltos,
                 mf.reported_at,
-                mf.notes,
-                mf.is_forced,
-                mf.forced_by,
-                qr.code as qr_code,
-                qr.qr_name,
-                FALSE as isResolved  -- machinefailures no tiene campo isResolved
+                COALESCE(mf.notes, '') as notes,
+                COALESCE(mf.is_forced, 0) as is_forced,
+                COALESCE(mf.forced_by, '') as forced_by,
+                COALESCE(qr.code, '') as qr_code,
+                COALESCE(qr.qr_name, '') as qr_name
             FROM machinefailures mf
-            JOIN qrcode qr ON mf.qr_code_id = qr.id
+            LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
             ORDER BY mf.reported_at DESC
             LIMIT %s
-        """, (limit,))
+        """
         
-        fallas_mf = cursor.fetchall()
+        cursor.execute(query, (limit,))
         
-        # Obtener fallas de errorreport
-        cursor.execute("""
-            SELECT 
-                er.id,
-                NULL as qr_code_id,
-                er.machineId as machine_id,
-                m.name as machine_name,
-                NULL as turnos_devueltos,
-                er.reportedAt as reported_at,
-                er.description as notes,
-                FALSE as is_forced,
-                NULL as forced_by,
-                NULL as qr_code,
-                NULL as qr_name,
-                er.isResolved
-            FROM errorreport er
-            JOIN machine m ON er.machineId = m.id
-            ORDER BY er.reportedAt DESC
-            LIMIT %s
-        """, (limit,))
+        fallas = cursor.fetchall()
+        resultado = []
         
-        fallas_er = cursor.fetchall()
+        for falla in fallas:
+            falla_dict = dict(falla)
+            if falla_dict.get('reported_at'):
+                try:
+                    if hasattr(falla_dict['reported_at'], 'isoformat'):
+                        falla_dict['reported_at'] = falla_dict['reported_at'].isoformat()
+                except:
+                    falla_dict['reported_at'] = str(falla_dict['reported_at'])
+            resultado.append(falla_dict)
         
-        # Combinar resultados
-        todas_fallas = fallas_mf + fallas_er
-        
-        # Ordenar por fecha
-        todas_fallas.sort(key=lambda x: x['reported_at'] if x['reported_at'] else datetime.min, reverse=True)
-        
-        # Limitar
-        todas_fallas = todas_fallas[:limit]
-        
-        # Formatear fechas
-        for falla in todas_fallas:
-            if falla['reported_at']:
-                fecha_colombia = parse_db_datetime(falla['reported_at'])
-                falla['reported_at'] = fecha_colombia.isoformat()
-        
-        return jsonify(todas_fallas)
+        return jsonify(resultado)
         
     except Exception as e:
         app.logger.error(f"Error obteniendo fallas recientes: {e}")
-        return api_response('E001', http_status=500)
+        return jsonify([])
     finally:
         if cursor:
             cursor.close()

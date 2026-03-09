@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Tus estilos existentes se mantienen igual */
         #particles-js {
             position: fixed;
             width: 100%;
@@ -84,8 +83,6 @@
             background-color: #818cf8;
             color: white;
         }
-        
-        /* Estilos para estaciones */
         .station-card {
             border: 1px solid #e5e7eb;
             border-radius: 12px;
@@ -106,8 +103,6 @@
             justify-content: flex-end;
             margin-top: 0.5rem;
         }
-        
-        /* Estilos para previsualización de imágenes */
         .image-preview {
             width: 100px;
             height: 100px;
@@ -135,8 +130,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 12px;
         }
-        
-                @media (max-width: 1024px) {
+        @media (max-width: 1024px) {
             .flex.min-h-screen {
                 flex-direction: column;
                 height: auto;
@@ -151,27 +145,21 @@
                 order: 2;
                 padding: 1rem !important;
             }
-            
-            /* Estilos para el sidebar en móvil */
             .sidebar-nav {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 0.5rem;
                 padding: 1rem;
             }
-            
             .sidebar-nav a {
                 flex: 1;
                 min-width: 120px;
                 text-align: center;
                 padding: 0.75rem 0.5rem !important;
             }
-            
-            /* Control de visualización de usuario */
             .user-info-desktop {
                 display: none !important;
             }
-            
             .user-info-mobile {
                 display: block !important;
                 width: 100%;
@@ -181,83 +169,67 @@
                 text-align: center;
             }
         }
-        
         @media (min-width: 1025px) {
             .user-info-desktop {
                 display: block !important;
             }
-            
             .user-info-mobile {
                 display: none !important;
             }
         }
-
-        /* Estilos para la tabla responsive */
         .table-container {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
-        
-        /* Estilos para los botones de acción */
         .action-button {
             padding: 0.5rem;
             border-radius: 0.5rem;
             transition: all 0.2s;
         }
-        
         .action-button:hover {
             transform: scale(1.1);
         }
-        
-        /* Estilos para el modal de estaciones */
         .station-detail-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
         .station-stat {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 0.5rem;
             padding: 0.5rem;
             backdrop-filter: blur(5px);
         }
-        
-        /* Estilos para el modal de confirmación */
         .modal-overlay {
             background-color: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(5px);
         }
-        
-        /* Estilos para las alertas */
         .alert-success {
             background-color: #10b981;
             color: white;
         }
-        
         .alert-error {
             background-color: #ef4444;
             color: white;
         }
-        
         .alert-warning {
             background-color: #f59e0b;
             color: white;
         }
-        
         .alert-info {
             background-color: #3b82f6;
             color: white;
+        }
+        .historial-tab.active {
+            color: #8b5cf6;
+            border-color: #8b5cf6;
         }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-    <!-- Fondo de partículas -->
     <div id="particles-js"></div>
 
-    <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Barra lateral con indicador activo -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
@@ -299,7 +271,6 @@
                     </a>
                 </nav>
             </div>
-            <!-- Información de usuario -->
             <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
                 <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
                 <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
@@ -313,9 +284,7 @@
             </div>
         </aside>
 
-        <!-- Contenido principal -->
         <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
-            <!-- Header -->
             <div class="glass-card mb-6">
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                     <div>
@@ -338,7 +307,6 @@
                 </div>
             </div>
 
-            <!-- Estadísticas rápidas -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6 stat-grid">
                 <div class="stat-card glass-card border-l-4 border-l-green-500">
                     <div class="flex items-center">
@@ -386,7 +354,6 @@
                 </div>
             </div>
 
-            <!-- Filtros y búsqueda -->
             <div class="glass-card mb-6">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
@@ -429,7 +396,6 @@
                 </div>
             </div>
 
-            <!-- Lista de máquinas -->
             <div class="glass-card">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">
@@ -463,10 +429,117 @@
                     </table>
                 </div>
             </div>
+
+            <!-- NUEVA SECCIÓN: HISTORIAL GLOBAL -->
+            <div class="glass-card mt-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-history mr-2 text-purple-600"></i>Historial Global de Juegos y Fallas
+                    </h3>
+                    <div class="flex gap-2">
+                        <select id="historialFiltro" class="border border-gray-300 rounded-lg p-2 text-sm" onchange="HistorialManager.filtrar()">
+                            <option value="todo">Todo</option>
+                            <option value="juegos">Solo Juegos</option>
+                            <option value="fallas">Solo Fallas</option>
+                        </select>
+                        <select id="historialMaquina" class="border border-gray-300 rounded-lg p-2 text-sm" onchange="HistorialManager.filtrar()">
+                            <option value="todas">Todas las máquinas</option>
+                        </select>
+                        <button onclick="HistorialManager.actualizar()" class="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border-b border-gray-200 mb-4">
+                    <ul class="flex flex-wrap -mb-px">
+                        <li class="mr-2">
+                            <button onclick="HistorialManager.cambiarVista('tiempo-real')" class="historial-tab active inline-block p-3 text-purple-600 border-b-2 border-purple-600" id="tab-tiempo-real">
+                                <i class="fas fa-bolt mr-1"></i>Tiempo Real
+                            </button>
+                        </li>
+                        <li class="mr-2">
+                            <button onclick="HistorialManager.cambiarVista('historico')" class="historial-tab inline-block p-3 border-b-2 border-transparent hover:text-gray-600" id="tab-historico">
+                                <i class="fas fa-calendar-alt mr-1"></i>Histórico
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div id="vista-tiempo-real" class="historial-vista">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-green-600 text-white p-3 rounded-t-lg flex justify-between items-center">
+                                <h4 class="font-semibold"><i class="fas fa-play mr-2"></i>Últimos Juegos</h4>
+                                <span class="text-xs bg-white text-green-600 px-2 py-1 rounded-full" id="juegos-count">0</span>
+                            </div>
+                            <div class="p-3 max-h-96 overflow-y-auto" id="lista-juegos">
+                                <div class="text-center py-8 text-gray-500">
+                                    <div class="loading mx-auto mb-2"></div>
+                                    <p>Cargando juegos...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-red-600 text-white p-3 rounded-t-lg flex justify-between items-center">
+                                <h4 class="font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i>Últimas Fallas</h4>
+                                <span class="text-xs bg-white text-red-600 px-2 py-1 rounded-full" id="fallas-count">0</span>
+                            </div>
+                            <div class="p-3 max-h-96 overflow-y-auto" id="lista-fallas">
+                                <div class="text-center py-8 text-gray-500">
+                                    <div class="loading mx-auto mb-2"></div>
+                                    <p>Cargando fallas...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="vista-historico" class="historial-vista hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio</label>
+                            <input type="date" id="historialFechaInicio" class="w-full border border-gray-300 rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
+                            <input type="date" id="historialFechaFin" class="w-full border border-gray-300 rounded-lg p-2">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="HistorialManager.cargarHistorico()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                <i class="fas fa-search mr-2"></i>Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="w-full min-w-[1000px]">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Fecha/Hora</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Tipo</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Máquina</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estación</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">QR</th>
+                                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Usuario/Detalle</th>
+                                    <th class="text-center py-3 px-4 text-sm font-medium text-gray-700">Turnos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-historico">
+                                <tr>
+                                    <td colspan="7" class="text-center py-8 text-gray-500">
+                                        Selecciona fechas para ver el historial
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
-    <!-- Información de usuario móvil -->
     <div class="user-info-mobile bg-gray-800 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuarioMobile">{{ nombre_usuario }}</span></div>
         <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
@@ -492,7 +565,6 @@
             <form id="formMaquina" onsubmit="MaquinaManager.guardarMaquina(event)">
                 <input type="hidden" id="maquinaId" value="">
                 
-                <!-- Pestañas del modal -->
                 <div class="border-b border-gray-200 mb-4">
                     <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
                         <li class="mr-2">
@@ -518,7 +590,6 @@
                     </ul>
                 </div>
 
-                <!-- Pestaña Información Básica -->
                 <div id="tab-basico-content" class="tab-content">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
@@ -572,14 +643,11 @@
                         <textarea id="errorNote" rows="3" class="w-full border border-gray-300 rounded-lg p-3" placeholder="Descripción de problemas o errores..."></textarea>
                     </div>
                     
-                    <!-- Sección de Propietarios -->
                     <div class="mb-6">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">
                             <i class="fas fa-users mr-2"></i>Distribución de Propiedad
                         </h4>
-                        <div id="propietarios-container" class="space-y-3">
-                            <!-- Los propietarios se cargarán dinámicamente -->
-                        </div>
+                        <div id="propietarios-container" class="space-y-3"></div>
                         <div class="mt-3 text-sm text-gray-600">
                             <i class="fas fa-info-circle mr-1"></i>
                             El porcentaje total debe sumar 100%
@@ -587,7 +655,6 @@
                     </div>
                 </div>
 
-                <!-- Pestaña Configuración Técnica -->
                 <div id="tab-tecnico-content" class="tab-content hidden">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
@@ -634,7 +701,6 @@
                         </div>
                     </div>
                     
-                    <!-- Pines de relé -->
                     <div class="mb-4">
                         <h4 class="text-lg font-semibold mb-3 text-gray-800">
                             <i class="fas fa-microchip mr-2"></i>Pines de Relé por Estación
@@ -643,13 +709,10 @@
                             <i class="fas fa-info-circle mr-1"></i>
                             Para máquinas multi-estación, asigna un pin GPIO diferente a cada estación
                         </p>
-                        <div id="relay-pins-container" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <!-- Se llenará dinámicamente según el número de estaciones -->
-                        </div>
+                        <div id="relay-pins-container" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
                     </div>
                 </div>
 
-                <!-- Pestaña Imagen -->
                 <div id="tab-imagen-content" class="tab-content hidden">
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Subir nueva imagen</label>
@@ -684,7 +747,6 @@
                     </div>
                 </div>
 
-                <!-- Pestaña Estaciones (para máquinas multi-estación) -->
                 <div id="tab-estaciones-content" class="tab-content hidden">
                     <div class="mb-4">
                         <p class="text-sm text-gray-600 mb-4">
@@ -702,9 +764,7 @@
                             </select>
                         </div>
                         
-                        <div id="estaciones-container">
-                            <!-- Las estaciones se generarán dinámicamente -->
-                        </div>
+                        <div id="estaciones-container"></div>
                         
                         <div class="mt-4 text-sm text-gray-600">
                             <i class="fas fa-info-circle mr-1"></i>
@@ -726,7 +786,6 @@
         </div>
     </div>
 
-    <!-- Modal para detalles de estación -->
     <div id="modalEstacion" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
@@ -735,13 +794,10 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div id="modalEstacionContenido" class="space-y-4">
-                <!-- Contenido dinámico -->
-            </div>
+            <div id="modalEstacionContenido" class="space-y-4"></div>
         </div>
     </div>
 
-    <!-- Modal para confirmar reinicio -->
     <div id="modalConfirmarReinicio" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
@@ -765,7 +821,6 @@
         </div>
     </div>
 
-    <!-- Modal para ingresar turno -->
     <div id="modalIngresarTurno" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
@@ -786,6 +841,18 @@
                     <i class="fas fa-play mr-2"></i>Ingresar Turno
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div id="modalDetalleFalla" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800" id="detalleFallaTitulo">Detalle de Falla</h3>
+                <button onclick="HistorialManager.cerrarModalFalla()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="detalleFallaContenido" class="space-y-4"></div>
         </div>
     </div>
 
@@ -835,6 +902,9 @@
                 if (nombreUsuario && nombreUsuarioMobile) {
                     nombreUsuarioMobile.textContent = nombreUsuario.textContent;
                 }
+                
+                // Inicializar HistorialManager
+                HistorialManager.init();
             },
 
             marcarEnlaceActivo: function() {
@@ -889,19 +959,16 @@
                 const hora = ahora.toLocaleTimeString('es-CO', opciones);
                 const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
                 
-                // Actualizar en sidebar (desktop)
                 const horaSidebar = document.getElementById('horaActualSidebar');
                 const fechaSidebar = document.getElementById('fechaActualSidebar');
                 if (horaSidebar) horaSidebar.textContent = hora;
                 if (fechaSidebar) fechaSidebar.textContent = fecha;
                 
-                // Actualizar en versión móvil
                 const horaMobile = document.getElementById('horaActualMobile');
                 const fechaMobile = document.getElementById('fechaActualMobile');
                 if (horaMobile) horaMobile.textContent = hora;
                 if (fechaMobile) fechaMobile.textContent = fecha;
                 
-                // Sincronizar nombre de usuario en móvil
                 const nombreUsuario = document.getElementById('nombreUsuario');
                 const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
                 if (nombreUsuario && nombreUsuarioMobile) {
@@ -928,7 +995,6 @@
                     if (response.ok) {
                         this.maquinas = await response.json();
                         
-                        // Cargar datos técnicos para cada máquina
                         for (let maquina of this.maquinas) {
                             try {
                                 const techResponse = await fetch(`/api/esp32/machine-config/${maquina.id}`);
@@ -940,7 +1006,6 @@
                                         maquina.technical = this.getDefaultTechnical(maquina);
                                     }
                                 } else {
-                                    // Si no hay datos técnicos, usar valores por defecto
                                     maquina.technical = this.getDefaultTechnical(maquina);
                                 }
                             } catch (error) {
@@ -1130,7 +1195,6 @@
                 document.getElementById('imagenPreview').src = '/static/img/default.jpg';
                 document.getElementById('tab-estaciones-li').style.display = 'none';
                 
-                // Resetear estaciones
                 this.estaciones = [];
                 document.getElementById('machineSubtype').value = 'simple';
                 
@@ -1145,13 +1209,20 @@
                 
                 this.maquinaActual = maquina;
                 
-                // Cargar datos técnicos
                 try {
                     const techResponse = await fetch(`/api/esp32/machine-config/${id}`);
                     let techData = { data: {} };
+                    let stationNames = [];
+                    let relayPins = [26, 27, -1, -1];
+                    
                     if (techResponse.ok) {
                         techData = await techResponse.json();
                         console.log('Datos técnicos cargados:', techData);
+                        
+                        if (techData.status === 'success' && techData.data) {
+                            stationNames = techData.data.station_names || [];
+                            relayPins = techData.data.relay_pins || [26, 27, -1, -1];
+                        }
                     }
                     
                     document.getElementById('modalTitulo').textContent = 'Editar Máquina';
@@ -1165,7 +1236,6 @@
                     document.getElementById('imagenFilename').value = maquina.imagen || 'default.jpg';
                     document.getElementById('imagenPreview').src = `/static/img/${maquina.imagen || 'default.jpg'}`;
                     
-                    // Datos técnicos
                     const machineSubtype = techData.data?.machine_subtype || 'simple';
                     document.getElementById('machineSubtype').value = machineSubtype;
                     document.getElementById('gameType').value = techData.data?.game_type || 'time_based';
@@ -1176,47 +1246,37 @@
                     document.getElementById('hasFailureReport').checked = techData.data?.has_failure_report !== false;
                     document.getElementById('showStationSelection').checked = techData.data?.show_station_selection || false;
                     
-                    // Procesar estaciones
-                    const stationNames = techData.data?.station_names || [];
+                    this.estaciones = [];
                     
-                    if (stationNames.length === 0 && machineSubtype === 'multi_station') {
-                        // Crear estaciones por defecto según la máquina
-                        if (id === 1) {
-                            this.estaciones = [
-                                { name: 'Simulador 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                                { name: 'Simulador 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                            ];
-                        } else if (id === 9) {
-                            this.estaciones = [
-                                { name: 'Silla 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                                { name: 'Silla 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                            ];
-                        } else {
-                            this.estaciones = [
-                                { name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                                { name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                            ];
-                        }
-                    } else {
-                        this.estaciones = stationNames.map((name, index) => ({
-                            name: name,
-                            relayPin: index === 0 ? 26 : index === 1 ? 27 : -1,
-                            stats: { totalPlays: 0, lastPlay: null, failures: 0 }
-                        }));
-                    }
-                    
-                    // Actualizar el selector de número de estaciones
-                    const stationCountSelect = document.getElementById('stationCount');
-                    if (stationCountSelect) {
-                        stationCountSelect.value = this.estaciones.length;
-                    }
-                    
-                    // Mostrar/ocultar pestaña de estaciones
                     if (machineSubtype === 'multi_station') {
+                        const stationCount = stationNames.length || 2;
+                        
+                        for (let i = 0; i < stationCount; i++) {
+                            this.estaciones.push({
+                                name: stationNames[i] || `Estación ${i+1}`,
+                                relayPin: relayPins[i] !== undefined ? relayPins[i] : (i === 0 ? 26 : i === 1 ? 27 : -1),
+                                stats: {
+                                    totalPlays: 0,
+                                    lastPlay: null,
+                                    failures: 0
+                                }
+                            });
+                        }
+                        
+                        document.getElementById('stationCount').value = this.estaciones.length;
                         document.getElementById('tab-estaciones-li').style.display = 'block';
                         this.renderizarEstaciones();
                         this.actualizarPinesRele();
                     } else {
+                        this.estaciones = [{
+                            name: maquina.name,
+                            relayPin: relayPins[0] || 26,
+                            stats: {
+                                totalPlays: 0,
+                                lastPlay: null,
+                                failures: 0
+                            }
+                        }];
                         document.getElementById('tab-estaciones-li').style.display = 'none';
                     }
                     
@@ -1260,7 +1320,6 @@
 
             cambioTipo: function() {
                 const tipo = document.getElementById('tipo').value;
-                // Actualizar icono o sugerencias según tipo
             },
 
             cambioSubtipo: function() {
@@ -1268,7 +1327,6 @@
                 if (subtipo === 'multi_station') {
                     document.getElementById('tab-estaciones-li').style.display = 'block';
                     if (this.estaciones.length === 0) {
-                        // Crear estaciones por defecto
                         this.estaciones = [
                             { name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
                             { name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
@@ -1289,10 +1347,8 @@
                 
                 for (let i = 0; i < count; i++) {
                     if (i < this.estaciones.length) {
-                        // Mantener estación existente
                         newStations.push({...this.estaciones[i]});
                     } else {
-                        // Crear nueva estación
                         newStations.push({
                             name: `Estación ${i+1}`,
                             relayPin: i === 0 ? 26 : i === 1 ? 27 : -1,
@@ -1357,35 +1413,48 @@
                 
                 this.estaciones.forEach((estacion, index) => {
                     html += `
-                        <div class="station-card mb-3">
+                        <div class="station-card mb-3" data-estacion="${index}">
                             <div class="flex justify-between items-start mb-2">
                                 <h4 class="font-semibold">Estación ${index + 1}</h4>
-                                <button type="button" onclick="MaquinaManager.eliminarEstacion(${index})" class="text-red-600 hover:text-red-800" ${this.estaciones.length <= 1 ? 'disabled' : ''}>
+                                <button type="button" onclick="MaquinaManager.eliminarEstacion(${index})" 
+                                        class="text-red-600 hover:text-red-800 ${this.estaciones.length <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                                        ${this.estaciones.length <= 1 ? 'disabled' : ''}>
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                                    <input type="text" value="${estacion.name}" onchange="MaquinaManager.actualizarEstacion(${index}, 'name', this.value)" class="w-full border border-gray-300 rounded-lg p-2">
+                                    <input type="text" value="${estacion.name}" 
+                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'name', this.value)" 
+                                           class="w-full border border-gray-300 rounded-lg p-2 estacion-nombre">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Pin Relé</label>
-                                    <input type="number" value="${estacion.relayPin || 26}" onchange="MaquinaManager.actualizarEstacion(${index}, 'relayPin', this.value)" class="w-full border border-gray-300 rounded-lg p-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Pin Relé (GPIO)</label>
+                                    <input type="number" value="${estacion.relayPin}" 
+                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'relayPin', this.value)" 
+                                           class="w-full border border-gray-300 rounded-lg p-2 estacion-pin">
                                 </div>
                             </div>
-                            ${estacion.stats ? `
-                                <div class="mt-2 text-sm text-gray-600 flex space-x-3">
-                                    <span class="flex items-center"><i class="fas fa-play mr-1"></i>${estacion.stats.totalPlays || 0} jugadas</span>
-                                    <span class="flex items-center"><i class="fas fa-clock mr-1"></i>Último: ${estacion.stats.lastPlay || 'Nunca'}</span>
-                                    <span class="flex items-center"><i class="fas fa-exclamation-triangle mr-1"></i>Fallas: ${estacion.stats.failures || 0}</span>
-                                </div>
-                            ` : ''}
+                            <div class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Usa -1 para deshabilitar el relé
+                            </div>
                         </div>
                     `;
                 });
                 
+                if (this.estaciones.length < 4) {
+                    html += `
+                        <button type="button" onclick="MaquinaManager.agregarEstacion()" 
+                                class="w-full mt-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-500">
+                            <i class="fas fa-plus mr-2"></i>Agregar Estación
+                        </button>
+                    `;
+                }
+                
                 container.innerHTML = html;
+                this.actualizarPinesRele();
             },
 
             agregarEstacion: function() {
@@ -1397,7 +1466,6 @@
                 });
                 document.getElementById('stationCount').value = this.estaciones.length;
                 this.renderizarEstaciones();
-                this.actualizarPinesRele();
             },
 
             eliminarEstacion: function(index) {
@@ -1408,7 +1476,6 @@
                 this.estaciones.splice(index, 1);
                 document.getElementById('stationCount').value = this.estaciones.length;
                 this.renderizarEstaciones();
-                this.actualizarPinesRele();
             },
 
             actualizarEstacion: function(index, campo, valor) {
@@ -1464,7 +1531,6 @@
                 const maquinaId = document.getElementById('maquinaId').value;
                 const esEdicion = !!maquinaId;
                 
-                // Datos básicos
                 const datosBasicos = {
                     name: document.getElementById('nombre').value,
                     type: document.getElementById('tipo').value,
@@ -1475,14 +1541,12 @@
                     image_filename: document.getElementById('imagenFilename').value
                 };
                 
-                // Construir array de pines de relé
                 const relayPins = [];
                 for (let i = 0; i < 4; i++) {
                     const pinInput = document.getElementById(`relayPin${i+1}`);
                     relayPins.push(pinInput ? parseInt(pinInput.value) : -1);
                 }
                 
-                // Datos técnicos
                 const datosTecnicos = {
                     machine_subtype: document.getElementById('machineSubtype').value,
                     game_type: document.getElementById('gameType').value,
@@ -1495,25 +1559,32 @@
                     relay_pins: relayPins
                 };
                 
-                // Estaciones (solo para multi)
                 if (datosTecnicos.machine_subtype === 'multi_station') {
-                    // Asegurar que las estaciones tengan la estructura correcta
                     const stations = this.estaciones.map(est => ({
                         name: est.name,
-                        relayPin: est.relayPin !== undefined ? est.relayPin : 26,
-                        stats: est.stats || { totalPlays: 0, lastPlay: null, failures: 0 }
+                        relayPin: parseInt(est.relayPin) || 26
                     }));
                     
+                    datosTecnicos.station_names = stations.map(s => s.name);
+                    
+                    const relayPinsArray = [-1, -1, -1, -1];
+                    stations.forEach((s, index) => {
+                        if (index < 4) relayPinsArray[index] = s.relayPin;
+                    });
+                    datosTecnicos.relay_pins = relayPinsArray;
                     datosTecnicos.stations = stations;
                     
-                    // También guardar solo los nombres en station_names para compatibilidad
-                    datosTecnicos.station_names = stations.map(s => s.name);
+                    console.log('Estaciones a guardar:', stations);
+                    console.log('Relay pins:', relayPinsArray);
                 } else {
-                    datosTecnicos.stations = [];
                     datosTecnicos.station_names = [datosBasicos.name];
+                    datosTecnicos.relay_pins = [this.estaciones[0]?.relayPin || 26, -1, -1, -1];
+                    datosTecnicos.stations = [{
+                        name: datosBasicos.name,
+                        relayPin: this.estaciones[0]?.relayPin || 26
+                    }];
                 }
                 
-                // Propietarios
                 const propietarios = [];
                 document.querySelectorAll('.propietario-input').forEach(input => {
                     const porcentaje = parseFloat(input.value) || 0;
@@ -1526,7 +1597,6 @@
                 });
                 
                 try {
-                    // Guardar máquina
                     const url = esEdicion ? `/api/maquinas/${maquinaId}` : '/api/maquinas';
                     const response = await fetch(url, {
                         method: esEdicion ? 'PUT' : 'POST',
@@ -1539,7 +1609,6 @@
                     const result = await response.json();
                     const newId = result.data?.maquina_id || maquinaId;
                     
-                    // Guardar datos técnicos
                     const techResponse = await fetch(`/api/maquinas/${newId}/technical`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1550,7 +1619,6 @@
                         console.warn('Error guardando datos técnicos');
                     }
                     
-                    // Guardar propietarios
                     await fetch(`/api/maquinas/${newId}/propietarios`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1574,7 +1642,6 @@
                 this.machineIdActual = maquinaId;
                 
                 try {
-                    // Intentar obtener los datos técnicos
                     const techResponse = await fetch(`/api/esp32/machine-config/${maquinaId}`);
                     let stations = [];
                     
@@ -1583,7 +1650,6 @@
                         console.log('Datos técnicos para estaciones:', techData);
                         
                         if (techData.status === 'success' && techData.data) {
-                            // Verificar si hay station_names
                             if (techData.data.station_names && Array.isArray(techData.data.station_names)) {
                                 stations = techData.data.station_names.map((name, index) => ({
                                     index: index,
@@ -1599,7 +1665,6 @@
                         }
                     }
                     
-                    // Si no se obtuvieron estaciones de la API, usar valores por defecto según el ID
                     if (stations.length === 0) {
                         if (maquinaId === 1) {
                             stations = [
@@ -1715,7 +1780,6 @@
                     if (response.ok) {
                         this.mostrarAlerta(`Reinicio enviado a ${this.estacionActual.nombre}`, 'success');
                         
-                        // Registrar log
                         await fetch('/api/logs/accion', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1762,7 +1826,6 @@
                     if (response.ok) {
                         this.mostrarAlerta(`Turno ingresado en ${this.estacionActual.nombre}`, 'success');
                         
-                        // Registrar log
                         await fetch('/api/logs/accion', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1804,6 +1867,7 @@
 
             actualizarTodo: function() {
                 this.cargarDatosIniciales();
+                HistorialManager.actualizar();
                 this.mostrarAlerta('Datos actualizados', 'success');
             },
 
@@ -1817,6 +1881,7 @@
                     if (response.ok) {
                         this.mostrarAlerta('Máquina eliminada', 'success');
                         this.cargarMaquinas();
+                        HistorialManager.cargarMaquinas();
                     } else {
                         this.mostrarAlerta(data.message || 'Error eliminando máquina', 'error');
                     }
@@ -1827,7 +1892,6 @@
             },
 
             mostrarAlerta: function(mensaje, tipo) {
-                // Verificar si ya existe un toast y eliminarlo
                 const existingToast = document.querySelector('.toast-alert');
                 if (existingToast) existingToast.remove();
                 
@@ -1841,10 +1905,344 @@
                 `;
                 document.body.appendChild(toast);
                 
-                // Auto-cerrar después de 4 segundos
                 setTimeout(() => {
                     if (toast.parentNode) toast.remove();
                 }, 4000);
+            }
+        };
+
+        const HistorialManager = {
+            juegos: [],
+            fallas: [],
+            maquinas: [],
+            vistaActual: 'tiempo-real',
+            intervalId: null,
+
+            init: function() {
+                this.cargarMaquinas();
+                this.cargarJuegosRecientes();
+                this.cargarFallasRecientes();
+                this.iniciarAutoActualizacion();
+                this.configurarFechas();
+            },
+
+            configurarFechas: function() {
+                const hoy = new Date();
+                const hace7dias = new Date();
+                hace7dias.setDate(hace7dias.getDate() - 7);
+                
+                document.getElementById('historialFechaInicio').value = hace7dias.toISOString().split('T')[0];
+                document.getElementById('historialFechaFin').value = hoy.toISOString().split('T')[0];
+            },
+
+            cargarMaquinas: async function() {
+                try {
+                    const response = await fetch('/api/maquinas');
+                    if (response.ok) {
+                        this.maquinas = await response.json();
+                        const select = document.getElementById('historialMaquina');
+                        select.innerHTML = '<option value="todas">Todas las máquinas</option>';
+                        this.maquinas.forEach(maq => {
+                            select.innerHTML += `<option value="${maq.id}">${maq.name}</option>`;
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error cargando máquinas:', error);
+                }
+            },
+
+            cargarJuegosRecientes: async function() {
+                try {
+                    const response = await fetch('/api/turnusage/recientes?limit=20');
+                    if (response.ok) {
+                        this.juegos = await response.json();
+                        this.actualizarListaJuegos();
+                    }
+                } catch (error) {
+                    console.error('Error cargando juegos:', error);
+                }
+            },
+
+            cargarFallasRecientes: async function() {
+                try {
+                    const response = await fetch('/api/machinefailures/recientes?limit=20');
+                    if (response.ok) {
+                        this.fallas = await response.json();
+                        this.actualizarListaFallas();
+                    }
+                } catch (error) {
+                    console.error('Error cargando fallas:', error);
+                }
+            },
+
+            actualizarListaJuegos: function() {
+                const container = document.getElementById('lista-juegos');
+                const countSpan = document.getElementById('juegos-count');
+                
+                countSpan.textContent = this.juegos.length;
+
+                if (this.juegos.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 text-gray-500">No hay juegos recientes</div>';
+                    return;
+                }
+
+                let html = '';
+                this.juegos.slice(0, 10).forEach(juego => {
+                    const fecha = new Date(juego.usedAt);
+                    const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                    const fechaStr = fecha.toLocaleDateString('es-CO');
+                    
+                    html += `
+                        <div class="border-b border-gray-100 last:border-0 py-2 hover:bg-gray-50">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-gamepad text-green-500 mr-2 text-sm"></i>
+                                        <span class="font-medium text-sm">${juego.machine_name}</span>
+                                        ${juego.qr_name ? `<span class="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">${juego.qr_name}</span>` : ''}
+                                    </div>
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        <span class="mr-3"><i class="far fa-clock mr-1"></i>${hora} - ${fechaStr}</span>
+                                        <span><i class="fas fa-qrcode mr-1"></i>${juego.qr_code}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        <span class="bg-blue-50 px-2 py-0.5 rounded">Paquete: ${juego.package_name || 'Sin paquete'}</span>
+                                        <span class="ml-2 bg-green-50 px-2 py-0.5 rounded">Turnos restantes: ${juego.turns_remaining}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            },
+
+            actualizarListaFallas: function() {
+                const container = document.getElementById('lista-fallas');
+                const countSpan = document.getElementById('fallas-count');
+                
+                countSpan.textContent = this.fallas.length;
+
+                if (this.fallas.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 text-gray-500">No hay fallas recientes</div>';
+                    return;
+                }
+
+                let html = '';
+                this.fallas.slice(0, 10).forEach(falla => {
+                    const fecha = new Date(falla.reported_at || falla.reportedAt);
+                    const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const esForzada = falla.is_forced || false;
+                    const turnosDevueltos = falla.turnos_devueltos || 0;
+                    
+                    html += `
+                        <div class="border-b border-gray-100 last:border-0 py-2 hover:bg-gray-50 cursor-pointer" onclick='HistorialManager.verDetalleFalla(${JSON.stringify(falla).replace(/'/g, "\\'")})'>
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-exclamation-triangle text-red-500 mr-2 text-sm"></i>
+                                        <span class="font-medium text-sm">${falla.machine_name || 'Máquina'}</span>
+                                        ${esForzada ? '<span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Forzada</span>' : ''}
+                                    </div>
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        <span class="mr-3"><i class="far fa-clock mr-1"></i>${hora}</span>
+                                        ${falla.qr_code ? `<span><i class="fas fa-qrcode mr-1"></i>${falla.qr_code}</span>` : ''}
+                                    </div>
+                                    <div class="text-xs mt-1">
+                                        <span class="bg-red-50 text-red-700 px-2 py-0.5 rounded">
+                                            Turnos devueltos: ${turnosDevueltos}
+                                        </span>
+                                        ${falla.notes ? `<span class="ml-2 text-gray-600">${falla.notes.substring(0, 30)}...</span>` : ''}
+                                    </div>
+                                    ${falla.forced_by ? `<div class="text-xs text-gray-500 mt-1">Por: ${falla.forced_by}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            },
+
+            verDetalleFalla: function(falla) {
+                const modal = document.getElementById('modalDetalleFalla');
+                const contenido = document.getElementById('detalleFallaContenido');
+                
+                const fecha = new Date(falla.reported_at || falla.reportedAt);
+                const fechaStr = fecha.toLocaleString('es-CO');
+                
+                let html = `
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-600">Máquina</p>
+                                <p class="font-medium">${falla.machine_name || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Fecha</p>
+                                <p class="font-medium">${fechaStr}</p>
+                            </div>
+                            ${falla.qr_code ? `
+                            <div>
+                                <p class="text-sm text-gray-600">QR</p>
+                                <p class="font-medium">${falla.qr_code}</p>
+                            </div>
+                            ` : ''}
+                            ${falla.qr_name ? `
+                            <div>
+                                <p class="text-sm text-gray-600">Nombre QR</p>
+                                <p class="font-medium">${falla.qr_name}</p>
+                            </div>
+                            ` : ''}
+                            <div>
+                                <p class="text-sm text-gray-600">Turnos devueltos</p>
+                                <p class="font-medium text-red-600">${falla.turnos_devueltos || 0}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Tipo</p>
+                                <p class="font-medium">${falla.is_forced ? 'Forzada' : 'Automática'}</p>
+                            </div>
+                        </div>
+                        ${falla.notes ? `
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-600 mb-1">Notas</p>
+                            <p class="text-sm bg-white p-3 rounded border">${falla.notes}</p>
+                        </div>
+                        ` : ''}
+                        ${falla.forced_by ? `
+                        <div class="mt-2 text-sm text-gray-600">
+                            Reportado por: <span class="font-medium">${falla.forced_by}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                contenido.innerHTML = html;
+                modal.classList.remove('hidden');
+            },
+
+            cerrarModalFalla: function() {
+                document.getElementById('modalDetalleFalla').classList.add('hidden');
+            },
+
+            cambiarVista: function(vista) {
+                this.vistaActual = vista;
+                
+                document.querySelectorAll('.historial-tab').forEach(tab => {
+                    tab.classList.remove('active', 'text-purple-600', 'border-purple-600');
+                });
+                document.getElementById(`tab-${vista}`).classList.add('active', 'text-purple-600', 'border-purple-600');
+                
+                document.querySelectorAll('.historial-vista').forEach(v => v.classList.add('hidden'));
+                document.getElementById(`vista-${vista}`).classList.remove('hidden');
+                
+                if (vista === 'historico') {
+                    this.cargarHistorico();
+                }
+            },
+
+            filtrar: function() {
+                const tipo = document.getElementById('historialFiltro').value;
+                const maquinaId = document.getElementById('historialMaquina').value;
+                
+                if (this.vistaActual === 'tiempo-real') {
+                    let juegosFiltrados = this.juegos;
+                    if (maquinaId !== 'todas') {
+                        juegosFiltrados = juegosFiltrados.filter(j => j.machineId == maquinaId);
+                    }
+                    
+                    let fallasFiltradas = this.fallas;
+                    if (maquinaId !== 'todas') {
+                        fallasFiltradas = fallasFiltradas.filter(f => f.machine_id == maquinaId || f.machineId == maquinaId);
+                    }
+                    
+                    if (tipo === 'juegos') {
+                        document.getElementById('lista-juegos').closest('.bg-white').style.display = 'block';
+                        document.getElementById('lista-fallas').closest('.bg-white').style.display = 'none';
+                    } else if (tipo === 'fallas') {
+                        document.getElementById('lista-juegos').closest('.bg-white').style.display = 'none';
+                        document.getElementById('lista-fallas').closest('.bg-white').style.display = 'block';
+                    } else {
+                        document.getElementById('lista-juegos').closest('.bg-white').style.display = 'block';
+                        document.getElementById('lista-fallas').closest('.bg-white').style.display = 'block';
+                    }
+                    
+                    document.getElementById('juegos-count').textContent = juegosFiltrados.length;
+                    document.getElementById('fallas-count').textContent = fallasFiltradas.length;
+                }
+            },
+
+            cargarHistorico: async function() {
+                const fechaInicio = document.getElementById('historialFechaInicio').value;
+                const fechaFin = document.getElementById('historialFechaFin').value;
+                
+                if (!fechaInicio || !fechaFin) {
+                    alert('Selecciona ambas fechas');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/estadisticas/rango-fechas?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.actualizarTablaHistorico(data);
+                    }
+                } catch (error) {
+                    console.error('Error cargando histórico:', error);
+                }
+            },
+
+            actualizarTablaHistorico: function(data) {
+                const tbody = document.getElementById('tabla-historico');
+                
+                if (!data.estadisticas_por_dia || data.estadisticas_por_dia.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">No hay datos en el rango seleccionado</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                data.estadisticas_por_dia.forEach(dia => {
+                    html += `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="py-3 px-4 text-sm">${dia.fecha}</td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Juegos: ${dia.turnos_utilizados || 0}</span>
+                                <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Ventas: ${dia.vendidos || 0}</span>
+                            </td>
+                            <td class="py-3 px-4 text-sm" colspan="5">
+                                <div class="text-gray-600">
+                                    Escaneados: ${dia.total_escaneados || 0} | 
+                                    Valor: $${(dia.valor_ventas || 0).toLocaleString()}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+            },
+
+            actualizar: function() {
+                this.cargarJuegosRecientes();
+                this.cargarFallasRecientes();
+            },
+
+            iniciarAutoActualizacion: function() {
+                if (this.intervalId) clearInterval(this.intervalId);
+                this.intervalId = setInterval(() => {
+                    if (this.vistaActual === 'tiempo-real') {
+                        this.actualizar();
+                    }
+                }, 10000);
+            },
+
+            detenerAutoActualizacion: function() {
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                }
             }
         };
 
