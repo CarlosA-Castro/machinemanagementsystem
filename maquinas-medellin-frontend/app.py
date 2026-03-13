@@ -6059,7 +6059,7 @@ def esp32_ultimo_usage(qr_code, machine_id):
 @app.route('/api/esp32/check-commands/<int:machine_id>', methods=['GET'])
 @handle_api_errors
 def esp32_check_commands(machine_id):
-    """Endpoint para que el ESP32 consulte comandos pendientes"""
+    """Endpoint para que el ESP32 consulte comandos pendientes - VERSIÓN MEJORADA"""
     connection = None
     cursor = None
     try:
@@ -6069,15 +6069,25 @@ def esp32_check_commands(machine_id):
             
         cursor = get_db_cursor(connection)
         
-        # Buscar comandos pendientes para esta máquina
+        # Buscar comandos pendientes para esta máquina (incluyendo por estación)
         cursor.execute("""
-            SELECT id, command, parameters 
+            SELECT id, command, parameters, created_at
             FROM esp32_commands 
             WHERE machine_id = %s AND status = 'queued'
-            ORDER BY triggered_at ASC
+            ORDER BY created_at ASC
         """, (machine_id,))
         
         commands = cursor.fetchall()
+        
+        # Marcar como 'sent' para que no se vuelvan a enviar
+        if commands:
+            command_ids = [cmd['id'] for cmd in commands]
+            cursor.execute("""
+                UPDATE esp32_commands 
+                SET status = 'sent', sent_at = NOW()
+                WHERE id IN ({})
+            """.format(','.join(['%s'] * len(command_ids))), command_ids)
+            connection.commit()
         
         return jsonify({
             'has_commands': len(commands) > 0,
@@ -6093,6 +6103,7 @@ def esp32_check_commands(machine_id):
         if connection:
             connection.close()
 
+
 @app.route('/api/esp32/command-executed/<int:command_id>', methods=['POST'])
 @handle_api_errors
 def esp32_command_executed(command_id):
@@ -6101,6 +6112,11 @@ def esp32_command_executed(command_id):
     cursor = None
     try:
         data = request.get_json()
+        machine_id = data.get('machine_id')
+        estacion = data.get('estacion', 0)
+        result = data.get('result', 'success')
+        
+        app.logger.info(f"✅ ESP32 confirmó comando {command_id} - Máquina: {machine_id}, Estación: {estacion}, Resultado: {result}")
         
         connection = get_db_connection()
         if not connection:
@@ -6110,9 +6126,12 @@ def esp32_command_executed(command_id):
         
         cursor.execute("""
             UPDATE esp32_commands 
-            SET status = 'executed', executed_at = NOW(), response = %s
+            SET status = 'executed', 
+                executed_at = NOW(), 
+                response = %s,
+                result = %s
             WHERE id = %s
-        """, (json.dumps(data), command_id))
+        """, (json.dumps(data), result, command_id))
         
         connection.commit()
         
