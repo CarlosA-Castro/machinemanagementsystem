@@ -3848,11 +3848,14 @@ def obtener_maquinas():
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_turnusage_recientes():
-    """Obtener historial reciente de juegos (turnusage)"""
+    """Obtener historial reciente de juegos (turnusage) - CON SOPORTE PARA ESTACIONES"""
     connection = None
     cursor = None
     try:
         limit = request.args.get('limit', '100')
+        machine_id = request.args.get('machine_id')
+        station = request.args.get('station')
+        
         try:
             limit = int(limit)
         except:
@@ -3860,7 +3863,7 @@ def obtener_turnusage_recientes():
             
         connection = get_db_connection()
         if not connection:
-            return jsonify([])  # Retornar array vacío en lugar de error
+            return jsonify([])
             
         cursor = get_db_cursor(connection)
         if not cursor:
@@ -3871,6 +3874,7 @@ def obtener_turnusage_recientes():
                 tu.id,
                 tu.qrCodeId,
                 tu.machineId,
+                tu.station_index,
                 tu.usedAt,
                 COALESCE(m.name, 'Máquina desconocida') as machine_name,
                 COALESCE(qr.code, '') as qr_code,
@@ -3882,11 +3886,23 @@ def obtener_turnusage_recientes():
             LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
             LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            ORDER BY tu.usedAt DESC
-            LIMIT %s
+            WHERE 1=1
         """
         
-        cursor.execute(query, (limit,))
+        params = []
+        
+        if machine_id:
+            query += " AND tu.machineId = %s"
+            params.append(machine_id)
+        
+        if station is not None:
+            query += " AND tu.station_index = %s"
+            params.append(station)
+        
+        query += " ORDER BY tu.usedAt DESC LIMIT %s"
+        params.append(limit)
+        
+        cursor.execute(query, params)
         
         juegos = cursor.fetchall()
         resultado = []
@@ -3905,23 +3921,25 @@ def obtener_turnusage_recientes():
         
     except Exception as e:
         app.logger.error(f"Error obteniendo turnusage recientes: {e}")
-        return jsonify([])  # Siempre retornar array vacío en caso de error
+        return jsonify([])
     finally:
         if cursor:
             cursor.close()
         if connection:
             connection.close()
 
-
 @app.route('/api/machinefailures/recientes', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_machinefailures_recientes():
-    """Obtener historial reciente de fallas"""
+    """Obtener historial reciente de fallas - CON SOPORTE PARA ESTACIONES"""
     connection = None
     cursor = None
     try:
         limit = request.args.get('limit', '100')
+        machine_id = request.args.get('machine_id')
+        station = request.args.get('station')
+        
         try:
             limit = int(limit)
         except:
@@ -3935,12 +3953,12 @@ def obtener_machinefailures_recientes():
         if not cursor:
             return jsonify([])
         
-        # Obtener fallas de machinefailures
         query = """
             SELECT 
                 mf.id,
                 mf.qr_code_id,
                 COALESCE(mf.machine_id, 0) as machine_id,
+                mf.station_index,
                 COALESCE(mf.machine_name, 'Máquina desconocida') as machine_name,
                 COALESCE(mf.turnos_devueltos, 0) as turnos_devueltos,
                 mf.reported_at,
@@ -3951,11 +3969,23 @@ def obtener_machinefailures_recientes():
                 COALESCE(qr.qr_name, '') as qr_name
             FROM machinefailures mf
             LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
-            ORDER BY mf.reported_at DESC
-            LIMIT %s
+            WHERE 1=1
         """
         
-        cursor.execute(query, (limit,))
+        params = []
+        
+        if machine_id:
+            query += " AND mf.machine_id = %s"
+            params.append(machine_id)
+        
+        if station is not None:
+            query += " AND mf.station_index = %s"
+            params.append(station)
+        
+        query += " ORDER BY mf.reported_at DESC LIMIT %s"
+        params.append(limit)
+        
+        cursor.execute(query, params)
         
         fallas = cursor.fetchall()
         resultado = []
@@ -3980,6 +4010,7 @@ def obtener_machinefailures_recientes():
             cursor.close()
         if connection:
             connection.close()
+
 
 @app.route('/api/maquinas/<int:maquina_id>', methods=['GET'])
 @handle_api_errors
@@ -5942,15 +5973,16 @@ def esp32_status():
 @handle_api_errors
 @validate_required_fields(['qr_code', 'machine_id'])
 def esp32_registrar_uso():
-    """Registrar uso de máquina desde ESP32"""
+    """Registrar uso de máquina desde ESP32 - CON SOPORTE PARA ESTACIONES"""
     connection = None
     cursor = None
     try:
         data = request.get_json()
         qr_code = data['qr_code']
         machine_id = data['machine_id']
+        station_index = data.get('selected_station', 0)  # Por defecto estación 0
         
-        app.logger.info(f"ESP32: Registrando uso - QR: {qr_code}, Máquina: {machine_id}")
+        app.logger.info(f"ESP32: Registrando uso - QR: {qr_code}, Máquina: {machine_id}, Estación: {station_index}")
         
         connection = get_db_connection()
         if not connection:
@@ -5972,10 +6004,14 @@ def esp32_registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
 
-        cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        # Insertar con station_index
+        cursor.execute("""
+            INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt) 
+            VALUES (%s, %s, %s, NOW())
+        """, (qr_id, machine_id, station_index))
 
         usage_id = cursor.lastrowid
-        app.logger.info(f"✅ USAGE_ID generado: {usage_id}")
+        app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}")
         
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
 
@@ -5993,7 +6029,7 @@ def esp32_registrar_uso():
         
         info_actualizada = cursor.fetchone()
         
-        app.logger.info(f"ESP32: Uso registrado - QR: {qr_code}, Turnos restantes: {info_actualizada['turns_remaining']}, Usage ID: {usage_id}")
+        app.logger.info(f"ESP32: Uso registrado - QR: {qr_code}, Turnos restantes: {info_actualizada['turns_remaining']}, Usage ID: {usage_id}, Estación: {station_index}")
 
         return api_response(
             'S010',
@@ -6004,7 +6040,8 @@ def esp32_registrar_uso():
                 'qr_name': qr_name,
                 'qr_code': qr_code,
                 'machine_id': machine_id,
-                'usage_id': usage_id  
+                'usage_id': usage_id,
+                'station_index': station_index
             }
         )
         

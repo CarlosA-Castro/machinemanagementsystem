@@ -1636,112 +1636,229 @@
             },
 
             verEstaciones: async function(maquinaId) {
-                const maquina = this.maquinas.find(m => m.id === maquinaId);
-                if (!maquina) return;
+    const maquina = this.maquinas.find(m => m.id === maquinaId);
+    if (!maquina) return;
+    
+    this.machineIdActual = maquinaId;
+    
+    try {
+        // 1. MOSTRAR INDICADOR DE CARGA
+        document.getElementById('modalEstacionTitulo').textContent = `Estaciones - ${maquina.name}`;
+        document.getElementById('modalEstacionContenido').innerHTML = `
+            <div class="text-center py-8">
+                <div class="loading mx-auto mb-4"></div>
+                <p class="text-gray-600">Cargando datos de estaciones...</p>
+            </div>
+        `;
+        document.getElementById('modalEstacion').classList.remove('hidden');
+        
+        // 2. Cargar configuración de la máquina
+        const techResponse = await fetch(`/api/esp32/machine-config/${maquinaId}`);
+        let stations = [];
+        
+        if (techResponse.ok) {
+            const techData = await techResponse.json();
+            console.log('📊 Datos técnicos:', techData);
+            
+            if (techData.status === 'success' && techData.data) {
+                const data = techData.data;
+                const stationNames = data.station_names || [];
+                const relayPins = data.relay_pins || [26, 27, -1, -1];
                 
-                this.machineIdActual = maquinaId;
-                
-                try {
-                    const techResponse = await fetch(`/api/esp32/machine-config/${maquinaId}`);
-                    let stations = [];
-                    
-                    if (techResponse.ok) {
-                        const techData = await techResponse.json();
-                        console.log('Datos técnicos para estaciones:', techData);
-                        
-                        if (techData.status === 'success' && techData.data) {
-                            if (techData.data.station_names && Array.isArray(techData.data.station_names)) {
-                                stations = techData.data.station_names.map((name, index) => ({
-                                    index: index,
-                                    name: name,
-                                    relayPin: techData.data.relay_pins ? techData.data.relay_pins[index] || 26 : 26,
-                                    stats: {
-                                        totalPlays: 0,
-                                        lastPlay: null,
-                                        failures: 0
-                                    }
-                                }));
-                            }
-                        }
-                    }
-                    
-                    if (stations.length === 0) {
-                        if (maquinaId === 1) {
-                            stations = [
-                                { index: 0, name: 'Simulador 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                                { index: 1, name: 'Simulador 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                            ];
-                        } else if (maquinaId === 9) {
-                            stations = [
-                                { index: 0, name: 'Silla 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                                { index: 1, name: 'Silla 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                            ];
-                        } else {
-                            stations = [
-                                { index: 0, name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                                { index: 1, name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
-                            ];
-                        }
-                    }
-                    
-                    let html = `
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    `;
-                    
-                    stations.forEach((station, index) => {
-                        html += `
-                            <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-5 text-white shadow-lg">
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h4 class="text-lg font-bold">${station.name}</h4>
-                                        <p class="text-sm opacity-90">Estación ${index + 1}</p>
-                                    </div>
-                                    <div class="bg-white bg-opacity-20 rounded-lg px-3 py-1">
-                                        <i class="fas fa-microchip mr-1"></i>GPIO${station.relayPin}
-                                    </div>
-                                </div>
-                                
-                                <div class="grid grid-cols-3 gap-2 my-4">
-                                    <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                                        <div class="text-xl font-bold">${station.stats.totalPlays}</div>
-                                        <div class="text-xs">Jugadas</div>
-                                    </div>
-                                    <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                                        <div class="text-xl font-bold">${station.stats.failures}</div>
-                                        <div class="text-xs">Fallas</div>
-                                    </div>
-                                    <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                                        <div class="text-xl font-bold">${station.stats.lastPlay ? '✓' : '✗'}</div>
-                                        <div class="text-xs">Último</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex justify-end space-x-2 mt-2">
-                                    <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquinaId}, ${index}, '${station.name}')" 
-                                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center">
-                                        <i class="fas fa-play mr-1"></i> Turno
-                                    </button>
-                                    <button onclick="MaquinaManager.mostrarModalReinicio(${maquinaId}, ${index}, '${station.name}')" 
-                                            class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center">
-                                        <i class="fas fa-power-off mr-1"></i> Reiniciar
-                                    </button>
-                                </div>
-                            </div>
-                        `;
+                // Crear array de estaciones
+                for (let i = 0; i < stationNames.length; i++) {
+                    stations.push({
+                        index: i,
+                        name: stationNames[i] || `Estación ${i+1}`,
+                        relayPin: relayPins[i] !== undefined ? relayPins[i] : (i === 0 ? 26 : i === 1 ? 27 : -1)
                     });
-                    
-                    html += '</div>';
-                    
-                    document.getElementById('modalEstacionTitulo').textContent = `Estaciones - ${maquina.name}`;
-                    document.getElementById('modalEstacionContenido').innerHTML = html;
-                    document.getElementById('modalEstacion').classList.remove('hidden');
-                    
-                } catch (error) {
-                    console.error('Error cargando estaciones:', error);
-                    this.mostrarAlerta('Error cargando estaciones', 'error');
                 }
-            },
-
+            }
+        }
+        
+        // 3. Si no hay datos, crear estaciones por defecto
+        if (stations.length === 0) {
+            // Verificar si es multi-estación por el nombre o ID
+            const esMultiEstacion = maquina.name.toLowerCase().includes('simulador') || 
+                                    maquina.name.toLowerCase().includes('silla') ||
+                                    maquinaId === 1 || maquinaId === 9;
+            
+            if (esMultiEstacion) {
+                stations = [
+                    { index: 0, name: `${maquina.name} 1`, relayPin: 26 },
+                    { index: 1, name: `${maquina.name} 2`, relayPin: 27 }
+                ];
+            } else {
+                stations = [
+                    { index: 0, name: maquina.name, relayPin: 26 }
+                ];
+            }
+        }
+        
+        // 4. Cargar estadísticas REALES para CADA ESTACIÓN
+        console.log('🔍 Cargando estadísticas para máquina', maquinaId);
+        
+        // Obtener TODOS los juegos de esta máquina
+        const juegosResponse = await fetch(`/api/turnusage/recientes?limit=500&machine_id=${maquinaId}`);
+        const fallasResponse = await fetch(`/api/machinefailures/recientes?limit=500&machine_id=${maquinaId}`);
+        
+        let todosJuegos = [];
+        let todasFallas = [];
+        
+        if (juegosResponse.ok) {
+            todosJuegos = await juegosResponse.json();
+            console.log('🎮 Juegos encontrados para máquina:', todosJuegos.length);
+        }
+        
+        if (fallasResponse.ok) {
+            todasFallas = await fallasResponse.json();
+            console.log('⚠️ Fallas encontradas para máquina:', todasFallas.length);
+        }
+        
+        // 5. Procesar estadísticas POR ESTACIÓN (AHORA CON station_index)
+        const estacionesConStats = stations.map(station => {
+            // Filtrar juegos para esta estación específica
+            const juegosEstacion = todosJuegos.filter(j => 
+                j.machineId == maquinaId && 
+                (j.station_index == station.index || j.station_index === undefined)
+            );
+            
+            // Filtrar fallas para esta estación específica
+            const fallasEstacion = todasFallas.filter(f => 
+                f.machine_id == maquinaId && 
+                (f.station_index == station.index || f.station_index === undefined)
+            );
+            
+            // Encontrar el último juego
+            let ultimoJuego = null;
+            if (juegosEstacion.length > 0) {
+                // Ordenar por fecha descendente
+                juegosEstacion.sort((a, b) => new Date(b.usedAt || 0) - new Date(a.usedAt || 0));
+                ultimoJuego = juegosEstacion[0];
+            }
+            
+            return {
+                ...station,
+                stats: {
+                    totalPlays: juegosEstacion.length,
+                    lastPlay: ultimoJuego ? new Date(ultimoJuego.usedAt) : null,
+                    failures: fallasEstacion.length,
+                    lastFailure: fallasEstacion.length > 0 ? fallasEstacion[0] : null
+                }
+            };
+        });
+        
+        // 6. Generar HTML con los datos reales
+        let html = `
+            <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+                <p class="text-sm text-gray-700">
+                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>
+                    Última actualización: ${new Date().toLocaleString('es-CO')}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">
+                    Total máquina: ${todosJuegos.length} juegos, ${todasFallas.length} fallas
+                </p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        `;
+        
+        estacionesConStats.forEach((station) => {
+            // Formatear última jugada
+            let ultimaJugadaTexto = 'Nunca';
+            if (station.stats.lastPlay) {
+                const ahora = new Date();
+                const diffMs = ahora - station.stats.lastPlay;
+                const diffMin = Math.floor(diffMs / (1000 * 60));
+                
+                if (diffMin < 1) {
+                    ultimaJugadaTexto = 'Ahora mismo';
+                } else if (diffMin < 60) {
+                    ultimaJugadaTexto = `Hace ${diffMin} minutos`;
+                } else if (diffMin < 1440) {
+                    ultimaJugadaTexto = `Hace ${Math.floor(diffMin/60)} horas`;
+                } else {
+                    ultimaJugadaTexto = station.stats.lastPlay.toLocaleDateString('es-CO');
+                }
+            }
+            
+            // Formatear última falla
+            let ultimaFallaTexto = 'Ninguna';
+            if (station.stats.lastFailure) {
+                const fecha = new Date(station.stats.lastFailure.reported_at || station.stats.lastFailure.reportedAt);
+                ultimaFallaTexto = fecha.toLocaleDateString('es-CO');
+            }
+            
+            html += `
+                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="text-lg font-bold">${station.name}</h4>
+                            <p class="text-sm opacity-90">Estación ${station.index + 1}</p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-lg px-3 py-1">
+                            <i class="fas fa-microchip mr-1"></i>GPIO${station.relayPin}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 my-4">
+                        <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold">${station.stats.totalPlays}</div>
+                            <div class="text-xs">Jugadas</div>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold">${station.stats.failures}</div>
+                            <div class="text-xs">Fallas</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-xs text-white opacity-80 mb-3 space-y-1">
+                        <div><i class="far fa-clock mr-1"></i>Último juego: ${ultimaJugadaTexto}</div>
+                        <div><i class="fas fa-exclamation-triangle mr-1"></i>Última falla: ${ultimaFallaTexto}</div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2 mt-2">
+                        <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquinaId}, ${station.index}, '${station.name.replace(/'/g, "\\'")}')" 
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+                            <i class="fas fa-play mr-1"></i> Turno
+                        </button>
+                        <button onclick="MaquinaManager.mostrarModalReinicio(${maquinaId}, ${station.index}, '${station.name.replace(/'/g, "\\'")}')" 
+                                class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+                            <i class="fas fa-power-off mr-1"></i> Reiniciar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        // Agregar botón de actualizar
+        html += `
+            <div class="mt-4 flex justify-end">
+                <button onclick="MaquinaManager.verEstaciones(${maquinaId})" 
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center">
+                    <i class="fas fa-sync-alt mr-2"></i> Actualizar Datos
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('modalEstacionContenido').innerHTML = html;
+        
+    } catch (error) {
+        console.error('❌ Error cargando estaciones:', error);
+        document.getElementById('modalEstacionContenido').innerHTML = `
+            <div class="text-center py-8 text-red-600">
+                <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                <p>Error cargando estaciones: ${error.message}</p>
+                <button onclick="MaquinaManager.verEstaciones(${maquinaId})" 
+                        class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    Reintentar
+                </button>
+            </div>
+        `;
+        this.mostrarAlerta('Error cargando estaciones', 'error');
+    }
+},
             mostrarModalReinicio: function(maquinaId, estacionIndex, estacionNombre) {
                 this.machineIdActual = maquinaId;
                 this.estacionActual = { index: estacionIndex, nombre: estacionNombre };
