@@ -6096,7 +6096,7 @@ def esp32_ultimo_usage(qr_code, machine_id):
 @app.route('/api/esp32/check-commands/<int:machine_id>', methods=['GET'])
 @handle_api_errors
 def esp32_check_commands(machine_id):
-    """Endpoint para que el ESP32 consulte comandos pendientes - VERSIÓN CORREGIDA"""
+    """Endpoint para que el ESP32 consulte comandos pendientes - VERSIÓN FINAL CORREGIDA"""
     connection = None
     cursor = None
     try:
@@ -6107,7 +6107,7 @@ def esp32_check_commands(machine_id):
         cursor = get_db_cursor(connection)
         
         # Buscar comandos pendientes para esta máquina
-        # CAMBIADO: 'created_at' por 'triggered_at' que es la columna correcta
+        # NOTA: Usamos triggered_at que SÍ existe en tu BD
         cursor.execute("""
             SELECT id, command, parameters, triggered_at
             FROM esp32_commands 
@@ -6116,17 +6116,6 @@ def esp32_check_commands(machine_id):
         """, (machine_id,))
         
         commands = cursor.fetchall()
-        
-        # Marcar como 'sent' para que no se vuelvan a enviar
-        if commands:
-            command_ids = [cmd['id'] for cmd in commands]
-            placeholders = ','.join(['%s'] * len(command_ids))
-            cursor.execute(f"""
-                UPDATE esp32_commands 
-                SET status = 'sent', sent_at = NOW()
-                WHERE id IN ({placeholders})
-            """, command_ids)
-            connection.commit()
         
         return jsonify({
             'has_commands': len(commands) > 0,

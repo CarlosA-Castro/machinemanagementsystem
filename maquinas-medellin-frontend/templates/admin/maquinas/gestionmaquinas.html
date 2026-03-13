@@ -1893,112 +1893,130 @@
         this.mostrarAlerta('Error cargando estaciones', 'error');
     }
 },
-            mostrarModalReinicio: function(maquinaId, estacionIndex, estacionNombre) {
-                this.machineIdActual = maquinaId;
-                this.estacionActual = { index: estacionIndex, nombre: estacionNombre };
-                document.getElementById('estacionReinicioNombre').textContent = estacionNombre;
-                document.getElementById('modalConfirmarReinicio').classList.remove('hidden');
-            },
+           mostrarModalReinicio: function(maquinaId, estacionIndex, estacionNombre) {
+    this.machineIdActual = maquinaId;
+    // Asegurar que estacionNombre sea string
+    const nombreEstacion = String(estacionNombre || `Estación ${estacionIndex + 1}`);
+    this.estacionActual = { 
+        index: estacionIndex, 
+        nombre: nombreEstacion 
+    };
+    document.getElementById('estacionReinicioNombre').textContent = nombreEstacion;
+    document.getElementById('modalConfirmarReinicio').classList.remove('hidden');
+},
 
             mostrarModalIngresarTurno: function(maquinaId, estacionIndex, estacionNombre) {
-                this.machineIdActual = maquinaId;
-                this.estacionActual = { index: estacionIndex, nombre: estacionNombre };
-                document.getElementById('estacionTurnoNombre').textContent = estacionNombre;
-                document.getElementById('modalIngresarTurno').classList.remove('hidden');
-            },
+    this.machineIdActual = maquinaId;
+    // Asegurar que estacionNombre sea string
+    const nombreEstacion = String(estacionNombre || `Estación ${estacionIndex + 1}`);
+    this.estacionActual = { 
+        index: estacionIndex, 
+        nombre: nombreEstacion 
+    };
+    document.getElementById('estacionTurnoNombre').textContent = nombreEstacion;
+    document.getElementById('modalIngresarTurno').classList.remove('hidden');
+},
+
 
             ejecutarReinicio: async function() {
-                if (!this.machineIdActual || !this.estacionActual) return;
-                
-                const maquina = this.maquinas.find(m => m.id === this.machineIdActual);
-                
-                this.cerrarModalConfirmacion();
-                this.mostrarAlerta(`Reiniciando estación ${this.estacionActual.nombre}...`, 'info');
-                
-                try {
-                    const response = await fetch('/api/maquinas/reiniciar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            machine_id: this.machineIdActual,
-                            machine_name: maquina ? maquina.name : `Máquina ${this.machineIdActual}`,
-                            estacion: this.estacionActual.index
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        this.mostrarAlerta(`Reinicio enviado a ${this.estacionActual.nombre}`, 'success');
-                        
-                        await fetch('/api/logs/accion', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                accion: 'REINICIAR_ESTACION',
-                                detalles: {
-                                    machine_id: this.machineIdActual,
-                                    machine_name: maquina ? maquina.name : `Máquina ${this.machineIdActual}`,
-                                    estacion: this.estacionActual.index,
-                                    estacion_nombre: this.estacionActual.nombre
-                                }
-                            })
-                        });
-                    } else {
-                        this.mostrarAlerta(data.message || 'Error al reiniciar', 'error');
+    if (!this.machineIdActual || !this.estacionActual) return;
+    
+    const maquina = this.maquinas.find(m => m.id === this.machineIdActual);
+    const nombreMaquina = maquina ? maquina.name : `Máquina ${this.machineIdActual}`;
+    const nombreEstacion = String(this.estacionActual.nombre || `Estación ${this.estacionActual.index + 1}`);
+    
+    this.cerrarModalConfirmacion();
+    this.mostrarAlerta(`Reiniciando estación ${nombreEstacion}...`, 'info');
+    
+    try {
+        const response = await fetch('/api/maquinas/reiniciar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                machine_id: this.machineIdActual,
+                machine_name: nombreMaquina,
+                estacion: this.estacionActual.index,
+                estacion_nombre: nombreEstacion
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            this.mostrarAlerta(`Reinicio enviado a ${nombreEstacion}`, 'success');
+            
+            await fetch('/api/logs/accion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accion: 'REINICIAR_ESTACION',
+                    detalles: {
+                        machine_id: this.machineIdActual,
+                        machine_name: nombreMaquina,
+                        estacion: this.estacionActual.index,
+                        estacion_nombre: nombreEstacion
                     }
-                } catch (error) {
-                    console.error('Error:', error);
-                    this.mostrarAlerta('Error de conexión', 'error');
-                }
-            },
+                })
+            });
+        } else {
+            this.mostrarAlerta(data.message || 'Error al reiniciar', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.mostrarAlerta('Error de conexión', 'error');
+    }
+},
+
 
             ejecutarTurno: async function() {
-                if (!this.machineIdActual || !this.estacionActual) return;
-                
-                const maquina = this.maquinas.find(m => m.id === this.machineIdActual);
-                
-                this.cerrarModalTurno();
-                this.mostrarAlerta(`Ingresando turno en ${this.estacionActual.nombre}...`, 'info');
-                
-                try {
-                    const response = await fetch('/api/maquinas/ingresar-turno', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            machine_id: this.machineIdActual,
-                            machine_name: maquina ? maquina.name : `Máquina ${this.machineIdActual}`,
-                            estacion: this.estacionActual.index
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        this.mostrarAlerta(`Turno ingresado en ${this.estacionActual.nombre}`, 'success');
-                        
-                        await fetch('/api/logs/accion', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                accion: 'INGRESAR_TURNO',
-                                detalles: {
-                                    machine_id: this.machineIdActual,
-                                    machine_name: maquina ? maquina.name : `Máquina ${this.machineIdActual}`,
-                                    estacion: this.estacionActual.index,
-                                    estacion_nombre: this.estacionActual.nombre,
-                                    usage_id: data.data?.usage_id
-                                }
-                            })
-                        });
-                    } else {
-                        this.mostrarAlerta(data.message || 'Error al ingresar turno', 'error');
+    if (!this.machineIdActual || !this.estacionActual) return;
+    
+    const maquina = this.maquinas.find(m => m.id === this.machineIdActual);
+    const nombreMaquina = maquina ? maquina.name : `Máquina ${this.machineIdActual}`;
+    const nombreEstacion = String(this.estacionActual.nombre || `Estación ${this.estacionActual.index + 1}`);
+    
+    this.cerrarModalTurno();
+    this.mostrarAlerta(`Ingresando turno en ${nombreEstacion}...`, 'info');
+    
+    try {
+        const response = await fetch('/api/maquinas/ingresar-turno', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                machine_id: this.machineIdActual,
+                machine_name: nombreMaquina,
+                estacion: this.estacionActual.index,
+                estacion_nombre: nombreEstacion
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            this.mostrarAlerta(`Turno ingresado en ${nombreEstacion}`, 'success');
+            
+            await fetch('/api/logs/accion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accion: 'INGRESAR_TURNO',
+                    detalles: {
+                        machine_id: this.machineIdActual,
+                        machine_name: nombreMaquina,
+                        estacion: this.estacionActual.index,
+                        estacion_nombre: nombreEstacion,
+                        usage_id: data.data?.usage_id
                     }
-                } catch (error) {
-                    console.error('Error:', error);
-                    this.mostrarAlerta('Error de conexión', 'error');
-                }
-            },
+                })
+            });
+        } else {
+            this.mostrarAlerta(data.message || 'Error al ingresar turno', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        this.mostrarAlerta('Error de conexión', 'error');
+    }
+},
 
             cerrarModalConfirmacion: function() {
                 document.getElementById('modalConfirmarReinicio').classList.add('hidden');
