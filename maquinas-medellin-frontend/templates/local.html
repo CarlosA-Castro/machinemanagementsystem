@@ -1120,7 +1120,7 @@ cargarHistorialQR: function() {
         // VALORES POR DEFECTO SEGUROS
         const qrCode = item.qr_code || 'N/A';
         const qrName = item.qr_name || item.user_name || 'Sin nombre';
-        const esVenta = item.es_venta || false;
+        const esVenta = item.es_venta_real || false;
         
         // Formatear fecha y hora
         let fechaFormateada = 'N/A';
@@ -1483,23 +1483,23 @@ cargarHistorialQR: function() {
         const fecha = new Date();
 
         fila.innerHTML = `
-          <td class="p-3 text-center">1</td>
-          <td class="p-3 font-mono text-sm">${codigo}</td>
-          <td class="p-3">Cargando...</td>
-          <td class="p-3">
-            <span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded">CONSULTA</span>
-          </td>
-          <td class="p-3">${fecha.toLocaleDateString('es-CO')}</td>
-          <td class="p-3">${fecha.toLocaleTimeString('es-CO', {hour12: false})}</td>
-          <td class="p-3">
-            <div class="flex space-x-2">
-              <button onclick="LocalApp.verDetalles('${codigo}')" 
-                      class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
-                <i class="fas fa-info-circle mr-1"></i>Detalles
-              </button>
-            </div>
-          </td>
-        `;
+  <td class="p-3 text-center">1</td>
+  <td class="p-3 font-mono text-sm">${codigo}</td>
+  <td class="p-3">
+    <div class="flex items-center gap-2">
+      <span>Cargando...</span>
+      <span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded">CONSULTA</span>
+    </div>
+  </td>
+  <td class="p-3">${fecha.toLocaleDateString('es-CO')}</td>
+  <td class="p-3">${fecha.toLocaleTimeString('es-CO', {hour12: false})}</td>
+  <td class="p-3">
+    <button onclick="LocalApp.verDetalles('${codigo}')" 
+            class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
+      <i class="fas fa-info-circle mr-1"></i>Detalles
+    </button>
+  </td>
+`;
 
         // Renumerar las filas existentes
         const rows = tabla.getElementsByTagName('tr');
