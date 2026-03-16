@@ -378,22 +378,31 @@
 
             <!-- Primera fila de gráficas -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <!-- Evolución de Ventas -->
-                <div class="glass-card">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800">
-                            <i class="fas fa-chart-line mr-2 text-blue-600"></i>Evolución de Ventas
-                        </h3>
-                        <select id="tipoGraficaVentas" class="text-sm border border-gray-300 rounded-lg px-3 py-1" onchange="AdminDashboard.actualizarGraficaVentas()">
-                            <option value="diario">Diario</option>
-                            <option value="semanal">Semanal</option>
-                            <option value="mensual">Mensual</option>
-                        </select>
-                    </div>
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartVentas"></canvas>
-                    </div>
-                </div>
+               <!-- Evolución de Ventas -->
+<div class="glass-card">
+    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <h3 class="text-lg font-semibold text-gray-800">
+            <i class="fas fa-chart-line mr-2 text-blue-600"></i>Evolución de Ventas
+        </h3>
+        <div class="flex gap-2 items-center flex-wrap">
+            <select id="tipoGraficaVentas" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+                <option value="diario">Diario</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensual">Mensual</option>
+            </select>
+            <input type="date" id="fechaInicioVentas" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+            <span class="text-gray-500 text-sm">a</span>
+            <input type="date" id="fechaFinVentas" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+            <button onclick="AdminDashboard.actualizarGraficaVentas()"
+                    class="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-search mr-1"></i>Buscar
+            </button>
+        </div>
+    </div>
+    <div class="chart-container" style="height: 300px;">
+        <canvas id="chartVentas"></canvas>
+    </div>
+</div>
 
                 <!-- Ventas por Paquete -->
                 <div class="glass-card">
@@ -443,18 +452,31 @@
 
             <!-- Tercera fila: Información detallada -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
                 <!-- Top Máquinas -->
-                <div class="glass-card">
-                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
-                        <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas
-                    </h3>
-                    <div class="space-y-3" id="top-maquinas">
-                        <div class="text-center py-8">
-                            <div class="loading mx-auto mb-2"></div>
-                            <p class="text-gray-600">Cargando top máquinas...</p>
-                        </div>
-                    </div>
-                </div>
+             
+<div class="glass-card">
+    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <h3 class="text-lg font-semibold text-gray-800">
+            <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas
+        </h3>
+        <div class="flex gap-2 items-center flex-wrap">
+            <input type="date" id="fechaInicioTop" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+            <span class="text-gray-500 text-sm">a</span>
+            <input type="date" id="fechaFinTop" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+            <button onclick="AdminDashboard.cargarTopMaquinas()"
+                    class="bg-yellow-500 text-white text-sm px-3 py-1 rounded-lg hover:bg-yellow-600">
+                <i class="fas fa-search mr-1"></i>Buscar
+            </button>
+        </div>
+    </div>
+    <div class="space-y-3" id="top-maquinas">
+        <div class="text-center py-8">
+            <div class="loading mx-auto mb-2"></div>
+            <p class="text-gray-600">Cargando top máquinas...</p>
+        </div>
+    </div>
+</div>
 
                 <!-- Últimas Ventas -->
                <div class="glass-card">
@@ -955,42 +977,57 @@
 },
 
     cargarTopMaquinas: async function() {
-        try {
-            const response = await fetch('/api/dashboard/top-maquinas');
-            const container = document.getElementById('top-maquinas');
-            
-            if (response.ok) {
-                const maquinas = await response.json();
-                
-                if (maquinas.length === 0) {
-                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos de máquinas</p>';
-                    return;
-                }
-                
-                let html = '';
-                maquinas.slice(0, 5).forEach((maquina, index) => {
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
-                    html += `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-lg">${medal}</span>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-800">${maquina.nombre}</p>
-                                    <p class="text-xs text-gray-600">${maquina.ingresos ? this.formatearMoneda(maquina.ingresos) : '0'} ingresos</p>
-                                </div>
-                            </div>
-                            <span class="text-sm font-medium text-green-600">${maquina.ventas || 0} ventas</span>
-                        </div>
-                    `;
-                });
-                
-                container.innerHTML = html;
+    const container = document.getElementById('top-maquinas');
+    const fechaInicio = document.getElementById('fechaInicioTop').value;
+    const fechaFin = document.getElementById('fechaFinTop').value;
+
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="loading mx-auto mb-2"></div>
+            <p class="text-gray-500 text-sm">Cargando...</p>
+        </div>`;
+
+    try {
+        const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin });
+        const response = await fetch(`/api/dashboard/top-maquinas?${params}`);
+
+        if (response.ok) {
+            const maquinas = await response.json();
+
+            if (!maquinas.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">Sin usos en este período</p>';
+                return;
             }
-        } catch (error) {
-            console.error('Error cargando top máquinas:', error);
+
+            const maxUsos = Math.max(...maquinas.map(m => m.usos), 1);
+            let html = '';
+            maquinas.forEach((maquina, index) => {
+                const medal = ['🥇','🥈','🥉','🏅','🏅'][index];
+                const pct = Math.round((maquina.usos / maxUsos) * 100);
+                html += `
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">${medal}</span>
+                                <p class="text-sm font-medium text-gray-800">${maquina.nombre}</p>
+                            </div>
+                            <span class="text-sm font-bold text-blue-600">${maquina.usos} usos</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
         }
-    },
-    
+    } catch (error) {
+        console.error('Error cargando top máquinas:', error);
+        container.innerHTML = '<p class="text-red-500 text-center py-4">Error cargando datos</p>';
+    }
+},
+
 cargarVentasRecientes: async function() {
     try {
         const response = await fetch('/api/dashboard/ventas-recientes');
@@ -1074,17 +1111,24 @@ cargarVentasRecientes: async function() {
         this.mostrarAlerta(`Gráfica actualizada a vista ${tipo}`, 'info');
     },
 
-   configurarFechasIniciales: function() {
+configurarFechasIniciales: function() {
     const ahora = new Date();
     const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('fechaActual').textContent = ahora.toLocaleDateString('es-ES', opciones);
     this.configurarRango('mes');
+    document.getElementById('fechaInicioTop').value = inicioMes.toISOString().split('T')[0];
+    document.getElementById('fechaFinTop').value = ahora.toISOString().split('T')[0];
+
+    // Inicializar fechas de evolución de ventas (último mes)
+    const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    document.getElementById('fechaInicioVentas').value = inicioMes.toISOString().split('T')[0];
+    document.getElementById('fechaFinVentas').value = ahora.toISOString().split('T')[0];
 
     // Inicializar fechas del gráfico de máquinas
-    const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
     document.getElementById('fechaInicioMaquinas').value = inicioMes.toISOString().split('T')[0];
     document.getElementById('fechaFinMaquinas').value = ahora.toISOString().split('T')[0];
 },
+
 
 actualizarMetricaMaquinas: async function() {
     const fechaInicio = document.getElementById('fechaInicioMaquinas').value;
@@ -1111,6 +1155,39 @@ actualizarMetricaMaquinas: async function() {
         }
     } catch (error) {
         console.error('Error actualizando máquinas:', error);
+    }
+},
+
+actualizarGraficaVentas: async function() {
+    const tipo = document.getElementById('tipoGraficaVentas').value;
+    let fechaInicio = document.getElementById('fechaInicioVentas').value;
+    let fechaFin = document.getElementById('fechaFinVentas').value;
+
+    if (!fechaInicio || !fechaFin) {
+        this.mostrarAlerta('Selecciona ambas fechas', 'error');
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, tipo });
+        const response = await fetch(`/api/dashboard/graficas?${params}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.evolucion_ventas && data.evolucion_ventas.labels.length > 0) {
+                this.charts.ventas.data.labels = data.evolucion_ventas.labels;
+                this.charts.ventas.data.datasets[0].data = data.evolucion_ventas.data;
+                this.charts.ventas.options.plugins.title.text = 
+                    tipo === 'mensual' ? 'Ventas por Mes' :
+                    tipo === 'semanal' ? 'Ventas por Semana' : 'Ventas por Día';
+            } else {
+                this.charts.ventas.data.labels = ['Sin ventas en este período'];
+                this.charts.ventas.data.datasets[0].data = [0];
+                this.charts.ventas.options.plugins.title.text = 'Sin datos disponibles';
+            }
+            this.charts.ventas.update();
+        }
+    } catch (error) {
+        console.error('Error actualizando ventas:', error);
     }
 },
 

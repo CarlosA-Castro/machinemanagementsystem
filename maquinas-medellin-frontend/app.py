@@ -5742,32 +5742,30 @@ def obtener_graficas_dashboard():
 @handle_api_errors
 @require_login(['admin', 'cajero', 'admin_restaurante'])
 def obtener_top_maquinas():
-    """Obtener top 5 máquinas por rendimiento - VERSIÓN CORREGIDA"""
+    """Obtener top 5 máquinas por usos"""
     connection = None
     cursor = None
     try:
-        fecha_hoy = get_colombia_time().strftime('%Y-%m-%d')
-        
+        fecha_inicio = request.args.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
+
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
-            
+
         cursor = get_db_cursor(connection)
-        
+
         cursor.execute("""
             SELECT 
                 m.name as nombre,
-                COUNT(tu.id) as usos,
-                COALESCE(SUM(tp.price), 0) as ingresos
-            FROM turnusage tu
-            JOIN machine m ON tu.machineId = m.id
-            JOIN qrcode qr ON tu.qrCodeId = qr.id
-            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(tu.usedAt) = %s
+                COUNT(tu.id) as usos
+            FROM machine m
+            INNER JOIN turnusage tu ON tu.machineId = m.id
+            WHERE DATE(tu.usedAt) BETWEEN %s AND %s
             GROUP BY m.id, m.name
             ORDER BY usos DESC
             LIMIT 5
-        """, (fecha_hoy,))
+        """, (fecha_inicio, fecha_fin))
 
         top_maquinas = cursor.fetchall()
 
@@ -5775,13 +5773,13 @@ def obtener_top_maquinas():
         for maquina in top_maquinas:
             maquinas_formateadas.append({
                 'nombre': maquina['nombre'],
+                'usos': maquina['usos'] or 0,
                 'ventas': maquina['usos'] or 0,
-                'ingresos': float(maquina['ingresos'] or 0),
-                'usos': maquina['usos'] or 0
+                'ingresos': 0
             })
-        
+
         return jsonify(maquinas_formateadas)
-        
+
     except Exception as e:
         app.logger.error(f"Error obteniendo top máquinas: {e}")
         sentry_sdk.capture_exception(e)
