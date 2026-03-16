@@ -5759,16 +5759,16 @@ def obtener_top_maquinas():
                 m.name as nombre,
                 COUNT(tu.id) as usos,
                 COALESCE(SUM(tp.price), 0) as ingresos
-            FROM machine m
-            LEFT JOIN turnusage tu ON tu.machineId = m.id 
-                AND DATE(tu.usedAt) = %s
-            LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
+            FROM turnusage tu
+            JOIN machine m ON tu.machineId = m.id
+            JOIN qrcode qr ON tu.qrCodeId = qr.id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(tu.usedAt) = %s
             GROUP BY m.id, m.name
-            ORDER BY usos DESC, ingresos DESC
+            ORDER BY usos DESC
             LIMIT 5
         """, (fecha_hoy,))
-        
+
         top_maquinas = cursor.fetchall()
 
         maquinas_formateadas = []
@@ -5796,7 +5796,7 @@ def obtener_top_maquinas():
 @handle_api_errors
 @require_login(['admin', 'cajero', 'admin_restaurante'])
 def obtener_ventas_recientes():
-    """Obtener las últimas 5 ventas"""
+    """Obtener las últimas 50 ventas"""
     connection = None
     cursor = None
     try:
@@ -5819,8 +5819,8 @@ def obtener_ventas_recientes():
             WHERE qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
-            ORDER BY qh.fecha_hora DESC
-            LIMIT 5
+           ORDER BY qh.fecha_hora DESC
+           LIMIT 50
         """)
         
         ventas = cursor.fetchall()

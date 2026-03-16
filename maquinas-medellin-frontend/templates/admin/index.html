@@ -408,22 +408,27 @@
 
             <!-- Segunda fila de gráficas -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <!-- Rendimiento por Máquina -->
-                <div class="glass-card">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800">
-                            <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Rendimiento por Máquina
-                        </h3>
-                        <select id="tipoMetricaMaquinas" class="text-sm border border-gray-300 rounded-lg px-3 py-1" onchange="AdminDashboard.actualizarMetricaMaquinas()">
-                            <option value="ventas">Ventas</option>
-                            <option value="uso">Uso</option>
-                            <option value="ganancias">Ganancias</option>
-                        </select>
-                    </div>
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartMaquinas"></canvas>
-                    </div>
-                </div>
+
+<!-- Rendimiento por Máquina -->
+<div class="glass-card">
+    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <h3 class="text-lg font-semibold text-gray-800">
+            <i class="fas fa-chart-bar mr-2 text-purple-600"></i>Rendimiento por Máquina
+        </h3>
+        <div class="flex gap-2 items-center flex-wrap">
+            <input type="date" id="fechaInicioMaquinas" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+            <span class="text-gray-500 text-sm">a</span>
+            <input type="date" id="fechaFinMaquinas" class="text-sm border border-gray-300 rounded-lg px-2 py-1">
+            <button onclick="AdminDashboard.actualizarMetricaMaquinas()" 
+                    class="bg-purple-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-purple-700">
+                <i class="fas fa-search mr-1"></i>Buscar
+            </button>
+        </div>
+    </div>
+    <div class="chart-container" style="height: 300px;">
+        <canvas id="chartMaquinas"></canvas>
+    </div>
+</div>
 
                 <!-- Estado de Máquinas -->
                 <div class="glass-card">
@@ -452,17 +457,20 @@
                 </div>
 
                 <!-- Últimas Ventas -->
-                <div class="glass-card">
-                    <h3 class="text-lg font-semibold mb-4 text-gray-800">
-                        <i class="fas fa-clock mr-2 text-blue-600"></i>Ventas Recientes
-                    </h3>
-                    <div class="space-y-3" id="ventas-recientes">
-                        <div class="text-center py-8">
-                            <div class="loading mx-auto mb-2"></div>
-                            <p class="text-gray-600">Cargando ventas recientes...</p>
-                        </div>
-                    </div>
-                </div>
+               <div class="glass-card">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">
+            <i class="fas fa-clock mr-2 text-blue-600"></i>Ventas Recientes
+        </h3>
+        <span id="conteo-ventas-recientes" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">0 ventas</span>
+    </div>
+    <div id="ventas-recientes" class="space-y-2 overflow-y-auto" style="max-height: 420px;">
+        <div class="text-center py-8">
+            <div class="loading mx-auto mb-2"></div>
+            <p class="text-gray-600">Cargando ventas recientes...</p>
+        </div>
+    </div>
+</div>
             </div>
         </main>
     </div>
@@ -872,11 +880,24 @@
     cargarDatosGraficas: async function() {
     try {
         const tipo = document.getElementById('tipoGraficaVentas').value;
-        const params = new URLSearchParams({
-            fecha_inicio: this.fechaInicio,
-            fecha_fin: this.fechaFin,
-            tipo: tipo
-        });
+        let fechaInicio = this.fechaInicio;
+        let fechaFin = this.fechaFin;
+
+        // Si es semanal o mensual, ampliar rango automáticamente
+        const ahora = new Date();
+        if (tipo === 'semanal') {
+            const hace3Meses = new Date(ahora);
+            hace3Meses.setMonth(ahora.getMonth() - 3);
+            fechaInicio = hace3Meses.toISOString().split('T')[0];
+            fechaFin = ahora.toISOString().split('T')[0];
+        } else if (tipo === 'mensual') {
+            const hace12Meses = new Date(ahora);
+            hace12Meses.setFullYear(ahora.getFullYear() - 1);
+            fechaInicio = hace12Meses.toISOString().split('T')[0];
+            fechaFin = ahora.toISOString().split('T')[0];
+        }
+
+        const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, tipo });
         const response = await fetch(`/api/dashboard/graficas?${params}`);
         if (response.ok) {
             const data = await response.json();
@@ -886,6 +907,7 @@
         console.error('Error cargando gráficas:', error);
     }
 },
+
 
     actualizarTodasGraficas: function(data) {
     // Gráfico de evolución de ventas
@@ -968,26 +990,29 @@
             console.error('Error cargando top máquinas:', error);
         }
     },
-
-   cargarVentasRecientes: async function() {
+    
+cargarVentasRecientes: async function() {
     try {
         const response = await fetch('/api/dashboard/ventas-recientes');
         const container = document.getElementById('ventas-recientes');
-        
+
         if (response.ok) {
             const ventas = await response.json();
-            
+
             if (ventas.length === 0) {
                 container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay ventas recientes</p>';
                 return;
             }
-            
+
+            const conteo = document.getElementById('conteo-ventas-recientes');
+            if (conteo) conteo.textContent = `${ventas.length} ventas`;
+
             let html = '';
-            ventas.slice(0, 5).forEach(venta => {
+            ventas.forEach(venta => {
                 html += `
-                    <div class="flex items-start justify-between p-3 bg-gray-50 rounded-lg border-l-4 border-blue-400">
+                    <div class="flex items-start justify-between p-3 bg-gray-50 rounded-lg border-l-4 border-blue-400 hover:bg-blue-50 transition">
                         <div class="flex items-start space-x-3">
-                            <div class="bg-blue-100 p-2 rounded-lg mt-0.5">
+                            <div class="bg-blue-100 p-2 rounded-lg mt-0.5 flex-shrink-0">
                                 <i class="fas fa-shopping-cart text-blue-500 text-sm"></i>
                             </div>
                             <div>
@@ -996,24 +1021,24 @@
                                     <i class="fas fa-user mr-1"></i>${venta.usuario}
                                 </p>
                                 <p class="text-xs text-gray-400">
-                                    <i class="fas fa-calendar mr-1"></i>${venta.fecha} 
+                                    <i class="fas fa-calendar mr-1"></i>${venta.fecha}
                                     <i class="fas fa-clock ml-2 mr-1"></i>${venta.hora}
                                 </p>
-                                <p class="text-xs text-blue-600 font-mono">
+                                <p class="text-xs text-blue-600 font-mono mt-0.5">
                                     <i class="fas fa-qrcode mr-1"></i>${venta.qr_code}
                                 </p>
                             </div>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex-shrink-0 ml-2">
                             <span class="text-sm font-bold text-green-600">${this.formatearMoneda(venta.precio)}</span>
-                            <p class="text-xs text-gray-500 mt-0.5">
+                            <p class="mt-0.5">
                                 <span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs">✓ Completada</span>
                             </p>
                         </div>
                     </div>
                 `;
             });
-            
+
             container.innerHTML = html;
         }
     } catch (error) {
@@ -1049,11 +1074,45 @@
         this.mostrarAlerta(`Gráfica actualizada a vista ${tipo}`, 'info');
     },
 
-    actualizarMetricaMaquinas: function() {
-        const metrica = document.getElementById('tipoMetricaMaquinas').value;
-        // Aquí podrías recargar los datos con la nueva métrica
-        this.mostrarAlerta(`Métrica actualizada a ${metrica}`, 'info');
-    },
+   configurarFechasIniciales: function() {
+    const ahora = new Date();
+    const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('fechaActual').textContent = ahora.toLocaleDateString('es-ES', opciones);
+    this.configurarRango('mes');
+
+    // Inicializar fechas del gráfico de máquinas
+    const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    document.getElementById('fechaInicioMaquinas').value = inicioMes.toISOString().split('T')[0];
+    document.getElementById('fechaFinMaquinas').value = ahora.toISOString().split('T')[0];
+},
+
+actualizarMetricaMaquinas: async function() {
+    const fechaInicio = document.getElementById('fechaInicioMaquinas').value;
+    const fechaFin = document.getElementById('fechaFinMaquinas').value;
+
+    if (!fechaInicio || !fechaFin) {
+        this.mostrarAlerta('Selecciona ambas fechas', 'error');
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, tipo: 'diario' });
+        const response = await fetch(`/api/dashboard/graficas?${params}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.rendimiento_maquinas && data.rendimiento_maquinas.labels.length > 0) {
+                this.charts.maquinas.data.labels = data.rendimiento_maquinas.labels;
+                this.charts.maquinas.data.datasets[0].data = data.rendimiento_maquinas.data;
+            } else {
+                this.charts.maquinas.data.labels = ['Sin datos en este período'];
+                this.charts.maquinas.data.datasets[0].data = [0];
+            }
+            this.charts.maquinas.update();
+        }
+    } catch (error) {
+        console.error('Error actualizando máquinas:', error);
+    }
+},
 
     actualizarTodo: function() {
         this.cargarDatosDashboard();
