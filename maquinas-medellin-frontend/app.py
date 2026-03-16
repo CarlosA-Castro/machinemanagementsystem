@@ -4028,15 +4028,20 @@ def obtener_maquina(maquina_id):
         cursor = get_db_cursor(connection)
         
         cursor.execute("""
-            SELECT 
-                m.*,
-                l.name as location_name,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
-            FROM machine m
-            LEFT JOIN location l ON m.location_id = l.id
-            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-            WHERE m.id = %s
-        """, (maquina_id,))
+    SELECT 
+        m.*,
+        l.name as location_name,
+        COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+        mt.machine_subtype,
+        mt.station_names,
+        mt.has_failure_report,
+        mt.show_station_selection
+    FROM machine m
+    LEFT JOIN location l ON m.location_id = l.id
+    LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+    LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+    WHERE m.id = %s
+""", (maquina_id,))
         
         maquina = cursor.fetchone()
         
@@ -4093,7 +4098,10 @@ def obtener_maquina(maquina_id):
             'info_propietarios': ", ".join([
                 f"{p['nombre']} ({p['porcentaje_propiedad']}%)" for p in propietarios
             ]) if propietarios else "Sin propietarios",
-            'valor_por_turno': float(maquina['valor_por_turno'] or 3000.00)
+            'valor_por_turno': float(maquina['valor_por_turno'] or 3000.00),
+            'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
+            'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
+            'show_station_selection': bool(maquina.get('show_station_selection', False)),
         })
         
     except Exception as e:
