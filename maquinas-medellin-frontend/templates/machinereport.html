@@ -1327,10 +1327,6 @@ function getGradientColor(tipo) {
         cargarEstacionesEnModal(infoMaquina);
         }
         
-        // Obtener último juego (ejemplo por ahora)
-        const ultimoJuego = await obtenerUltimoJuego(id);
-        document.getElementById("ultimoJuego").textContent = ultimoJuego || "No disponible";
-        
       } catch (error) {
         console.error('Error cargando información:', error);
         document.getElementById("estadoTexto").textContent = "Error cargando";

@@ -11,8 +11,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from functools import lru_cache, wraps
 import re
-import io 
-import json
+import io
 import csv
 import zipfile
 import traceback
@@ -55,19 +54,6 @@ app = Flask(
 )
 app.secret_key = 'maquinasmedellin_secret_key_2025'
 CORS(app)
-
-# Configurar logging
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-
-file_handler = RotatingFileHandler('logs/maquinas.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
-file_handler.setLevel(logging.INFO)
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-app.logger.info('Iniciando aplicación Máquinas Medellín')
 
 # Configurar logging mejorado
 if not os.path.exists('logs'):
@@ -2364,21 +2350,43 @@ def obtener_ventas():
         
         ventas_por_paquete = cursor.fetchall()
         
-        cursor.execute("""
-            SELECT 
-                HOUR(qh.fecha_hora) as hora,
-                COUNT(DISTINCT qh.qr_code) as cantidad
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE
-            GROUP BY HOUR(qh.fecha_hora)
-            ORDER BY hora
-        """, (fecha_inicio, fecha_fin))
-        
-        ventas_por_hora = cursor.fetchall()
+        # Si es el mismo día: agrupar por hora. Si es rango: agrupar por día
+        es_mismo_dia = fecha_inicio == fecha_fin
+
+        if es_mismo_dia:
+            cursor.execute("""
+                SELECT 
+                    HOUR(qh.fecha_hora) as periodo,
+                    COUNT(DISTINCT qh.qr_code) as cantidad
+                FROM qrhistory qh
+                JOIN qrcode qr ON qr.code = qh.qr_code
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                AND qr.turnPackageId IS NOT NULL
+                AND qr.turnPackageId != 1
+                AND qh.es_venta_real = TRUE
+                GROUP BY HOUR(qh.fecha_hora)
+                ORDER BY periodo
+            """, (fecha_inicio, fecha_fin))
+            ventas_evolucion = cursor.fetchall()
+            tipo_evolucion = 'horas'
+            labels_evolucion = [f"{item['periodo']}:00" for item in ventas_evolucion]
+        else:
+            cursor.execute("""
+                SELECT 
+                    DATE(qh.fecha_hora) as periodo,
+                    COUNT(DISTINCT qh.qr_code) as cantidad
+                FROM qrhistory qh
+                JOIN qrcode qr ON qr.code = qh.qr_code
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                AND qr.turnPackageId IS NOT NULL
+                AND qr.turnPackageId != 1
+                AND qh.es_venta_real = TRUE
+                GROUP BY DATE(qh.fecha_hora)
+                ORDER BY periodo
+            """, (fecha_inicio, fecha_fin))
+            ventas_evolucion = cursor.fetchall()
+            tipo_evolucion = 'dias'
+            labels_evolucion = [str(item['periodo']) for item in ventas_evolucion]
         
         fecha_inicio_ayer = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         fecha_fin_ayer = (datetime.strptime(fecha_fin, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -2415,16 +2423,16 @@ def obtener_ventas():
         eficiencia = 85  
         
         graficos = {
-            'paquetes': {
-                'labels': [item['paquete'] for item in ventas_por_paquete],
-                'data': [item['cantidad'] for item in ventas_por_paquete]
-            },
-            'evolucion': {
-                'labels': [f"{item['hora']}:00" for item in ventas_por_hora],
-                'data': [item['cantidad'] for item in ventas_por_hora],
-                'tipo': 'horas'
-            }
-        }
+    'paquetes': {
+        'labels': [item['paquete'] for item in ventas_por_paquete],
+        'data': [item['cantidad'] for item in ventas_por_paquete]
+    },
+    'evolucion': {
+        'labels': labels_evolucion,
+        'data': [item['cantidad'] for item in ventas_evolucion],
+        'tipo': tipo_evolucion
+    }
+}
         
         ventas_formateadas = []
         for venta in ventas:
