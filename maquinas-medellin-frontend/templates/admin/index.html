@@ -871,66 +871,66 @@
 
     cargarDatosGraficas: async function() {
     try {
+        const tipo = document.getElementById('tipoGraficaVentas').value;
         const params = new URLSearchParams({
             fecha_inicio: this.fechaInicio,
-            fecha_fin: this.fechaFin
+            fecha_fin: this.fechaFin,
+            tipo: tipo
         });
-        
-        console.log('📈 Cargando gráficas desde:', `/api/dashboard/graficas?${params}`);
-        
         const response = await fetch(`/api/dashboard/graficas?${params}`);
         if (response.ok) {
             const data = await response.json();
-            console.log('📈 Datos de gráficas recibidos:', data);
             this.actualizarTodasGraficas(data);
-        } else {
-            console.error('❌ Error en respuesta de gráficas:', response.status);
         }
     } catch (error) {
-        console.error('❌ Error cargando gráficas:', error);
+        console.error('Error cargando gráficas:', error);
     }
 },
 
     actualizarTodasGraficas: function(data) {
-        // Gráfico de evolución de ventas
-       if (data.evolucion_ventas && data.evolucion_ventas.labels.length > 0) {
-    this.charts.ventas.data.labels = data.evolucion_ventas.labels;
-    this.charts.ventas.data.datasets[0].data = data.evolucion_ventas.data;
-    this.charts.ventas.options.plugins.title.text = 'Evolución de Ventas';
-} else {
-    this.charts.ventas.data.labels = ['Sin ventas en este período'];
-    this.charts.ventas.data.datasets[0].data = [0];
-    this.charts.ventas.options.plugins.title.text = 'Sin datos disponibles';
-}
-this.charts.ventas.update();
+    // Gráfico de evolución de ventas
+    if (data.evolucion_ventas && data.evolucion_ventas.labels.length > 0) {
+        this.charts.ventas.data.labels = data.evolucion_ventas.labels;
+        this.charts.ventas.data.datasets[0].data = data.evolucion_ventas.data;
+        this.charts.ventas.options.plugins.title.text = 'Evolución de Ventas';
+    } else {
+        this.charts.ventas.data.labels = ['Sin ventas en este período'];
+        this.charts.ventas.data.datasets[0].data = [0];
+        this.charts.ventas.options.plugins.title.text = 'Sin datos disponibles';
+    }
+    this.charts.ventas.update();
 
-        // Gráfico de paquetes
-        if (data.ventas_paquetes) {
-            this.charts.paquetes.data.labels = data.ventas_paquetes.labels;
-            this.charts.paquetes.data.datasets[0].data = data.ventas_paquetes.data;
-            this.charts.paquetes.data.datasets[0].backgroundColor = [
-                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-                '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
-            ];
-            this.charts.paquetes.update();
-        }
+    // Gráfico de paquetes
+    if (data.ventas_paquetes && data.ventas_paquetes.labels.length > 0) {
+        this.charts.paquetes.data.labels = data.ventas_paquetes.labels;
+        this.charts.paquetes.data.datasets[0].data = data.ventas_paquetes.data;
+        this.charts.paquetes.data.datasets[0].backgroundColor = [
+            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+            '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
+        ];
+    } else {
+        this.charts.paquetes.data.labels = ['Sin datos'];
+        this.charts.paquetes.data.datasets[0].data = [1];
+        this.charts.paquetes.data.datasets[0].backgroundColor = ['#e5e7eb'];
+    }
+    this.charts.paquetes.update();
 
-        // Gráfico de máquinas
-        if (data.rendimiento_maquinas && data.rendimiento_maquinas.labels.length > 0) {
-    this.charts.maquinas.data.labels = data.rendimiento_maquinas.labels;
-    this.charts.maquinas.data.datasets[0].data = data.rendimiento_maquinas.data;
-} else {
-    this.charts.maquinas.data.labels = ['Sin datos'];
-    this.charts.maquinas.data.datasets[0].data = [0];
-}
-this.charts.maquinas.update();
+    // Gráfico de máquinas
+    if (data.rendimiento_maquinas && data.rendimiento_maquinas.labels.length > 0) {
+        this.charts.maquinas.data.labels = data.rendimiento_maquinas.labels;
+        this.charts.maquinas.data.datasets[0].data = data.rendimiento_maquinas.data;
+    } else {
+        this.charts.maquinas.data.labels = ['Sin datos'];
+        this.charts.maquinas.data.datasets[0].data = [0];
+    }
+    this.charts.maquinas.update();
 
-        // Gráfico de estado de máquinas
-        if (data.estado_maquinas) {
-            this.charts.estadoMaquinas.data.datasets[0].data = data.estado_maquinas;
-            this.charts.estadoMaquinas.update();
-        }
-    },
+    // Gráfico de estado de máquinas
+    if (data.estado_maquinas) {
+        this.charts.estadoMaquinas.data.datasets[0].data = data.estado_maquinas;
+        this.charts.estadoMaquinas.update();
+    }
+},
 
     cargarTopMaquinas: async function() {
         try {
@@ -969,41 +969,57 @@ this.charts.maquinas.update();
         }
     },
 
-    cargarVentasRecientes: async function() {
-        try {
-            const response = await fetch('/api/dashboard/ventas-recientes');
-            const container = document.getElementById('ventas-recientes');
+   cargarVentasRecientes: async function() {
+    try {
+        const response = await fetch('/api/dashboard/ventas-recientes');
+        const container = document.getElementById('ventas-recientes');
+        
+        if (response.ok) {
+            const ventas = await response.json();
             
-            if (response.ok) {
-                const ventas = await response.json();
-                
-                if (ventas.length === 0) {
-                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay ventas recientes</p>';
-                    return;
-                }
-                
-                let html = '';
-                ventas.slice(0, 5).forEach(venta => {
-                    html += `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center space-x-3">
-                                <i class="fas fa-shopping-cart text-blue-500"></i>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-800">${venta.paquete}</p>
-                                    <p class="text-xs text-gray-600">${venta.hora}</p>
-                                </div>
-                            </div>
-                            <span class="text-sm font-medium text-gray-700">${this.formatearMoneda(venta.precio)}</span>
-                        </div>
-                    `;
-                });
-                
-                container.innerHTML = html;
+            if (ventas.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay ventas recientes</p>';
+                return;
             }
-        } catch (error) {
-            console.error('Error cargando ventas recientes:', error);
+            
+            let html = '';
+            ventas.slice(0, 5).forEach(venta => {
+                html += `
+                    <div class="flex items-start justify-between p-3 bg-gray-50 rounded-lg border-l-4 border-blue-400">
+                        <div class="flex items-start space-x-3">
+                            <div class="bg-blue-100 p-2 rounded-lg mt-0.5">
+                                <i class="fas fa-shopping-cart text-blue-500 text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800">${venta.paquete}</p>
+                                <p class="text-xs text-gray-500">
+                                    <i class="fas fa-user mr-1"></i>${venta.usuario}
+                                </p>
+                                <p class="text-xs text-gray-400">
+                                    <i class="fas fa-calendar mr-1"></i>${venta.fecha} 
+                                    <i class="fas fa-clock ml-2 mr-1"></i>${venta.hora}
+                                </p>
+                                <p class="text-xs text-blue-600 font-mono">
+                                    <i class="fas fa-qrcode mr-1"></i>${venta.qr_code}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-green-600">${this.formatearMoneda(venta.precio)}</span>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                <span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs">✓ Completada</span>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
         }
-    },
+    } catch (error) {
+        console.error('Error cargando ventas recientes:', error);
+    }
+},
 
 
     actualizarTendencias: function(tendencias) {

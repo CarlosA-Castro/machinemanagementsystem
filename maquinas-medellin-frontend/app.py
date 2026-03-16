@@ -5596,24 +5596,59 @@ def obtener_graficas_dashboard():
             
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
-            SELECT 
-                DATE(qh.fecha_hora) as fecha,
-                COUNT(DISTINCT qh.qr_code) as ventas,
-                COALESCE(SUM(tp.price), 0) as ingresos
-            FROM qrhistory qh
-            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
-            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE
-            GROUP BY DATE(qh.fecha_hora)
-            ORDER BY fecha
-        """, (fecha_inicio, fecha_fin))
-        
+        tipo_agrupacion = request.args.get('tipo', 'diario')
+
+        if tipo_agrupacion == 'mensual':
+            cursor.execute("""
+                SELECT 
+                    DATE_FORMAT(qh.fecha_hora, '%Y-%m') as fecha,
+                    COUNT(DISTINCT qh.qr_code) as ventas,
+                    COALESCE(SUM(tp.price), 0) as ingresos
+                FROM qrhistory qh
+                LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+                LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                AND qr.turnPackageId IS NOT NULL
+                AND qr.turnPackageId != 1
+                AND qh.es_venta_real = TRUE
+                GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%m')
+                ORDER BY fecha
+            """, (fecha_inicio, fecha_fin))
+        elif tipo_agrupacion == 'semanal':
+            cursor.execute("""
+                SELECT 
+                    DATE_FORMAT(qh.fecha_hora, '%Y-S%u') as fecha,
+                    COUNT(DISTINCT qh.qr_code) as ventas,
+                    COALESCE(SUM(tp.price), 0) as ingresos
+                FROM qrhistory qh
+                LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+                LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                AND qr.turnPackageId IS NOT NULL
+                AND qr.turnPackageId != 1
+                AND qh.es_venta_real = TRUE
+                GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%u')
+                ORDER BY fecha
+            """, (fecha_inicio, fecha_fin))
+        else:
+            cursor.execute("""
+                SELECT 
+                    DATE(qh.fecha_hora) as fecha,
+                    COUNT(DISTINCT qh.qr_code) as ventas,
+                    COALESCE(SUM(tp.price), 0) as ingresos
+                FROM qrhistory qh
+                LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+                LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                AND qr.turnPackageId IS NOT NULL
+                AND qr.turnPackageId != 1
+                AND qh.es_venta_real = TRUE
+                GROUP BY DATE(qh.fecha_hora)
+                ORDER BY fecha
+            """, (fecha_inicio, fecha_fin))
+
         evolucion_data = cursor.fetchall()
-        
+
         evolucion_ventas = {
             'labels': [str(item['fecha']) for item in evolucion_data],
             'data': [float(item['ingresos']) for item in evolucion_data]
@@ -5644,20 +5679,19 @@ def obtener_graficas_dashboard():
         }
 
         cursor.execute("""
-    SELECT 
-        m.name as maquina,
-        COUNT(tu.id) as usos,
-        COALESCE(SUM(tp.price), 0) as ingresos
-    FROM machine m
-    LEFT JOIN turnusage tu ON tu.machineId = m.id 
-        AND DATE(tu.usedAt) BETWEEN %s AND %s
-    LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
-    LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-    GROUP BY m.id, m.name
-    HAVING usos > 0
-    ORDER BY ingresos DESC
-    LIMIT 10
-""", (fecha_inicio, fecha_fin))
+            SELECT 
+                m.name as maquina,
+                COUNT(tu.id) as usos,
+                COALESCE(SUM(tp.price), 0) as ingresos
+            FROM machine m
+            LEFT JOIN turnusage tu ON tu.machineId = m.id 
+                AND DATE(tu.usedAt) BETWEEN %s AND %s
+            LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            GROUP BY m.id, m.name
+            ORDER BY ingresos DESC, usos DESC
+            LIMIT 10
+        """, (fecha_inicio, fecha_fin))
 
         maquinas_data = cursor.fetchall()
 
@@ -5723,15 +5757,15 @@ def obtener_top_maquinas():
         cursor.execute("""
             SELECT 
                 m.name as nombre,
-                COUNT(tu.id) as ventas,
-                COALESCE(SUM(tp.price), 0) as ingresos,
-                COUNT(tu.id) as usos
+                COUNT(tu.id) as usos,
+                COALESCE(SUM(tp.price), 0) as ingresos
             FROM machine m
-            LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) = %s
-            LEFT JOIN qrcode qr ON qr.id = tu.qrCodeId
+            LEFT JOIN turnusage tu ON tu.machineId = m.id 
+                AND DATE(tu.usedAt) = %s
+            LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             GROUP BY m.id, m.name
-            ORDER BY ingresos DESC
+            ORDER BY usos DESC, ingresos DESC
             LIMIT 5
         """, (fecha_hoy,))
         
@@ -5741,7 +5775,7 @@ def obtener_top_maquinas():
         for maquina in top_maquinas:
             maquinas_formateadas.append({
                 'nombre': maquina['nombre'],
-                'ventas': maquina['ventas'] or 0,
+                'ventas': maquina['usos'] or 0,
                 'ingresos': float(maquina['ingresos'] or 0),
                 'usos': maquina['usos'] or 0
             })
