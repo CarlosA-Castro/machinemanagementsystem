@@ -570,19 +570,6 @@
     </div>
   </div>
 </div>
-        
-        <!-- Indicador de estado -->
-        <div class="mt-4 pt-4 border-t border-gray-200">
-          <div class="flex items-center justify-between text-xs text-gray-600">
-            <div class="flex items-center">
-              <div class="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-            </div>
-            <div>
-              <span id="ultimaActualizacion">Última actualización: -</span>
-            </div>
-          </div>
-        </div>
-      </div>
       
       <!-- Modal para detalles QR -->
       <div id="modalQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
@@ -695,26 +682,18 @@
         </div>
         
         <!-- Paso 1: Configuración básica -->
-        <div class="mb-6">
-            <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 1: Configuración básica</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-hashtag mr-1"></i>Cantidad de QR a generar:
-                    </label>
-                    <input type="number" id="cantidadQR" min="1" max="100" value="1" 
-                          class="w-full border border-gray-300 rounded-lg p-3 text-base">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-user mr-1"></i>Nombre para el QR:
-                    </label>
-                    <input type="text" id="nombreQR" placeholder="Ej: Cliente Restaurante" 
-                          class="w-full border border-gray-300 rounded-lg p-3 text-base">
-                </div>
-            </div>
-        </div>
+<div class="mb-6">
+    <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 1: Configuración básica</h3>
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            <i class="fas fa-user mr-1"></i>Nombre para el QR:
+        </label>
+        <input type="text" id="nombreQR" placeholder="Ej: Cliente Restaurante" 
+              class="w-full border border-gray-300 rounded-lg p-3 text-base">
+    </div>
+    <!-- Campo oculto con cantidad fija en 1 -->
+    <input type="hidden" id="cantidadQR" value="1">
+</div>
         
         <!-- Paso 2: Selección de paquete -->
         <div class="mb-6">
