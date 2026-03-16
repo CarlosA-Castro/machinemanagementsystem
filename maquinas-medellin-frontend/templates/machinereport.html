@@ -1222,33 +1222,52 @@ function getGradientColor(tipo) {
 
     // Función para actualizar la información en el modal
     function actualizarInfoModal(info) {
-      if (!info) return;
-      
-      // Actualizar estado
-      const estadoElemento = document.getElementById('estadoTexto');
-      const estadoIcono = document.getElementById('estadoIcono');
-      const turnosFallados = document.getElementById('turnosFallados');
-      
-      if (info.status === 'activa') {
-        estadoElemento.textContent = 'Activa';
-        estadoElemento.className = 'font-semibold text-green-600 flex items-center';
-        estadoIcono.innerHTML = '<i class="fas fa-check-circle mr-1 text-green-500"></i>';
-        estadoIcono.className = 'text-green-500';
-      } else if (info.status === 'mantenimiento') {
-        estadoElemento.textContent = 'En mantenimiento';
-        estadoElemento.className = 'font-semibold text-yellow-600 flex items-center';
-        estadoIcono.innerHTML = '<i class="fas fa-tools mr-1 text-yellow-500"></i>';
-        estadoIcono.className = 'text-yellow-500';
-      } else if (info.status === 'inactiva') {
-        estadoElemento.textContent = 'Inactiva';
-        estadoElemento.className = 'font-semibold text-red-600 flex items-center';
-        estadoIcono.innerHTML = '<i class="fas fa-times-circle mr-1 text-red-500"></i>';
-        estadoIcono.className = 'text-red-500';
-      }
-      
-      // Actualizar turnos fallados
-      turnosFallados.textContent = info.dailyFailedTurns || 0;
+  if (!info) return;
+
+  // Estado
+  const estadoElemento = document.getElementById('estadoTexto');
+  const estadoIcono = document.getElementById('estadoIcono');
+
+  if (info.status === 'activa') {
+    estadoElemento.textContent = 'Activa';
+    estadoElemento.className = 'font-semibold text-green-600';
+    estadoIcono.innerHTML = '<i class="fas fa-check-circle text-green-500 mr-1"></i>';
+  } else if (info.status === 'mantenimiento') {
+    estadoElemento.textContent = 'En mantenimiento';
+    estadoElemento.className = 'font-semibold text-yellow-600';
+    estadoIcono.innerHTML = '<i class="fas fa-tools text-yellow-500 mr-1"></i>';
+  } else {
+    estadoElemento.textContent = 'Inactiva';
+    estadoElemento.className = 'font-semibold text-red-600';
+    estadoIcono.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i>';
+  }
+
+  // Último juego — usa dateLastQRUsed que ya viene en /api/maquinas/{id}
+  const ultimoJuegoEl = document.getElementById('ultimoJuego');
+  if (info.dateLastQRUsed) {
+    try {
+      const fecha = new Date(info.dateLastQRUsed);
+      const opciones = {
+        timeZone: 'America/Bogota',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      ultimoJuegoEl.textContent = fecha.toLocaleString('es-CO', opciones);
+    } catch(e) {
+      ultimoJuegoEl.textContent = info.dateLastQRUsed;
     }
+  } else {
+    ultimoJuegoEl.textContent = 'Sin juegos registrados';
+  }
+
+  // Turnos fallados
+  const turnosFalladosEl = document.getElementById('turnosFallados');
+  turnosFalladosEl.textContent = info.dailyFailedTurns != null ? info.dailyFailedTurns : 0;
+}
 
     async function abrirModal(nombre, id, tipo) {
       maquinaActual = nombre;
