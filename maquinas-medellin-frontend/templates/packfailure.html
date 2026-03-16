@@ -776,72 +776,126 @@
                 ` : ''}
               </div>
               
-              <!-- BOTÓN DE DEVOLUCIÓN DENTRO DE LA TARJETA -->
-              <div class="mt-4 pt-2 border-t border-gray-200">
-                <button 
-                  onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}')"
-                  class="btn-refund-card"
-                >
-                  <i class="fas fa-rotate-left"></i>
-                  Devolver 1 turno - Este juego
-                </button>
-                <p class="text-xs text-gray-500 text-center mt-1.5">
-                  ${juego.validacion.mensaje || ''}
-                </p>
-              </div>
-            </div>
+             <!-- BOTÓN DE DEVOLUCIÓN DENTRO DE LA TARJETA -->
+<div class="mt-4 pt-2 border-t border-gray-200">
+  <button 
+    id="btn-devolver-${juego.usage_id}"
+    onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}', this)"
+    class="btn-refund-card ${juego.validacion.estado === 'NO_APTO' ? 'opacity-70' : ''}"
+  >
+    <i class="fas fa-rotate-left"></i>
+    ${juego.validacion.estado === 'APTO' ? 'Devolver 1 turno' : juego.validacion.estado === 'NO_APTO' ? 'Forzar devolución' : 'Devolver 1 turno'}
+  </button>
+  <p class="text-xs text-center mt-1.5 ${
+    juego.validacion.estado === 'APTO' ? 'text-green-600' : 
+    juego.validacion.estado === 'NO_APTO' ? 'text-red-500' : 
+    'text-yellow-600'
+  }">
+    ${juego.validacion.mensaje || ''}
+  </p>
+</div> 
+
           `;
         });
         
         this.machinesContainer.innerHTML = html;
       },
       
-      procesarDevolucionDesdeJuego: async function(usageId, machineId, fecha) {
-        if (!confirm(`¿Devolver 1 turno para el juego en ${fecha}?`)) {
-          return;
-        }
-        
-        try {
-          // Mostrar loading en el botón específico
-          const btn = event.currentTarget;
-          const originalText = btn.innerHTML;
-          btn.innerHTML = '<div class="loading mr-2"></div> Procesando...';
-          btn.disabled = true;
-          
-          const response = await fetch('/api/qr/procesar-devolucion', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-              qr_code: this.qrActual,
-              machine_id: machineId,
-              usage_id: usageId,
-              is_forced: false,
-              notes: `Devolución desde packfailure - Juego: ${fecha}`
-            })
-          });
-          
-          const result = await response.json();
-          
-          if (!response.ok) throw new Error(result.message || 'Error en devolución');
-          
-          // Éxito - Recargar todo
-          this.mostrarExito(`✅ Devolución exitosa. Turnos restantes: ${result.data.turnos_restantes}`);
-          await this.cargarHistorialCompleto(this.qrActual);
-          
-        } catch (error) {
-          console.error(error);
-          alert(`Error: ${error.message}`);
-          // Restaurar botón
-          const btn = event?.currentTarget;
-          if (btn) {
-            btn.innerHTML = '<i class="fas fa-rotate-left"></i> Devolver 1 turno - Este juego';
-            btn.disabled = false;
-          }
-        }
+     procesarDevolucionDesdeJuego: async function(usageId, machineId, fecha, btnEl) {
+  const esForzado = this.historialCompleto?.historial?.find(j => j.usage_id === usageId)?.validacion?.estado === 'NO_APTO';
+  
+  // Modal de confirmación propio (sin confirm() nativo)
+  const confirmar = await this.mostrarConfirmacion(
+    esForzado
+      ? `⚠️ Este juego está marcado como NO APTO para devolución.\n¿Confirmas que deseas forzar la devolución del turno de ${fecha}?`
+      : `¿Devolver 1 turno para el juego en ${fecha}?`
+  );
+  
+  if (!confirmar) return;
+
+  // Loading en el botón
+  const originalHtml = btnEl.innerHTML;
+  btnEl.innerHTML = '<div class="loading mr-2" style="border-top-color:#fff"></div> Procesando...';
+  btnEl.disabled = true;
+
+  try {
+    const response = await fetch('/api/qr/procesar-devolucion', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
       },
+      body: JSON.stringify({
+        qr_code: this.qrActual,
+        machine_id: machineId,
+        usage_id: usageId,
+        is_forced: esForzado,
+        notes: `Devolución desde packfailure - Juego: ${fecha}${esForzado ? ' - FORZADA' : ''}`
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) throw new Error(result.message || 'Error en devolución');
+
+    // Éxito
+    this.mostrarExito(`✅ Devolución exitosa. Turnos restantes: ${result.data.turnos_restantes}`);
+    
+    // Scroll al mensaje
+    this.resultMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Recargar historial
+    await this.cargarHistorialCompleto(this.qrActual);
+
+  } catch (error) {
+    console.error(error);
+    this.mostrarError('Error en devolución', error.message);
+    this.resultMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Restaurar botón
+    btnEl.innerHTML = originalHtml;
+    btnEl.disabled = false;
+  }
+},
+
+// Modal de confirmación propio (reemplaza confirm() nativo)
+mostrarConfirmacion: function(mensaje) {
+  return new Promise((resolve) => {
+    // Eliminar modal anterior si existe
+    document.getElementById('modal-confirmacion')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-confirmacion';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem';
+    modal.innerHTML = `
+      <div style="background:white;border-radius:12px;padding:1.5rem;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:1.25rem">
+          <div style="background:#fef3c7;border-radius:50%;padding:8px;flex-shrink:0">
+            <i class="fas fa-exclamation-triangle" style="color:#d97706;font-size:18px"></i>
+          </div>
+          <div>
+            <h3 style="font-weight:600;color:#111827;margin-bottom:6px">Confirmar devolución</h3>
+            <p style="color:#6b7280;font-size:0.875rem;line-height:1.5">${mensaje.replace(/\n/g, '<br>')}</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button id="modal-cancelar" 
+                  style="flex:1;padding:0.6rem;border:1px solid #d1d5db;border-radius:8px;background:white;color:#374151;font-weight:500;cursor:pointer">
+            Cancelar
+          </button>
+          <button id="modal-confirmar"
+                  style="flex:1;padding:0.6rem;border-radius:8px;background:#059669;color:white;font-weight:600;cursor:pointer">
+            Confirmar
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('modal-confirmar').onclick = () => { modal.remove(); resolve(true); };
+    document.getElementById('modal-cancelar').onclick = () => { modal.remove(); resolve(false); };
+    modal.onclick = (e) => { if (e.target === modal) { modal.remove(); resolve(false); } };
+  });
+},
       
       mostrarCargando: function(mensaje) {
         this.resultMessage.classList.remove('hidden');
