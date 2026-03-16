@@ -2272,58 +2272,52 @@ cargarHistorialQR: function() {
       },
 
       enviarWhatsAppConNumero: function(qrDataUrl, nombre, codigo, paquete) {
-        const numeroInput = document.getElementById('numeroWhatsApp');
-        const numero = numeroInput ? numeroInput.value.trim() : '';
-        
-        // Crear mensaje con información del paquete
-        const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n• Paquete: P${paquete.id} - ${paquete.name}\n• Precio: $${paquete.price.toLocaleString('es-CO')}\n• Turnos: ${paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
-        
-        // Primero descargar el QR
-        this.descargarQR(qrDataUrl, nombre, codigo);
-        
-        // Preparar URL de WhatsApp
-        let whatsappUrl;
-        
-        if (numero) {
-            // Validar formato del número
-            const numeroLimpio = numero.replace(/[\s+()-]/g, '');
-            
-            if (/^[0-9]{10,15}$/.test(numeroLimpio)) {
-                // Enviar a número específico
-                if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                    whatsappUrl = `whatsapp://send?phone=${numeroLimpio}&text=${encodeURIComponent(mensaje)}`;
-                } else {
-                    whatsappUrl = `https://web.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(mensaje)}`;
-                }
-            } else {
-                this.mostrarAlerta("❌ Número inválido. Usa solo números con código de país", "error");
-                return;
-            }
-        } else {
-            // Enviar sin número específico
-            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                whatsappUrl = `whatsapp://send?text=${encodeURIComponent(mensaje)}`;
-            } else {
-                whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
-            }
-        }
-        
-        // Abrir WhatsApp después de descargar
-        setTimeout(() => {
-            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                window.location.href = whatsappUrl;
-            } else {
-                window.open(whatsappUrl, '_blank');
-            }
-            
-            this.mostrarAlerta("✅ QR descargado. Abriendo WhatsApp...", "success");
-            
-            // Cerrar modal
-            const modal = document.querySelector('.fixed.inset-0');
-            if (modal) modal.remove();
-            
-        }, 1000);
-      },
+  const numeroInput = document.getElementById('numeroWhatsApp');
+  const numero = numeroInput ? numeroInput.value.trim() : '';
+
+  // Validar número si se ingresó
+  if (numero) {
+    const numeroLimpio = numero.replace(/[\s+()-]/g, '');
+    if (!/^[0-9]{10,15}$/.test(numeroLimpio)) {
+      this.mostrarAlerta("❌ Número inválido. Usa solo números con código de país", "error");
+      return;
+    }
+  }
+
+  const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n• Paquete: P${paquete.id} - ${paquete.name}\n• Precio: $${paquete.price.toLocaleString('es-CO')}\n• Turnos: ${paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
+
+  const esMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Construir URL ANTES de cualquier async
+  let whatsappUrl;
+  if (numero) {
+    const numeroLimpio = numero.replace(/[\s+()-]/g, '');
+    whatsappUrl = esMobile
+      ? `whatsapp://send?phone=${numeroLimpio}&text=${encodeURIComponent(mensaje)}`
+      : `https://web.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(mensaje)}`;
+  } else {
+    whatsappUrl = esMobile
+      ? `whatsapp://send?text=${encodeURIComponent(mensaje)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+  }
+
+  // Abrir WhatsApp INMEDIATAMENTE (acción directa del usuario)
+  const ventana = window.open(whatsappUrl, '_blank');
+
+  // Si el navegador bloqueó el popup, usar location como fallback
+  if (!ventana || ventana.closed || typeof ventana.closed === 'undefined') {
+    window.location.href = whatsappUrl;
+  }
+
+  // Descargar QR en paralelo (no bloquea la apertura de WhatsApp)
+  this.descargarQR(qrDataUrl, nombre, codigo);
+
+  this.mostrarAlerta("✅ Abriendo WhatsApp...", "success");
+
+  // Cerrar modal
+  const modal = document.querySelector('.fixed.inset-0');
+  if (modal) modal.remove();
+},
 
       descargarQR: function(qrDataUrl, nombre, codigo) {
         try {
