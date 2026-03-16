@@ -901,23 +901,9 @@
 
     cargarDatosGraficas: async function() {
     try {
-        const tipo = document.getElementById('tipoGraficaVentas').value;
-        let fechaInicio = this.fechaInicio;
-        let fechaFin = this.fechaFin;
-
-        // Si es semanal o mensual, ampliar rango automáticamente
-        const ahora = new Date();
-        if (tipo === 'semanal') {
-            const hace3Meses = new Date(ahora);
-            hace3Meses.setMonth(ahora.getMonth() - 3);
-            fechaInicio = hace3Meses.toISOString().split('T')[0];
-            fechaFin = ahora.toISOString().split('T')[0];
-        } else if (tipo === 'mensual') {
-            const hace12Meses = new Date(ahora);
-            hace12Meses.setFullYear(ahora.getFullYear() - 1);
-            fechaInicio = hace12Meses.toISOString().split('T')[0];
-            fechaFin = ahora.toISOString().split('T')[0];
-        }
+        const tipo = document.getElementById('tipoGraficaVentas')?.value || 'diario';
+        const fechaInicio = document.getElementById('fechaInicioVentas')?.value || this.fechaInicio;
+        const fechaFin = document.getElementById('fechaFinVentas')?.value || this.fechaFin;
 
         const params = new URLSearchParams({ fecha_inicio: fechaInicio, fecha_fin: fechaFin, tipo });
         const response = await fetch(`/api/dashboard/graficas?${params}`);
@@ -929,7 +915,6 @@
         console.error('Error cargando gráficas:', error);
     }
 },
-
 
     actualizarTodasGraficas: function(data) {
     // Gráfico de evolución de ventas
@@ -1115,18 +1100,25 @@ configurarFechasIniciales: function() {
     const ahora = new Date();
     const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('fechaActual').textContent = ahora.toLocaleDateString('es-ES', opciones);
-    this.configurarRango('mes');
-    document.getElementById('fechaInicioTop').value = inicioMes.toISOString().split('T')[0];
-    document.getElementById('fechaFinTop').value = ahora.toISOString().split('T')[0];
 
-    // Inicializar fechas de evolución de ventas (último mes)
+    // Declarar inicioMes antes de usarlo
     const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-    document.getElementById('fechaInicioVentas').value = inicioMes.toISOString().split('T')[0];
-    document.getElementById('fechaFinVentas').value = ahora.toISOString().split('T')[0];
+    const inicioMesStr = inicioMes.toISOString().split('T')[0];
+    const hoyStr = ahora.toISOString().split('T')[0];
+
+    this.configurarRango('mes');
+
+    // Inicializar fechas de evolución de ventas
+    document.getElementById('fechaInicioVentas').value = inicioMesStr;
+    document.getElementById('fechaFinVentas').value = hoyStr;
 
     // Inicializar fechas del gráfico de máquinas
-    document.getElementById('fechaInicioMaquinas').value = inicioMes.toISOString().split('T')[0];
-    document.getElementById('fechaFinMaquinas').value = ahora.toISOString().split('T')[0];
+    document.getElementById('fechaInicioMaquinas').value = inicioMesStr;
+    document.getElementById('fechaFinMaquinas').value = hoyStr;
+
+    // Inicializar fechas del top 5
+    document.getElementById('fechaInicioTop').value = inicioMesStr;
+    document.getElementById('fechaFinTop').value = hoyStr;
 },
 
 
