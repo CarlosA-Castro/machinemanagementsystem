@@ -5644,24 +5644,23 @@ def obtener_graficas_dashboard():
         }
 
         cursor.execute("""
-            SELECT 
-                m.name as maquina,
-                COUNT(DISTINCT qh.qr_code) as ventas,
-                COALESCE(SUM(tp.price), 0) as ingresos,
-                COUNT(DISTINCT tu.id) as usos
-            FROM machine m
-            LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) BETWEEN %s AND %s
-            LEFT JOIN qrhistory qh ON DATE(qh.fecha_hora) BETWEEN %s AND %s
-            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
-            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE qh.fecha_hora IS NOT NULL
-            GROUP BY m.id, m.name
-            ORDER BY ingresos DESC
-            LIMIT 10
-        """, (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
-        
+    SELECT 
+        m.name as maquina,
+        COUNT(tu.id) as usos,
+        COALESCE(SUM(tp.price), 0) as ingresos
+    FROM machine m
+    LEFT JOIN turnusage tu ON tu.machineId = m.id 
+        AND DATE(tu.usedAt) BETWEEN %s AND %s
+    LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
+    LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+    GROUP BY m.id, m.name
+    HAVING usos > 0
+    ORDER BY ingresos DESC
+    LIMIT 10
+""", (fecha_inicio, fecha_fin))
+
         maquinas_data = cursor.fetchall()
-        
+
         rendimiento_maquinas = {
             'labels': [item['maquina'] for item in maquinas_data],
             'data': [float(item['ingresos']) for item in maquinas_data]

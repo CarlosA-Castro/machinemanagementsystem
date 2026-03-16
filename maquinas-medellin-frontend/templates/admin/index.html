@@ -464,8 +464,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         </main>
     </div>
 
@@ -895,11 +893,16 @@
 
     actualizarTodasGraficas: function(data) {
         // Gráfico de evolución de ventas
-        if (data.evolucion_ventas) {
-            this.charts.ventas.data.labels = data.evolucion_ventas.labels;
-            this.charts.ventas.data.datasets[0].data = data.evolucion_ventas.data;
-            this.charts.ventas.update();
-        }
+       if (data.evolucion_ventas && data.evolucion_ventas.labels.length > 0) {
+    this.charts.ventas.data.labels = data.evolucion_ventas.labels;
+    this.charts.ventas.data.datasets[0].data = data.evolucion_ventas.data;
+    this.charts.ventas.options.plugins.title.text = 'Evolución de Ventas';
+} else {
+    this.charts.ventas.data.labels = ['Sin ventas en este período'];
+    this.charts.ventas.data.datasets[0].data = [0];
+    this.charts.ventas.options.plugins.title.text = 'Sin datos disponibles';
+}
+this.charts.ventas.update();
 
         // Gráfico de paquetes
         if (data.ventas_paquetes) {
@@ -913,11 +916,14 @@
         }
 
         // Gráfico de máquinas
-        if (data.rendimiento_maquinas) {
-            this.charts.maquinas.data.labels = data.rendimiento_maquinas.labels;
-            this.charts.maquinas.data.datasets[0].data = data.rendimiento_maquinas.data;
-            this.charts.maquinas.update();
-        }
+        if (data.rendimiento_maquinas && data.rendimiento_maquinas.labels.length > 0) {
+    this.charts.maquinas.data.labels = data.rendimiento_maquinas.labels;
+    this.charts.maquinas.data.datasets[0].data = data.rendimiento_maquinas.data;
+} else {
+    this.charts.maquinas.data.labels = ['Sin datos'];
+    this.charts.maquinas.data.datasets[0].data = [0];
+}
+this.charts.maquinas.update();
 
         // Gráfico de estado de máquinas
         if (data.estado_maquinas) {
