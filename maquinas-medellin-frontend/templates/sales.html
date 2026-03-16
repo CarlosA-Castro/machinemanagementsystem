@@ -351,6 +351,7 @@
                         Por transacción
                     </div>
                 </div>
+                 </div>
 
             <!-- Gráficas y tablas -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -828,8 +829,6 @@
             estadisticas.total_paquetes;
         document.getElementById('ticketPromedio').textContent = 
             this.formatearMoneda(estadisticas.ticket_promedio);
-        document.getElementById('eficiencia').textContent = 
-            estadisticas.eficiencia + '%';
         
         // Actualizar tendencias con colores
         const tendenciaVentasElem = document.getElementById('tendenciaVentas');
