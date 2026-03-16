@@ -2287,36 +2287,91 @@ cargarHistorialQR: function() {
   const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${nombre}\n• Código: ${codigo}\n• ID: ${codigo.replace('QR', '')}\n• Paquete: P${paquete.id} - ${paquete.name}\n• Precio: $${paquete.price.toLocaleString('es-CO')}\n• Turnos: ${paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
 
   const esMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const textoEncoded = encodeURIComponent(mensaje);
+  const numeroLimpio = numero ? numero.replace(/[\s+()-]/g, '') : '';
 
-  // Construir URL ANTES de cualquier async
-  let whatsappUrl;
-  if (numero) {
-    const numeroLimpio = numero.replace(/[\s+()-]/g, '');
-    whatsappUrl = esMobile
-      ? `whatsapp://send?phone=${numeroLimpio}&text=${encodeURIComponent(mensaje)}`
-      : `https://web.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(mensaje)}`;
-  } else {
-    whatsappUrl = esMobile
-      ? `whatsapp://send?text=${encodeURIComponent(mensaje)}`
-      : `https://web.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
-  }
-
-  // Abrir WhatsApp INMEDIATAMENTE (acción directa del usuario)
-  const ventana = window.open(whatsappUrl, '_blank');
-
-  // Si el navegador bloqueó el popup, usar location como fallback
-  if (!ventana || ventana.closed || typeof ventana.closed === 'undefined') {
-    window.location.href = whatsappUrl;
-  }
-
-  // Descargar QR en paralelo (no bloquea la apertura de WhatsApp)
+  // Descargar QR primero (no bloquea nada)
   this.descargarQR(qrDataUrl, nombre, codigo);
-
-  this.mostrarAlerta("✅ Abriendo WhatsApp...", "success");
 
   // Cerrar modal
   const modal = document.querySelector('.fixed.inset-0');
   if (modal) modal.remove();
+
+  if (esMobile) {
+    // MÓVIL: abrir app nativa directamente
+    const url = numeroLimpio
+      ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}`
+      : `whatsapp://send?text=${textoEncoded}`;
+    window.location.href = url;
+
+  } else {
+    // PC: intentar abrir Desktop primero, con fallback a Web
+    // Creamos un enlace oculto con whatsapp:// y lo clickeamos
+    // Si Desktop no está instalado, el navegador no hace nada con whatsapp://
+    // por eso también abrimos web.whatsapp.com en una nueva pestaña como respaldo
+
+    const urlDesktop = numeroLimpio
+      ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}`
+      : `whatsapp://send?text=${textoEncoded}`;
+
+    const urlWeb = numeroLimpio
+      ? `https://web.whatsapp.com/send?phone=${numeroLimpio}&text=${textoEncoded}`
+      : `https://web.whatsapp.com/send?text=${textoEncoded}`;
+
+    // Intentar Desktop
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // Mostrar modal de selección al usuario
+    const selectorModal = document.createElement('div');
+    selectorModal.innerHTML = `
+      <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
+          <div class="text-4xl mb-3">💬</div>
+          <h3 class="text-lg font-bold mb-2 text-gray-800">¿Dónde abrir WhatsApp?</h3>
+          <p class="text-sm text-gray-500 mb-5">El QR ya fue descargado. Elige cómo enviar el mensaje:</p>
+          <div class="space-y-3">
+            <button id="btnWppDesktop"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition">
+              <i class="fab fa-whatsapp text-xl"></i> WhatsApp Desktop (app)
+            </button>
+            <button id="btnWppWeb"
+                    class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition">
+              <i class="fas fa-globe text-xl"></i> WhatsApp Web (navegador)
+            </button>
+            <button id="btnWppCancelar"
+                    class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold transition">
+              Cancelar
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mt-4">
+            <i class="fas fa-download mr-1"></i>El QR ya fue descargado como imagen
+          </p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(selectorModal);
+
+    document.getElementById('btnWppDesktop').onclick = function() {
+      window.location.href = urlDesktop;
+      selectorModal.remove();
+      iframe.remove();
+    };
+
+    document.getElementById('btnWppWeb').onclick = function() {
+      window.open(urlWeb, '_blank');
+      selectorModal.remove();
+      iframe.remove();
+    };
+
+    document.getElementById('btnWppCancelar').onclick = function() {
+      selectorModal.remove();
+      iframe.remove();
+    };
+  }
+
+  this.mostrarAlerta("✅ QR descargado. Selecciona cómo enviar.", "success");
 },
 
       descargarQR: function(qrDataUrl, nombre, codigo) {
