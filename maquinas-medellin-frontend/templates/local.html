@@ -504,45 +504,72 @@
 
       <!-- Contador Global Y HORA ACTUAL -->
       <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
-          <!-- VENTAS DEL DÍA -->
-          <div>
-            <h2 class="text-lg lg:text-xl font-bold mb-2">
-              <i class="fas fa-shopping-cart mr-2"></i>Ventas del Día
-            </h2>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base">
-              Paquetes vendidos hoy:
-            </p>
-            <div id="ventasDia" class="text-2xl lg:text-3xl font-bold text-green-600">0</div>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base mt-2">
-              Valor total de ventas:
-            </p>
-            <div id="valorTotalVentas" class="text-xl lg:text-2xl font-bold text-purple-600">$0</div>
-            <p class="text-xs text-gray-500 mt-1">
-              <i class="fas fa-info-circle mr-1"></i>Se actualiza al asignar paquetes
-            </p>
-          </div>
-          
-          <!-- HORA ACTUAL -->
-          <div>
-            <h2 class="text-lg lg:text-xl font-bold mb-2">
-              <i class="fas fa-clock mr-2"></i>Hora Actual
-            </h2>
-            <p class="text-gray-600 mb-2 text-sm lg:text-base">
-              Hora local (Colombia):
-            </p>
-            <div id="horaActual" class="text-2xl lg:text-3xl font-bold text-purple-600">
-              Cargando...
-            </div>
-            <div id="fechaActual" class="text-sm text-gray-500 mt-1">
-              Cargando...
-            </div>
-            <p class="text-xs text-gray-500 mt-2">
-              <i class="fas fa-map-marker-alt mr-1"></i>Zona horaria: Bogotá (UTC-5)
-            </p>
-          </div>
-        </div>
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg lg:text-xl font-bold">
+      <i class="fas fa-chart-bar mr-2 text-blue-600"></i>Resumen del Día
+    </h2>
+    <button onclick="LocalApp.actualizarContadores()" 
+            id="btnRefreshContadores"
+            class="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50"
+            title="Actualizar contadores">
+      <i class="fas fa-sync-alt text-sm" id="iconRefresh"></i>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-green-700">
+          <i class="fas fa-shopping-cart mr-1"></i>Paquetes vendidos
+        </span>
+        <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">Hoy</span>
+      </div>
+      <div id="ventasDia" class="text-3xl lg:text-4xl font-bold text-green-600">
+        <span class="inline-block w-8 h-8 bg-green-200 rounded animate-pulse"></span>
+      </div>
+      <p class="text-xs text-green-600 mt-2"><i class="fas fa-ticket-alt mr-1"></i>paquetes vendidos hoy</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-200 rounded-xl p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-purple-700">
+          <i class="fas fa-dollar-sign mr-1"></i>Ingresos totales
+        </span>
+        <span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">Hoy</span>
+      </div>
+      <div id="valorTotalVentas" class="text-2xl lg:text-3xl font-bold text-purple-600">
+        <span class="inline-block w-24 h-8 bg-purple-200 rounded animate-pulse"></span>
+      </div>
+      <p class="text-xs text-purple-600 mt-2"><i class="fas fa-coins mr-1"></i>valor acumulado hoy</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-blue-700">
+          <i class="fas fa-clock mr-1"></i>Hora actual
+        </span>
+        <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">UTC-5</span>
+      </div>
+      <div id="horaActual" class="text-2xl lg:text-3xl font-bold text-blue-600">Cargando...</div>
+      <div id="fechaActual" class="text-xs text-blue-600 mt-2">
+        <i class="fas fa-calendar-alt mr-1"></i>Cargando...
+      </div>
+    </div>
+
+  </div>
+
+  <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+    <div class="flex items-center gap-2 text-xs text-gray-500">
+      <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+      <span>En línea — actualización automática cada 10s</span>
+    </div>
+    <div class="flex items-center gap-2 text-xs text-gray-400">
+      <i class="fas fa-history"></i>
+      <span id="ultimaActualizacion">Última actualización: —</span>
+    </div>
+  </div>
+</div>
         
         <!-- Indicador de estado -->
         <div class="mt-4 pt-4 border-t border-gray-200">
@@ -983,67 +1010,51 @@
 
       // Función para actualizar los contadores
       actualizarContadores: function() {
-        console.log("🔄 Actualizando contadores...");
-        
-        // Solo actualizar ventas reales
-        this.actualizarVentasDia();
-        
-        // Actualizar hora de última actualización
-        const ahora = new Date();
-        const horaActualizada = ahora.toLocaleTimeString('es-CO', { 
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        });
-        
-        document.getElementById('ultimaActualizacion').textContent = 
-          `Última actualización: ${horaActualizada}`;
-      },
+  const icon = document.getElementById('iconRefresh');
+  if (icon) icon.classList.add('fa-spin');
+  this.actualizarVentasDia();
+  const ahora = new Date();
+  const hora = ahora.toLocaleTimeString('es-CO', {
+    hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const el = document.getElementById('ultimaActualizacion');
+  if (el) el.textContent = `Última actualización: ${hora}`;
+  setTimeout(() => { if (icon) icon.classList.remove('fa-spin'); }, 600);
+},
 
       // Función para actualizar las ventas REALES del día
       actualizarVentasDia: function() {
-        const hoy = new Date().toISOString().split('T')[0];
-        
-        console.log(`📈 Solicitando VENTAS REALES del día: ${hoy}`);
-        
-        fetch(`/api/ventas-dia?fecha=${hoy}`, {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(res => {
-          if (!res.ok) throw new Error('Error en la respuesta del servidor');
-          return res.json();
-        })
-        .then(data => {
-          console.log("📊 Datos de ventas REALES recibidos:", data);
-          
-          // Actualizar número de ventas REALES
-          const ventasElement = document.getElementById('ventasDia');
-          if (ventasElement) {
-            ventasElement.innerText = data.total_ventas || 0;
-          }
-          
-          // Formatear y mostrar el valor total de VENTAS REALES
-          const valorTotal = data.valor_total || 0;
-          const valorFormateado = new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0
-          }).format(valorTotal);
-          
-          const valorElement = document.getElementById('valorTotalVentas');
-          if (valorElement) {
-            valorElement.innerText = valorFormateado;
-          }
-          
-          console.log(`💰 VENTAS REALES del día: ${data.total_ventas || 0} paquetes, valor: ${valorFormateado}`);
-        })
-        .catch(err => {
-          console.error("❌ Error obteniendo ventas del día:", err);
-        });
-      },
+  const hoy = new Date().toISOString().split('T')[0];
+  fetch(`/api/ventas-dia?fecha=${hoy}`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(res => { if (!res.ok) throw new Error('Error servidor'); return res.json(); })
+  .then(data => {
+    const total = data.total_ventas || 0;
+    const valor = data.valor_total || 0;
+
+    const elVentas = document.getElementById('ventasDia');
+    if (elVentas) {
+      elVentas.innerHTML = `<span class="tabular-nums">${total}</span>`;
+      elVentas.className = 'text-3xl lg:text-4xl font-bold ' +
+        (total > 0 ? 'text-green-600' : 'text-gray-400');
+    }
+
+    const valorFormateado = new Intl.NumberFormat('es-CO', {
+      style: 'currency', currency: 'COP', minimumFractionDigits: 0
+    }).format(valor);
+
+    const elValor = document.getElementById('valorTotalVentas');
+    if (elValor) {
+      elValor.innerHTML = `<span class="tabular-nums">${valorFormateado}</span>`;
+    }
+  })
+  .catch(err => {
+    console.error('Error ventas:', err);
+    const elVentas = document.getElementById('ventasDia');
+    if (elVentas) elVentas.innerHTML = '<span class="text-red-400 text-lg">—</span>';
+  });
+},
 
       // Función para cargar el historial de QR - VERSIÓN ROBUSTA CON CONTADOR
 cargarHistorialQR: function() {

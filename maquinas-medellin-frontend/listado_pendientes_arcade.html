@@ -1,0 +1,312 @@
+
+<style>
+  body { margin: 0; font-family: var(--font-sans); }
+  .wrap { padding: 1rem 0; }
+  .section { margin-bottom: 1.5rem; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--border-radius-md);
+    margin-bottom: 4px;
+    background: var(--color-background-secondary);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .item:hover { background: var(--color-background-tertiary); }
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .p1 { background: #FCEBEB; color: #A32D2D; }
+  .p2 { background: #FAEEDA; color: #854F0B; }
+  .p3 { background: #EAF3DE; color: #3B6D11; }
+  .new { background: #EEEDFE; color: #3C3489; }
+  @media (prefers-color-scheme: dark) {
+    .p1 { background: #501313; color: #F09595; }
+    .p2 { background: #412402; color: #FAC775; }
+    .p3 { background: #173404; color: #C0DD97; }
+    .new { background: #26215C; color: #AFA9EC; }
+  }
+  .num {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    min-width: 20px;
+    text-align: right;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .label { font-size: 14px; color: var(--color-text-primary); flex: 1; }
+  .sublabel { font-size: 12px; color: var(--color-text-secondary); margin-top: 1px; }
+  .tag {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--color-background-tertiary);
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .divider { height: 1px; background: var(--color-border-tertiary); margin: 4px 0 12px; }
+  .summary {
+    display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .sum-card {
+    flex: 1; min-width: 80px;
+    background: var(--color-background-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: 10px 14px;
+    text-align: center;
+  }
+  .sum-num { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+  .sum-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+</style>
+<div class="wrap">
+  <div class="summary">
+    <div class="sum-card"><div class="sum-num" style="color:#A32D2D">14</div><div class="sum-lbl">Alta prioridad</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:#854F0B">12</div><div class="sum-lbl">Media prioridad</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:#3B6D11">8</div><div class="sum-lbl">Baja prioridad</div></div>
+    <div class="sum-card"><div class="sum-num" style="color:#3C3489">6</div><div class="sum-lbl">Nuevos detectados</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Hardware / ESP32</div>
+    <div class="divider"></div>
+
+    <div class="item" onclick="sendPrompt('Ayúdame a solucionar la falla en reinicio de pantalla TFT del ESP32')">
+      <span class="num">29</span><span class="badge p1">Alta</span>
+      <div><div class="label">Falla en reinicio de pantalla TFT</div><div class="sublabel">La pantalla no reinicia correctamente tras reportar falla</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a solucionar la pantalla negra en inicio del TFT')">
+      <span class="num">30</span><span class="badge p1">Alta</span>
+      <div><div class="label">Pantalla negra al iniciar TFT</div><div class="sublabel">Fallo intermitente en boot, displayState no inicializa bien</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a reducir el tamaño del código del ESP32')">
+      <span class="num">31</span><span class="badge p1">Alta</span>
+      <div><div class="label">Código muy pesado en ESP32</div><div class="sublabel">Optimizar memoria, dividir en módulos, reducir Strings dinámicos</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a corregir la integración del relé en el ESP32')">
+      <span class="num">32</span><span class="badge p1">Alta</span>
+      <div><div class="label">Integración de relé</div><div class="sublabel">Verificar pines, lógica de pulso y timing con la máquina</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a revisar los datos que envía el ESP32 al backend')">
+      <span class="num">33</span><span class="badge p2">Media</span>
+      <div><div class="label">Datos enviados al backend desde ESP32</div><div class="sublabel">Validar payload de registrar-uso y reportar-falla</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a calibrar la pantalla TFT táctil del ESP32')">
+      <span class="num">34</span><span class="badge p2">Media</span>
+      <div><div class="label">Calibración pantalla TFT</div><div class="sublabel">Ajustar TOUCH_MIN/MAX_X/Y para mapeo preciso</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar la selección de estaciones múltiples en el reporte de falla del ESP32')">
+      <span class="num">6</span><span class="badge p2">Media</span>
+      <div><div class="label">Estaciones múltiples en reporte de falla</div><div class="sublabel">Mostrar selector de estación al reportar falla en máquinas multi-estación</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Detecté una nueva tarea: watchdog y reconexión WiFi robusta en ESP32')">
+      <span class="num">★</span><span class="badge new">Nuevo</span>
+      <div><div class="label">Watchdog y reconexión WiFi robusta</div><div class="sublabel">El loop puede colgarse; falta reset automático si WiFi falla &gt;60s</div></div>
+      <span class="tag">ESP32</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Frontend — páginas de cajero</div>
+    <div class="divider"></div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar el contador de ventas en local.html')">
+      <span class="num">1</span><span class="badge p1">Alta</span>
+      <div><div class="label">Contador de ventas</div><div class="sublabel">Mostrar total de ventas del día en tiempo real en local.html</div></div>
+      <span class="tag">local.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar el envío por WhatsApp en local.html')">
+      <span class="num">2</span><span class="badge p2">Media</span>
+      <div><div class="label">Enviar código a WhatsApp</div><div class="sublabel">Integrar botón de envío de QR por WhatsApp Web</div></div>
+      <span class="tag">local.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a corregir la descarga y envío por WhatsApp de QR en local.html')">
+      <span class="num">3</span><span class="badge p1">Alta</span>
+      <div><div class="label">Descarga y envío WhatsApp no funciona</div><div class="sublabel">El QR generado no se adjunta correctamente al enviar/descargar</div></div>
+      <span class="tag">local.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a corregir el historial de QR escaneados en local.html')">
+      <span class="num">4</span><span class="badge p1">Alta</span>
+      <div><div class="label">QR escaneados solo registran consultas</div><div class="sublabel">El historial no distingue ventas reales vs consultas correctamente</div></div>
+      <span class="tag">local.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a entender y documentar el flujo de reporte de falla en packfailure.html')">
+      <span class="num">5</span><span class="badge p2">Media</span>
+      <div><div class="label">Entender funcionamiento de reporte de falla de paquete</div><div class="sublabel">Revisar lógica completa de packfailure.html y sus endpoints</div></div>
+      <span class="tag">packfailure.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a corregir la hora del último juego y turnos fallados en machinereport.html')">
+      <span class="num">7</span><span class="badge p1">Alta</span>
+      <div><div class="label">Hora último juego y turnos fallados incorrectos</div><div class="sublabel">machinereport.html muestra datos erróneos de fecha y fallos</div></div>
+      <span class="tag">machinereport.html</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Frontend — ventas y reportes</div>
+    <div class="divider"></div>
+    <div class="item" onclick="sendPrompt('Ayúdame a quitar la sección de eficiencia en sales.html')">
+      <span class="num">8</span><span class="badge p3">Baja</span>
+      <div><div class="label">Quitar sección eficiencia en ventas</div><div class="sublabel">Eliminar el widget de eficiencia del panel de ventas</div></div>
+      <span class="tag">sales.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar la gráfica de ventas para que sea por días y no por horas, con línea más clara')">
+      <span class="num">9</span><span class="badge p2">Media</span>
+      <div><div class="label">Gráfica de línea por días, no por horas</div><div class="sublabel">Cambiar eje X a fechas y mejorar estilo visual de la gráfica</div></div>
+      <span class="tag">sales.html</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Frontend — panel admin</div>
+    <div class="divider"></div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar la gráfica del dashboard de admin')">
+      <span class="num">10</span><span class="badge p2">Media</span>
+      <div><div class="label">Arreglar gráfica del dashboard admin</div><div class="sublabel">Datos no cargan o gráfica se muestra vacía/incorrecta</div></div>
+      <span class="tag">admin/index.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar la gráfica de rendimiento por máquina en el admin')">
+      <span class="num">11</span><span class="badge p2">Media</span>
+      <div><div class="label">Gráfica rendimiento por máquina</div><div class="sublabel">Los datos de ingresos por máquina no se muestran correctamente</div></div>
+      <span class="tag">admin/index.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a completar la sección de top 5 máquinas con datos reales en el admin')">
+      <span class="num">12</span><span class="badge p2">Media</span>
+      <div><div class="label">Top 5 máquinas sin datos reales</div><div class="sublabel">Conectar con API /api/dashboard/top-maquinas y mostrar métricas</div></div>
+      <span class="tag">admin/index.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a mejorar la sección de ventas recientes en el admin para que sea más completa')">
+      <span class="num">13</span><span class="badge p3">Baja</span>
+      <div><div class="label">Ventas recientes más completas</div><div class="sublabel">Añadir paquete, monto, cajero y hora en la tabla de ventas recientes</div></div>
+      <span class="tag">admin/index.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a crear la ventana emergente para inhabilitar usuario en gestionusuarios.html')">
+      <span class="num">14</span><span class="badge p1">Alta</span>
+      <div><div class="label">Ventana emergente para inhabilitar usuario</div><div class="sublabel">Modal de confirmación antes de cambiar estado del usuario</div></div>
+      <span class="tag">gestionusuarios.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar el estado de inhabilitar usuario en gestionusuarios.html')">
+      <span class="num">15</span><span class="badge p1">Alta</span>
+      <div><div class="label">Estado inhabilitar usuario no funciona</div><div class="sublabel">El toggle isActive no persiste o no refleja el estado real</div></div>
+      <span class="tag">gestionusuarios.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar la generación de nuevo rol en gestionusuarios.html')">
+      <span class="num">16</span><span class="badge p2">Media</span>
+      <div><div class="label">Generación de nuevo rol falla</div><div class="sublabel">El ALTER TABLE automático falla o no valida correctamente</div></div>
+      <span class="tag">gestionusuarios.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a quitar la foto del listado de máquinas en gestionmaquinas.html')">
+      <span class="num">17</span><span class="badge p3">Baja</span>
+      <div><div class="label">Quitar foto en listado de máquinas</div><div class="sublabel">Eliminar columna/elemento de imagen en la tabla de máquinas</div></div>
+      <span class="tag">gestionmaquinas.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a quitar el mensaje de error/falla luego de activar una máquina en gestionmaquinas.html')">
+      <span class="num">18</span><span class="badge p1">Alta</span>
+      <div><div class="label">Mensaje de falla persiste tras reactivar máquina</div><div class="sublabel">El errorNote no se limpia al cambiar estado a activa</div></div>
+      <span class="tag">gestionmaquinas.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a mejorar la visualización de estaciones múltiples en gestionmaquinas.html')">
+      <span class="num">19</span><span class="badge p2">Media</span>
+      <div><div class="label">Visualización de estaciones múltiples</div><div class="sublabel">Mostrar nombres y estado de cada estación en la tarjeta de máquina</div></div>
+      <span class="tag">gestionmaquinas.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a eliminar la sección de histórico en gestión de máquinas')">
+      <span class="num">20</span><span class="badge p3">Baja</span>
+      <div><div class="label">Eliminar sección histórico en gestión de máquinas</div><div class="sublabel">Quitar tab/sección de historial de juegos en el panel de máquina</div></div>
+      <span class="tag">gestionmaquinas.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a completar la interfaz de gestión de logs en admin')">
+      <span class="num">28</span><span class="badge p2">Media</span>
+      <div><div class="label">Completar interfaz de gestión de logs</div><div class="sublabel">Conectar filtros, alertas, exportación y estadísticas reales</div></div>
+      <span class="tag">gestionlogs.html</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Frontend — liquidaciones y socios</div>
+    <div class="divider"></div>
+    <div class="item" onclick="sendPrompt('Ayúdame a mejorar los registros de liquidación')">
+      <span class="num">21</span><span class="badge p1">Alta</span>
+      <div><div class="label">Mejorar registros de liquidación</div><div class="sublabel">Datos de máquinas, propietarios y porcentajes no aparecen</div></div>
+      <span class="tag">liquidaciones.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar la sección de resumen en liquidación')">
+      <span class="num">22</span><span class="badge p1">Alta</span>
+      <div><div class="label">Sección resumen en liquidación</div><div class="sublabel">Totales, distribución restaurante/proveedor y métricas clave</div></div>
+      <span class="tag">liquidaciones.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar la sección de ingresos en liquidación')">
+      <span class="num">23</span><span class="badge p1">Alta</span>
+      <div><div class="label">Sección de ingresos en liquidación</div><div class="sublabel">Desglose de ingresos por paquete, máquina y período</div></div>
+      <span class="tag">liquidaciones.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar la sección de propietarios en liquidación')">
+      <span class="num">24</span><span class="badge p2">Media</span>
+      <div><div class="label">Sección propietarios en liquidación</div><div class="sublabel">Mostrar distribución de ganancias por propietario</div></div>
+      <span class="tag">liquidaciones.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar el reporte por máquinas en liquidación')">
+      <span class="num">25</span><span class="badge p2">Media</span>
+      <div><div class="label">Reporte por máquinas en liquidación</div><div class="sublabel">Tabla de rendimiento individual por máquina en el período</div></div>
+      <span class="tag">liquidaciones.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar el listado de socios en gestionsocios.html')">
+      <span class="num">26</span><span class="badge p1">Alta</span>
+      <div><div class="label">Arreglar listado de socios</div><div class="sublabel">La tabla no carga o muestra datos incompletos/incorrectos</div></div>
+      <span class="tag">gestionsocios.html</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a completar la interfaz de gestión de socios')">
+      <span class="num">27</span><span class="badge p1">Alta</span>
+      <div><div class="label">Completar interfaz de gestión de socios</div><div class="sublabel">CRUD completo, inversiones, pagos y panel de socio individual</div></div>
+      <span class="tag">gestionsocios.html</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Nuevos detectados en revisión del código</div>
+    <div class="divider"></div>
+    <div class="item" onclick="sendPrompt('Ayúdame a añadir seguridad a la secret_key de Flask y mover credenciales a variables de entorno')">
+      <span class="num">★</span><span class="badge new">Nuevo</span>
+      <div><div class="label">Secret key y credenciales hardcodeadas</div><div class="sublabel">app.secret_key y contraseñas BD están en texto plano en el código</div></div>
+      <span class="tag">app.py</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a arreglar la duplicación del handler de logging en app.py')">
+      <span class="num">★</span><span class="badge new">Nuevo</span>
+      <div><div class="label">Handler de logging duplicado en app.py</div><div class="sublabel">file_handler se registra dos veces, duplica todos los logs</div></div>
+      <span class="tag">app.py</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a implementar paginación en /api/historial-completo para no cargar 100 registros siempre')">
+      <span class="num">★</span><span class="badge new">Nuevo</span>
+      <div><div class="label">Historial sin paginación real</div><div class="sublabel">/api/historial-completo limita a 100 fijo; falta paginación dinámica</div></div>
+      <span class="tag">app.py</span>
+    </div>
+    <div class="item" onclick="sendPrompt('Ayúdame a asegurar el endpoint /api/maquinas que no requiere login actualmente')">
+      <span class="num">★</span><span class="badge new">Nuevo</span>
+      <div><div class="label">Endpoint /api/maquinas sin autenticación</div><div class="sublabel">obtener_maquinas() no tiene @require_login, expone datos públicamente</div></div>
+      <span class="tag">app.py</span>
+    </div>
+  </div>
+</div>
