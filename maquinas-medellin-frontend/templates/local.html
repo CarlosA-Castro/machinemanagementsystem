@@ -1148,9 +1148,7 @@ cargarHistorialQR: function() {
         }
 
         // Determinar badge
-        const ventaBadge = esVenta ? 
-          '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2" title="Venta real registrada">VENTA</span>' : 
-          '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded ml-2" title="Escaneo de consulta">ESCANEO</span>';
+       const ventaBadge = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2">VENTA</span>';
         
         // Crear fila
         const fila = document.createElement('tr');
@@ -1475,84 +1473,8 @@ cargarHistorialQR: function() {
       },
 
       guardarEnHistorial: function(codigo) {
-        const tabla = document.getElementById("tablaRegistros");
-        
-        // Crear nueva fila
-        const fila = tabla.insertRow(1);
-        fila.className = "history-row";
-        const fecha = new Date();
-
-        fila.innerHTML = `
-  <td class="p-3 text-center">1</td>
-  <td class="p-3 font-mono text-sm">${codigo}</td>
-  <td class="p-3">
-    <div class="flex items-center gap-2">
-      <span>Cargando...</span>
-      <span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded">CONSULTA</span>
-    </div>
-  </td>
-  <td class="p-3">${fecha.toLocaleDateString('es-CO')}</td>
-  <td class="p-3">${fecha.toLocaleTimeString('es-CO', {hour12: false})}</td>
-  <td class="p-3">
-    <button onclick="LocalApp.verDetalles('${codigo}')" 
-            class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
-      <i class="fas fa-info-circle mr-1"></i>Detalles
-    </button>
-  </td>
-`;
-
-        // Renumerar las filas existentes
-        const rows = tabla.getElementsByTagName('tr');
-        for (let i = 2; i < rows.length; i++) {
-          rows[i].getElementsByTagName('td')[0].textContent = i;
-        }
-
-        // **ESTO ES SOLO UNA CONSULTA - NO VENTA**
-        fetch("/api/guardar-qr", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest"
-          },
-          body: JSON.stringify({ 
-            qr_code: codigo,
-            es_venta_real: false,  
-            es_consulta: true      
-          })
-        })
-        .then(res => {
-          if (!res.ok) throw new Error('Error en la respuesta del servidor');
-          return res.json();
-        })
-        .then(data => {
-          console.log("✅ Consulta registrada:", data);
-          
-          // Actualizar el nombre en la fila si está disponible
-          if (data.qr_name) {
-            fila.cells[2].textContent = data.qr_name;
-          }
-          
-          // Mostrar mensaje claro al usuario
-          if (data.es_venta) {
-            // Esto NO debería pasar nunca para consultas
-            this.mostrarAlerta("⚠️ Error: Consulta marcada como venta", "warning");
-          } else {
-            this.mostrarAlerta("🔍 QR escaneado para consulta (no afecta ventas)", "info");
-          }
-          
-        })
-        .catch(err => {
-          console.error("Error guardando consulta:", err);
-          this.mostrarAlerta("Error al guardar consulta", "error");
-          
-          // Mostrar error en la fila
-          fila.cells[2].innerHTML = `
-            <span class="text-red-500">
-              <i class="fas fa-exclamation-triangle mr-1"></i>Error
-            </span>
-          `;
-        });
-      },
+  console.log("🔍 Consulta de QR (no se guarda en historial):", codigo);
+},
 
       // Funcionalidad del escáner QR
       html5QrcodeScanner: null,
@@ -2020,10 +1942,13 @@ cargarHistorialQR: function() {
             const generarPaginaRecursiva = (i = 0) => {
                 if (i >= codigosGenerados.length) {
                     // Terminado
-                    if (tipo === 'pdf') {
-                        doc.save(`codigos-qr-${nombre}-P${paquete.id}.pdf`);
-                        this.mostrarAlerta(`✅ ${cantidad} QR generados con el paquete P${paquete.id}`, "success");
-                    } else {
+                   if (tipo === 'pdf') {
+    doc.save(`codigos-qr-${nombre}-P${paquete.id}.pdf`);
+    this.mostrarAlerta(`✅ ${cantidad} QR generados con el paquete P${paquete.id}`, "success");
+    // Actualizar historial y contador tras generar QR reales
+    this.cargarHistorialQR();
+    this.actualizarContadores();
+} else {
                         // Pasar los códigos generados a la función de WhatsApp
                         this.compartirWhatsApp(doc, nombre, codigosGenerados, paquete);
                     }

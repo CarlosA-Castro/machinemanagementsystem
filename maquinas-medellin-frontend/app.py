@@ -2060,9 +2060,10 @@ def obtener_historial_completo():
                 LEFT JOIN qrcode qr ON qr.code = h.qr_code
                 LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
                 LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
-                WHERE h.local = %s
-                ORDER BY h.fecha_hora DESC
-                LIMIT 100
+               WHERE h.local = %s
+               AND h.es_venta_real = TRUE
+               ORDER BY h.fecha_hora DESC
+            LIMIT 100
             """, (local,))
         else:
             cursor.execute("""
@@ -2080,7 +2081,8 @@ def obtener_historial_completo():
                 LEFT JOIN qrcode qr ON qr.code = h.qr_code
                 LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
                 LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
-                WHERE h.user_id = %s OR h.local = %s
+                WHERE (h.user_id = %s OR h.local = %s)
+                AND h.es_venta_real = TRUE
                 ORDER BY h.fecha_hora DESC
                 LIMIT 50
             """, (user_id, local))
