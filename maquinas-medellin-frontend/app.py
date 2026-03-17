@@ -3141,7 +3141,6 @@ def obtener_usuario(usuario_id):
 @require_login(['admin'])
 @validate_required_fields(['name', 'password', 'role'])
 def crear_usuario():
-    """Crear un nuevo usuario"""
     connection = None
     cursor = None
     try:
@@ -3150,49 +3149,49 @@ def crear_usuario():
         password = data['password']
         role = data['role']
         notes = data.get('notes', '')
-        
+
         if len(password) < 6:
             return api_response('U003', http_status=400)
-        
-        cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
-        if not cursor.fetchone():
-         return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
-        
+
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
-            
+
         cursor = get_db_cursor(connection)
-        
+
+        # Validar rol contra tabla roles
+        cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
+        if not cursor.fetchone():
+            return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
+
+        # Verificar nombre duplicado
         cursor.execute("SELECT id FROM users WHERE name = %s", (name,))
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
-        
+
         cursor.execute("""
             INSERT INTO users (name, password, role, createdBy, notes)
             VALUES (%s, %s, %s, %s, %s)
         """, (name, password, role, session.get('user_id'), notes))
-        
+
         connection.commit()
-        
+
         app.logger.info(f"Usuario creado: {name} ({role})")
-        
+
         return api_response(
             'S002',
             status='success',
             data={'usuario_id': cursor.lastrowid}
         )
-        
+
     except Exception as e:
         app.logger.error(f"Error creando usuario: {e}")
         if connection:
             connection.rollback()
         return api_response('E001', http_status=500)
     finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
+        if cursor: cursor.close()
+        if connection: connection.close()
 
 @app.route('/api/usuarios/<int:usuario_id>', methods=['PUT'])
 @handle_api_errors
