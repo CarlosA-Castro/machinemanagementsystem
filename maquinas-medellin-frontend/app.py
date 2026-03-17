@@ -5895,7 +5895,7 @@ def cambiar_estado_usuario(usuario_id):
             SET isActive = %s,
                 updatedAt = NOW()
             WHERE id = %s
-        """, (is_active, usuario_id))
+        """, (1 if is_active else 0, usuario_id))
         
         connection.commit()
         
