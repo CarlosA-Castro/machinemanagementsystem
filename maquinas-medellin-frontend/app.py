@@ -5896,6 +5896,8 @@ def cambiar_estado_usuario(usuario_id):
                 updatedAt = NOW()
             WHERE id = %s
         """, (1 if is_active else 0, usuario_id))
+
+        app.logger.info(f"Filas afectadas: {cursor.rowcount}, isActive: {1 if is_active else 0}, usuario_id: {usuario_id}")
         
         connection.commit()
         
