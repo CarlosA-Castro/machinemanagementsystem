@@ -49,17 +49,14 @@
         .user-row:hover {
             background-color: #f8fafc;
         }
-        
         .role-card {
             transition: all 0.3s ease;
             cursor: pointer;
         }
-        
         .role-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
         }
-        
         .sql-code {
             font-family: 'Courier New', monospace;
             background: #1a202c;
@@ -68,62 +65,52 @@
             border-radius: 0.5rem;
             overflow-x: auto;
         }
-        
         .copy-button {
             transition: all 0.2s ease;
         }
-        
         .copy-button:hover {
             transform: scale(1.05);
         }
-        
         .bg-purple-100 { background-color: #f3e8ff; }
         .bg-blue-100 { background-color: #dbeafe; }
         .bg-teal-100 { background-color: #ccfbf1; }
         .bg-pink-100 { background-color: #fce7f3; }
         .bg-orange-100 { background-color: #ffedd5; }
         .bg-green-100 { background-color: #dcfce7; }
-        
         .text-purple-800 { color: #6b21a8; }
         .text-blue-800 { color: #1e40af; }
         .text-teal-800 { color: #115e59; }
         .text-pink-800 { color: #9d174d; }
         .text-orange-800 { color: #9a3412; }
         .text-green-800 { color: #166534; }
-        
-        /* ===== NUEVOS ESTILOS RESPONSIVE ===== */
+
         @media (max-width: 1024px) {
             .flex.min-h-screen {
                 flex-direction: column;
                 height: auto;
                 min-height: 100vh;
             }
-            
             aside {
                 width: 100% !important;
                 order: 1;
                 padding-bottom: 0 !important;
             }
-            
             main {
                 order: 2;
                 padding: 1rem !important;
             }
-            
             .sidebar-nav {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 0.5rem;
                 padding: 1rem;
             }
-            
             .sidebar-nav a {
                 flex: 1;
                 min-width: 120px;
                 text-align: center;
                 padding: 0.75rem 0.5rem !important;
             }
-            
             .user-info-mobile {
                 order: 3;
                 width: 100%;
@@ -132,61 +119,32 @@
                 padding: 1rem;
                 text-align: center;
             }
-            
-            .user-info-desktop {
-                display: none;
-            }
-            
-            .user-info-mobile {
-                display: block;
-            }
-            
-            .contenido {
-                padding: 1rem !important;
-            }
-            .glass-card {
-                padding: 1.25rem;
-            }
+            .user-info-desktop { display: none; }
+            .user-info-mobile { display: block; }
+            .contenido { padding: 1rem !important; }
+            .glass-card { padding: 1.25rem; }
         }
-        
         @media (min-width: 1025px) {
-            .user-info-desktop {
-                display: block;
-            }
-            
-            .user-info-mobile {
-                display: none;
-            }
+            .user-info-desktop { display: block; }
+            .user-info-mobile { display: none; }
         }
-        
         @media (max-width: 768px) {
-            .glass-card {
-                padding: 1rem;
-            }
-            h1 {
-                font-size: 1.75rem !important;
-            }
-            .table-container {
-                overflow-x: auto;
-            }
-            table {
-                font-size: 0.875rem;
-            }
+            .glass-card { padding: 1rem; }
+            h1 { font-size: 1.75rem !important; }
+            .table-container { overflow-x: auto; }
+            table { font-size: 0.875rem; }
         }
-        
-        /* ===== ESTILOS PARA INDICADOR DE PÁGINA ACTIVA ===== */
+
         .nav-link {
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
-        
         .nav-link.active {
             background-color: #2563eb !important;
             color: white !important;
             box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
         }
-        
         .nav-link.active::after {
             content: '';
             position: absolute;
@@ -197,18 +155,15 @@
             background: white;
             animation: slideIn 0.3s ease;
         }
-        
         @keyframes slideIn {
             from { transform: translateX(-100%); }
             to { transform: translateX(0); }
         }
-        
         .nav-link:hover:not(.active) {
             background-color: #e5e7eb !important;
             color: #1f2937 !important;
             transform: translateY(-2px);
         }
-        
         @media (max-width: 1024px) {
             .nav-link.active {
                 background-color: #2563eb !important;
@@ -220,12 +175,9 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-    <!-- Fondo de partículas -->
     <div id="particles-js"></div>
 
-    <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Barra lateral - MODIFICADA CON INDICADOR ACTIVO -->
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
                 <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
@@ -267,8 +219,6 @@
                     </a>
                 </nav>
             </div>
-
-            <!-- Información de usuario - VERSIÓN DESKTOP -->
             <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
                 <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
                 <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
@@ -282,10 +232,7 @@
             </div>
         </aside>
 
-        <!-- Contenido principal -->
         <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
-
-            <!-- Header -->
             <div class="glass-card mb-6">
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                     <div>
@@ -311,7 +258,6 @@
                 </div>
             </div>
 
-            <!-- Estadísticas rápidas -->
             <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
                 <div class="glass-card text-center">
                     <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
@@ -339,13 +285,10 @@
                 </div>
             </div>
 
-            <!-- Tabla de usuarios -->
             <div class="glass-card">
                 <h2 class="text-xl font-semibold mb-4 text-gray-800">
                     <i class="fas fa-list mr-2 text-blue-600"></i>Lista de Usuarios
                 </h2>
-                
-                <!-- Barra de búsqueda y filtros -->
                 <div class="flex flex-col lg:flex-row gap-4 mb-4">
                     <div class="flex-1">
                         <input type="text" id="buscarUsuario" placeholder="Buscar por nombre, email o rol..." 
@@ -369,7 +312,6 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="table-container">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-100 text-left">
@@ -397,9 +339,6 @@
         </main>
     </div>
 
-    <!-- ============================================ -->
-    <!-- INFORMACIÓN DE USUARIO - VERSIÓN MÓVIL (al final) -->
-    <!-- ============================================ -->
     <div class="user-info-mobile bg-gray-800 text-white">
         <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuarioMobile">{{ nombre_usuario }}</span></div>
         <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
@@ -412,19 +351,15 @@
         </a>
     </div>
 
-    <!-- Modal para crear/editar usuario -->
+    <!-- Modal crear/editar usuario -->
     <div id="modalUsuario" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 modal-content max-h-[90vh] overflow-y-auto">
             <h2 class="text-xl font-bold mb-4" id="modalTitulo">
                 <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
             </h2>
-            
             <form id="formUsuario" onsubmit="UsuariosApp.guardarUsuario(event)">
                 <input type="hidden" id="usuarioId">
-                
                 <div class="space-y-4">
-
-                    <!-- Nombre -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-user mr-2"></i>Nombre Completo *
@@ -433,8 +368,6 @@
                                class="w-full border border-gray-300 rounded-lg p-3 text-base"
                                placeholder="Ej: Juan Pérez">
                     </div>
-
-                    <!-- Contraseña -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-lock mr-2"></i>Contraseña *
@@ -444,8 +377,6 @@
                                placeholder="Mínimo 6 caracteres" minlength="6">
                         <p class="text-xs text-gray-500 mt-1" id="passwordHelp">La contraseña debe tener al menos 6 caracteres</p>
                     </div>
-
-                    <!-- Rol -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-user-tag mr-2"></i>Rol *
@@ -458,8 +389,6 @@
                             <option value="admin_restaurante">Administrador Restaurante</option>
                         </select>
                     </div>
-
-                    <!-- Estado (solo en edición) -->
                     <div id="estadoContainer" class="hidden">
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-toggle-on mr-2"></i>Estado
@@ -469,19 +398,14 @@
                             <option value="false">Inactivo</option>
                         </select>
                     </div>
-
-                    <!-- Local -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-store mr-2"></i>Local
                         </label>
                         <select id="local" class="w-full border border-gray-300 rounded-lg p-3 text-base">
                             <option value="El Mekatiadero">El Mekatiadero</option>
-                            <!-- Se pueden agregar más locales aquí -->
                         </select>
                     </div>
-
-                    <!-- Notas -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-sticky-note mr-2"></i>Notas
@@ -491,7 +415,6 @@
                                   placeholder="Información adicional sobre el usuario..."></textarea>
                     </div>
                 </div>
-
                 <div class="flex gap-3 mt-6">
                     <button type="submit" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 btn-touch">
                         <i class="fas fa-save mr-2"></i>Guardar
@@ -505,7 +428,7 @@
         </div>
     </div>
 
-    <!-- Modal de confirmación para eliminar -->
+    <!-- Modal confirmación eliminar -->
     <div id="modalConfirmar" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <h2 class="text-xl font-bold mb-4 text-red-600">
@@ -527,25 +450,51 @@
         </div>
     </div>
 
-    <!-- Modal para gestión de roles -->
+    <!-- ===== NUEVO: Modal inhabilitar/habilitar usuario ===== -->
+    <div id="modalEstado" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-2" id="modalEstadoTitulo">
+                <i class="fas fa-toggle-off mr-2 text-orange-500"></i>Inhabilitar Usuario
+            </h2>
+            <p class="text-gray-500 text-sm mb-4" id="modalEstadoSubtitulo">
+                Esta acción puede revertirse en cualquier momento.
+            </p>
+            <div class="bg-gray-50 rounded-lg p-4 mb-6 flex items-center gap-3">
+                <div class="bg-gray-200 p-3 rounded-full flex-shrink-0">
+                    <i class="fas fa-user text-gray-600 text-xl"></i>
+                </div>
+                <div>
+                    <p class="font-semibold text-gray-800" id="modalEstadoNombre">—</p>
+                    <p class="text-sm text-gray-500" id="modalEstadoAccion">Será inhabilitado</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button id="btnConfirmarEstado"
+                        class="flex-1 bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 btn-touch">
+                    <i class="fas fa-toggle-off mr-2"></i>Confirmar
+                </button>
+                <button onclick="UsuariosApp.cerrarModalEstado()"
+                        class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal gestión de roles -->
     <div id="modalRoles" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 modal-content max-h-[90vh] overflow-y-auto">
             <h2 class="text-xl font-bold mb-4">
                 <i class="fas fa-user-tag mr-2 text-indigo-600"></i>Gestión de Roles del Sistema
             </h2>
-            
             <div class="mb-6">
                 <h3 class="text-lg font-semibold mb-3">Roles Actuales del Sistema</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="rolesLista">
-                    <!-- Los roles se cargarán aquí dinámicamente -->
-                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="rolesLista"></div>
             </div>
-
             <div class="border-t pt-4">
                 <h3 class="text-lg font-semibold mb-3">Crear Nuevo Rol</h3>
                 <form id="formRol" onsubmit="RolesApp.crearNuevoRol(event)">
                     <div class="space-y-4">
-                        <!-- Nombre del Rol -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-user-tag mr-2"></i>Nombre del Rol *
@@ -555,8 +504,6 @@
                                    placeholder="Ej: supervisor, auditor, gerente">
                             <p class="text-xs text-gray-500 mt-1">Usa solo letras minúsculas, sin espacios (se permiten guiones bajos)</p>
                         </div>
-
-                        <!-- Descripción -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-align-left mr-2"></i>Descripción
@@ -565,8 +512,6 @@
                                       class="w-full border border-gray-300 rounded-lg p-3 text-base"
                                       placeholder="Describe las funciones y permisos de este rol..."></textarea>
                         </div>
-
-                        <!-- Permisos -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-key mr-2"></i>Permisos Principales
@@ -598,8 +543,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Nivel de Acceso -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-shield-alt mr-2"></i>Nivel de Acceso *
@@ -613,7 +556,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="flex gap-3 mt-6">
                         <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 btn-touch">
                             <i class="fas fa-plus-circle mr-2"></i>Crear Nuevo Rol
@@ -625,7 +567,6 @@
                     </div>
                 </form>
             </div>
-
             <div class="border-t mt-6 pt-4">
                 <h3 class="text-lg font-semibold mb-3">Información Técnica</h3>
                 <div class="text-sm text-gray-600 space-y-2">
@@ -637,1020 +578,691 @@
     </div>
 
     <script>
-       const UsuariosApp = {
-    usuarioAEliminar: null,
-    usuariosOriginales: null,
+    const UsuariosApp = {
+        usuarioAEliminar: null,
+        usuariosOriginales: null,
 
-    init: function() {
-        // Configurar partículas
-        particlesJS('particles-js', {
-            particles: {
-                number: { value: 40, density: { enable: true, value_area: 600 } },
-                color: { value: '#3b82f6' },
-                shape: { type: 'circle' },
-                opacity: { value: 0.2, random: true },
-                size: { value: 2, random: true },
-                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
-                move: { enable: true, speed: 0.5, direction: 'none', random: true }
-            },
-            interactivity: {
-                detect_on: 'canvas',
-                events: {
-                    onhover: { enable: true, mode: 'grab' },
-                    onclick: { enable: true, mode: 'push' },
-                    resize: true
-                }
-            }
-        });
-
-        // Inicializar hora en tiempo real
-        this.actualizarHora();
-        setInterval(() => this.actualizarHora(), 1000);
-
-        // Configurar fecha actual
-        this.configurarFechaActual();
-        
-        // Cargar usuarios
-        this.cargarUsuarios();
-        
-        // ===== NUEVO: Marcar el enlace activo =====
-        this.marcarEnlaceActivo();
-        
-        // Sincronizar nombre de usuario con versión móvil
-        const nombreUsuario = document.getElementById('nombreUsuario');
-        const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
-        if (nombreUsuario && nombreUsuarioMobile) {
-            nombreUsuarioMobile.textContent = nombreUsuario.textContent;
-        }
-        
-        console.log("Gestión de Usuarios inicializada");
-    },
-
-    // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
-    marcarEnlaceActivo: function() {
-        const currentPath = window.location.pathname;
-        
-        const pathToId = {
-            '/local': 'nav-local',
-            '/admin': 'nav-admin',
-            '/admin/usuarios/gestionusuarios': 'nav-usuarios',
-            '/admin/maquinas/inventario': 'nav-maquinas',
-            '/admin/paquetes/lista': 'nav-paquetes',
-            '/admin/mensajes/gestionmensajes': 'nav-mensajes',
-            '/admin/locales/listalocales': 'nav-locales',
-            '/admin/ventas/liquidaciones': 'nav-liquidaciones',
-            '/admin/inversores/gestionsocios': 'nav-socios',
-            '/admin/logs/consola-completa': 'nav-consola',
-            '/admin/logs/gestionlogs': 'nav-gestion-logs'
-        };
-        
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        const activeId = pathToId[currentPath];
-        if (activeId) {
-            const activeLink = document.getElementById(activeId);
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
-        } else {
-            // Si no hay match exacto, buscar por coincidencia parcial
-            document.querySelectorAll('.nav-link').forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && currentPath.includes(href) && href !== '/') {
-                    link.classList.add('active');
+        init: function() {
+            particlesJS('particles-js', {
+                particles: {
+                    number: { value: 40, density: { enable: true, value_area: 600 } },
+                    color: { value: '#3b82f6' },
+                    shape: { type: 'circle' },
+                    opacity: { value: 0.2, random: true },
+                    size: { value: 2, random: true },
+                    line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                    move: { enable: true, speed: 0.5, direction: 'none', random: true }
+                },
+                interactivity: {
+                    detect_on: 'canvas',
+                    events: {
+                        onhover: { enable: true, mode: 'grab' },
+                        onclick: { enable: true, mode: 'push' },
+                        resize: true
+                    }
                 }
             });
-        }
-    },
 
-    // Función para actualizar la hora en tiempo real
-    actualizarHora: function() {
-        const ahora = new Date();
-        const opciones = { 
-            timeZone: 'America/Bogota',
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        };
-        
-        const opcionesFecha = {
-            timeZone: 'America/Bogota',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        };
-        
-        const hora = ahora.toLocaleTimeString('es-CO', opciones);
-        const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
-        
-        // Actualizar en sidebar (desktop)
-        const horaSidebar = document.getElementById('horaActualSidebar');
-        const fechaSidebar = document.getElementById('fechaActualSidebar');
-        if (horaSidebar) horaSidebar.textContent = hora;
-        if (fechaSidebar) fechaSidebar.textContent = fecha;
-        
-        // Actualizar en versión móvil
-        const horaMobile = document.getElementById('horaActualMobile');
-        const fechaMobile = document.getElementById('fechaActualMobile');
-        if (horaMobile) horaMobile.textContent = hora;
-        if (fechaMobile) fechaMobile.textContent = fecha;
-    },
-
-    configurarFechaActual: function() {
-        const ahora = new Date();
-        const opciones = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        document.getElementById('fechaActual').textContent = 
-            ahora.toLocaleDateString('es-ES', opciones);
-    },
-
-    cargarUsuarios: function() {
-    console.log('📋 Cargando usuarios...');
-    
-    // Guardar referencia a 'this'
-    const self = this;
-    
-    // Mostrar loading
-    const tbody = document.getElementById('tablaUsuarios');
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="7" class="p-4 text-center">
-                <div class="loading mx-auto mb-2"></div>
-                <p class="text-gray-600">Cargando usuarios...</p>
-            </td>
-        </tr>
-    `;
-    
-    fetch('/api/usuarios', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        },
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-            console.error('❌ Error en respuesta:', response.status, response.statusText);
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('✅ Usuarios cargados:', data);
-        console.log('✅ Cantidad:', data.length);
-        console.log('✅ Primer usuario:', data[0]);
-        
-        // Usar 'self' en lugar de 'this'
-        self.mostrarUsuarios(data);
-        self.cargarEstadisticas();
-    })
-    .catch(error => {
-        console.error('❌ Error cargando usuarios:', error);
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="p-4 text-center text-red-500">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    Error al cargar los usuarios: ${error.message}
-                    <button onclick="UsuariosApp.cargarUsuarios()" 
-                            class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                        <i class="fas fa-sync-alt mr-2"></i>Reintentar
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
-},
-
-    mostrarUsuarios: function(usuarios) {
-        const tbody = document.getElementById('tablaUsuarios');
-        
-        if (!usuarios || usuarios.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="p-4 text-center text-gray-500">
-                        <i class="fas fa-users-slash text-2xl mb-2"></i><br>
-                        No hay usuarios registrados
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        let html = '';
-        usuarios.forEach(usuario => {
-            // Determinar clase de estado
-            let estadoClase = 'bg-green-100 text-green-800';
-            let estadoTexto = 'Activo';
-            let estadoIcono = 'fa-check-circle';
-            
-            // Verificar si el usuario está activo
-            const isActive = usuario.isActive !== false;
-            
-            if (!isActive) {
-                estadoClase = 'bg-red-100 text-red-800';
-                estadoTexto = 'Inactivo';
-                estadoIcono = 'fa-times-circle';
-            }
-
-            // Traducir rol a español
-            let rolTexto = usuario.role;
-            switch(usuario.role) {
-                case 'admin': rolTexto = 'Administrador'; break;
-                case 'cajero': rolTexto = 'Cajero'; break;
-                case 'socio': rolTexto = 'Socio'; break;
-                case 'admin_restaurante': rolTexto = 'Admin Restaurante'; break;
-            }
-
-            // Formatear fecha de creación
-            let fechaCreacion = 'N/A';
-            if (usuario.createdAt) {
-                try {
-                    const fecha = new Date(usuario.createdAt);
-                    fechaCreacion = fecha.toLocaleDateString('es-ES', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                    });
-                } catch (e) {
-                    fechaCreacion = String(usuario.createdAt);
-                }
-            }
-
-            // Creador
-            const creador = usuario.creador ? usuario.creador.name : 'Sistema';
-
-            html += `
-                <tr class="user-row border-b border-gray-200 hover:bg-gray-50">
-                    <td class="p-3 text-sm font-mono">${usuario.id}</td>
-                    <td class="p-3 font-medium">
-                        <div class="flex items-center">
-                            <i class="fas fa-user-circle mr-2 text-gray-400"></i>
-                            <span>${usuario.name}</span>
-                        </div>
-                        ${usuario.notes ? `<div class="text-xs text-gray-500 mt-1">${usuario.notes}</div>` : ''}
-                    </td>
-                    <td class="p-3">
-                        <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRolClase(usuario.role)}">
-                            <i class="fas ${this.getRolIcono(usuario.role)} mr-1"></i>
-                            ${rolTexto}
-                        </span>
-                    </td>
-                    <td class="p-3 text-sm">${creador}</td>
-                    <td class="p-3 text-sm">${fechaCreacion}</td>
-                    <td class="p-3">
-                        <span class="px-2 py-1 rounded-full text-xs ${estadoClase}">
-                            <i class="fas ${estadoIcono} mr-1"></i>
-                            ${estadoTexto}
-                        </span>
-                    </td>
-                    <td class="p-3 text-center">
-                        <div class="flex justify-center space-x-2">
-                            <button onclick="UsuariosApp.editarUsuario(${usuario.id})" 
-                                    class="text-blue-600 hover:text-blue-800 btn-touch" 
-                                    title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name.replace(/'/g, "\\'")}')" 
-                                    class="${isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} btn-touch"
-                                    title="${isActive ? 'Inhabilitar' : 'Habilitar'}">
-                                <i class="fas ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
-                            </button>
-                            <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" 
-                                    class="text-red-600 hover:text-red-800 btn-touch"
-                                    title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = html;
-        this.usuariosOriginales = usuarios;
-    },
-
-    getRolClase: function(rol) {
-        switch(rol) {
-            case 'admin': return 'bg-purple-100 text-purple-800';
-            case 'cajero': return 'bg-blue-100 text-blue-800';
-            case 'admin_restaurante': return 'bg-teal-100 text-teal-800';
-            case 'socio': return 'bg-pink-100 text-pink-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    },
-
-    getRolIcono: function(rol) {
-        switch(rol) {
-            case 'admin': return 'fa-user-shield';
-            case 'cajero': return 'fa-cash-register';
-            case 'admin_restaurante': return 'fa-store';
-            case 'socio': return 'fa-user-tie';
-            default: return 'fa-user';
-        }
-    },
-
-    cargarEstadisticas: function() {
-        console.log('📊 Cargando estadísticas...');
-        
-        fetch('/api/usuarios/estadisticas', {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => {
-            if (!response.ok) {
-                console.error('❌ Error en estadísticas:', response.status);
-                return {};
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('📊 Estadísticas recibidas:', data);
-            this.actualizarEstadisticas(data);
-        })
-        .catch(error => {
-            console.error('❌ Error cargando estadísticas:', error);
-            this.actualizarEstadisticas({
-                total: 0,
-                activos: 0,
-                inactivos: 0,
-                admins: 0,
-                cajeros: 0,
-                admin_restaurante: 0,
-                socios: 0
-            });
-        });
-    },
-
-    actualizarEstadisticas: function(estadisticas) {
-        document.getElementById('total-usuarios').textContent = estadisticas.total || 0;
-        document.getElementById('total-activos').textContent = estadisticas.activos || 0;
-        document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
-        document.getElementById('total-admins').textContent = estadisticas.admins || 0;
-        document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
-        document.getElementById('total-socios').textContent = estadisticas.socios || 0;
-    },
-
-    filtrarUsuarios: function() {
-        if (!this.usuariosOriginales) return;
-
-        const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
-        const filtroEstado = document.getElementById('filtroEstado').value;
-        const filtroRol = document.getElementById('filtroRol').value;
-
-        const usuariosFiltrados = this.usuariosOriginales.filter(usuario => {
-            // Filtro de búsqueda
-            const coincideBusqueda = !busqueda || 
-                usuario.name.toLowerCase().includes(busqueda) ||
-                usuario.role.toLowerCase().includes(busqueda) ||
-                (usuario.notes && usuario.notes.toLowerCase().includes(busqueda));
-
-            // Filtro de estado
-            let coincideEstado = true;
-            if (filtroEstado === 'activo') {
-                coincideEstado = usuario.isActive !== false;
-            } else if (filtroEstado === 'inactivo') {
-                coincideEstado = usuario.isActive === false;
-            }
-
-            // Filtro de rol
-            const coincideRol = !filtroRol || usuario.role === filtroRol;
-
-            return coincideBusqueda && coincideEstado && coincideRol;
-        });
-
-        this.mostrarUsuarios(usuariosFiltrados);
-    },
-
-    mostrarModalCrear: function() {
-        document.getElementById('modalTitulo').innerHTML = `
-            <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
-        `;
-        
-        document.getElementById('formUsuario').reset();
-        document.getElementById('usuarioId').value = '';
-        
-        document.getElementById('password').required = true;
-        document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
-        document.getElementById('estadoContainer').classList.add('hidden');
-        
-        document.getElementById('modalUsuario').classList.remove('hidden');
-        document.getElementById('modalUsuario').classList.add('flex');
-    },
-
-    editarUsuario: function(id) {
-        console.log('📝 Editando usuario ID:', id);
-        
-        const usuario = this.usuariosOriginales.find(u => u.id === id);
-        if (!usuario) {
-            this.mostrarError('Usuario no encontrado');
-            return;
-        }
-
-        document.getElementById('modalTitulo').innerHTML = `
-            <i class="fas fa-user-edit mr-2 text-blue-600"></i>Editar Usuario
-        `;
-        
-        document.getElementById('usuarioId').value = usuario.id;
-        document.getElementById('nombre').value = usuario.name || '';
-        document.getElementById('rol').value = usuario.role || '';
-        document.getElementById('local').value = usuario.local || 'El Mekatiadero';
-        document.getElementById('notas').value = usuario.notes || '';
-        
-        document.getElementById('isActive').value = usuario.isActive !== false ? 'true' : 'false';
-        document.getElementById('estadoContainer').classList.remove('hidden');
-        
-        document.getElementById('password').required = false;
-        document.getElementById('passwordHelp').textContent = 'Dejar en blanco para mantener la contraseña actual';
-        
-        document.getElementById('modalUsuario').classList.remove('hidden');
-        document.getElementById('modalUsuario').classList.add('flex');
-    },
-
-    guardarUsuario: function(event) {
-        event.preventDefault();
-        
-        const usuarioId = document.getElementById('usuarioId').value;
-        const esEdicion = !!usuarioId;
-
-        const datos = {
-            name: document.getElementById('nombre').value,
-            role: document.getElementById('rol').value,
-            local: document.getElementById('local').value,
-            notes: document.getElementById('notas').value
-        };
-
-        const password = document.getElementById('password').value;
-        if (password) {
-            datos.password = password;
-        }
-
-        if (esEdicion) {
-            datos.isActive = document.getElementById('isActive').value === 'true';
-        }
-
-        const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
-        const method = esEdicion ? 'PUT' : 'POST';
-
-        fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(datos)
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Error en la respuesta del servidor');
-            return response.json();
-        })
-        .then(data => {
-            this.mostrarAlerta(
-                esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 
-                'success'
-            );
-            this.cerrarModal();
+            this.actualizarHora();
+            setInterval(() => this.actualizarHora(), 1000);
+            this.configurarFechaActual();
             this.cargarUsuarios();
-        })
-        .catch(error => {
-            console.error('Error guardando usuario:', error);
-            this.mostrarError('Error al guardar el usuario');
-        });
-    },
+            this.marcarEnlaceActivo();
 
-    cambiarEstadoUsuario: function(id, isActive, nombre) {
-    const nuevoEstado = !isActive;
-    const accion = nuevoEstado ? 'habilitar' : 'inhabilitar';
-    
-    if (confirm(`¿Estás seguro de que deseas ${accion} al usuario "${nombre}"?`)) {
-        console.log(`🔄 Cambiando estado usuario ${id}: ${isActive} -> ${nuevoEstado}`);
-        
-        // Guardar referencia a 'this'
-        const self = this;
-        
-        fetch(`/api/usuarios/${id}/estado`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ isActive: nuevoEstado })
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Error response:', text);
-                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+            const nombreUsuario = document.getElementById('nombreUsuario');
+            const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+            if (nombreUsuario && nombreUsuarioMobile) {
+                nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+            }
+
+            console.log("Gestión de Usuarios inicializada");
+        },
+
+        marcarEnlaceActivo: function() {
+            const currentPath = window.location.pathname;
+            const pathToId = {
+                '/local': 'nav-local',
+                '/admin': 'nav-admin',
+                '/admin/usuarios/gestionusuarios': 'nav-usuarios',
+                '/admin/maquinas/inventario': 'nav-maquinas',
+                '/admin/paquetes/lista': 'nav-paquetes',
+                '/admin/mensajes/gestionmensajes': 'nav-mensajes',
+                '/admin/locales/listalocales': 'nav-locales',
+                '/admin/ventas/liquidaciones': 'nav-liquidaciones',
+                '/admin/inversores/gestionsocios': 'nav-socios',
+                '/admin/logs/consola-completa': 'nav-consola',
+                '/admin/logs/gestionlogs': 'nav-gestion-logs'
+            };
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            const activeId = pathToId[currentPath];
+            if (activeId) {
+                const activeLink = document.getElementById(activeId);
+                if (activeLink) activeLink.classList.add('active');
+            } else {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href && currentPath.includes(href) && href !== '/') {
+                        link.classList.add('active');
+                    }
                 });
             }
-            return response.json();
-        })
-        .then(data => {
-            console.log('✅ Estado cambiado:', data);
-            self.mostrarAlerta(`Usuario ${accion}do correctamente`, 'success');
-            self.cargarUsuarios();  // Usar 'self' en lugar de 'this'
-        })
-        .catch(error => {
-            console.error(`❌ Error ${accion}do usuario:`, error);
-            self.mostrarError(`Error al ${accion} el usuario: ${error.message}`);
-        });
-    }
-},
+        },
 
-    eliminarUsuario: function(id, nombre) {
-        this.usuarioAEliminar = id;
-        document.getElementById('mensajeConfirmacion').textContent = 
-            `¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
-        document.getElementById('modalConfirmar').classList.remove('hidden');
-        document.getElementById('modalConfirmar').classList.add('flex');
-    },
+        actualizarHora: function() {
+            const ahora = new Date();
+            const opciones = { timeZone: 'America/Bogota', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            const opcionesFecha = { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' };
+            const hora = ahora.toLocaleTimeString('es-CO', opciones);
+            const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+            const horaSidebar = document.getElementById('horaActualSidebar');
+            const fechaSidebar = document.getElementById('fechaActualSidebar');
+            if (horaSidebar) horaSidebar.textContent = hora;
+            if (fechaSidebar) fechaSidebar.textContent = fecha;
+            const horaMobile = document.getElementById('horaActualMobile');
+            const fechaMobile = document.getElementById('fechaActualMobile');
+            if (horaMobile) horaMobile.textContent = hora;
+            if (fechaMobile) fechaMobile.textContent = fecha;
+        },
 
-    confirmarEliminar: function() {
-        if (!this.usuarioAEliminar) return;
+        configurarFechaActual: function() {
+            const ahora = new Date();
+            const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('fechaActual').textContent = ahora.toLocaleDateString('es-ES', opciones);
+        },
 
-        fetch(`/api/usuarios/${this.usuarioAEliminar}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Error en la respuesta del servidor');
-            return response.json();
-        })
-        .then(data => {
-            this.mostrarAlerta('Usuario eliminado correctamente', 'success');
-            this.cancelarEliminar();
-            this.cargarUsuarios();
-        })
-        .catch(error => {
-            console.error('Error eliminando usuario:', error);
-            this.mostrarError('Error al eliminar el usuario');
-        });
-    },
+        cargarUsuarios: function() {
+            const self = this;
+            const tbody = document.getElementById('tablaUsuarios');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="p-4 text-center">
+                        <div class="loading mx-auto mb-2"></div>
+                        <p class="text-gray-600">Cargando usuarios...</p>
+                    </td>
+                </tr>
+            `;
+            fetch('/api/usuarios', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+                return response.json();
+            })
+            .then(data => {
+                self.mostrarUsuarios(data);
+                self.cargarEstadisticas();
+            })
+            .catch(error => {
+                console.error('Error cargando usuarios:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="p-4 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            Error al cargar los usuarios: ${error.message}
+                            <button onclick="UsuariosApp.cargarUsuarios()" 
+                                    class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                <i class="fas fa-sync-alt mr-2"></i>Reintentar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        },
 
-    cancelarEliminar: function() {
-        this.usuarioAEliminar = null;
-        document.getElementById('modalConfirmar').classList.add('hidden');
-        document.getElementById('modalConfirmar').classList.remove('flex');
-    },
-
-    cerrarModal: function() {
-        document.getElementById('modalUsuario').classList.add('hidden');
-        document.getElementById('modalUsuario').classList.remove('flex');
-        
-        document.getElementById('password').required = true;
-        document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
-        
-        document.getElementById('estadoContainer').classList.add('hidden');
-    },
-
-    actualizarLista: function() {
-        this.cargarUsuarios();
-        this.mostrarAlerta('Lista de usuarios actualizada', 'success');
-    },
-
-    mostrarAlerta: function(mensaje, tipo) {
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            tipo === 'error' ? 'bg-red-500' : 
-            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
-        } text-white max-w-md`;
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${
-                    tipo === 'success' ? 'check-circle' : 
-                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
-                } mr-2"></i>
-                <span>${mensaje}</span>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.remove(), 4000);
-    },
-
-    mostrarError: function(mensaje) {
-        this.mostrarAlerta(mensaje, 'error');
-    }
-};
-
-const RolesApp = {
-    init: function() {
-        console.log("RolesApp inicializado");
-    },
-
-    mostrarModalCrearRol: function() {
-        document.getElementById('modalRoles').classList.remove('hidden');
-        document.getElementById('modalRoles').classList.add('flex');
-        this.cargarRolesSistema();
-    },
-
-    cerrarModal: function() {
-        document.getElementById('modalRoles').classList.add('hidden');
-        document.getElementById('modalRoles').classList.remove('flex');
-        document.getElementById('formRol').reset();
-    },
-
-    cargarRolesSistema: function() {
-        const rolesLista = document.getElementById('rolesLista');
-        
-        // Mostrar loading
-        rolesLista.innerHTML = `
-            <div class="col-span-4 text-center py-4">
-                <div class="loading mx-auto mb-2"></div>
-                <p class="text-gray-600">Cargando roles...</p>
-            </div>
-        `;
-        
-        // Cargar roles desde API
-        fetch('/api/roles/sistema', {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => {
-            if (!response.ok) {
-                console.error('❌ Error cargando roles:', response.status);
-                this.mostrarRolesFallback();
+        mostrarUsuarios: function(usuarios) {
+            const tbody = document.getElementById('tablaUsuarios');
+            if (!usuarios || usuarios.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="p-4 text-center text-gray-500">
+                            <i class="fas fa-users-slash text-2xl mb-2"></i><br>
+                            No hay usuarios registrados
+                        </td>
+                    </tr>
+                `;
                 return;
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data && data.roles && Array.isArray(data.roles)) {
-                this.mostrarRoles(data.roles);
-            } else {
-                this.mostrarRolesFallback();
-            }
-        })
-        .catch(error => {
-            console.error('Error cargando roles:', error);
-            this.mostrarRolesFallback();
-        });
-    },
+            let html = '';
+            usuarios.forEach(usuario => {
+                const isActive = usuario.isActive !== false;
+                const estadoClase = isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                const estadoTexto = isActive ? 'Activo' : 'Inactivo';
+                const estadoIcono = isActive ? 'fa-check-circle' : 'fa-times-circle';
 
-    mostrarRoles: function(roles) {
-        const rolesLista = document.getElementById('rolesLista');
-        
-        if (!roles || roles.length === 0) {
+                let rolTexto = usuario.role;
+                switch(usuario.role) {
+                    case 'admin': rolTexto = 'Administrador'; break;
+                    case 'cajero': rolTexto = 'Cajero'; break;
+                    case 'socio': rolTexto = 'Socio'; break;
+                    case 'admin_restaurante': rolTexto = 'Admin Restaurante'; break;
+                }
+
+                let fechaCreacion = 'N/A';
+                if (usuario.createdAt) {
+                    try {
+                        fechaCreacion = new Date(usuario.createdAt).toLocaleDateString('es-ES', {
+                            day: '2-digit', month: '2-digit', year: 'numeric'
+                        });
+                    } catch (e) {
+                        fechaCreacion = String(usuario.createdAt);
+                    }
+                }
+
+                const creador = usuario.creador ? usuario.creador.name : 'Sistema';
+
+                html += `
+                    <tr class="user-row border-b border-gray-200 hover:bg-gray-50">
+                        <td class="p-3 text-sm font-mono">${usuario.id}</td>
+                        <td class="p-3 font-medium">
+                            <div class="flex items-center">
+                                <i class="fas fa-user-circle mr-2 text-gray-400"></i>
+                                <span>${usuario.name}</span>
+                            </div>
+                            ${usuario.notes ? `<div class="text-xs text-gray-500 mt-1">${usuario.notes}</div>` : ''}
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRolClase(usuario.role)}">
+                                <i class="fas ${this.getRolIcono(usuario.role)} mr-1"></i>${rolTexto}
+                            </span>
+                        </td>
+                        <td class="p-3 text-sm">${creador}</td>
+                        <td class="p-3 text-sm">${fechaCreacion}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-1 rounded-full text-xs ${estadoClase}">
+                                <i class="fas ${estadoIcono} mr-1"></i>${estadoTexto}
+                            </span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <div class="flex justify-center space-x-2">
+                                <button onclick="UsuariosApp.editarUsuario(${usuario.id})" 
+                                        class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name.replace(/'/g, "\\'")}')" 
+                                        class="${isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} btn-touch"
+                                        title="${isActive ? 'Inhabilitar' : 'Habilitar'}">
+                                    <i class="fas ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                                </button>
+                                <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" 
+                                        class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+            this.usuariosOriginales = usuarios;
+        },
+
+        getRolClase: function(rol) {
+            switch(rol) {
+                case 'admin': return 'bg-purple-100 text-purple-800';
+                case 'cajero': return 'bg-blue-100 text-blue-800';
+                case 'admin_restaurante': return 'bg-teal-100 text-teal-800';
+                case 'socio': return 'bg-pink-100 text-pink-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        },
+
+        getRolIcono: function(rol) {
+            switch(rol) {
+                case 'admin': return 'fa-user-shield';
+                case 'cajero': return 'fa-cash-register';
+                case 'admin_restaurante': return 'fa-store';
+                case 'socio': return 'fa-user-tie';
+                default: return 'fa-user';
+            }
+        },
+
+        cargarEstadisticas: function() {
+            fetch('/api/usuarios/estadisticas', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+            .then(response => response.ok ? response.json() : {})
+            .then(data => this.actualizarEstadisticas(data))
+            .catch(() => this.actualizarEstadisticas({}));
+        },
+
+        actualizarEstadisticas: function(estadisticas) {
+            document.getElementById('total-usuarios').textContent = estadisticas.total || 0;
+            document.getElementById('total-activos').textContent = estadisticas.activos || 0;
+            document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
+            document.getElementById('total-admins').textContent = estadisticas.admins || 0;
+            document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
+            document.getElementById('total-socios').textContent = estadisticas.socios || 0;
+        },
+
+        filtrarUsuarios: function() {
+            if (!this.usuariosOriginales) return;
+            const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
+            const filtroEstado = document.getElementById('filtroEstado').value;
+            const filtroRol = document.getElementById('filtroRol').value;
+            const filtrados = this.usuariosOriginales.filter(usuario => {
+                const coincideBusqueda = !busqueda ||
+                    usuario.name.toLowerCase().includes(busqueda) ||
+                    usuario.role.toLowerCase().includes(busqueda) ||
+                    (usuario.notes && usuario.notes.toLowerCase().includes(busqueda));
+                let coincideEstado = true;
+                if (filtroEstado === 'activo') coincideEstado = usuario.isActive !== false;
+                else if (filtroEstado === 'inactivo') coincideEstado = usuario.isActive === false;
+                const coincideRol = !filtroRol || usuario.role === filtroRol;
+                return coincideBusqueda && coincideEstado && coincideRol;
+            });
+            this.mostrarUsuarios(filtrados);
+        },
+
+        mostrarModalCrear: function() {
+            document.getElementById('modalTitulo').innerHTML = `
+                <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
+            `;
+            document.getElementById('formUsuario').reset();
+            document.getElementById('usuarioId').value = '';
+            document.getElementById('password').required = true;
+            document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
+            document.getElementById('estadoContainer').classList.add('hidden');
+            document.getElementById('modalUsuario').classList.remove('hidden');
+            document.getElementById('modalUsuario').classList.add('flex');
+        },
+
+        editarUsuario: function(id) {
+            const usuario = this.usuariosOriginales.find(u => u.id === id);
+            if (!usuario) { this.mostrarError('Usuario no encontrado'); return; }
+            document.getElementById('modalTitulo').innerHTML = `
+                <i class="fas fa-user-edit mr-2 text-blue-600"></i>Editar Usuario
+            `;
+            document.getElementById('usuarioId').value = usuario.id;
+            document.getElementById('nombre').value = usuario.name || '';
+            document.getElementById('rol').value = usuario.role || '';
+            document.getElementById('local').value = usuario.local || 'El Mekatiadero';
+            document.getElementById('notas').value = usuario.notes || '';
+            document.getElementById('isActive').value = usuario.isActive !== false ? 'true' : 'false';
+            document.getElementById('estadoContainer').classList.remove('hidden');
+            document.getElementById('password').required = false;
+            document.getElementById('passwordHelp').textContent = 'Dejar en blanco para mantener la contraseña actual';
+            document.getElementById('modalUsuario').classList.remove('hidden');
+            document.getElementById('modalUsuario').classList.add('flex');
+        },
+
+        guardarUsuario: function(event) {
+            event.preventDefault();
+            const usuarioId = document.getElementById('usuarioId').value;
+            const esEdicion = !!usuarioId;
+            const datos = {
+                name: document.getElementById('nombre').value,
+                role: document.getElementById('rol').value,
+                local: document.getElementById('local').value,
+                notes: document.getElementById('notas').value
+            };
+            const password = document.getElementById('password').value;
+            if (password) datos.password = password;
+            if (esEdicion) datos.isActive = document.getElementById('isActive').value === 'true';
+            const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
+            const method = esEdicion ? 'PUT' : 'POST';
+            fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify(datos)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                return response.json();
+            })
+            .then(() => {
+                this.mostrarAlerta(esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 'success');
+                this.cerrarModal();
+                this.cargarUsuarios();
+            })
+            .catch(error => {
+                console.error('Error guardando usuario:', error);
+                this.mostrarError('Error al guardar el usuario');
+            });
+        },
+
+        // ===== ITEMS 14 y 15: Modal inhabilitar/habilitar =====
+        cambiarEstadoUsuario: function(id, isActive, nombre) {
+            const nuevoEstado = !isActive;
+            const icono = nuevoEstado ? 'fa-toggle-on' : 'fa-toggle-off';
+            const color = nuevoEstado ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600';
+
+            document.getElementById('modalEstadoTitulo').innerHTML = `
+                <i class="fas ${icono} mr-2 ${nuevoEstado ? 'text-green-500' : 'text-orange-500'}"></i>
+                ${nuevoEstado ? 'Habilitar' : 'Inhabilitar'} Usuario
+            `;
+            document.getElementById('modalEstadoSubtitulo').textContent = nuevoEstado
+                ? 'El usuario podrá acceder al sistema nuevamente.'
+                : 'El usuario no podrá acceder al sistema mientras esté inhabilitado.';
+            document.getElementById('modalEstadoNombre').textContent = nombre;
+            document.getElementById('modalEstadoAccion').textContent = nuevoEstado ? 'Será habilitado' : 'Será inhabilitado';
+
+            const btn = document.getElementById('btnConfirmarEstado');
+            btn.className = `flex-1 ${color} text-white py-3 rounded-lg btn-touch`;
+            btn.innerHTML = `<i class="fas ${icono} mr-2"></i>Confirmar ${nuevoEstado ? 'habilitación' : 'inhabilitación'}`;
+            btn.disabled = false;
+            btn.onclick = () => this.ejecutarCambioEstado(id, nuevoEstado, nuevoEstado ? 'habilitar' : 'inhabilitar');
+
+            document.getElementById('modalEstado').classList.remove('hidden');
+            document.getElementById('modalEstado').classList.add('flex');
+        },
+
+        ejecutarCambioEstado: function(id, nuevoEstado, accion) {
+            const self = this;
+            const btn = document.getElementById('btnConfirmarEstado');
+            btn.disabled = true;
+            btn.innerHTML = `<div class="loading mr-2" style="display:inline-block"></div>Procesando...`;
+
+            fetch(`/api/usuarios/${id}/estado`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ isActive: nuevoEstado })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Error ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(() => {
+                self.cerrarModalEstado();
+                self.mostrarAlerta(`Usuario ${nuevoEstado ? 'habilitado' : 'inhabilitado'} correctamente`, 'success');
+                self.cargarUsuarios();
+            })
+            .catch(error => {
+                console.error('Error cambiando estado:', error);
+                btn.disabled = false;
+                self.mostrarError(`Error al ${accion} el usuario: ${error.message}`);
+            });
+        },
+
+        cerrarModalEstado: function() {
+            document.getElementById('modalEstado').classList.add('hidden');
+            document.getElementById('modalEstado').classList.remove('flex');
+        },
+
+        eliminarUsuario: function(id, nombre) {
+            this.usuarioAEliminar = id;
+            document.getElementById('mensajeConfirmacion').textContent =
+                `¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
+            document.getElementById('modalConfirmar').classList.remove('hidden');
+            document.getElementById('modalConfirmar').classList.add('flex');
+        },
+
+        confirmarEliminar: function() {
+            if (!this.usuarioAEliminar) return;
+            fetch(`/api/usuarios/${this.usuarioAEliminar}`, {
+                method: 'DELETE',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                return response.json();
+            })
+            .then(() => {
+                this.mostrarAlerta('Usuario eliminado correctamente', 'success');
+                this.cancelarEliminar();
+                this.cargarUsuarios();
+            })
+            .catch(error => {
+                console.error('Error eliminando usuario:', error);
+                this.mostrarError('Error al eliminar el usuario');
+            });
+        },
+
+        cancelarEliminar: function() {
+            this.usuarioAEliminar = null;
+            document.getElementById('modalConfirmar').classList.add('hidden');
+            document.getElementById('modalConfirmar').classList.remove('flex');
+        },
+
+        cerrarModal: function() {
+            document.getElementById('modalUsuario').classList.add('hidden');
+            document.getElementById('modalUsuario').classList.remove('flex');
+            document.getElementById('password').required = true;
+            document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
+            document.getElementById('estadoContainer').classList.add('hidden');
+        },
+
+        actualizarLista: function() {
+            this.cargarUsuarios();
+            this.mostrarAlerta('Lista de usuarios actualizada', 'success');
+        },
+
+        mostrarAlerta: function(mensaje, tipo) {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                tipo === 'error' ? 'bg-red-500' : tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+            } text-white max-w-md`;
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>
+                    <span>${mensaje}</span>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        },
+
+        mostrarError: function(mensaje) {
+            this.mostrarAlerta(mensaje, 'error');
+        }
+    };
+
+    const RolesApp = {
+        init: function() {
+            console.log("RolesApp inicializado");
+        },
+
+        mostrarModalCrearRol: function() {
+            document.getElementById('modalRoles').classList.remove('hidden');
+            document.getElementById('modalRoles').classList.add('flex');
+            this.cargarRolesSistema();
+        },
+
+        cerrarModal: function() {
+            document.getElementById('modalRoles').classList.add('hidden');
+            document.getElementById('modalRoles').classList.remove('flex');
+            document.getElementById('formRol').reset();
+        },
+
+        cargarRolesSistema: function() {
+            const rolesLista = document.getElementById('rolesLista');
             rolesLista.innerHTML = `
                 <div class="col-span-4 text-center py-4">
-                    <i class="fas fa-exclamation-triangle text-2xl text-yellow-500 mb-2"></i>
-                    <p class="text-gray-600">No se encontraron roles en el sistema</p>
+                    <div class="loading mx-auto mb-2"></div>
+                    <p class="text-gray-600">Cargando roles...</p>
                 </div>
             `;
-            return;
-        }
-        
-        let html = '';
-        roles.forEach(rol => {
-            const colorClass = `bg-${rol.color}-100 text-${rol.color}-800`;
-            
-            html += `
-                <div class="border rounded-lg p-4 ${colorClass} role-card">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex items-start">
-                            <i class="fas fa-${rol.icono} text-lg mr-2 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold">${rol.nombre}</h4>
-                                <p class="text-xs opacity-75">ID: ${rol.id}</p>
-                            </div>
-                        </div>
-                        <span class="text-xs px-2 py-1 rounded-full bg-white bg-opacity-75">
-                            ${rol.total_usuarios || 0} usuarios
-                        </span>
-                    </div>
-                    <p class="text-sm mb-3">${rol.descripcion || 'Sin descripción'}</p>
-                    <div class="text-xs text-gray-600">
-                        <i class="fas fa-users mr-1"></i> ${rol.total_usuarios || 0} usuarios asignados
-                    </div>
-                </div>
-            `;
-        });
-        
-        rolesLista.innerHTML = html;
-    },
+            fetch('/api/roles/sistema', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) { this.mostrarRolesFallback(); return null; }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.roles && Array.isArray(data.roles)) {
+                    this.mostrarRoles(data.roles);
+                } else {
+                    this.mostrarRolesFallback();
+                }
+            })
+            .catch(() => this.mostrarRolesFallback());
+        },
 
-    mostrarRolesFallback: function() {
-        const rolesLista = document.getElementById('rolesLista');
-        
-        // Roles por defecto si la API falla
-        const roles = [
-            { 
-                id: 'admin', 
-                nombre: 'Administrador', 
-                descripcion: 'Acceso completo a todas las funciones del sistema',
-                color: 'purple',
-                icono: 'user-shield',
-                total_usuarios: 0
-            },
-            { 
-                id: 'cajero', 
-                nombre: 'Cajero', 
-                descripcion: 'Puede registrar ventas y gestionar códigos QR',
-                color: 'blue',
-                icono: 'cash-register',
-                total_usuarios: 0
-            },
-            { 
-                id: 'admin_restaurante', 
-                nombre: 'Admin Restaurante', 
-                descripcion: 'Gestión del restaurante y reportes específicos',
-                color: 'teal',
-                icono: 'store',
-                total_usuarios: 0
-            },
-            { 
-                id: 'socio', 
-                nombre: 'Socio', 
-                descripcion: 'Acceso a reportes financieros y estadísticas de inversión',
-                color: 'pink',
-                icono: 'user-tie',
-                total_usuarios: 0
+        mostrarRoles: function(roles) {
+            const rolesLista = document.getElementById('rolesLista');
+            if (!roles || roles.length === 0) {
+                rolesLista.innerHTML = `
+                    <div class="col-span-4 text-center py-4">
+                        <p class="text-gray-600">No se encontraron roles</p>
+                    </div>
+                `;
+                return;
             }
-        ];
-        
-        let html = '';
-        roles.forEach(rol => {
-            const colorClass = `bg-${rol.color}-100 text-${rol.color}-800`;
-            
-            html += `
-                <div class="border rounded-lg p-4 ${colorClass} role-card">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex items-start">
-                            <i class="fas fa-${rol.icono} text-lg mr-2 mt-1"></i>
-                            <div>
-                                <h4 class="font-bold">${rol.nombre}</h4>
-                                <p class="text-xs opacity-75">ID: ${rol.id}</p>
+            let html = '';
+            roles.forEach(rol => {
+                html += `
+                    <div class="border rounded-lg p-4 bg-${rol.color}-100 text-${rol.color}-800 role-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-start">
+                                <i class="fas fa-${rol.icono} text-lg mr-2 mt-1"></i>
+                                <div>
+                                    <h4 class="font-bold">${rol.nombre}</h4>
+                                    <p class="text-xs opacity-75">ID: ${rol.id}</p>
+                                </div>
                             </div>
+                            <span class="text-xs px-2 py-1 rounded-full bg-white bg-opacity-75">${rol.total_usuarios || 0} usuarios</span>
                         </div>
-                        <span class="text-xs px-2 py-1 rounded-full bg-white bg-opacity-75">
-                            ${rol.total_usuarios} usuarios
-                        </span>
+                        <p class="text-sm mb-3">${rol.descripcion || 'Sin descripción'}</p>
+                        <div class="text-xs text-gray-600">
+                            <i class="fas fa-users mr-1"></i>${rol.total_usuarios || 0} usuarios asignados
+                        </div>
                     </div>
-                    <p class="text-sm mb-3">${rol.descripcion}</p>
-                    <div class="text-xs text-gray-600">
-                        <i class="fas fa-users mr-1"></i> ${rol.total_usuarios} usuarios asignados
+                `;
+            });
+            rolesLista.innerHTML = html;
+        },
+
+        mostrarRolesFallback: function() {
+            const roles = [
+                { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso completo a todas las funciones', color: 'purple', icono: 'user-shield', total_usuarios: 0 },
+                { id: 'cajero', nombre: 'Cajero', descripcion: 'Puede registrar ventas y gestionar QR', color: 'blue', icono: 'cash-register', total_usuarios: 0 },
+                { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión del restaurante y reportes', color: 'teal', icono: 'store', total_usuarios: 0 },
+                { id: 'socio', nombre: 'Socio', descripcion: 'Acceso a reportes financieros', color: 'pink', icono: 'user-tie', total_usuarios: 0 }
+            ];
+            this.mostrarRoles(roles);
+        },
+
+        crearNuevoRol: function(event) {
+            event.preventDefault();
+            const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
+            const descripcion = document.getElementById('descripcionRol').value.trim();
+            const nivelAcceso = document.getElementById('nivelAcceso').value;
+
+            if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
+            if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
+            if (nombreRol.length > 20) { this.mostrarError('Máximo 20 caracteres'); return; }
+            if (!nivelAcceso) { this.mostrarError('Debes seleccionar un nivel de acceso'); return; }
+
+            const permisos = [];
+            if (document.getElementById('permisoVer').checked) permisos.push('ver');
+            if (document.getElementById('permisoCrear').checked) permisos.push('crear');
+            if (document.getElementById('permisoEditar').checked) permisos.push('editar');
+            if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
+            if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
+            if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
+
+            const nuevoRol = {
+                id: nombreRol,
+                nombre: nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace('_', ' '),
+                descripcion: descripcion || 'Sin descripción',
+                permisos,
+                nivelAcceso,
+                fechaCreacion: new Date().toISOString()
+            };
+
+            fetch('/api/roles/agregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ nuevo_rol: nombreRol })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const sql = data.sql || this.generarSQLManual(nombreRol);
+                this.mostrarInstruccionesSQL(nuevoRol, sql);
+            })
+            .catch(() => {
+                const sql = this.generarSQLManual(nombreRol);
+                this.mostrarInstruccionesSQL(nuevoRol, sql);
+            });
+        },
+
+        generarSQLManual: function(nombreRol) {
+            const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
+            rolesBase.push(nombreRol);
+            return `ALTER TABLE Users MODIFY COLUMN role ENUM('${rolesBase.join("','")}') NOT NULL;`;
+        },
+
+        mostrarInstruccionesSQL: function(nuevoRol, sql) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6">
+                    <h2 class="text-xl font-bold mb-4 text-green-600">
+                        <i class="fas fa-check-circle mr-2"></i>Rol Creado Exitosamente
+                    </h2>
+                    <div class="mb-4 p-3 bg-green-50 rounded-lg">
+                        <p class="text-green-700"><i class="fas fa-info-circle mr-2"></i>El rol "${nuevoRol.nombre}" ha sido creado.</p>
                     </div>
-                </div>
-            `;
-        });
-        
-        rolesLista.innerHTML = html;
-    },
-
-    crearNuevoRol: function(event) {
-        event.preventDefault();
-        
-        const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
-        const descripcion = document.getElementById('descripcionRol').value.trim();
-        const nivelAcceso = document.getElementById('nivelAcceso').value;
-
-        // Validaciones
-        if (!nombreRol) {
-            this.mostrarError('El nombre del rol es requerido');
-            return;
-        }
-
-        // Validar formato del nombre
-        if (!/^[a-z_]+$/.test(nombreRol)) {
-            this.mostrarError('El nombre del rol solo puede contener letras minúsculas y guiones bajos (_)');
-            return;
-        }
-
-        if (nombreRol.length > 20) {
-            this.mostrarError('El nombre del rol no puede tener más de 20 caracteres');
-            return;
-        }
-
-        if (!nivelAcceso) {
-            this.mostrarError('Debes seleccionar un nivel de acceso');
-            return;
-        }
-
-        // Obtener permisos seleccionados
-        const permisos = [];
-        if (document.getElementById('permisoVer').checked) permisos.push('ver');
-        if (document.getElementById('permisoCrear').checked) permisos.push('crear');
-        if (document.getElementById('permisoEditar').checked) permisos.push('editar');
-        if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
-        if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
-        if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
-
-        // Crear objeto del nuevo rol
-        const nuevoRol = {
-            id: nombreRol,
-            nombre: nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace('_', ' '),
-            descripcion: descripcion || 'Sin descripción',
-            permisos: permisos,
-            nivelAcceso: nivelAcceso,
-            fechaCreacion: new Date().toISOString()
-        };
-
-        // Enviar a la API para generar SQL
-        fetch('/api/roles/agregar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ nuevo_rol: nombreRol })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.sql) {
-                this.mostrarInstruccionesSQL(nuevoRol, data.sql);
-            } else {
-                this.mostrarError('Error al generar SQL para el nuevo rol');
-            }
-        })
-        .catch(error => {
-            console.error('Error generando SQL:', error);
-            // Si falla la API, generar SQL localmente
-            const sql = this.generarSQLManual(nombreRol);
-            this.mostrarInstruccionesSQL(nuevoRol, sql);
-        });
-    },
-
-    generarSQLManual: function(nombreRol) {
-        // Roles base del sistema
-        const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
-        rolesBase.push(nombreRol);
-        return `ALTER TABLE Users MODIFY COLUMN role ENUM('${rolesBase.join("','")}') NOT NULL;`;
-    },
-
-    mostrarInstruccionesSQL: function(nuevoRol, sql) {
-        const detallesRol = `
-Nuevo Rol Creado:
-• ID: ${nuevoRol.id}
-• Nombre: ${nuevoRol.nombre}
-• Descripción: ${nuevoRol.descripcion}
-• Nivel de Acceso: ${nuevoRol.nivelAcceso}
-• Permisos: ${nuevoRol.permisos.join(', ') || 'Ninguno'}
-• Fecha: ${new Date().toLocaleDateString('es-ES')}
-
-Para agregar este rol a la base de datos, ejecuta el siguiente SQL en tu gestor de base de datos:
-
-${sql}
-
-Luego, recarga la página para ver el nuevo rol disponible en la lista de roles.
-        `;
-
-        // Crear modal con instrucciones
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-        modal.innerHTML = `
-            <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6">
-                <h2 class="text-xl font-bold mb-4 text-green-600">
-                    <i class="fas fa-check-circle mr-2"></i>Rol Creado Exitosamente
-                </h2>
-                
-                <div class="mb-4 p-3 bg-green-50 rounded-lg">
-                    <p class="text-green-700"><i class="fas fa-info-circle mr-2"></i>El rol "${nuevoRol.nombre}" ha sido creado localmente.</p>
-                </div>
-                
-                <div class="mb-4">
-                    <h3 class="font-semibold mb-2">Detalles del Rol:</h3>
-                    <pre class="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-40">${detallesRol}</pre>
-                </div>
-                
-                <div class="mb-6">
-                    <h3 class="font-semibold mb-2">Instrucción SQL:</h3>
-                    <div class="relative">
-                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-sm overflow-auto" id="sqlCode">${sql}</pre>
-                        <button onclick="RolesApp.copiarSQL()" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                            <i class="fas fa-copy mr-1"></i>Copiar
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-2">Instrucción SQL:</h3>
+                        <div class="relative">
+                            <pre class="bg-gray-900 text-green-400 p-3 rounded text-sm overflow-auto" id="sqlCode">${sql}</pre>
+                            <button onclick="RolesApp.copiarSQL()" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                <i class="fas fa-copy mr-1"></i>Copiar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="RolesApp.cerrarInstrucciones(this)" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-check mr-2"></i>Entendido
                         </button>
                     </div>
                 </div>
-                
-                <div class="flex gap-3">
-                    <button onclick="RolesApp.cerrarInstrucciones(this)" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
-                        <i class="fas fa-check mr-2"></i>Entendido
-                    </button>
-                    <button onclick="RolesApp.guardarRolLocal('${nuevoRol.id}', ${JSON.stringify(nuevoRol).replace(/'/g, "\\'")})" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
-                        <i class="fas fa-save mr-2"></i>Guardar Localmente
-                    </button>
-                </div>
-            </div>
-        `;
+            `;
+            document.body.appendChild(modal);
+        },
 
-        document.body.appendChild(modal);
-    },
-
-    copiarSQL: function() {
-        const sqlCode = document.getElementById('sqlCode').textContent;
-        navigator.clipboard.writeText(sqlCode)
-            .then(() => {
-                const btn = event.target;
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
-                btn.classList.remove('bg-blue-600');
-                btn.classList.add('bg-green-600');
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.remove('bg-green-600');
-                    btn.classList.add('bg-blue-600');
-                }, 2000);
-            })
-            .catch(err => {
-                console.error('Error al copiar:', err);
-                // Fallback para navegadores antiguos
-                const textArea = document.createElement('textarea');
-                textArea.value = sqlCode;
-                document.body.appendChild(textArea);
-                textArea.select();
+        copiarSQL: function() {
+            const sqlCode = document.getElementById('sqlCode').textContent;
+            navigator.clipboard.writeText(sqlCode).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = sqlCode;
+                document.body.appendChild(ta);
+                ta.select();
                 document.execCommand('copy');
-                document.body.removeChild(textArea);
-                
-                const btn = event.target;
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copiado!';
-                btn.classList.remove('bg-blue-600');
-                btn.classList.add('bg-green-600');
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.remove('bg-green-600');
-                    btn.classList.add('bg-blue-600');
-                }, 2000);
+                document.body.removeChild(ta);
             });
-    },
+        },
 
-    cerrarInstrucciones: function(button) {
-        const modal = button.closest('.fixed');
-        if (modal) {
-            modal.remove();
-        }
-        this.cerrarModal();
-    },
-
-    guardarRolLocal: function(id, rolData) {
-        try {
-            // Guardar en localStorage
-            const rol = typeof rolData === 'string' ? JSON.parse(rolData) : rolData;
-            const rolesGuardados = JSON.parse(localStorage.getItem('rolesPersonalizados') || '{}');
-            rolesGuardados[id] = rol;
-            localStorage.setItem('rolesPersonalizados', JSON.stringify(rolesGuardados));
-            
-            // Mostrar mensaje de éxito
-            this.mostrarAlerta(`Rol "${rol.nombre}" guardado localmente`, 'success');
-            
-            // Cerrar modal de instrucciones
-            const modal = document.querySelector('.fixed.bg-black');
+        cerrarInstrucciones: function(button) {
+            const modal = button.closest('.fixed');
             if (modal) modal.remove();
-            
             this.cerrarModal();
-        } catch (error) {
-            console.error('Error guardando rol localmente:', error);
-            this.mostrarError('Error al guardar el rol localmente');
+        },
+
+        mostrarAlerta: function(mensaje, tipo) {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
+            } text-white max-w-md`;
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+                    <span>${mensaje}</span>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        },
+
+        mostrarError: function(mensaje) {
+            this.mostrarAlerta(mensaje, 'error');
         }
-    },
+    };
 
-    mostrarAlerta: function(mensaje, tipo) {
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
-        } text-white max-w-md`;
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
-                <span>${mensaje}</span>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.remove(), 4000);
-    },
-
-    mostrarError: function(mensaje) {
-        this.mostrarAlerta(mensaje, 'error');
-    }
-};
-
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    UsuariosApp.init();
-    RolesApp.init();
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        UsuariosApp.init();
+        RolesApp.init();
+    });
     </script>
 </body>
 </html>
