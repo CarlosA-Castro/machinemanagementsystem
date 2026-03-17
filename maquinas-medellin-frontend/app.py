@@ -3154,8 +3154,9 @@ def crear_usuario():
         if len(password) < 6:
             return api_response('U003', http_status=400)
         
-        if role not in ['admin', 'cajero', 'admin_restaurante', 'socio']:
-            return api_response('U004', http_status=400)
+        cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
+        if not cursor.fetchone():
+         return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
         
         connection = get_db_connection()
         if not connection:
@@ -3208,9 +3209,10 @@ def actualizar_usuario(usuario_id):
         role = data['role']
         notes = data.get('notes')
         
-        if role not in ['admin', 'cajero', 'admin_restaurante', 'socio']:
-            return api_response('U004', http_status=400)
-        
+        cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
+        if not cursor.fetchone():
+         return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
+
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
