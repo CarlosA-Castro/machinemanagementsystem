@@ -1053,211 +1053,249 @@
         }
     };
 
-    const RolesApp = {
-        init: function() {
-            console.log("RolesApp inicializado");
-        },
+   const RolesApp = {
+    init: function() {
+        console.log("RolesApp inicializado");
+    },
 
-        mostrarModalCrearRol: function() {
-            document.getElementById('modalRoles').classList.remove('hidden');
-            document.getElementById('modalRoles').classList.add('flex');
-            this.cargarRolesSistema();
-        },
+    mostrarModalCrearRol: function() {
+        document.getElementById('modalRoles').classList.remove('hidden');
+        document.getElementById('modalRoles').classList.add('flex');
+        this.cargarRolesSistema();
+    },
 
-        cerrarModal: function() {
-            document.getElementById('modalRoles').classList.add('hidden');
-            document.getElementById('modalRoles').classList.remove('flex');
-            document.getElementById('formRol').reset();
-        },
+    cerrarModal: function() {
+        document.getElementById('modalRoles').classList.add('hidden');
+        document.getElementById('modalRoles').classList.remove('flex');
+        document.getElementById('formRol').reset();
+    },
 
-        cargarRolesSistema: function() {
-            const rolesLista = document.getElementById('rolesLista');
-            rolesLista.innerHTML = `
-                <div class="col-span-4 text-center py-4">
-                    <div class="loading mx-auto mb-2"></div>
-                    <p class="text-gray-600">Cargando roles...</p>
-                </div>
-            `;
-            fetch('/api/roles/sistema', {
+    cargarRolesSistema: async function() {
+        const rolesLista = document.getElementById('rolesLista');
+        rolesLista.innerHTML = `
+            <div class="col-span-4 text-center py-4">
+                <div class="loading mx-auto mb-2"></div>
+                <p class="text-gray-600">Cargando roles...</p>
+            </div>
+        `;
+
+        try {
+            const response = await fetch('/api/roles/sistema', {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) { this.mostrarRolesFallback(); return null; }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.roles && Array.isArray(data.roles)) {
-                    this.mostrarRoles(data.roles);
-                } else {
-                    this.mostrarRolesFallback();
-                }
-            })
-            .catch(() => this.mostrarRolesFallback());
-        },
-
-        mostrarRoles: function(roles) {
-            const rolesLista = document.getElementById('rolesLista');
-            if (!roles || roles.length === 0) {
-                rolesLista.innerHTML = `
-                    <div class="col-span-4 text-center py-4">
-                        <p class="text-gray-600">No se encontraron roles</p>
-                    </div>
-                `;
-                return;
-            }
-            let html = '';
-            roles.forEach(rol => {
-                html += `
-                    <div class="border rounded-lg p-4 bg-${rol.color}-100 text-${rol.color}-800 role-card">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex items-start">
-                                <i class="fas fa-${rol.icono} text-lg mr-2 mt-1"></i>
-                                <div>
-                                    <h4 class="font-bold">${rol.nombre}</h4>
-                                    <p class="text-xs opacity-75">ID: ${rol.id}</p>
-                                </div>
-                            </div>
-                            <span class="text-xs px-2 py-1 rounded-full bg-white bg-opacity-75">${rol.total_usuarios || 0} usuarios</span>
-                        </div>
-                        <p class="text-sm mb-3">${rol.descripcion || 'Sin descripción'}</p>
-                        <div class="text-xs text-gray-600">
-                            <i class="fas fa-users mr-1"></i>${rol.total_usuarios || 0} usuarios asignados
-                        </div>
-                    </div>
-                `;
             });
-            rolesLista.innerHTML = html;
-        },
 
-        mostrarRolesFallback: function() {
-            const roles = [
-                { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso completo a todas las funciones', color: 'purple', icono: 'user-shield', total_usuarios: 0 },
-                { id: 'cajero', nombre: 'Cajero', descripcion: 'Puede registrar ventas y gestionar QR', color: 'blue', icono: 'cash-register', total_usuarios: 0 },
-                { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión del restaurante y reportes', color: 'teal', icono: 'store', total_usuarios: 0 },
-                { id: 'socio', nombre: 'Socio', descripcion: 'Acceso a reportes financieros', color: 'pink', icono: 'user-tie', total_usuarios: 0 }
-            ];
-            this.mostrarRoles(roles);
-        },
+            if (!response.ok) { this.mostrarRolesFallback(); return; }
 
-        crearNuevoRol: function(event) {
-            event.preventDefault();
-            const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
-            const descripcion = document.getElementById('descripcionRol').value.trim();
-            const nivelAcceso = document.getElementById('nivelAcceso').value;
+            const data = await response.json();
+            if (data && data.roles) {
+                this.mostrarRoles(data.roles);
+            } else {
+                this.mostrarRolesFallback();
+            }
+        } catch (error) {
+            console.error('Error cargando roles:', error);
+            this.mostrarRolesFallback();
+        }
+    },
 
-            if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
-            if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
-            if (nombreRol.length > 20) { this.mostrarError('Máximo 20 caracteres'); return; }
-            if (!nivelAcceso) { this.mostrarError('Debes seleccionar un nivel de acceso'); return; }
+    mostrarRoles: function(roles) {
+        const rolesLista = document.getElementById('rolesLista');
 
-            const permisos = [];
-            if (document.getElementById('permisoVer').checked) permisos.push('ver');
-            if (document.getElementById('permisoCrear').checked) permisos.push('crear');
-            if (document.getElementById('permisoEditar').checked) permisos.push('editar');
-            if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
-            if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
-            if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
+        if (!roles || roles.length === 0) {
+            rolesLista.innerHTML = `<div class="col-span-4 text-center py-4"><p class="text-gray-600">No se encontraron roles</p></div>`;
+            return;
+        }
 
-            const nuevoRol = {
-                id: nombreRol,
-                nombre: nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace('_', ' '),
-                descripcion: descripcion || 'Sin descripción',
-                permisos,
-                nivelAcceso,
-                fechaCreacion: new Date().toISOString()
-            };
+        const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
+        const colores = { purple: 'bg-purple-100 text-purple-800', blue: 'bg-blue-100 text-blue-800', teal: 'bg-teal-100 text-teal-800', pink: 'bg-pink-100 text-pink-800', gray: 'bg-gray-100 text-gray-800', orange: 'bg-orange-100 text-orange-800', green: 'bg-green-100 text-green-800' };
 
-            fetch('/api/roles/agregar-automatico', {
+        let html = '';
+        roles.forEach(rol => {
+            const colorClass = colores[rol.color] || colores.gray;
+            const esBase = rolesBase.includes(rol.id);
+            const permisos = Array.isArray(rol.permisos) ? rol.permisos : [];
+
+            html += `
+                <div class="border rounded-lg p-4 ${colorClass} role-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-start gap-2">
+                            <i class="fas fa-${rol.icono} text-lg mt-1"></i>
+                            <div>
+                                <h4 class="font-bold text-sm">${rol.nombre}</h4>
+                                <p class="text-xs opacity-75">ID: ${rol.id}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-white bg-opacity-75">${rol.total_usuarios || 0} usuarios</span>
+                            ${!esBase ? `
+                                <button onclick="RolesApp.eliminarRol('${rol.id}', '${rol.nombre}')" 
+                                        class="text-red-500 hover:text-red-700 ml-1" title="Eliminar rol">
+                                    <i class="fas fa-trash text-xs"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <p class="text-xs mb-2 opacity-90">${rol.descripcion || 'Sin descripción'}</p>
+                    <div class="flex flex-wrap gap-1 mb-2">
+                        ${permisos.map(p => `<span class="text-xs bg-white bg-opacity-60 px-1.5 py-0.5 rounded">${p}</span>`).join('')}
+                    </div>
+                    <div class="text-xs opacity-70">
+                        <i class="fas fa-shield-alt mr-1"></i>Nivel: ${rol.nivel_acceso}
+                        ${esBase ? '<span class="ml-2 bg-white bg-opacity-50 px-1.5 rounded">Base</span>' : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        rolesLista.innerHTML = html;
+    },
+
+    mostrarRolesFallback: function() {
+        const roles = [
+            { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso completo', color: 'purple', icono: 'user-shield', total_usuarios: 0, permisos: ['ver','crear','editar','eliminar','reportes','configurar'], nivel_acceso: 'administrador' },
+            { id: 'cajero', nombre: 'Cajero', descripcion: 'Ventas y QR', color: 'blue', icono: 'cash-register', total_usuarios: 0, permisos: ['ver','crear'], nivel_acceso: 'medio' },
+            { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión restaurante', color: 'teal', icono: 'store', total_usuarios: 0, permisos: ['ver','crear','editar','reportes'], nivel_acceso: 'alto' },
+            { id: 'socio', nombre: 'Socio', descripcion: 'Reportes financieros', color: 'pink', icono: 'user-tie', total_usuarios: 0, permisos: ['ver','reportes'], nivel_acceso: 'bajo' }
+        ];
+        this.mostrarRoles(roles);
+    },
+
+    eliminarRol: async function(rolId, rolNombre) {
+        if (!confirm(`¿Eliminar el rol "${rolNombre}"? Esta acción no se puede deshacer.`)) return;
+
+        try {
+            const response = await fetch(`/api/roles/${rolId}`, {
+                method: 'DELETE',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.mostrarAlerta(`Rol "${rolNombre}" eliminado correctamente`, 'success');
+                this.cargarRolesSistema();
+                // Actualizar selector de roles en modal de usuario
+                const selectRol = document.getElementById('rol');
+                if (selectRol) {
+                    const option = selectRol.querySelector(`option[value="${rolId}"]`);
+                    if (option) option.remove();
+                }
+            } else {
+                this.mostrarAlerta(data.message || 'Error al eliminar el rol', 'error');
+            }
+        } catch (error) {
+            console.error('Error eliminando rol:', error);
+            this.mostrarAlerta('Error de conexión', 'error');
+        }
+    },
+
+    crearNuevoRol: async function(event) {
+        event.preventDefault();
+
+        const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
+        const descripcion = document.getElementById('descripcionRol').value.trim();
+        const nivelAcceso = document.getElementById('nivelAcceso').value;
+
+        if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
+        if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
+        if (nombreRol.length > 50) { this.mostrarError('Máximo 50 caracteres'); return; }
+        if (!nivelAcceso) { this.mostrarError('Selecciona un nivel de acceso'); return; }
+
+        const permisos = [];
+        if (document.getElementById('permisoVer').checked) permisos.push('ver');
+        if (document.getElementById('permisoCrear').checked) permisos.push('crear');
+        if (document.getElementById('permisoEditar').checked) permisos.push('editar');
+        if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
+        if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
+        if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
+
+        const nombre = nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace(/_/g, ' ');
+
+        const btnSubmit = event.target.querySelector('button[type="submit"]');
+        const textoOriginal = btnSubmit.innerHTML;
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<div class="loading mr-2" style="display:inline-block"></div>Creando...';
+
+        try {
+            const response = await fetch('/api/roles/agregar-automatico', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ nuevo_rol: nombreRol })
-            })
-            .then(response => response.json())
-            .then(data => {
-                const sql = data.sql || this.generarSQLManual(nombreRol);
-                this.mostrarInstruccionesSQL(nuevoRol, sql);
-            })
-            .catch(() => {
-                const sql = this.generarSQLManual(nombreRol);
-                this.mostrarInstruccionesSQL(nuevoRol, sql);
+                body: JSON.stringify({
+                    nuevo_rol: nombreRol,
+                    nombre: nombre,
+                    descripcion: descripcion || `Rol ${nombre}`,
+                    nivel_acceso: nivelAcceso,
+                    permisos: permisos,
+                    color: this.getColorPorNivel(nivelAcceso),
+                    icono: 'user'
+                })
             });
-        },
 
-        generarSQLManual: function(nombreRol) {
-            const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
-            rolesBase.push(nombreRol);
-            return `ALTER TABLE Users MODIFY COLUMN role ENUM('${rolesBase.join("','")}') NOT NULL;`;
-        },
+            const data = await response.json();
 
-        mostrarInstruccionesSQL: function(nuevoRol, sql) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-            modal.innerHTML = `
-                <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6">
-                    <h2 class="text-xl font-bold mb-4 text-green-600">
-                        <i class="fas fa-check-circle mr-2"></i>Rol Creado Exitosamente
-                    </h2>
-                    <div class="mb-4 p-3 bg-green-50 rounded-lg">
-                        <p class="text-green-700"><i class="fas fa-info-circle mr-2"></i>El rol "${nuevoRol.nombre}" ha sido creado.</p>
-                    </div>
-                    <div class="mb-6">
-                        <h3 class="font-semibold mb-2">Instrucción SQL:</h3>
-                        <div class="relative">
-                            <pre class="bg-gray-900 text-green-400 p-3 rounded text-sm overflow-auto" id="sqlCode">${sql}</pre>
-                            <button onclick="RolesApp.copiarSQL()" class="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                                <i class="fas fa-copy mr-1"></i>Copiar
-                            </button>
-                        </div>
-                    </div>
-                    <div class="flex gap-3">
-                        <button onclick="RolesApp.cerrarInstrucciones(this)" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
-                            <i class="fas fa-check mr-2"></i>Entendido
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        },
+            if (response.ok && data.success) {
+                this.mostrarAlerta(`Rol "${data.rol.nombre}" creado correctamente`, 'success');
+                document.getElementById('formRol').reset();
 
-        copiarSQL: function() {
-            const sqlCode = document.getElementById('sqlCode').textContent;
-            navigator.clipboard.writeText(sqlCode).catch(() => {
-                const ta = document.createElement('textarea');
-                ta.value = sqlCode;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-            });
-        },
+                // Agregar al selector de roles en modal usuario
+                const selectRol = document.getElementById('rol');
+                if (selectRol) {
+                    const option = document.createElement('option');
+                    option.value = nombreRol;
+                    option.textContent = nombre;
+                    selectRol.appendChild(option);
+                }
 
-        cerrarInstrucciones: function(button) {
-            const modal = button.closest('.fixed');
-            if (modal) modal.remove();
-            this.cerrarModal();
-        },
+                // Agregar al filtro de roles
+                const filtroRol = document.getElementById('filtroRol');
+                if (filtroRol) {
+                    const option = document.createElement('option');
+                    option.value = nombreRol;
+                    option.textContent = nombre;
+                    filtroRol.appendChild(option);
+                }
 
-        mostrarAlerta: function(mensaje, tipo) {
-            const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
-            } text-white max-w-md`;
-            toast.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
-                    <span>${mensaje}</span>
-                </div>
-            `;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-        },
-
-        mostrarError: function(mensaje) {
-            this.mostrarAlerta(mensaje, 'error');
+                // Recargar lista de roles
+                this.cargarRolesSistema();
+            } else {
+                this.mostrarError(data.message || 'Error al crear el rol');
+            }
+        } catch (error) {
+            console.error('Error creando rol:', error);
+            this.mostrarError('Error de conexión al crear el rol');
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = textoOriginal;
         }
-    };
+    },
+
+    getColorPorNivel: function(nivel) {
+        const colores = { bajo: 'gray', medio: 'blue', alto: 'orange', administrador: 'purple' };
+        return colores[nivel] || 'gray';
+    },
+
+    mostrarAlerta: function(mensaje, tipo) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
+        } text-white max-w-md`;
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+                <span>${mensaje}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    },
+
+    mostrarError: function(mensaje) {
+        this.mostrarAlerta(mensaje, 'error');
+    }
+};
 
     document.addEventListener('DOMContentLoaded', function() {
         UsuariosApp.init();
