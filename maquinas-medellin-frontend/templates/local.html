@@ -127,17 +127,31 @@
         </div>
       </div>
       <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
-        <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
-        <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
-        <div class="mb-2 text-xs text-gray-400">
-          <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
-          <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
-          Rol: {{ session.get('user_role', 'Usuario') }}
+    <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+    <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuario">{{ local_usuario }}</span></div>
+    <div class="mb-1">
+        <span id="rolBadge" class="inline-flex items-center gap-1 bg-gray-700 text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-gray-600 transition"
+              onclick="LocalApp.togglePermisos()">
+            <i class="fas fa-user-tag text-blue-400"></i>
+            <span>{{ session.get('user_role', 'Usuario') }}</span>
+            <i class="fas fa-chevron-down text-gray-400 text-xs" id="iconChevron"></i>
+        </span>
+    </div>
+    <!-- Panel de permisos desplegable -->
+    <div id="panelPermisos" class="hidden mt-2 bg-gray-700 rounded-lg p-2 text-xs">
+        <p class="text-gray-400 mb-1 font-semibold uppercase tracking-wide">Mis permisos:</p>
+        <div id="listaPermisos" class="space-y-1">
+            <div class="text-gray-400">Cargando...</div>
         </div>
-        <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
-          <i class="fas fa-sign-out-alt mr-1"></i>Salir
-        </a>
-      </div>
+    </div>
+    <div class="mb-2 text-xs text-gray-400 mt-2">
+        <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+        <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+    </div>
+    <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+        <i class="fas fa-sign-out-alt mr-1"></i>Salir
+    </a>
+</div>
     </aside>
 
     <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
@@ -270,15 +284,28 @@
   <div class="user-info-mobile bg-gray-800 text-white">
     <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuarioMobile">{{ nombre_usuario }}</span></div>
     <div class="mb-1"><i class="fas fa-store mr-2"></i><span id="localUsuarioMobile">{{ local_usuario }}</span></div>
-    <div class="mb-2 text-xs text-gray-400">
-      <div><i class="fas fa-clock mr-1"></i><span id="horaActualMobile">Cargando...</span></div>
-      <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualMobile">Cargando...</span></div>
-      Rol: {{ session.get('user_role', 'Usuario') }}
+    <div class="mb-1">
+        <span id="rolBadgeMobile" class="inline-flex items-center gap-1 bg-gray-700 text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-gray-600 transition"
+              onclick="LocalApp.togglePermisosMobile()">
+            <i class="fas fa-user-tag text-blue-400"></i>
+            <span>{{ session.get('user_role', 'Usuario') }}</span>
+            <i class="fas fa-chevron-down text-gray-400 text-xs" id="iconChevronMobile"></i>
+        </span>
+    </div>
+    <div id="panelPermisosMobile" class="hidden mt-2 bg-gray-700 rounded-lg p-2 text-xs">
+        <p class="text-gray-400 mb-1 font-semibold uppercase tracking-wide">Mis permisos:</p>
+        <div id="listaPermisosMobile" class="space-y-1">
+            <div class="text-gray-400">Cargando...</div>
+        </div>
+    </div>
+    <div class="mb-2 text-xs text-gray-400 mt-1">
+        <div><i class="fas fa-clock mr-1"></i><span id="horaActualMobile">Cargando...</span></div>
+        <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualMobile">Cargando...</span></div>
     </div>
     <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
-      <i class="fas fa-sign-out-alt mr-1"></i>Salir
+        <i class="fas fa-sign-out-alt mr-1"></i>Salir
     </a>
-  </div>
+</div>
 
   <!-- Modal para generar QR -->
   <div id="modalGeneradorQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
@@ -389,15 +416,20 @@
         setInterval(() => this.actualizarHora(), 1000);
 
         // ===== RBAC: mostrar botón Admin según permisos =====
-        fetch('/api/mis-permisos')
-          .then(r => r.json())
-          .then(data => {
-            const btnAdmin = document.getElementById('nav-admin');
-            if (btnAdmin && data.permisos && data.permisos.includes('admin_panel')) {
-              btnAdmin.style.display = 'flex';
-            }
-          })
-          .catch(() => {});
+        // En init, reemplaza el fetch de mis-permisos por este:
+fetch('/api/mis-permisos')
+    .then(r => r.json())
+    .then(data => {
+        // Mostrar botón admin si tiene permiso
+        const btnAdmin = document.getElementById('nav-admin');
+        if (btnAdmin && data.permisos && data.permisos.includes('admin_panel')) {
+            btnAdmin.style.display = 'flex';
+        }
+        // Guardar permisos para mostrar en panel
+        this._misPermisos = data.permisos || [];
+        this._renderizarPermisos();
+    })
+    .catch(() => {});
 
         this.actualizarContadores();
         document.getElementById('btnEscanearQR').addEventListener('click', () => this.toggleScanner());
@@ -1054,6 +1086,58 @@
           return true;
         } catch (error) { return false; }
       },
+      
+      _misPermisos: [],
+
+_renderizarPermisos: function() {
+    const iconosPermisos = {
+        'ver': { icon: 'fa-eye', label: 'Ver información', color: 'text-blue-400' },
+        'crear': { icon: 'fa-plus-circle', label: 'Crear registros', color: 'text-green-400' },
+        'editar': { icon: 'fa-edit', label: 'Editar registros', color: 'text-yellow-400' },
+        'eliminar': { icon: 'fa-trash', label: 'Eliminar registros', color: 'text-red-400' },
+        'reportes': { icon: 'fa-chart-bar', label: 'Ver reportes', color: 'text-purple-400' },
+        'configurar': { icon: 'fa-cog', label: 'Configurar sistema', color: 'text-gray-300' },
+        'admin_panel': { icon: 'fa-lock-open', label: 'Acceso al admin', color: 'text-indigo-400' },
+        'ver_dashboard': { icon: 'fa-tachometer-alt', label: 'Ver dashboard', color: 'text-blue-300' },
+        'ver_usuarios': { icon: 'fa-users', label: 'Ver usuarios', color: 'text-blue-300' },
+        'ver_maquinas': { icon: 'fa-gamepad', label: 'Ver máquinas', color: 'text-blue-300' },
+        'ver_liquidaciones': { icon: 'fa-chart-pie', label: 'Ver liquidaciones', color: 'text-blue-300' },
+        'ver_logs': { icon: 'fa-terminal', label: 'Ver logs', color: 'text-blue-300' }
+    };
+
+    const html = this._misPermisos.length > 0
+        ? this._misPermisos.map(p => {
+            const info = iconosPermisos[p] || { icon: 'fa-check', label: p, color: 'text-gray-300' };
+            return `<div class="flex items-center gap-1.5 ${info.color}">
+                <i class="fas ${info.icon} w-3 text-center"></i>
+                <span class="text-gray-200">${info.label}</span>
+            </div>`;
+        }).join('')
+        : '<div class="text-gray-400">Sin permisos asignados</div>';
+
+    ['listaPermisos', 'listaPermisosMobile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    });
+},
+
+togglePermisos: function() {
+    const panel = document.getElementById('panelPermisos');
+    const icon = document.getElementById('iconChevron');
+    const visible = !panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', visible);
+    icon.classList.toggle('fa-chevron-down', visible);
+    icon.classList.toggle('fa-chevron-up', !visible);
+},
+
+togglePermisosMobile: function() {
+    const panel = document.getElementById('panelPermisosMobile');
+    const icon = document.getElementById('iconChevronMobile');
+    const visible = !panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', visible);
+    icon.classList.toggle('fa-chevron-down', visible);
+    icon.classList.toggle('fa-chevron-up', !visible);
+},
 
       mostrarAlerta: function(mensaje, tipo) {
         const toast = document.createElement('div');
