@@ -290,6 +290,78 @@ def require_login(roles=None):
         return wrapper
     return decorator
 
+def require_permission(permission):
+    """Decorador para verificar permisos específicos desde tabla roles"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not session.get('logged_in'):
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return api_response('E003', http_status=401)
+                return redirect(url_for('mostrar_login'))
+
+            user_role = session.get('user_role')
+
+            try:
+                connection = get_db_connection()
+                if not connection:
+                    return api_response('E006', http_status=500)
+                cursor = get_db_cursor(connection)
+                cursor.execute("SELECT permisos FROM roles WHERE id = %s AND activo = TRUE", (user_role,))
+                rol = cursor.fetchone()
+                cursor.close()
+                connection.close()
+
+                if not rol:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return api_response('E004', http_status=403)
+                    return redirect(url_for('mostrar_login'))
+
+                permisos = rol['permisos']
+                if isinstance(permisos, str):
+                    permisos = json.loads(permisos)
+
+                if permission not in permisos:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return api_response('E004', http_status=403, data={'message': f'No tienes permiso: {permission}'})
+                    return render_template('error_permiso.html',
+                        nombre_usuario=session.get('user_name', ''),
+                        permiso_requerido=permission
+                    ) if False else redirect(url_for('mostrar_local'))
+
+            except Exception as e:
+                app.logger.error(f"Error verificando permiso {permission}: {e}")
+                return api_response('E001', http_status=500)
+
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def get_user_permissions():
+    """Obtener permisos del usuario actual desde la BD"""
+    try:
+        user_role = session.get('user_role')
+        if not user_role:
+            return []
+        connection = get_db_connection()
+        if not connection:
+            return []
+        cursor = get_db_cursor(connection)
+        cursor.execute("SELECT permisos FROM roles WHERE id = %s AND activo = TRUE", (user_role,))
+        rol = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        if not rol:
+            return []
+        permisos = rol['permisos']
+        if isinstance(permisos, str):
+            permisos = json.loads(permisos)
+        return permisos or []
+    except Exception as e:
+        app.logger.error(f"Error obteniendo permisos: {e}")
+        return []
+
 def validate_required_fields(required_fields):
     def decorator(func):
         @wraps(func)
@@ -2896,9 +2968,12 @@ def debug_errorreport_estructura():
 # ==================== RUTAS PARA EL PANEL DE ADMINISTRACIÓN ====================
 
 @app.route('/admin')
-@require_login(['admin'])
 def mostrar_admin():
-    """Mostrar panel de administración"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos:
+        return redirect(url_for('mostrar_local'))
     hora_colombia = get_colombia_time()
     return render_template('admin/index.html',
                            nombre_usuario=session.get('user_name', 'Administrador'),
@@ -2907,9 +2982,12 @@ def mostrar_admin():
                            fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 @app.route('/admin/usuarios/gestionusuarios')
-@require_login(['admin'])
 def mostrar_gestion_usuarios():
-    """Mostrar gestión de usuarios"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos or 'ver_usuarios' not in permisos:
+        return redirect(url_for('mostrar_local'))
     return render_template('admin/usuarios/gestionusuarios.html',
                            nombre_usuario=session.get('user_name', 'Administrador'),
                            local_usuario=session.get('user_local', 'Sistema'))
@@ -2931,23 +3009,31 @@ def mostrar_gestion_locales():
                            local_usuario=session.get('user_local', 'Sistema'))
 
 @app.route('/admin/maquinas/gestionmaquinas')
-@require_login(['admin'])
 def mostrar_gestion_maquinas():
-    """Mostrar gestión de máquinas"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos or 'ver_maquinas' not in permisos:
+        return redirect(url_for('mostrar_local'))
     return render_template('admin/maquinas/gestionmaquinas.html',
                            nombre_usuario=session.get('user_name', 'Administrador'),
                            local_usuario=session.get('user_local', 'Sistema'))
 
+
+
 @app.route('/admin/ventas/liquidaciones')
-@require_login(['admin'])
 def mostrar_liquidaciones():
-    """Mostrar liquidaciones"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos or 'ver_liquidaciones' not in permisos:
+        return redirect(url_for('mostrar_local'))
     hora_colombia = get_colombia_time()
     return render_template('ventas/liquidaciones.html',
-                         nombre_usuario=session.get('user_name', 'Administrador'),
-                         local_usuario=session.get('user_local', 'Sistema'),
-                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
-                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 @app.route('/admin/ventas/reportes')
 @require_login(['admin'])
@@ -2972,26 +3058,32 @@ def mostrar_gestion_mensajes():
                          fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 @app.route('/admin/logs/gestionlogs')
-@require_login(['admin'])
 def mostrar_gestion_logs():
-    """Mostrar gestión de logs"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos or 'ver_logs' not in permisos:
+        return redirect(url_for('mostrar_local'))
     hora_colombia = get_colombia_time()
     return render_template('admin/logs/gestionlogs.html',
-                         nombre_usuario=session.get('user_name', 'Administrador'),
-                         local_usuario=session.get('user_local', 'Sistema'),
-                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
-                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 @app.route('/admin/logs/consola-completa')
-@require_login(['admin'])
 def mostrar_consola_completa():
-    """Mostrar consola completa de logs"""
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos or 'ver_logs' not in permisos:
+        return redirect(url_for('mostrar_local'))
     hora_colombia = get_colombia_time()
     return render_template('admin/logs/consola-completa.html',
-                         nombre_usuario=session.get('user_name', 'Administrador'),
-                         local_usuario=session.get('user_local', 'Sistema'),
-                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
-                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 # ==================== APIS PARA GESTIÓN DE USUARIOS ====================
 
@@ -5464,8 +5556,12 @@ def validar_codigo_mensaje(codigo):
 
 @app.route('/api/dashboard/estadisticas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin', 'cajero', 'admin_restaurante'])
 def obtener_estadisticas_dashboard():
+    if not session.get('logged_in'):
+        return api_response('E003', http_status=401)
+    permisos = get_user_permissions()
+    if 'ver_dashboard' not in permisos and 'admin_panel' not in permisos:
+        return api_response('E004', http_status=403)
     """Obtener estadísticas principales para el dashboard"""
     connection = None
     cursor = None
@@ -7217,6 +7313,19 @@ def obtener_resumen_dashboard():
             cursor.close()
         if connection:
             connection.close()
+
+@app.route('/api/mis-permisos', methods=['GET'])
+@handle_api_errors
+def obtener_mis_permisos():
+    """Obtener permisos del usuario actual"""
+    if not session.get('logged_in'):
+        return api_response('E003', http_status=401)
+    permisos = get_user_permissions()
+    return jsonify({
+        'role': session.get('user_role'),
+        'permisos': permisos,
+        'es_admin': 'admin_panel' in permisos
+    })
 
 # ==================== FUNCIÓN PARA ACTUALIZAR CONTADORES DIARIOS ====================
 

@@ -872,6 +872,18 @@
         this.actualizarHora();
         setInterval(() => this.actualizarHora(), 1000);
 
+        fetch('/api/mis-permisos')
+    .then(r => r.json())
+    .then(data => {
+        const btnAdmin = document.getElementById('nav-admin');
+        if (btnAdmin) {
+            if (!data.permisos.includes('admin_panel')) {
+                btnAdmin.style.display = 'none';
+            }
+        }
+    })
+    .catch(() => {});
+
         // Inicializar contadores
         this.actualizarContadores();
         

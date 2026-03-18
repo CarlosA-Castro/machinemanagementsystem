@@ -10,173 +10,59 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        #particles-js {
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            top: 0;
-            left: 0;
-        }
+        #particles-js { position: fixed; width: 100%; height: 100%; z-index: -1; top: 0; left: 0; }
         .glass-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255,255,255,0.95);
             backdrop-filter: blur(5px);
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.1);
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
-        .btn-touch {
-            min-height: 44px;
-            min-width: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .btn-touch { min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
         .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(59, 130, 246, 0.3);
-            border-radius: 50%;
-            border-top-color: #3b82f6;
+            display: inline-block; width: 20px; height: 20px;
+            border: 3px solid rgba(59,130,246,0.3);
+            border-radius: 50%; border-top-color: #3b82f6;
             animation: spin 1s ease-in-out infinite;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .user-row:hover {
-            background-color: #f8fafc;
-        }
-        .role-card {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .role-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-        }
-        .sql-code {
-            font-family: 'Courier New', monospace;
-            background: #1a202c;
-            color: #68d391;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            overflow-x: auto;
-        }
-        .copy-button {
-            transition: all 0.2s ease;
-        }
-        .copy-button:hover {
-            transform: scale(1.05);
-        }
-        .bg-purple-100 { background-color: #f3e8ff; }
-        .bg-blue-100 { background-color: #dbeafe; }
-        .bg-teal-100 { background-color: #ccfbf1; }
-        .bg-pink-100 { background-color: #fce7f3; }
-        .bg-orange-100 { background-color: #ffedd5; }
-        .bg-green-100 { background-color: #dcfce7; }
-        .text-purple-800 { color: #6b21a8; }
-        .text-blue-800 { color: #1e40af; }
-        .text-teal-800 { color: #115e59; }
-        .text-pink-800 { color: #9d174d; }
-        .text-orange-800 { color: #9a3412; }
-        .text-green-800 { color: #166534; }
-
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .user-row:hover { background-color: #f8fafc; }
+        .role-card { transition: all 0.3s ease; cursor: pointer; }
+        .role-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+        .bg-purple-100 { background-color: #f3e8ff; } .bg-blue-100 { background-color: #dbeafe; }
+        .bg-teal-100 { background-color: #ccfbf1; }   .bg-pink-100 { background-color: #fce7f3; }
+        .bg-orange-100 { background-color: #ffedd5; } .bg-green-100 { background-color: #dcfce7; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .text-purple-800 { color: #6b21a8; } .text-blue-800 { color: #1e40af; }
+        .text-teal-800 { color: #115e59; }   .text-pink-800 { color: #9d174d; }
+        .text-orange-800 { color: #9a3412; } .text-green-800 { color: #166534; }
+        .text-gray-800 { color: #1f2937; }
         @media (max-width: 1024px) {
-            .flex.min-h-screen {
-                flex-direction: column;
-                height: auto;
-                min-height: 100vh;
-            }
-            aside {
-                width: 100% !important;
-                order: 1;
-                padding-bottom: 0 !important;
-            }
-            main {
-                order: 2;
-                padding: 1rem !important;
-            }
-            .sidebar-nav {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 0.5rem;
-                padding: 1rem;
-            }
-            .sidebar-nav a {
-                flex: 1;
-                min-width: 120px;
-                text-align: center;
-                padding: 0.75rem 0.5rem !important;
-            }
-            .user-info-mobile {
-                order: 3;
-                width: 100%;
-                background-color: #1f2937;
-                border-top: 1px solid #374151;
-                padding: 1rem;
-                text-align: center;
-            }
-            .user-info-desktop { display: none; }
-            .user-info-mobile { display: block; }
-            .contenido { padding: 1rem !important; }
-            .glass-card { padding: 1.25rem; }
+            .flex.min-h-screen { flex-direction: column; height: auto; min-height: 100vh; }
+            aside { width: 100% !important; order: 1; padding-bottom: 0 !important; }
+            main { order: 2; padding: 1rem !important; }
+            .sidebar-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; }
+            .sidebar-nav a { flex: 1; min-width: 120px; text-align: center; padding: 0.75rem 0.5rem !important; }
+            .user-info-mobile { order: 3; width: 100%; background-color: #1f2937; border-top: 1px solid #374151; padding: 1rem; text-align: center; }
+            .user-info-desktop { display: none; } .user-info-mobile { display: block; }
+            .contenido { padding: 1rem !important; } .glass-card { padding: 1.25rem; }
         }
-        @media (min-width: 1025px) {
-            .user-info-desktop { display: block; }
-            .user-info-mobile { display: none; }
-        }
-        @media (max-width: 768px) {
-            .glass-card { padding: 1rem; }
-            h1 { font-size: 1.75rem !important; }
-            .table-container { overflow-x: auto; }
-            table { font-size: 0.875rem; }
-        }
-
-        .nav-link {
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .nav-link.active {
-            background-color: #2563eb !important;
-            color: white !important;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-        }
-        .nav-link.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: white;
-            animation: slideIn 0.3s ease;
-        }
-        @keyframes slideIn {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-        }
-        .nav-link:hover:not(.active) {
-            background-color: #e5e7eb !important;
-            color: #1f2937 !important;
-            transform: translateY(-2px);
-        }
-        @media (max-width: 1024px) {
-            .nav-link.active {
-                background-color: #2563eb !important;
-                color: white !important;
-                border: 2px solid white;
-            }
-        }
+        @media (min-width: 1025px) { .user-info-desktop { display: block; } .user-info-mobile { display: none; } }
+        @media (max-width: 768px) { .glass-card { padding: 1rem; } h1 { font-size: 1.75rem !important; } .table-container { overflow-x: auto; } table { font-size: 0.875rem; } }
+        .nav-link { transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .nav-link.active { background-color: #2563eb !important; color: white !important; box-shadow: 0 4px 6px -1px rgba(37,99,235,0.3); }
+        .nav-link.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: white; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        .nav-link:hover:not(.active) { background-color: #e5e7eb !important; color: #1f2937 !important; transform: translateY(-2px); }
+        @media (max-width: 1024px) { .nav-link.active { background-color: #2563eb !important; color: white !important; border: 2px solid white; } }
+        .permiso-section { border-left: 3px solid #e5e7eb; padding-left: 0.75rem; }
+        .permiso-section.admin-perms { border-left-color: #8b5cf6; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-
     <div id="particles-js"></div>
-
     <div class="flex flex-col lg:flex-row min-h-screen">
         <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
             <div>
@@ -184,39 +70,17 @@
                     <i class="fas fa-user-cog mr-2"></i>Admin
                 </div>
                 <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
-                    <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-local">
-                        <i class="fas fa-store mr-2"></i>Ir al Local
-                    </a>
-                    <a href="/admin" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-admin">
-                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                    </a>
-                    <a href="/admin/usuarios/gestionusuarios" class="nav-link btn-touch rounded-lg transition" id="nav-usuarios">
-                        <i class="fas fa-users mr-2"></i>Usuarios
-                    </a>
-                    <a href="/admin/maquinas/inventario" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-maquinas">
-                        <i class="fas fa-gamepad mr-2"></i>Máquinas
-                    </a>
-                    <a href="/admin/paquetes/lista" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-paquetes">
-                        <i class="fas fa-cube mr-2"></i>Paquetes
-                    </a>
-                    <a href="/admin/mensajes/gestionmensajes" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-mensajes">
-                        <i class="fas fa-comment mr-2"></i>Mensajes
-                    </a>
-                    <a href="/admin/locales/listalocales" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-locales">
-                        <i class="fas fa-store mr-2"></i>Locales
-                    </a>
-                    <a href="/admin/ventas/liquidaciones" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-liquidaciones">
-                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
-                    </a>
-                    <a href="/admin/inversores/gestionsocios" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-socios">
-                        <i class="fas fa-handshake mr-2"></i>Socios
-                    </a>
-                    <a href="/admin/logs/consola-completa" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-consola">
-                        <i class="fas fa-terminal mr-2"></i>Consola de Logs
-                    </a>
-                    <a href="/admin/logs/gestionlogs" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-gestion-logs">
-                        <i class="fas fa-chart-line mr-2"></i>Gestión de Logs
-                    </a>
+                    <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-local"><i class="fas fa-store mr-2"></i>Ir al Local</a>
+                    <a href="/admin" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-admin"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+                    <a href="/admin/usuarios/gestionusuarios" class="nav-link btn-touch rounded-lg transition" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
+                    <a href="/admin/maquinas/inventario" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+                    <a href="/admin/paquetes/lista" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-paquetes"><i class="fas fa-cube mr-2"></i>Paquetes</a>
+                    <a href="/admin/mensajes/gestionmensajes" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+                    <a href="/admin/locales/listalocales" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
+                    <a href="/admin/ventas/liquidaciones" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+                    <a href="/admin/inversores/gestionsocios" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
+                    <a href="/admin/logs/consola-completa" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+                    <a href="/admin/logs/gestionlogs" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
                 </nav>
             </div>
             <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
@@ -226,9 +90,7 @@
                     <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
                     <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
                 </div>
-                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
-                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
-                </a>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
             </div>
         </aside>
 
@@ -236,64 +98,31 @@
             <div class="glass-card mb-6">
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                     <div>
-                        <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                            <i class="fas fa-users mr-3 text-blue-600"></i>Gestión de Usuarios
-                        </h1>
-                        <p class="text-gray-600">
-                            <i class="fas fa-user mr-2"></i>Administrador: <strong>{{ nombre_usuario }}</strong> | 
-                            <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span>
-                        </p>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2"><i class="fas fa-users mr-3 text-blue-600"></i>Gestión de Usuarios</h1>
+                        <p class="text-gray-600"><i class="fas fa-user mr-2"></i>Administrador: <strong>{{ nombre_usuario }}</strong> | <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span></p>
                     </div>
                     <div class="mt-4 lg:mt-0 flex gap-3">
-                        <button onclick="UsuariosApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
-                            <i class="fas fa-sync-alt mr-2"></i>Actualizar
-                        </button>
-                        <button onclick="UsuariosApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
-                            <i class="fas fa-plus mr-2"></i>Nuevo Usuario
-                        </button>
-                        <button onclick="RolesApp.mostrarModalCrearRol()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch">
-                            <i class="fas fa-user-tag mr-2"></i>Gestionar Roles
-                        </button>
+                        <button onclick="UsuariosApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch"><i class="fas fa-sync-alt mr-2"></i>Actualizar</button>
+                        <button onclick="UsuariosApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch"><i class="fas fa-plus mr-2"></i>Nuevo Usuario</button>
+                        <button onclick="RolesApp.mostrarModalCrearRol()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-user-tag mr-2"></i>Gestionar Roles</button>
                     </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div>
-                    <div class="text-sm text-gray-600">Total Usuarios</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-green-600" id="total-activos">0</div>
-                    <div class="text-sm text-gray-600">Usuarios Activos</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div>
-                    <div class="text-sm text-gray-600">Usuarios Inactivos</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-purple-600" id="total-admins">0</div>
-                    <div class="text-sm text-gray-600">Administradores</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-orange-600" id="total-cajeros">0</div>
-                    <div class="text-sm text-gray-600">Cajeros</div>
-                </div>
-                <div class="glass-card text-center">
-                    <div class="text-2xl font-bold text-pink-600" id="total-socios">0</div>
-                    <div class="text-sm text-gray-600">Socios</div>
-                </div>
+                <div class="glass-card text-center"><div class="text-2xl font-bold text-blue-600" id="total-usuarios">0</div><div class="text-sm text-gray-600">Total Usuarios</div></div>
+                <div class="glass-card text-center"><div class="text-2xl font-bold text-green-600" id="total-activos">0</div><div class="text-sm text-gray-600">Activos</div></div>
+                <div class="glass-card text-center"><div class="text-2xl font-bold text-red-600" id="total-inactivos">0</div><div class="text-sm text-gray-600">Inactivos</div></div>
+                <div class="glass-card text-center"><div class="text-2xl font-bold text-purple-600" id="total-admins">0</div><div class="text-sm text-gray-600">Administradores</div></div>
+                <div class="glass-card text-center"><div class="text-2xl font-bold text-orange-600" id="total-cajeros">0</div><div class="text-sm text-gray-600">Cajeros</div></div>
+                <div class="glass-card text-center"><div class="text-2xl font-bold text-pink-600" id="total-socios">0</div><div class="text-sm text-gray-600">Socios</div></div>
             </div>
 
             <div class="glass-card">
-                <h2 class="text-xl font-semibold mb-4 text-gray-800">
-                    <i class="fas fa-list mr-2 text-blue-600"></i>Lista de Usuarios
-                </h2>
+                <h2 class="text-xl font-semibold mb-4 text-gray-800"><i class="fas fa-list mr-2 text-blue-600"></i>Lista de Usuarios</h2>
                 <div class="flex flex-col lg:flex-row gap-4 mb-4">
                     <div class="flex-1">
-                        <input type="text" id="buscarUsuario" placeholder="Buscar por nombre, email o rol..." 
-                               class="w-full border border-gray-300 rounded-lg p-3" 
-                               onkeyup="UsuariosApp.filtrarUsuarios()">
+                        <input type="text" id="buscarUsuario" placeholder="Buscar por nombre o rol..." class="w-full border border-gray-300 rounded-lg p-3" onkeyup="UsuariosApp.filtrarUsuarios()">
                     </div>
                     <div>
                         <select id="filtroEstado" class="border border-gray-300 rounded-lg p-3" onchange="UsuariosApp.filtrarUsuarios()">
@@ -326,12 +155,7 @@
                             </tr>
                         </thead>
                         <tbody id="tablaUsuarios" class="text-gray-700">
-                            <tr>
-                                <td colspan="7" class="p-4 text-center">
-                                    <div class="loading mx-auto mb-2"></div>
-                                    <p class="text-gray-600">Cargando usuarios...</p>
-                                </td>
-                            </tr>
+                            <tr><td colspan="7" class="p-4 text-center"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando usuarios...</p></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -346,41 +170,27 @@
             <div><i class="fas fa-clock mr-1"></i><span id="horaActualMobile">Cargando...</span></div>
             <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualMobile">Cargando...</span></div>
         </div>
-        <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
-            <i class="fas fa-sign-out-alt mr-1"></i>Salir
-        </a>
+        <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
     </div>
 
     <!-- Modal crear/editar usuario -->
     <div id="modalUsuario" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 modal-content max-h-[90vh] overflow-y-auto">
-            <h2 class="text-xl font-bold mb-4" id="modalTitulo">
-                <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
-            </h2>
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4" id="modalTitulo"><i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario</h2>
             <form id="formUsuario" onsubmit="UsuariosApp.guardarUsuario(event)">
                 <input type="hidden" id="usuarioId">
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-user mr-2"></i>Nombre Completo *
-                        </label>
-                        <input type="text" id="nombre" required
-                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
-                               placeholder="Ej: Juan Pérez">
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-user mr-2"></i>Nombre Completo *</label>
+                        <input type="text" id="nombre" required class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Ej: Juan Pérez">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-lock mr-2"></i>Contraseña *
-                        </label>
-                        <input type="password" id="password" required
-                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
-                               placeholder="Mínimo 6 caracteres" minlength="6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-lock mr-2"></i>Contraseña *</label>
+                        <input type="password" id="password" required class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Mínimo 6 caracteres" minlength="6">
                         <p class="text-xs text-gray-500 mt-1" id="passwordHelp">La contraseña debe tener al menos 6 caracteres</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-user-tag mr-2"></i>Rol *
-                        </label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-user-tag mr-2"></i>Rol *</label>
                         <select id="rol" required class="w-full border border-gray-300 rounded-lg p-3 text-base">
                             <option value="">Seleccionar rol</option>
                             <option value="admin">Administrador</option>
@@ -390,163 +200,116 @@
                         </select>
                     </div>
                     <div id="estadoContainer" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-toggle-on mr-2"></i>Estado
-                        </label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-toggle-on mr-2"></i>Estado</label>
                         <select id="isActive" class="w-full border border-gray-300 rounded-lg p-3 text-base">
                             <option value="true">Activo</option>
                             <option value="false">Inactivo</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-store mr-2"></i>Local
-                        </label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-store mr-2"></i>Local</label>
                         <select id="local" class="w-full border border-gray-300 rounded-lg p-3 text-base">
                             <option value="El Mekatiadero">El Mekatiadero</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-sticky-note mr-2"></i>Notas
-                        </label>
-                        <textarea id="notas" rows="3"
-                                  class="w-full border border-gray-300 rounded-lg p-3 text-base"
-                                  placeholder="Información adicional sobre el usuario..."></textarea>
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-sticky-note mr-2"></i>Notas</label>
+                        <textarea id="notas" rows="3" class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Información adicional..."></textarea>
                     </div>
                 </div>
                 <div class="flex gap-3 mt-6">
-                    <button type="submit" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 btn-touch">
-                        <i class="fas fa-save mr-2"></i>Guardar
-                    </button>
-                    <button type="button" onclick="UsuariosApp.cerrarModal()" 
-                            class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
-                        <i class="fas fa-times mr-2"></i>Cancelar
-                    </button>
+                    <button type="submit" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 btn-touch"><i class="fas fa-save mr-2"></i>Guardar</button>
+                    <button type="button" onclick="UsuariosApp.cerrarModal()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch"><i class="fas fa-times mr-2"></i>Cancelar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal confirmación eliminar -->
+    <!-- Modal confirmar eliminar -->
     <div id="modalConfirmar" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-red-600">
-                <i class="fas fa-exclamation-triangle mr-2"></i>Confirmar Eliminación
-            </h2>
-            <p class="text-gray-700 mb-6" id="mensajeConfirmacion">
-                ¿Estás seguro de que deseas eliminar este usuario?
-            </p>
+            <h2 class="text-xl font-bold mb-4 text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>Confirmar Eliminación</h2>
+            <p class="text-gray-700 mb-6" id="mensajeConfirmacion">¿Estás seguro de que deseas eliminar este usuario?</p>
             <div class="flex gap-3">
-                <button onclick="UsuariosApp.confirmarEliminar()" 
-                        class="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 btn-touch">
-                    <i class="fas fa-trash mr-2"></i>Eliminar
-                </button>
-                <button onclick="UsuariosApp.cancelarEliminar()" 
-                        class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
-                    <i class="fas fa-times mr-2"></i>Cancelar
-                </button>
+                <button onclick="UsuariosApp.confirmarEliminar()" class="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 btn-touch"><i class="fas fa-trash mr-2"></i>Eliminar</button>
+                <button onclick="UsuariosApp.cancelarEliminar()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch"><i class="fas fa-times mr-2"></i>Cancelar</button>
             </div>
         </div>
     </div>
 
-    <!-- ===== NUEVO: Modal inhabilitar/habilitar usuario ===== -->
+    <!-- Modal inhabilitar/habilitar -->
     <div id="modalEstado" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h2 class="text-xl font-bold mb-2" id="modalEstadoTitulo">
-                <i class="fas fa-toggle-off mr-2 text-orange-500"></i>Inhabilitar Usuario
-            </h2>
-            <p class="text-gray-500 text-sm mb-4" id="modalEstadoSubtitulo">
-                Esta acción puede revertirse en cualquier momento.
-            </p>
+            <h2 class="text-xl font-bold mb-2" id="modalEstadoTitulo"><i class="fas fa-toggle-off mr-2 text-orange-500"></i>Inhabilitar Usuario</h2>
+            <p class="text-gray-500 text-sm mb-4" id="modalEstadoSubtitulo">Esta acción puede revertirse en cualquier momento.</p>
             <div class="bg-gray-50 rounded-lg p-4 mb-6 flex items-center gap-3">
-                <div class="bg-gray-200 p-3 rounded-full flex-shrink-0">
-                    <i class="fas fa-user text-gray-600 text-xl"></i>
-                </div>
+                <div class="bg-gray-200 p-3 rounded-full flex-shrink-0"><i class="fas fa-user text-gray-600 text-xl"></i></div>
                 <div>
                     <p class="font-semibold text-gray-800" id="modalEstadoNombre">—</p>
                     <p class="text-sm text-gray-500" id="modalEstadoAccion">Será inhabilitado</p>
                 </div>
             </div>
             <div class="flex gap-3">
-                <button id="btnConfirmarEstado"
-                        class="flex-1 bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 btn-touch">
-                    <i class="fas fa-toggle-off mr-2"></i>Confirmar
-                </button>
-                <button onclick="UsuariosApp.cerrarModalEstado()"
-                        class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
-                    <i class="fas fa-times mr-2"></i>Cancelar
-                </button>
+                <button id="btnConfirmarEstado" class="flex-1 bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 btn-touch"><i class="fas fa-toggle-off mr-2"></i>Confirmar</button>
+                <button onclick="UsuariosApp.cerrarModalEstado()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch"><i class="fas fa-times mr-2"></i>Cancelar</button>
             </div>
         </div>
     </div>
 
     <!-- Modal gestión de roles -->
     <div id="modalRoles" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 modal-content max-h-[90vh] overflow-y-auto">
-            <h2 class="text-xl font-bold mb-4">
-                <i class="fas fa-user-tag mr-2 text-indigo-600"></i>Gestión de Roles del Sistema
-            </h2>
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4"><i class="fas fa-user-tag mr-2 text-indigo-600"></i>Gestión de Roles del Sistema</h2>
+
             <div class="mb-6">
-                <h3 class="text-lg font-semibold mb-3">Roles Actuales del Sistema</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="rolesLista"></div>
+                <h3 class="text-lg font-semibold mb-3">Roles Actuales</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="rolesLista"></div>
             </div>
+
             <div class="border-t pt-4">
                 <h3 class="text-lg font-semibold mb-3">Crear Nuevo Rol</h3>
                 <form id="formRol" onsubmit="RolesApp.crearNuevoRol(event)">
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-user-tag mr-2"></i>Nombre del Rol *
-                            </label>
-                            <input type="text" id="nombreRol" required
-                                   class="w-full border border-gray-300 rounded-lg p-3 text-base"
-                                   placeholder="Ej: supervisor, auditor, gerente">
-                            <p class="text-xs text-gray-500 mt-1">Usa solo letras minúsculas, sin espacios (se permiten guiones bajos)</p>
+                            <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-user-tag mr-2"></i>Nombre del Rol *</label>
+                            <input type="text" id="nombreRol" required class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Ej: supervisor, auditor, gerente">
+                            <p class="text-xs text-gray-500 mt-1">Solo letras minúsculas y guiones bajos (_)</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-align-left mr-2"></i>Descripción
-                            </label>
-                            <textarea id="descripcionRol" rows="2"
-                                      class="w-full border border-gray-300 rounded-lg p-3 text-base"
-                                      placeholder="Describe las funciones y permisos de este rol..."></textarea>
+                            <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-align-left mr-2"></i>Descripción</label>
+                            <textarea id="descripcionRol" rows="2" class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Describe las funciones de este rol..."></textarea>
                         </div>
+
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-key mr-2"></i>Permisos Principales
-                            </label>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="permisoVer" class="h-4 w-4 text-blue-600 rounded">
-                                    <label for="permisoVer" class="ml-2 text-sm text-gray-700">Ver información</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-3"><i class="fas fa-key mr-2"></i>Permisos</label>
+                            <!-- Permisos generales -->
+                            <div class="permiso-section mb-4">
+                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Operaciones generales (interfaz cajero)</p>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVer" class="h-4 w-4 text-blue-600 rounded"><span class="text-sm text-gray-700">Ver información</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoCrear" class="h-4 w-4 text-blue-600 rounded"><span class="text-sm text-gray-700">Crear registros</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoEditar" class="h-4 w-4 text-blue-600 rounded"><span class="text-sm text-gray-700">Editar registros</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoEliminar" class="h-4 w-4 text-blue-600 rounded"><span class="text-sm text-gray-700">Eliminar registros</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoReportes" class="h-4 w-4 text-blue-600 rounded"><span class="text-sm text-gray-700">Ver reportes</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoConfigurar" class="h-4 w-4 text-blue-600 rounded"><span class="text-sm text-gray-700">Configurar sistema</span></label>
                                 </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="permisoCrear" class="h-4 w-4 text-blue-600 rounded">
-                                    <label for="permisoCrear" class="ml-2 text-sm text-gray-700">Crear registros</label>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="permisoEditar" class="h-4 w-4 text-blue-600 rounded">
-                                    <label for="permisoEditar" class="ml-2 text-sm text-gray-700">Editar registros</label>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="permisoEliminar" class="h-4 w-4 text-blue-600 rounded">
-                                    <label for="permisoEliminar" class="ml-2 text-sm text-gray-700">Eliminar registros</label>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="permisoReportes" class="h-4 w-4 text-blue-600 rounded">
-                                    <label for="permisoReportes" class="ml-2 text-sm text-gray-700">Generar reportes</label>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="permisoConfigurar" class="h-4 w-4 text-blue-600 rounded">
-                                    <label for="permisoConfigurar" class="ml-2 text-sm text-gray-700">Configurar sistema</label>
+                            </div>
+                            <!-- Permisos admin -->
+                            <div class="permiso-section admin-perms">
+                                <p class="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2"><i class="fas fa-lock mr-1"></i>Acceso al panel admin</p>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoAdminPanel" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700 font-medium">Entrar al admin</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerDashboard" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver dashboard</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerUsuarios" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver usuarios</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerMaquinas" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver máquinas</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerLiquidaciones" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver liquidaciones</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerLogs" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver logs</span></label>
                                 </div>
                             </div>
                         </div>
+
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-shield-alt mr-2"></i>Nivel de Acceso *
-                            </label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-shield-alt mr-2"></i>Nivel de Acceso *</label>
                             <select id="nivelAcceso" required class="w-full border border-gray-300 rounded-lg p-3 text-base">
                                 <option value="">Seleccionar nivel</option>
                                 <option value="bajo">Bajo (Solo lectura)</option>
@@ -557,22 +320,10 @@
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
-                        <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 btn-touch">
-                            <i class="fas fa-plus-circle mr-2"></i>Crear Nuevo Rol
-                        </button>
-                        <button type="button" onclick="RolesApp.cerrarModal()" 
-                                class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch">
-                            <i class="fas fa-times mr-2"></i>Cancelar
-                        </button>
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-plus-circle mr-2"></i>Crear Rol</button>
+                        <button type="button" onclick="RolesApp.cerrarModal()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch"><i class="fas fa-times mr-2"></i>Cancelar</button>
                     </div>
                 </form>
-            </div>
-            <div class="border-t mt-6 pt-4">
-                <h3 class="text-lg font-semibold mb-3">Información Técnica</h3>
-                <div class="text-sm text-gray-600 space-y-2">
-                    <p><i class="fas fa-info-circle mr-2"></i>Los roles definen los permisos y acceso de los usuarios en el sistema.</p>
-                    <p><i class="fas fa-database mr-2"></i>Los roles se almacenan en la base de datos y se asignan a los usuarios durante su creación o edición.</p>
-                </div>
             </div>
         </div>
     </div>
@@ -586,43 +337,28 @@
             particlesJS('particles-js', {
                 particles: {
                     number: { value: 40, density: { enable: true, value_area: 600 } },
-                    color: { value: '#3b82f6' },
-                    shape: { type: 'circle' },
-                    opacity: { value: 0.2, random: true },
-                    size: { value: 2, random: true },
+                    color: { value: '#3b82f6' }, shape: { type: 'circle' },
+                    opacity: { value: 0.2, random: true }, size: { value: 2, random: true },
                     line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
                     move: { enable: true, speed: 0.5, direction: 'none', random: true }
                 },
-                interactivity: {
-                    detect_on: 'canvas',
-                    events: {
-                        onhover: { enable: true, mode: 'grab' },
-                        onclick: { enable: true, mode: 'push' },
-                        resize: true
-                    }
-                }
+                interactivity: { detect_on: 'canvas', events: { onhover: { enable: true, mode: 'grab' }, onclick: { enable: true, mode: 'push' }, resize: true } }
             });
-
             this.actualizarHora();
             setInterval(() => this.actualizarHora(), 1000);
             this.configurarFechaActual();
             this.cargarUsuarios();
+            this.cargarRolesEnSelector();
             this.marcarEnlaceActivo();
-
             const nombreUsuario = document.getElementById('nombreUsuario');
             const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
-            if (nombreUsuario && nombreUsuarioMobile) {
-                nombreUsuarioMobile.textContent = nombreUsuario.textContent;
-            }
-
-            console.log("Gestión de Usuarios inicializada");
+            if (nombreUsuario && nombreUsuarioMobile) nombreUsuarioMobile.textContent = nombreUsuario.textContent;
         },
 
         marcarEnlaceActivo: function() {
             const currentPath = window.location.pathname;
             const pathToId = {
-                '/local': 'nav-local',
-                '/admin': 'nav-admin',
+                '/local': 'nav-local', '/admin': 'nav-admin',
                 '/admin/usuarios/gestionusuarios': 'nav-usuarios',
                 '/admin/maquinas/inventario': 'nav-maquinas',
                 '/admin/paquetes/lista': 'nav-paquetes',
@@ -641,9 +377,7 @@
             } else {
                 document.querySelectorAll('.nav-link').forEach(link => {
                     const href = link.getAttribute('href');
-                    if (href && currentPath.includes(href) && href !== '/') {
-                        link.classList.add('active');
-                    }
+                    if (href && currentPath.includes(href) && href !== '/') link.classList.add('active');
                 });
             }
         },
@@ -654,73 +388,60 @@
             const opcionesFecha = { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' };
             const hora = ahora.toLocaleTimeString('es-CO', opciones);
             const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
-            const horaSidebar = document.getElementById('horaActualSidebar');
-            const fechaSidebar = document.getElementById('fechaActualSidebar');
-            if (horaSidebar) horaSidebar.textContent = hora;
-            if (fechaSidebar) fechaSidebar.textContent = fecha;
-            const horaMobile = document.getElementById('horaActualMobile');
-            const fechaMobile = document.getElementById('fechaActualMobile');
-            if (horaMobile) horaMobile.textContent = hora;
-            if (fechaMobile) fechaMobile.textContent = fecha;
+            ['horaActualSidebar','horaActualMobile'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = hora; });
+            ['fechaActualSidebar','fechaActualMobile'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = fecha; });
         },
 
         configurarFechaActual: function() {
             const ahora = new Date();
-            const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById('fechaActual').textContent = ahora.toLocaleDateString('es-ES', opciones);
+            document.getElementById('fechaActual').textContent = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        },
+
+        cargarRolesEnSelector: async function() {
+            try {
+                const response = await fetch('/api/roles/sistema', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data.roles) return;
+                const rolesBase = ['admin', 'cajero', 'socio', 'admin_restaurante'];
+                const selectRol = document.getElementById('rol');
+                const filtroRol = document.getElementById('filtroRol');
+                data.roles.forEach(rol => {
+                    if (!rolesBase.includes(rol.id)) {
+                        if (selectRol && !selectRol.querySelector(`option[value="${rol.id}"]`)) {
+                            const opt = document.createElement('option');
+                            opt.value = rol.id; opt.textContent = rol.nombre;
+                            selectRol.appendChild(opt);
+                        }
+                        if (filtroRol && !filtroRol.querySelector(`option[value="${rol.id}"]`)) {
+                            const opt = document.createElement('option');
+                            opt.value = rol.id; opt.textContent = rol.nombre;
+                            filtroRol.appendChild(opt);
+                        }
+                    }
+                });
+            } catch (e) { console.error('Error cargando roles en selector:', e); }
         },
 
         cargarUsuarios: function() {
             const self = this;
             const tbody = document.getElementById('tablaUsuarios');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="p-4 text-center">
-                        <div class="loading mx-auto mb-2"></div>
-                        <p class="text-gray-600">Cargando usuarios...</p>
-                    </td>
-                </tr>
-            `;
-            fetch('/api/usuarios', {
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
-                return response.json();
-            })
-            .then(data => {
-                self.mostrarUsuarios(data);
-                self.cargarEstadisticas();
-            })
+            tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando usuarios...</p></td></tr>`;
+            fetch('/api/usuarios', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(response => { if (!response.ok) throw new Error(`Error ${response.status}`); return response.json(); })
+            .then(data => { self.mostrarUsuarios(data); self.cargarEstadisticas(); })
             .catch(error => {
-                console.error('Error cargando usuarios:', error);
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="p-4 text-center text-red-500">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                            Error al cargar los usuarios: ${error.message}
-                            <button onclick="UsuariosApp.cargarUsuarios()" 
-                                    class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                                <i class="fas fa-sync-alt mr-2"></i>Reintentar
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Error: ${error.message}
+                    <button onclick="UsuariosApp.cargarUsuarios()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded"><i class="fas fa-sync-alt mr-2"></i>Reintentar</button>
+                </td></tr>`;
             });
         },
 
         mostrarUsuarios: function(usuarios) {
             const tbody = document.getElementById('tablaUsuarios');
             if (!usuarios || usuarios.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="p-4 text-center text-gray-500">
-                            <i class="fas fa-users-slash text-2xl mb-2"></i><br>
-                            No hay usuarios registrados
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500"><i class="fas fa-users-slash text-2xl mb-2"></i><br>No hay usuarios registrados</td></tr>`;
                 return;
             }
             let html = '';
@@ -729,111 +450,72 @@
                 const estadoClase = isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
                 const estadoTexto = isActive ? 'Activo' : 'Inactivo';
                 const estadoIcono = isActive ? 'fa-check-circle' : 'fa-times-circle';
-
                 let rolTexto = usuario.role;
                 switch(usuario.role) {
                     case 'admin': rolTexto = 'Administrador'; break;
                     case 'cajero': rolTexto = 'Cajero'; break;
                     case 'socio': rolTexto = 'Socio'; break;
                     case 'admin_restaurante': rolTexto = 'Admin Restaurante'; break;
+                    default: rolTexto = usuario.role.charAt(0).toUpperCase() + usuario.role.slice(1).replace(/_/g,' ');
                 }
-
                 let fechaCreacion = 'N/A';
                 if (usuario.createdAt) {
-                    try {
-                        fechaCreacion = new Date(usuario.createdAt).toLocaleDateString('es-ES', {
-                            day: '2-digit', month: '2-digit', year: 'numeric'
-                        });
-                    } catch (e) {
-                        fechaCreacion = String(usuario.createdAt);
-                    }
+                    try { fechaCreacion = new Date(usuario.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+                    catch (e) { fechaCreacion = String(usuario.createdAt); }
                 }
-
                 const creador = usuario.creador ? usuario.creador.name : 'Sistema';
-
                 html += `
                     <tr class="user-row border-b border-gray-200 hover:bg-gray-50">
                         <td class="p-3 text-sm font-mono">${usuario.id}</td>
                         <td class="p-3 font-medium">
-                            <div class="flex items-center">
-                                <i class="fas fa-user-circle mr-2 text-gray-400"></i>
-                                <span>${usuario.name}</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-user-circle mr-2 text-gray-400"></i><span>${usuario.name}</span></div>
                             ${usuario.notes ? `<div class="text-xs text-gray-500 mt-1">${usuario.notes}</div>` : ''}
                         </td>
-                        <td class="p-3">
-                            <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRolClase(usuario.role)}">
-                                <i class="fas ${this.getRolIcono(usuario.role)} mr-1"></i>${rolTexto}
-                            </span>
-                        </td>
+                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRolClase(usuario.role)}"><i class="fas ${this.getRolIcono(usuario.role)} mr-1"></i>${rolTexto}</span></td>
                         <td class="p-3 text-sm">${creador}</td>
                         <td class="p-3 text-sm">${fechaCreacion}</td>
-                        <td class="p-3">
-                            <span class="px-2 py-1 rounded-full text-xs ${estadoClase}">
-                                <i class="fas ${estadoIcono} mr-1"></i>${estadoTexto}
-                            </span>
-                        </td>
+                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs ${estadoClase}"><i class="fas ${estadoIcono} mr-1"></i>${estadoTexto}</span></td>
                         <td class="p-3 text-center">
                             <div class="flex justify-center space-x-2">
-                                <button onclick="UsuariosApp.editarUsuario(${usuario.id})" 
-                                        class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name.replace(/'/g, "\\'")}')" 
+                                <button onclick="UsuariosApp.editarUsuario(${usuario.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name.replace(/'/g, "\\'")}')"
                                         class="${isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} btn-touch"
                                         title="${isActive ? 'Inhabilitar' : 'Habilitar'}">
                                     <i class="fas ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
                                 </button>
-                                <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" 
-                                        class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar"><i class="fas fa-trash"></i></button>
                             </div>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             });
             tbody.innerHTML = html;
             this.usuariosOriginales = usuarios;
         },
 
         getRolClase: function(rol) {
-            switch(rol) {
-                case 'admin': return 'bg-purple-100 text-purple-800';
-                case 'cajero': return 'bg-blue-100 text-blue-800';
-                case 'admin_restaurante': return 'bg-teal-100 text-teal-800';
-                case 'socio': return 'bg-pink-100 text-pink-800';
-                default: return 'bg-gray-100 text-gray-800';
-            }
+            const clases = { admin: 'bg-purple-100 text-purple-800', cajero: 'bg-blue-100 text-blue-800', admin_restaurante: 'bg-teal-100 text-teal-800', socio: 'bg-pink-100 text-pink-800' };
+            return clases[rol] || 'bg-gray-100 text-gray-800';
         },
 
         getRolIcono: function(rol) {
-            switch(rol) {
-                case 'admin': return 'fa-user-shield';
-                case 'cajero': return 'fa-cash-register';
-                case 'admin_restaurante': return 'fa-store';
-                case 'socio': return 'fa-user-tie';
-                default: return 'fa-user';
-            }
+            const iconos = { admin: 'fa-user-shield', cajero: 'fa-cash-register', admin_restaurante: 'fa-store', socio: 'fa-user-tie' };
+            return iconos[rol] || 'fa-user';
         },
 
         cargarEstadisticas: function() {
-            fetch('/api/usuarios/estadisticas', {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin'
-            })
+            fetch('/api/usuarios/estadisticas', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
             .then(response => response.ok ? response.json() : {})
             .then(data => this.actualizarEstadisticas(data))
             .catch(() => this.actualizarEstadisticas({}));
         },
 
-        actualizarEstadisticas: function(estadisticas) {
-            document.getElementById('total-usuarios').textContent = estadisticas.total || 0;
-            document.getElementById('total-activos').textContent = estadisticas.activos || 0;
-            document.getElementById('total-inactivos').textContent = estadisticas.inactivos || 0;
-            document.getElementById('total-admins').textContent = estadisticas.admins || 0;
-            document.getElementById('total-cajeros').textContent = estadisticas.cajeros || 0;
-            document.getElementById('total-socios').textContent = estadisticas.socios || 0;
+        actualizarEstadisticas: function(e) {
+            document.getElementById('total-usuarios').textContent = e.total || 0;
+            document.getElementById('total-activos').textContent = e.activos || 0;
+            document.getElementById('total-inactivos').textContent = e.inactivos || 0;
+            document.getElementById('total-admins').textContent = e.admins || 0;
+            document.getElementById('total-cajeros').textContent = e.cajeros || 0;
+            document.getElementById('total-socios').textContent = e.socios || 0;
         },
 
         filtrarUsuarios: function() {
@@ -841,24 +523,19 @@
             const busqueda = document.getElementById('buscarUsuario').value.toLowerCase();
             const filtroEstado = document.getElementById('filtroEstado').value;
             const filtroRol = document.getElementById('filtroRol').value;
-            const filtrados = this.usuariosOriginales.filter(usuario => {
-                const coincideBusqueda = !busqueda ||
-                    usuario.name.toLowerCase().includes(busqueda) ||
-                    usuario.role.toLowerCase().includes(busqueda) ||
-                    (usuario.notes && usuario.notes.toLowerCase().includes(busqueda));
+            const filtrados = this.usuariosOriginales.filter(u => {
+                const coincideBusqueda = !busqueda || u.name.toLowerCase().includes(busqueda) || u.role.toLowerCase().includes(busqueda) || (u.notes && u.notes.toLowerCase().includes(busqueda));
                 let coincideEstado = true;
-                if (filtroEstado === 'activo') coincideEstado = usuario.isActive !== false;
-                else if (filtroEstado === 'inactivo') coincideEstado = usuario.isActive === false;
-                const coincideRol = !filtroRol || usuario.role === filtroRol;
+                if (filtroEstado === 'activo') coincideEstado = u.isActive === true || u.isActive === 1;
+                else if (filtroEstado === 'inactivo') coincideEstado = u.isActive === false || u.isActive === 0;
+                const coincideRol = !filtroRol || u.role === filtroRol;
                 return coincideBusqueda && coincideEstado && coincideRol;
             });
             this.mostrarUsuarios(filtrados);
         },
 
         mostrarModalCrear: function() {
-            document.getElementById('modalTitulo').innerHTML = `
-                <i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario
-            `;
+            document.getElementById('modalTitulo').innerHTML = `<i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario`;
             document.getElementById('formUsuario').reset();
             document.getElementById('usuarioId').value = '';
             document.getElementById('password').required = true;
@@ -871,15 +548,13 @@
         editarUsuario: function(id) {
             const usuario = this.usuariosOriginales.find(u => u.id === id);
             if (!usuario) { this.mostrarError('Usuario no encontrado'); return; }
-            document.getElementById('modalTitulo').innerHTML = `
-                <i class="fas fa-user-edit mr-2 text-blue-600"></i>Editar Usuario
-            `;
+            document.getElementById('modalTitulo').innerHTML = `<i class="fas fa-user-edit mr-2 text-blue-600"></i>Editar Usuario`;
             document.getElementById('usuarioId').value = usuario.id;
             document.getElementById('nombre').value = usuario.name || '';
             document.getElementById('rol').value = usuario.role || '';
             document.getElementById('local').value = usuario.local || 'El Mekatiadero';
             document.getElementById('notas').value = usuario.notes || '';
-            document.getElementById('isActive').value = usuario.isActive !== false ? 'true' : 'false';
+            document.getElementById('isActive').value = (usuario.isActive === true || usuario.isActive === 1) ? 'true' : 'false';
             document.getElementById('estadoContainer').classList.remove('hidden');
             document.getElementById('password').required = false;
             document.getElementById('passwordHelp').textContent = 'Dejar en blanco para mantener la contraseña actual';
@@ -900,50 +575,29 @@
             const password = document.getElementById('password').value;
             if (password) datos.password = password;
             if (esEdicion) datos.isActive = document.getElementById('isActive').value === 'true';
-            const url = esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios';
-            const method = esEdicion ? 'PUT' : 'POST';
-            fetch(url, {
-                method,
+            fetch(esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios', {
+                method: esEdicion ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify(datos)
             })
-            .then(response => {
-                if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                return response.json();
-            })
-            .then(() => {
-                this.mostrarAlerta(esEdicion ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente', 'success');
-                this.cerrarModal();
-                this.cargarUsuarios();
-            })
-            .catch(error => {
-                console.error('Error guardando usuario:', error);
-                this.mostrarError('Error al guardar el usuario');
-            });
+            .then(response => { if (!response.ok) throw new Error('Error en la respuesta'); return response.json(); })
+            .then(() => { this.mostrarAlerta(esEdicion ? 'Usuario actualizado' : 'Usuario creado', 'success'); this.cerrarModal(); this.cargarUsuarios(); })
+            .catch(error => { console.error(error); this.mostrarError('Error al guardar el usuario'); });
         },
 
-        // ===== ITEMS 14 y 15: Modal inhabilitar/habilitar =====
         cambiarEstadoUsuario: function(id, isActive, nombre) {
             const nuevoEstado = !isActive;
             const icono = nuevoEstado ? 'fa-toggle-on' : 'fa-toggle-off';
             const color = nuevoEstado ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600';
-
-            document.getElementById('modalEstadoTitulo').innerHTML = `
-                <i class="fas ${icono} mr-2 ${nuevoEstado ? 'text-green-500' : 'text-orange-500'}"></i>
-                ${nuevoEstado ? 'Habilitar' : 'Inhabilitar'} Usuario
-            `;
-            document.getElementById('modalEstadoSubtitulo').textContent = nuevoEstado
-                ? 'El usuario podrá acceder al sistema nuevamente.'
-                : 'El usuario no podrá acceder al sistema mientras esté inhabilitado.';
+            document.getElementById('modalEstadoTitulo').innerHTML = `<i class="fas ${icono} mr-2 ${nuevoEstado ? 'text-green-500' : 'text-orange-500'}"></i>${nuevoEstado ? 'Habilitar' : 'Inhabilitar'} Usuario`;
+            document.getElementById('modalEstadoSubtitulo').textContent = nuevoEstado ? 'El usuario podrá acceder al sistema nuevamente.' : 'El usuario no podrá acceder mientras esté inhabilitado.';
             document.getElementById('modalEstadoNombre').textContent = nombre;
             document.getElementById('modalEstadoAccion').textContent = nuevoEstado ? 'Será habilitado' : 'Será inhabilitado';
-
             const btn = document.getElementById('btnConfirmarEstado');
             btn.className = `flex-1 ${color} text-white py-3 rounded-lg btn-touch`;
             btn.innerHTML = `<i class="fas ${icono} mr-2"></i>Confirmar ${nuevoEstado ? 'habilitación' : 'inhabilitación'}`;
             btn.disabled = false;
             btn.onclick = () => this.ejecutarCambioEstado(id, nuevoEstado, nuevoEstado ? 'habilitar' : 'inhabilitar');
-
             document.getElementById('modalEstado').classList.remove('hidden');
             document.getElementById('modalEstado').classList.add('flex');
         },
@@ -953,31 +607,15 @@
             const btn = document.getElementById('btnConfirmarEstado');
             btn.disabled = true;
             btn.innerHTML = `<div class="loading mr-2" style="display:inline-block"></div>Procesando...`;
-
             fetch(`/api/usuarios/${id}/estado`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
                 body: JSON.stringify({ isActive: nuevoEstado })
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        throw new Error(`Error ${response.status}: ${text}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(() => {
-                self.cerrarModalEstado();
-                self.mostrarAlerta(`Usuario ${nuevoEstado ? 'habilitado' : 'inhabilitado'} correctamente`, 'success');
-                self.cargarUsuarios();
-            })
-            .catch(error => {
-                console.error('Error cambiando estado:', error);
-                btn.disabled = false;
-                self.mostrarError(`Error al ${accion} el usuario: ${error.message}`);
-            });
+            .then(response => { if (!response.ok) return response.text().then(t => { throw new Error(t); }); return response.json(); })
+            .then(() => { self.cerrarModalEstado(); self.mostrarAlerta(`Usuario ${nuevoEstado ? 'habilitado' : 'inhabilitado'} correctamente`, 'success'); self.cargarUsuarios(); })
+            .catch(error => { btn.disabled = false; self.mostrarError(`Error al ${accion}: ${error.message}`); });
         },
 
         cerrarModalEstado: function() {
@@ -987,31 +625,17 @@
 
         eliminarUsuario: function(id, nombre) {
             this.usuarioAEliminar = id;
-            document.getElementById('mensajeConfirmacion').textContent =
-                `¿Estás seguro de que deseas eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
+            document.getElementById('mensajeConfirmacion').textContent = `¿Eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`;
             document.getElementById('modalConfirmar').classList.remove('hidden');
             document.getElementById('modalConfirmar').classList.add('flex');
         },
 
         confirmarEliminar: function() {
             if (!this.usuarioAEliminar) return;
-            fetch(`/api/usuarios/${this.usuarioAEliminar}`, {
-                method: 'DELETE',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                return response.json();
-            })
-            .then(() => {
-                this.mostrarAlerta('Usuario eliminado correctamente', 'success');
-                this.cancelarEliminar();
-                this.cargarUsuarios();
-            })
-            .catch(error => {
-                console.error('Error eliminando usuario:', error);
-                this.mostrarError('Error al eliminar el usuario');
-            });
+            fetch(`/api/usuarios/${this.usuarioAEliminar}`, { method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => { if (!response.ok) throw new Error('Error'); return response.json(); })
+            .then(() => { this.mostrarAlerta('Usuario eliminado correctamente', 'success'); this.cancelarEliminar(); this.cargarUsuarios(); })
+            .catch(error => { console.error(error); this.mostrarError('Error al eliminar el usuario'); });
         },
 
         cancelarEliminar: function() {
@@ -1028,274 +652,184 @@
             document.getElementById('estadoContainer').classList.add('hidden');
         },
 
-        actualizarLista: function() {
-            this.cargarUsuarios();
-            this.mostrarAlerta('Lista de usuarios actualizada', 'success');
-        },
+        actualizarLista: function() { this.cargarUsuarios(); this.mostrarAlerta('Lista actualizada', 'success'); },
 
         mostrarAlerta: function(mensaje, tipo) {
             const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                tipo === 'error' ? 'bg-red-500' : tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
-            } text-white max-w-md`;
-            toast.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>
-                    <span>${mensaje}</span>
-                </div>
-            `;
+            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${tipo === 'error' ? 'bg-red-500' : tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'} text-white max-w-md`;
+            toast.innerHTML = `<div class="flex items-center"><i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i><span>${mensaje}</span></div>`;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         },
 
-        mostrarError: function(mensaje) {
-            this.mostrarAlerta(mensaje, 'error');
-        }
+        mostrarError: function(mensaje) { this.mostrarAlerta(mensaje, 'error'); }
     };
 
-   const RolesApp = {
-    init: function() {
-        console.log("RolesApp inicializado");
-    },
+    const RolesApp = {
+        init: function() { console.log("RolesApp inicializado"); },
 
-    mostrarModalCrearRol: function() {
-        document.getElementById('modalRoles').classList.remove('hidden');
-        document.getElementById('modalRoles').classList.add('flex');
-        this.cargarRolesSistema();
-    },
+        mostrarModalCrearRol: function() {
+            document.getElementById('modalRoles').classList.remove('hidden');
+            document.getElementById('modalRoles').classList.add('flex');
+            this.cargarRolesSistema();
+        },
 
-    cerrarModal: function() {
-        document.getElementById('modalRoles').classList.add('hidden');
-        document.getElementById('modalRoles').classList.remove('flex');
-        document.getElementById('formRol').reset();
-    },
+        cerrarModal: function() {
+            document.getElementById('modalRoles').classList.add('hidden');
+            document.getElementById('modalRoles').classList.remove('flex');
+            document.getElementById('formRol').reset();
+        },
 
-    cargarRolesSistema: async function() {
-        const rolesLista = document.getElementById('rolesLista');
-        rolesLista.innerHTML = `
-            <div class="col-span-4 text-center py-4">
-                <div class="loading mx-auto mb-2"></div>
-                <p class="text-gray-600">Cargando roles...</p>
-            </div>
-        `;
+        cargarRolesSistema: async function() {
+            const rolesLista = document.getElementById('rolesLista');
+            rolesLista.innerHTML = `<div class="col-span-3 text-center py-4"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando roles...</p></div>`;
+            try {
+                const response = await fetch('/api/roles/sistema', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+                if (!response.ok) { this.mostrarRolesFallback(); return; }
+                const data = await response.json();
+                if (data && data.roles) this.mostrarRoles(data.roles);
+                else this.mostrarRolesFallback();
+            } catch (error) { console.error(error); this.mostrarRolesFallback(); }
+        },
 
-        try {
-            const response = await fetch('/api/roles/sistema', {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin'
-            });
-
-            if (!response.ok) { this.mostrarRolesFallback(); return; }
-
-            const data = await response.json();
-            if (data && data.roles) {
-                this.mostrarRoles(data.roles);
-            } else {
-                this.mostrarRolesFallback();
+        mostrarRoles: function(roles) {
+            const rolesLista = document.getElementById('rolesLista');
+            if (!roles || roles.length === 0) {
+                rolesLista.innerHTML = `<div class="col-span-3 text-center py-4"><p class="text-gray-600">No se encontraron roles</p></div>`;
+                return;
             }
-        } catch (error) {
-            console.error('Error cargando roles:', error);
-            this.mostrarRolesFallback();
-        }
-    },
-
-    mostrarRoles: function(roles) {
-        const rolesLista = document.getElementById('rolesLista');
-
-        if (!roles || roles.length === 0) {
-            rolesLista.innerHTML = `<div class="col-span-4 text-center py-4"><p class="text-gray-600">No se encontraron roles</p></div>`;
-            return;
-        }
-
-        const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
-        const colores = { purple: 'bg-purple-100 text-purple-800', blue: 'bg-blue-100 text-blue-800', teal: 'bg-teal-100 text-teal-800', pink: 'bg-pink-100 text-pink-800', gray: 'bg-gray-100 text-gray-800', orange: 'bg-orange-100 text-orange-800', green: 'bg-green-100 text-green-800' };
-
-        let html = '';
-        roles.forEach(rol => {
-            const colorClass = colores[rol.color] || colores.gray;
-            const esBase = rolesBase.includes(rol.id);
-            const permisos = Array.isArray(rol.permisos) ? rol.permisos : [];
-
-            html += `
-                <div class="border rounded-lg p-4 ${colorClass} role-card">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex items-start gap-2">
-                            <i class="fas fa-${rol.icono} text-lg mt-1"></i>
-                            <div>
-                                <h4 class="font-bold text-sm">${rol.nombre}</h4>
-                                <p class="text-xs opacity-75">ID: ${rol.id}</p>
+            const rolesBase = ['admin', 'cajero', 'admin_restaurante', 'socio'];
+            const colores = { purple: 'bg-purple-100 text-purple-800', blue: 'bg-blue-100 text-blue-800', teal: 'bg-teal-100 text-teal-800', pink: 'bg-pink-100 text-pink-800', gray: 'bg-gray-100 text-gray-800', orange: 'bg-orange-100 text-orange-800', green: 'bg-green-100 text-green-800' };
+            let html = '';
+            roles.forEach(rol => {
+                const colorClass = colores[rol.color] || colores.gray;
+                const esBase = rolesBase.includes(rol.id);
+                const permisos = Array.isArray(rol.permisos) ? rol.permisos : [];
+                const tieneAdmin = permisos.includes('admin_panel');
+                html += `
+                    <div class="border rounded-lg p-4 ${colorClass} role-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-start gap-2">
+                                <i class="fas fa-${rol.icono} text-lg mt-0.5"></i>
+                                <div>
+                                    <h4 class="font-bold text-sm">${rol.nombre}</h4>
+                                    <p class="text-xs opacity-70">ID: ${rol.id}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs px-2 py-0.5 rounded-full bg-white bg-opacity-75 whitespace-nowrap">${rol.total_usuarios || 0} usuarios</span>
+                                ${!esBase ? `<button onclick="RolesApp.eliminarRol('${rol.id}', '${rol.nombre}')" class="text-red-500 hover:text-red-700 ml-1" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>` : ''}
                             </div>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-white bg-opacity-75">${rol.total_usuarios || 0} usuarios</span>
-                            ${!esBase ? `
-                                <button onclick="RolesApp.eliminarRol('${rol.id}', '${rol.nombre}')" 
-                                        class="text-red-500 hover:text-red-700 ml-1" title="Eliminar rol">
-                                    <i class="fas fa-trash text-xs"></i>
-                                </button>
-                            ` : ''}
+                        <p class="text-xs mb-2 opacity-80">${rol.descripcion || 'Sin descripción'}</p>
+                        ${tieneAdmin ? `<div class="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded inline-block mb-2"><i class="fas fa-lock mr-1"></i>Acceso admin</div>` : ''}
+                        <div class="flex flex-wrap gap-1 mb-2">
+                            ${permisos.filter(p => !p.startsWith('ver_') && p !== 'admin_panel').map(p => `<span class="text-xs bg-white bg-opacity-60 px-1.5 py-0.5 rounded">${p}</span>`).join('')}
                         </div>
-                    </div>
-                    <p class="text-xs mb-2 opacity-90">${rol.descripcion || 'Sin descripción'}</p>
-                    <div class="flex flex-wrap gap-1 mb-2">
-                        ${permisos.map(p => `<span class="text-xs bg-white bg-opacity-60 px-1.5 py-0.5 rounded">${p}</span>`).join('')}
-                    </div>
-                    <div class="text-xs opacity-70">
-                        <i class="fas fa-shield-alt mr-1"></i>Nivel: ${rol.nivel_acceso}
-                        ${esBase ? '<span class="ml-2 bg-white bg-opacity-50 px-1.5 rounded">Base</span>' : ''}
-                    </div>
-                </div>
-            `;
-        });
-
-        rolesLista.innerHTML = html;
-    },
-
-    mostrarRolesFallback: function() {
-        const roles = [
-            { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso completo', color: 'purple', icono: 'user-shield', total_usuarios: 0, permisos: ['ver','crear','editar','eliminar','reportes','configurar'], nivel_acceso: 'administrador' },
-            { id: 'cajero', nombre: 'Cajero', descripcion: 'Ventas y QR', color: 'blue', icono: 'cash-register', total_usuarios: 0, permisos: ['ver','crear'], nivel_acceso: 'medio' },
-            { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión restaurante', color: 'teal', icono: 'store', total_usuarios: 0, permisos: ['ver','crear','editar','reportes'], nivel_acceso: 'alto' },
-            { id: 'socio', nombre: 'Socio', descripcion: 'Reportes financieros', color: 'pink', icono: 'user-tie', total_usuarios: 0, permisos: ['ver','reportes'], nivel_acceso: 'bajo' }
-        ];
-        this.mostrarRoles(roles);
-    },
-
-    eliminarRol: async function(rolId, rolNombre) {
-        if (!confirm(`¿Eliminar el rol "${rolNombre}"? Esta acción no se puede deshacer.`)) return;
-
-        try {
-            const response = await fetch(`/api/roles/${rolId}`, {
-                method: 'DELETE',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin'
+                        <div class="text-xs opacity-60">
+                            <i class="fas fa-shield-alt mr-1"></i>Nivel: ${rol.nivel_acceso || 'bajo'}
+                            ${esBase ? '<span class="ml-2 bg-white bg-opacity-50 px-1.5 rounded">Base</span>' : ''}
+                        </div>
+                    </div>`;
             });
+            rolesLista.innerHTML = html;
+        },
 
-            const data = await response.json();
+        mostrarRolesFallback: function() {
+            this.mostrarRoles([
+                { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso completo', color: 'purple', icono: 'user-shield', total_usuarios: 0, permisos: ['ver','crear','editar','eliminar','reportes','configurar','admin_panel'], nivel_acceso: 'administrador' },
+                { id: 'cajero', nombre: 'Cajero', descripcion: 'Ventas y QR', color: 'blue', icono: 'cash-register', total_usuarios: 0, permisos: ['ver','crear'], nivel_acceso: 'medio' },
+                { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión restaurante', color: 'teal', icono: 'store', total_usuarios: 0, permisos: ['ver','crear','editar','reportes','admin_panel'], nivel_acceso: 'alto' },
+                { id: 'socio', nombre: 'Socio', descripcion: 'Reportes financieros', color: 'pink', icono: 'user-tie', total_usuarios: 0, permisos: ['ver','reportes'], nivel_acceso: 'bajo' }
+            ]);
+        },
 
-            if (response.ok) {
-                this.mostrarAlerta(`Rol "${rolNombre}" eliminado correctamente`, 'success');
-                this.cargarRolesSistema();
-                // Actualizar selector de roles en modal de usuario
-                const selectRol = document.getElementById('rol');
-                if (selectRol) {
-                    const option = selectRol.querySelector(`option[value="${rolId}"]`);
-                    if (option) option.remove();
-                }
-            } else {
-                this.mostrarAlerta(data.message || 'Error al eliminar el rol', 'error');
-            }
-        } catch (error) {
-            console.error('Error eliminando rol:', error);
-            this.mostrarAlerta('Error de conexión', 'error');
-        }
-    },
+        eliminarRol: async function(rolId, rolNombre) {
+            if (!confirm(`¿Eliminar el rol "${rolNombre}"? Esta acción no se puede deshacer.`)) return;
+            try {
+                const response = await fetch(`/api/roles/${rolId}`, { method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+                const data = await response.json();
+                if (response.ok) {
+                    this.mostrarAlerta(`Rol "${rolNombre}" eliminado`, 'success');
+                    this.cargarRolesSistema();
+                    ['rol','filtroRol'].forEach(id => {
+                        const sel = document.getElementById(id);
+                        if (sel) { const opt = sel.querySelector(`option[value="${rolId}"]`); if (opt) opt.remove(); }
+                    });
+                } else { this.mostrarAlerta(data.message || 'Error al eliminar', 'error'); }
+            } catch (error) { console.error(error); this.mostrarAlerta('Error de conexión', 'error'); }
+        },
 
-    crearNuevoRol: async function(event) {
-        event.preventDefault();
+        crearNuevoRol: async function(event) {
+            event.preventDefault();
+            const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
+            const descripcion = document.getElementById('descripcionRol').value.trim();
+            const nivelAcceso = document.getElementById('nivelAcceso').value;
 
-        const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
-        const descripcion = document.getElementById('descripcionRol').value.trim();
-        const nivelAcceso = document.getElementById('nivelAcceso').value;
+            if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
+            if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
+            if (nombreRol.length > 50) { this.mostrarError('Máximo 50 caracteres'); return; }
+            if (!nivelAcceso) { this.mostrarError('Selecciona un nivel de acceso'); return; }
 
-        if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
-        if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
-        if (nombreRol.length > 50) { this.mostrarError('Máximo 50 caracteres'); return; }
-        if (!nivelAcceso) { this.mostrarError('Selecciona un nivel de acceso'); return; }
+            const permisos = [];
+            if (document.getElementById('permisoVer').checked) permisos.push('ver');
+            if (document.getElementById('permisoCrear').checked) permisos.push('crear');
+            if (document.getElementById('permisoEditar').checked) permisos.push('editar');
+            if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
+            if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
+            if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
+            if (document.getElementById('permisoAdminPanel').checked) permisos.push('admin_panel');
+            if (document.getElementById('permisoVerDashboard').checked) permisos.push('ver_dashboard');
+            if (document.getElementById('permisoVerUsuarios').checked) permisos.push('ver_usuarios');
+            if (document.getElementById('permisoVerMaquinas').checked) permisos.push('ver_maquinas');
+            if (document.getElementById('permisoVerLiquidaciones').checked) permisos.push('ver_liquidaciones');
+            if (document.getElementById('permisoVerLogs').checked) permisos.push('ver_logs');
 
-        const permisos = [];
-        if (document.getElementById('permisoVer').checked) permisos.push('ver');
-        if (document.getElementById('permisoCrear').checked) permisos.push('crear');
-        if (document.getElementById('permisoEditar').checked) permisos.push('editar');
-        if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
-        if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
-        if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
+            const nombre = nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace(/_/g,' ');
+            const btnSubmit = event.target.querySelector('button[type="submit"]');
+            const textoOriginal = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<div class="loading mr-2" style="display:inline-block"></div>Creando...';
 
-        const nombre = nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace(/_/g, ' ');
+            try {
+                const response = await fetch('/api/roles/agregar-automatico', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ nuevo_rol: nombreRol, nombre, descripcion: descripcion || `Rol ${nombre}`, nivel_acceso: nivelAcceso, permisos, color: this.getColorPorNivel(nivelAcceso), icono: 'user' })
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    this.mostrarAlerta(`Rol "${data.rol.nombre}" creado correctamente`, 'success');
+                    document.getElementById('formRol').reset();
+                    ['rol','filtroRol'].forEach(id => {
+                        const sel = document.getElementById(id);
+                        if (sel && !sel.querySelector(`option[value="${nombreRol}"]`)) {
+                            const opt = document.createElement('option');
+                            opt.value = nombreRol; opt.textContent = nombre;
+                            sel.appendChild(opt);
+                        }
+                    });
+                    this.cargarRolesSistema();
+                } else { this.mostrarError(data.message || 'Error al crear el rol'); }
+            } catch (error) { console.error(error); this.mostrarError('Error de conexión'); }
+            finally { btnSubmit.disabled = false; btnSubmit.innerHTML = textoOriginal; }
+        },
 
-        const btnSubmit = event.target.querySelector('button[type="submit"]');
-        const textoOriginal = btnSubmit.innerHTML;
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<div class="loading mr-2" style="display:inline-block"></div>Creando...';
+        getColorPorNivel: function(nivel) {
+            return { bajo: 'gray', medio: 'blue', alto: 'orange', administrador: 'purple' }[nivel] || 'gray';
+        },
 
-        try {
-            const response = await fetch('/api/roles/agregar-automatico', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    nuevo_rol: nombreRol,
-                    nombre: nombre,
-                    descripcion: descripcion || `Rol ${nombre}`,
-                    nivel_acceso: nivelAcceso,
-                    permisos: permisos,
-                    color: this.getColorPorNivel(nivelAcceso),
-                    icono: 'user'
-                })
-            });
+        mostrarAlerta: function(mensaje, tipo) {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${tipo === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white max-w-md`;
+            toast.innerHTML = `<div class="flex items-center"><i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i><span>${mensaje}</span></div>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        },
 
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                this.mostrarAlerta(`Rol "${data.rol.nombre}" creado correctamente`, 'success');
-                document.getElementById('formRol').reset();
-
-                // Agregar al selector de roles en modal usuario
-                const selectRol = document.getElementById('rol');
-                if (selectRol) {
-                    const option = document.createElement('option');
-                    option.value = nombreRol;
-                    option.textContent = nombre;
-                    selectRol.appendChild(option);
-                }
-
-                // Agregar al filtro de roles
-                const filtroRol = document.getElementById('filtroRol');
-                if (filtroRol) {
-                    const option = document.createElement('option');
-                    option.value = nombreRol;
-                    option.textContent = nombre;
-                    filtroRol.appendChild(option);
-                }
-
-                // Recargar lista de roles
-                this.cargarRolesSistema();
-            } else {
-                this.mostrarError(data.message || 'Error al crear el rol');
-            }
-        } catch (error) {
-            console.error('Error creando rol:', error);
-            this.mostrarError('Error de conexión al crear el rol');
-        } finally {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = textoOriginal;
-        }
-    },
-
-    getColorPorNivel: function(nivel) {
-        const colores = { bajo: 'gray', medio: 'blue', alto: 'orange', administrador: 'purple' };
-        return colores[nivel] || 'gray';
-    },
-
-    mostrarAlerta: function(mensaje, tipo) {
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
-        } text-white max-w-md`;
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
-                <span>${mensaje}</span>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-    },
-
-    mostrarError: function(mensaje) {
-        this.mostrarAlerta(mensaje, 'error');
-    }
-};
+        mostrarError: function(mensaje) { this.mostrarAlerta(mensaje, 'error'); }
+    };
 
     document.addEventListener('DOMContentLoaded', function() {
         UsuariosApp.init();
