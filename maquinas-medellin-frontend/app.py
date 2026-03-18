@@ -275,17 +275,62 @@ def handle_api_errors(func):
 
 def require_login(roles=None):
     """
-    Decorador para requerir autenticación y roles específicos
+    Decorador para requerir autenticación.
+    Si se pasan roles, acepta:
+    - Roles exactos en la lista
+    - Cualquier rol que tenga permiso 'admin_panel' (para rutas admin)
+    - El rol 'supervisor' u otros custom si tienen los permisos necesarios
     """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             if not session.get('logged_in'):
-                return api_response('A004', http_status=401)
-            
-            if roles and session.get('user_role') not in roles:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return api_response('A004', http_status=401)
+                return redirect(url_for('mostrar_login'))
+
+            if roles:
+                user_role = session.get('user_role')
+
+                # Si el rol está directamente en la lista permitida, ok
+                if user_role in roles:
+                    return func(*args, **kwargs)
+
+                # Si no está, verificar permisos desde la tabla roles
+                try:
+                    connection = get_db_connection()
+                    if connection:
+                        cursor = get_db_cursor(connection)
+                        cursor.execute(
+                            "SELECT permisos FROM roles WHERE id = %s AND activo = TRUE",
+                            (user_role,)
+                        )
+                        rol_data = cursor.fetchone()
+                        cursor.close()
+                        connection.close()
+
+                        if rol_data:
+                            permisos = rol_data['permisos']
+                            if isinstance(permisos, str):
+                                permisos = json.loads(permisos)
+
+                            # Si la ruta requiere admin y el rol tiene admin_panel, permitir
+                            if 'admin' in roles and 'admin_panel' in permisos:
+                                return func(*args, **kwargs)
+
+                            # Si la ruta requiere cajero y el rol tiene permiso 'ver', permitir
+                            if 'cajero' in roles and 'ver' in permisos:
+                                return func(*args, **kwargs)
+
+                            # Si la ruta requiere admin_restaurante y tiene reportes, permitir
+                            if 'admin_restaurante' in roles and 'reportes' in permisos:
+                                return func(*args, **kwargs)
+
+                except Exception as e:
+                    app.logger.error(f"Error verificando permisos en require_login: {e}")
+
                 return api_response('E004', http_status=403)
-            
+
             return func(*args, **kwargs)
         return wrapper
     return decorator
