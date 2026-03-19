@@ -3335,7 +3335,6 @@ def crear_usuario():
 @require_login(['admin'])
 @validate_required_fields(['name', 'role'])
 def actualizar_usuario(usuario_id):
-    """Actualizar un usuario existente"""
     connection = None
     cursor = None
     try:
@@ -3344,53 +3343,52 @@ def actualizar_usuario(usuario_id):
         password = data.get('password')
         role = data['role']
         notes = data.get('notes')
-        
-        cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
-        if not cursor.fetchone():
-         return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
+        isActive = data.get('isActive')
 
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
-            
+
         cursor = get_db_cursor(connection)
-        
+
+        # Validar rol contra tabla roles
+        cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
+        if not cursor.fetchone():
+            return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
+
         cursor.execute("SELECT id FROM users WHERE id = %s", (usuario_id,))
         if not cursor.fetchone():
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
-        
+
         cursor.execute("SELECT id FROM users WHERE name = %s AND id != %s", (name, usuario_id))
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
-        
+
         if password:
             cursor.execute("""
                 UPDATE users 
-                SET name = %s, password = %s, role = %s, notes = %s
+                SET name = %s, password = %s, role = %s, notes = %s, isActive = %s
                 WHERE id = %s
-            """, (name, password, role, notes, usuario_id))
+            """, (name, password, role, notes, isActive, usuario_id))
         else:
             cursor.execute("""
                 UPDATE users 
-                SET name = %s, role = %s, notes = %s
+                SET name = %s, role = %s, notes = %s, isActive = %s
                 WHERE id = %s
-            """, (name, role, notes, usuario_id))
-        
+            """, (name, role, notes, isActive, usuario_id))
+
         connection.commit()
-        
         app.logger.info(f"Usuario actualizado: {name} (ID: {usuario_id})")
-        
         return api_response('S003', status='success')
-        
+
     except Exception as e:
         app.logger.error(f"Error actualizando usuario: {e}")
-        sentry_sdk.capture_exception(e)
+        if connection:
+            connection.rollback()
         return api_response('E001', http_status=500)
     finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
+        if cursor: cursor.close()
+        if connection: connection.close()
 
 @app.route('/api/usuarios/<int:usuario_id>', methods=['DELETE'])
 @handle_api_errors
@@ -5879,6 +5877,70 @@ def obtener_graficas_dashboard():
             cursor.close()
         if connection:
             connection.close()
+
+@app.route('/api/maquinas/<int:maquina_id>/resolver-falla', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def resolver_falla_maquina(maquina_id):
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json() or {}
+        estacion_index = data.get('estacion_index', None)
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT id, name, status FROM machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return api_response('E005', http_status=404, data={'message': 'Máquina no encontrada'})
+
+        # Limpiar errorNote y reactivar máquina
+        cursor.execute("""
+            UPDATE machine 
+            SET errorNote = NULL, status = 'activa', updatedAt = NOW()
+            WHERE id = %s
+        """, (maquina_id,))
+
+        # Resolver fallas en machinefailures
+        if estacion_index is not None:
+            cursor.execute("""
+                UPDATE machinefailures 
+                SET resolved = 1, resolved_at = NOW()
+                WHERE machine_id = %s AND station_index = %s AND resolved = 0
+            """, (maquina_id, estacion_index))
+        else:
+            cursor.execute("""
+                UPDATE machinefailures 
+                SET resolved = 1, resolved_at = NOW()
+                WHERE machine_id = %s AND resolved = 0
+            """, (maquina_id,))
+
+        # Resolver reportes manuales en errorreport
+        cursor.execute("""
+            UPDATE errorreport 
+            SET isResolved = 1, resolved_at = NOW()
+            WHERE machineId = %s AND isResolved = 0
+        """, (maquina_id,))
+
+        connection.commit()
+        app.logger.info(f"Falla resuelta: máquina {maquina_id}" + (f" estación {estacion_index}" if estacion_index is not None else ""))
+
+        return jsonify({
+            'success': True,
+            'message': f'Falla resuelta en {maquina["name"]}'
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error resolviendo falla: {e}")
+        if connection: connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
 
 @app.route('/api/dashboard/top-maquinas', methods=['GET'])
 @handle_api_errors

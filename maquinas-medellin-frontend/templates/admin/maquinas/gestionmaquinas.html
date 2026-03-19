@@ -1127,6 +1127,11 @@
                                     <button onclick="MaquinaManager.verEstaciones(${maquina.id})" class="action-button text-purple-600 hover:text-purple-800" title="Ver y gestionar estaciones">
                                         <i class="fas fa-layer-group"></i>
                                     </button>
+                                    ${(subtipo === 'simple' && maquina.errorNote) ? `
+                                    <button onclick="MaquinaManager.resolverFalla(${maquina.id})" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
+                                        <i class="fas fa-wrench"></i>
+                                    </button>
+                                    ` : ''}
                                     <button onclick="MaquinaManager.eliminarMaquina(${maquina.id})" class="action-button text-red-600 hover:text-red-800" title="Eliminar máquina">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -1858,6 +1863,12 @@
                                 class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
                             <i class="fas fa-power-off mr-1"></i> Reiniciar
                         </button>
+                        ${station.stats.failures > 0 ? `
+                        <button onclick="MaquinaManager.resolverFallaEstacion(${maquinaId}, ${station.index}, '${stationName}')" 
+                                class="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+                            <i class="fas fa-wrench mr-1"></i> Resolver
+                        </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -2077,6 +2088,81 @@
                 setTimeout(() => {
                     if (toast.parentNode) toast.remove();
                 }, 4000);
+            },
+
+            resolverFalla: async function(maquinaId) {
+                if (!confirm('¿Resolver la falla de esta máquina? Se limpiará la nota de error y el estado cambiará a Activa.')) return;
+
+                try {
+                    const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+
+                    if (response.ok) {
+                        this.mostrarAlerta('Falla resuelta correctamente', 'success');
+                        this.cargarMaquinas();
+
+                        await fetch('/api/logs/accion', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                accion: 'RESOLVER_FALLA',
+                                detalles: {
+                                    machine_id: maquinaId,
+                                    tipo: 'simple'
+                                }
+                            })
+                        });
+                    } else {
+                        const data = await response.json();
+                        this.mostrarAlerta(data.message || 'Error al resolver falla', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error resolviendo falla:', error);
+                    this.mostrarAlerta('Error de conexión', 'error');
+                }
+            },
+
+            resolverFallaEstacion: async function(maquinaId, stationIndex, stationName) {
+                const nombreEstacion = String(stationName || `Estación ${stationIndex + 1}`);
+                if (!confirm(`¿Resolver la falla de la estación "${nombreEstacion}"?`)) return;
+
+                try {
+                    const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            estacion_index: stationIndex
+                        })
+                    });
+
+                    if (response.ok) {
+                        this.mostrarAlerta(`Falla resuelta en ${nombreEstacion}`, 'success');
+                        // Recargar el modal de estaciones
+                        this.verEstaciones(maquinaId);
+
+                        await fetch('/api/logs/accion', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                accion: 'RESOLVER_FALLA_ESTACION',
+                                detalles: {
+                                    machine_id: maquinaId,
+                                    station_index: stationIndex,
+                                    station_name: nombreEstacion
+                                }
+                            })
+                        });
+                    } else {
+                        const data = await response.json();
+                        this.mostrarAlerta(data.message || 'Error al resolver falla de estación', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error resolviendo falla de estación:', error);
+                    this.mostrarAlerta('Error de conexión', 'error');
+                }
             }
         };
 
