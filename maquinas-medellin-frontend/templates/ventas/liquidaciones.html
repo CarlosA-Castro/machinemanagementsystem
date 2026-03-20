@@ -1365,69 +1365,46 @@ cargarDatosReporte: async function() {
 
             // Actualizar datos desde la API
             actualizarDatos: async function() {
-                try {
-                    this.mostrarCarga(true);
-                    
-                    // Obtener filtros actuales
-                    const { fechaInicio, fechaFin, tipoReporte, busqueda, orden, paginacion } = this.estado.filtros;
-                    
-                    console.log('🔄 Actualizando datos con filtros:', {
-                        fechaInicio, fechaFin, tipoReporte, 
-                        pagina: paginacion.paginaActual, 
-                        registros: paginacion.registrosPorPagina 
-                    });
-                    
-                    let url;
-                    if (tipoReporte === 'ventas') {
-                        // Usar la API simplificada para ventas
-                       const url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
-                    } else {
-                        // Para liquidaciones usar otra API (si la tienes)
-                        url = `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
-                    }
-                    
-                    if (busqueda) {
-                        url += `&busqueda=${encodeURIComponent(busqueda)}`;
-                    }
-                    
-                    console.log('📡 URL de la API:', url);
-                    
-                    const response = await fetch(url);
-                    
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('❌ Error en la respuesta:', response.status, errorText);
-                        throw new Error(`Error ${response.status}: ${errorText}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    console.log('✅ Datos recibidos correctamente:', {
-                        totalRegistros: data.totalRegistros,
-                        datosRecibidos: data.datos ? data.datos.length : 0,
-                        totalIngresos: data.totalIngresos
-                    });
-                    
-                    // Actualizar estado
-                    this.estado.datos = data.datos || [];
-                    this.estado.filtros.paginacion.totalRegistros = data.totalRegistros || 0;
-                    this.estado.filtros.paginacion.totalPaginas = Math.ceil((data.totalRegistros || 0) / this.estado.filtros.paginacion.registrosPorPagina);
-                    
-                    // Actualizar UI
-                    this.actualizarTabla();
-                    this.actualizarResumen(data);
-                    this.actualizarPaginacion();
-                    
-                } catch (error) {
-                    console.error('❌ Error al actualizar datos:', error);
-                    this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
-                    
-                    // Mostrar datos de ejemplo en caso de error (para desarrollo)
-                    this.mostrarDatosEjemplo();
-                } finally {
-                    this.mostrarCarga(false);
-                }
-            },
+    try {
+        this.mostrarCarga(true);
+
+        const fechaInicio = this.estado.filtros.fechaInicio;
+        const fechaFin    = this.estado.filtros.fechaFin;
+        const pagina      = this.estado.filtros.paginacion.paginaActual;
+        const porPagina   = this.estado.filtros.paginacion.registrosPorPagina;
+
+        console.log('🔄 Actualizando datos con filtros:', { fechaInicio, fechaFin, pagina, porPagina });
+
+        const url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${pagina}&porPagina=${porPagina}`;
+
+        console.log('📡 URL de la API:', url);
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+
+        console.log('✅ Datos recibidos:', { totalRegistros: data.totalRegistros, datosRecibidos: data.datos?.length });
+
+        this.estado.datos = data.datos || [];
+        this.estado.filtros.paginacion.totalRegistros = data.totalRegistros || 0;
+        this.estado.filtros.paginacion.totalPaginas   = Math.ceil((data.totalRegistros || 0) / porPagina);
+
+        this.actualizarTabla();
+        this.actualizarResumen(data);
+        this.actualizarPaginacion();
+
+    } catch (error) {
+        console.error('❌ Error al actualizar datos:', error);
+        this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
+    } finally {
+        this.mostrarCarga(false);
+    }
+},
             
             // Función para calcular liquidación completa
             calcularLiquidacionCompleta: async function() {
