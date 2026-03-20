@@ -1875,19 +1875,19 @@ if (el35)        el35.textContent        = '';
             },
             
             // Actualizar tabla de propietarios
-            actualizarTablaPropietarios: function(data) {
-    const dist         = data.distribucion_propietarios || {};
-    const resumenMaq   = data.resumen_maquinas || {};
-    const totalProv    = parseFloat(data.periodo?.total_proveedor || 0);
-    const entries      = Object.entries(dist);
-    const setEl        = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+          actualizarTablaPropietarios: function(data) {
+    const dist       = data.distribucion_propietarios || {};
+    const resumenMaq = data.resumen_maquinas || {};
+    const totalProv  = parseFloat(data.periodo?.total_proveedor || 0);
+    const entries    = Object.entries(dist);
+    const setEl      = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
     // KPIs
     setEl('prop-total-count',    entries.length);
     setEl('prop-total-dist',     formatearMoneda(totalProv));
     setEl('prop-maquinas-count', Object.keys(resumenMaq).length);
 
-    // Tarjetas por propietario
+    // Tarjetas
     const contTarjetas = document.getElementById('prop-tarjetas');
     if (contTarjetas) {
         if (entries.length === 0) {
@@ -1895,56 +1895,64 @@ if (el35)        el35.textContent        = '';
                 <div class="text-center py-10 text-gray-400 col-span-full">
                     <i class="fas fa-users text-4xl mb-3 block opacity-20"></i>
                     <p class="text-sm">Sin datos de propietarios para este período</p>
-                    <p class="text-xs mt-1 text-gray-400">Verifica que las máquinas tengan propietarios asignados</p>
+                    <p class="text-xs mt-1">Verifica que las máquinas tengan propietarios asignados</p>
                 </div>`;
         } else {
-            // Ordenar por ingresos desc
             const sorted = entries.sort((a, b) => parseFloat(b[1].total_ingresos) - parseFloat(a[1].total_ingresos));
-            const colores = ['from-purple-500 to-indigo-600', 'from-blue-500 to-cyan-600', 'from-green-500 to-teal-600', 'from-orange-500 to-amber-600', 'from-pink-500 to-rose-600'];
+            const colores = [
+                'from-purple-500 to-indigo-600',
+                'from-blue-500 to-cyan-600',
+                'from-green-500 to-teal-600',
+                'from-orange-500 to-amber-600',
+                'from-pink-500 to-rose-600'
+            ];
 
             contTarjetas.innerHTML = sorted.map(([nombre, datos], i) => {
                 const ingresos = parseFloat(datos.total_ingresos || 0);
                 const pct      = totalProv > 0 ? ((ingresos / totalProv) * 100).toFixed(1) : 0;
                 const color    = colores[i % colores.length];
-                const maquinas = Array.isArray(datos.detalles_maquinas)
+
+                // Obtener máquinas del propietario cruzando con resumen_maquinas
+                const maqNombres = Array.isArray(datos.detalles_maquinas)
                     ? datos.detalles_maquinas
-                    : (datos.detalles_maquinas ? [datos.detalles_maquinas] : []);
-                const numMaquinas = maquinas.length;
+                    : (typeof datos.detalles_maquinas === 'string'
+                        ? datos.detalles_maquinas.split(', ')
+                        : []);
+
+                const maqDetalle = maqNombres.map(nombre_maq => {
+                    const key  = typeof nombre_maq === 'object' ? nombre_maq.maquina_nombre : nombre_maq;
+                    const info = resumenMaq[key] || {};
+                    return {
+                        nombre:    key,
+                        ingresos:  parseFloat(info.ingresos_proveedor || 0)
+                    };
+                });
 
                 return `
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
-                        <!-- Header degradado -->
                         <div class="bg-gradient-to-r ${color} p-4 text-white">
                             <div class="flex justify-between items-start">
                                 <div>
                                     <div class="font-bold text-lg leading-tight">${nombre}</div>
-                                    <div class="text-sm opacity-80 mt-0.5">${numMaquinas} máquina${numMaquinas !== 1 ? 's' : ''}</div>
+                                    <div class="text-sm opacity-80 mt-0.5">${maqDetalle.length} máquina${maqDetalle.length !== 1 ? 's' : ''}</div>
                                 </div>
                                 <div class="bg-white bg-opacity-20 rounded-xl px-3 py-1 text-sm font-bold">${pct}%</div>
                             </div>
                         </div>
-                        <!-- Body -->
                         <div class="p-4">
                             <div class="text-2xl font-bold text-gray-800 mb-3">${formatearMoneda(ingresos)}</div>
-                            <!-- Barra progreso -->
                             <div class="bg-gray-100 rounded-full h-2 mb-3">
                                 <div class="h-2 rounded-full bg-gradient-to-r ${color}" style="width:${pct}%"></div>
                             </div>
-                            <!-- Máquinas -->
-                            <div class="space-y-1">
-                                ${maquinas.slice(0, 3).map(m => {
-                                    const nombreMaq = typeof m === 'string' ? m : (m.maquina_nombre || m);
-                                    const montoMaq  = typeof m === 'object' && m.monto_propietario
-                                        ? formatearMoneda(parseFloat(m.monto_propietario))
-                                        : '';
-                                    return `<div class="flex justify-between items-center text-xs text-gray-600">
+                            <div class="space-y-1.5">
+                                ${maqDetalle.slice(0, 3).map(m => `
+                                    <div class="flex justify-between items-center text-xs text-gray-600">
                                         <span class="flex items-center gap-1">
-                                            <i class="fas fa-gamepad text-gray-400"></i>${nombreMaq}
+                                            <i class="fas fa-gamepad text-gray-400"></i>${m.nombre}
                                         </span>
-                                        ${montoMaq ? `<span class="font-medium">${montoMaq}</span>` : ''}
-                                    </div>`;
-                                }).join('')}
-                                ${maquinas.length > 3 ? `<div class="text-xs text-gray-400 mt-1">+${maquinas.length - 3} más</div>` : ''}
+                                        <span class="font-medium text-green-600">${m.ingresos > 0 ? formatearMoneda(m.ingresos) : '—'}</span>
+                                    </div>`).join('')}
+                                ${maqDetalle.length > 3 ? `<div class="text-xs text-gray-400 mt-1">+${maqDetalle.length - 3} más</div>` : ''}
                             </div>
                         </div>
                     </div>`;
@@ -1952,8 +1960,8 @@ if (el35)        el35.textContent        = '';
         }
     }
 
-    // Tabla detallada por propietario + máquina
-    const tbody = document.getElementById('prop-tabla-detalle');
+    // Tabla detallada
+    const tbody    = document.getElementById('prop-tabla-detalle');
     const footTotal = document.getElementById('prop-foot-total');
     if (!tbody) return;
 
@@ -1962,50 +1970,60 @@ if (el35)        el35.textContent        = '';
         return;
     }
 
-    let filas = '';
+    let filas      = '';
     let grandTotal = 0;
     const sortedEntries = entries.sort((a, b) => parseFloat(b[1].total_ingresos) - parseFloat(a[1].total_ingresos));
 
     sortedEntries.forEach(([nombre, datos]) => {
         const ingresoProp = parseFloat(datos.total_ingresos || 0);
-        const maquinas    = Array.isArray(datos.detalles_maquinas) ? datos.detalles_maquinas : [];
         const pctTotal    = totalProv > 0 ? ((ingresoProp / totalProv) * 100).toFixed(1) : 0;
         grandTotal       += ingresoProp;
 
-        if (maquinas.length === 0) {
-            // Sin detalle de máquinas
+        // Obtener lista de máquinas
+        const maqNombres = Array.isArray(datos.detalles_maquinas)
+            ? datos.detalles_maquinas
+            : (typeof datos.detalles_maquinas === 'string'
+                ? datos.detalles_maquinas.split(', ')
+                : []);
+
+        if (maqNombres.length === 0) {
             filas += `
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="py-3 px-4 font-semibold text-gray-800">${nombre}</td>
-                    <td class="py-3 px-4 text-gray-500 text-sm">—</td>
-                    <td class="py-3 px-4 text-right text-gray-500">—</td>
-                    <td class="py-3 px-4 text-right text-gray-500">—</td>
+                    <td class="py-3 px-4 text-gray-400 text-sm">—</td>
+                    <td class="py-3 px-4 text-right text-gray-400">—</td>
+                    <td class="py-3 px-4 text-right text-gray-400">—</td>
                     <td class="py-3 px-4 text-right font-bold text-green-600">${formatearMoneda(ingresoProp)}</td>
                     <td class="py-3 px-4 text-center">
                         <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>
                     </td>
                 </tr>`;
         } else {
-            // Con detalle de máquinas — primera fila con nombre del propietario
-            maquinas.forEach((maq, idx) => {
-                const nombreMaq    = typeof maq === 'string' ? maq : (maq.maquina_nombre || '—');
-                const ingresosMaq  = typeof maq === 'object' ? parseFloat(maq.ingresos_maquina  || 0) : 0;
-                const montoMaq     = typeof maq === 'object' ? parseFloat(maq.monto_propietario || 0) : 0;
-                const pctProp      = typeof maq === 'object' ? parseFloat(maq.porcentaje_propiedad || 0) : 0;
+            maqNombres.forEach((maqRaw, idx) => {
+                const nombreMaq  = typeof maqRaw === 'object' ? (maqRaw.maquina_nombre || '—') : maqRaw;
+                // Cruzar con resumen_maquinas para obtener valores reales
+                const infoMaq    = resumenMaq[nombreMaq] || {};
+                const ingresosMaqTotal = parseFloat(infoMaq.ingresos_totales   || 0);
+                const ingresosMaqProv  = parseFloat(infoMaq.ingresos_proveedor || 0);
+                const pctRestMaq       = parseFloat(infoMaq.porcentaje_restaurante || 35);
 
                 filas += `
                     <tr class="border-b border-gray-50 hover:bg-gray-50 text-sm">
-                        <td class="py-3 px-4 ${idx === 0 ? 'font-semibold text-gray-800' : 'text-gray-300'}">${idx === 0 ? nombre : '↳'}</td>
+                        <td class="py-3 px-4 ${idx === 0 ? 'font-semibold text-gray-800' : 'text-gray-300 text-xs pl-6'}">${idx === 0 ? nombre : '↳'}</td>
                         <td class="py-3 px-4">
                             <span class="flex items-center gap-1.5 text-gray-700">
                                 <i class="fas fa-gamepad text-purple-400 text-xs"></i>${nombreMaq}
                             </span>
                         </td>
-                        <td class="py-3 px-4 text-right text-gray-600">${ingresosMaq > 0 ? formatearMoneda(ingresosMaq) : '—'}</td>
-                        <td class="py-3 px-4 text-right">
-                            ${pctProp > 0 ? `<span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${pctProp}%</span>` : '—'}
+                        <td class="py-3 px-4 text-right text-gray-600">
+                            ${ingresosMaqTotal > 0 ? formatearMoneda(ingresosMaqTotal) : '—'}
                         </td>
-                        <td class="py-3 px-4 text-right font-medium text-green-600">${montoMaq > 0 ? formatearMoneda(montoMaq) : formatearMoneda(ingresoProp)}</td>
+                        <td class="py-3 px-4 text-right">
+                            <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${(100 - pctRestMaq).toFixed(0)}%</span>
+                        </td>
+                        <td class="py-3 px-4 text-right font-medium text-green-600">
+                            ${ingresosMaqProv > 0 ? formatearMoneda(ingresosMaqProv) : formatearMoneda(ingresoProp)}
+                        </td>
                         <td class="py-3 px-4 text-center">
                             ${idx === 0 ? `<span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>` : ''}
                         </td>
