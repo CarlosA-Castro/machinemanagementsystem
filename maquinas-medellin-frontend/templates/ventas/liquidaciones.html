@@ -680,123 +680,91 @@
                 </div>
 
                 <!-- Pestaña Resumen -->
-                <div id="pestanaResumen" class="pestana-contenido hidden">
-                    <!-- Resumen General -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div class="stat-card" style="border-left-color: #3b82f6;">
-                            <div class="flex items-center">
-                                <div class="stat-icon" style="color: #3b82f6;">
-                                    <i class="fas fa-coins"></i>
-                                </div>
-                                <div class="ml-4">
-                                    <p class="stat-label">Ingresos Totales</p>
-                                    <p class="stat-value" id="totalIngresosResumen">$0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="stat-card" style="border-left-color: #10b981;">
-                            <div class="flex items-center">
-                                <div class="stat-icon" style="color: #10b981;">
-                                    <i class="fas fa-hand-holding-usd"></i>
-                                </div>
-                                <div class="ml-4">
-                                    <p class="stat-label">Ganancia Total</p>
-                                    <p class="stat-value" id="gananciaTotalResumen">$0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="stat-card" style="border-left-color: #8b5cf6;">
-                            <div class="flex items-center">
-                                <div class="stat-icon" style="color: #8b5cf6;">
-                                    <i class="fas fa-user-tie"></i>
-                                </div>
-                                <div class="ml-4">
-                                    <p class="stat-label">Ganancia Proveedor</p>
-                                    <p class="stat-value" id="gananciaProveedorResumen">$0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="stat-card" style="border-left-color: #f59e0b;">
-                            <div class="flex items-center">
-                                <div class="stat-icon" style="color: #f59e0b;">
-                                    <i class="fas fa-utensils"></i>
-                                </div>
-                                <div class="ml-4">
-                                    <p class="stat-label">Ganancia Restaurante</p>
-                                    <p class="stat-value" id="gananciaRestauranteResumen">$0</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Estadísticas Adicionales -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div class="summary-card">
-                            <div class="flex items-center">
-                                <div class="rounded-full bg-blue-100 p-3 mr-4">
-                                    <i class="fas fa-shopping-cart text-blue-600"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Total Ventas</p>
-                                    <p class="text-xl font-bold" id="totalVentas">0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="flex items-center">
-                                <div class="rounded-full bg-green-100 p-3 mr-4">
-                                    <i class="fas fa-gamepad text-green-600"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Máquinas Activas</p>
-                                    <p class="text-xl font-bold" id="maquinasActivas">0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="flex items-center">
-                                <div class="rounded-full bg-purple-100 p-3 mr-4">
-                                    <i class="fas fa-ticket-alt text-purple-600"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Turnos Usados</p>
-                                    <p class="text-xl font-bold" id="turnosUsados">0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="flex items-center">
-                                <div class="rounded-full bg-orange-100 p-3 mr-4">
-                                    <i class="fas fa-dollar-sign text-orange-600"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Compra Promedio</p>
-                                    <p class="text-xl font-bold" id="ticketPromedio">$0</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Distribución por Propietarios -->
-                    <div class="glass-card mb-6">
-                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-users mr-2 text-purple-600"></i>Distribución por Propietarios
-                        </h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="distribucionPropietarios">
-                            <!-- Se llenará dinámicamente -->
-                        </div>
-                    </div>
-
-                    <!-- Top Máquinas -->
-                    <div class="glass-card">
-                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas Más Rentables
-                        </h2>
-                        <div class="space-y-4" id="topMaquinas">
-                            <!-- Se llenará dinámicamente -->
-                        </div>
-                    </div>
+             <div id="pestanaResumen" class="pestana-contenido hidden">
+    <!-- KPIs principales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card" style="border-left-color: #3b82f6;">
+            <div class="flex items-center">
+                <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-coins"></i></div>
+                <div class="ml-4">
+                    <p class="stat-label">Ingresos Totales</p>
+                    <p class="stat-value" id="res-ingresos-totales">$0</p>
                 </div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-left-color: #10b981;">
+            <div class="flex items-center">
+                <div class="stat-icon" style="color:#10b981;"><i class="fas fa-utensils"></i></div>
+                <div class="ml-4">
+                    <p class="stat-label">Restaurante</p>
+                    <p class="stat-value" id="res-restaurante">$0</p>
+                    <p class="text-xs text-gray-500 mt-0.5" id="res-restaurante-pct">—</p>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-left-color: #8b5cf6;">
+            <div class="flex items-center">
+                <div class="stat-icon" style="color:#8b5cf6;"><i class="fas fa-user-tie"></i></div>
+                <div class="ml-4">
+                    <p class="stat-label">Proveedores</p>
+                    <p class="stat-value" id="res-proveedor">$0</p>
+                    <p class="text-xs text-gray-500 mt-0.5" id="res-proveedor-pct">—</p>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-left-color: #f59e0b;">
+            <div class="flex items-center">
+                <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-shopping-cart"></i></div>
+                <div class="ml-4">
+                    <p class="stat-label">Total Ventas</p>
+                    <p class="stat-value" id="res-total-ventas">0</p>
+                    <p class="text-xs text-gray-500 mt-0.5" id="res-maquinas-usadas">0 máquinas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra visual distribución -->
+    <div class="glass-card mb-6">
+        <h3 class="text-base font-semibold text-gray-700 mb-3">
+            <i class="fas fa-chart-pie mr-2 text-blue-500"></i>Distribución de ingresos
+        </h3>
+        <div class="flex rounded-full overflow-hidden h-6 mb-2" id="res-barra-dist">
+            <div class="bg-green-500 flex items-center justify-center text-white text-xs font-medium transition-all" id="res-barra-rest" style="width:35%">Rest.</div>
+            <div class="bg-purple-500 flex items-center justify-center text-white text-xs font-medium transition-all" id="res-barra-prov" style="width:65%">Prov.</div>
+        </div>
+        <div class="flex gap-6 text-sm text-gray-600">
+            <span><span class="inline-block w-3 h-3 rounded-full bg-green-500 mr-1"></span>Restaurante <span id="res-pct-rest-label" class="font-semibold">35%</span></span>
+            <span><span class="inline-block w-3 h-3 rounded-full bg-purple-500 mr-1"></span>Proveedores <span id="res-pct-prov-label" class="font-semibold">65%</span></span>
+        </div>
+    </div>
+
+    <!-- Distribución por propietarios -->
+    <div class="glass-card mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-users mr-2 text-purple-600"></i>Distribución por Propietarios
+        </h2>
+        <div id="res-propietarios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="text-center py-8 text-gray-400 col-span-full">
+                <div class="loading mx-auto mb-2"></div>
+                <p class="text-sm">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top máquinas -->
+    <div class="glass-card">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-trophy mr-2 text-yellow-500"></i>Rendimiento por Máquina
+        </h2>
+        <div id="res-maquinas" class="space-y-3">
+            <div class="text-center py-8 text-gray-400">
+                <div class="loading mx-auto mb-2"></div>
+                <p class="text-sm">Cargando...</p>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- Pestaña Gráficos -->
                 <div id="pestanaGraficos" class="pestana-contenido hidden">
@@ -1291,36 +1259,131 @@
             },
             
             // Cargar datos para reportes
-            cargarDatosReporte: async function() {
-                try {
-                    const { fechaInicio, fechaFin } = this.estado.filtros;
-                    
-                    const response = await fetch('/api/liquidaciones/calcular', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            fecha_inicio: fechaInicio,
-                            fecha_fin: fechaFin
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.estado.datosReporte = data;
-                        this.actualizarResumenReporte(data);
-                        this.actualizarDistribucionPropietarios(data);
-                        this.actualizarTopMaquinas(data);
-                        this.actualizarTablaDetalle(data);
-                        this.actualizarTablaPropietarios(data);
-                        this.actualizarTablaMaquinas(data);
-                    }
-                } catch (error) {
-                    console.error('Error cargando datos de reporte:', error);
-                }
-            },
-            
+cargarDatosReporte: async function() {
+    const { fechaInicio, fechaFin } = this.estado.filtros;
+
+    try {
+        const response = await fetch('/api/liquidaciones/calcular', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
+        });
+
+        if (!response.ok) throw new Error('Error al calcular liquidación');
+        const data = await response.json();
+        this.estado.datosReporte = data;
+
+        const periodo = data.periodo || {};
+        const totalIngresos   = parseFloat(periodo.total_ingresos   || 0);
+        const totalRestaurante = parseFloat(periodo.total_restaurante || 0);
+        const totalProveedor   = parseFloat(periodo.total_proveedor   || 0);
+        const totalVentas      = parseInt(periodo.total_ventas        || 0);
+        const maquinasUsadas   = parseInt(periodo.maquinas_utilizadas || 0);
+
+        // KPIs
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('res-ingresos-totales', formatearMoneda(totalIngresos));
+        setEl('res-restaurante',      formatearMoneda(totalRestaurante));
+        setEl('res-proveedor',        formatearMoneda(totalProveedor));
+        setEl('res-total-ventas',     totalVentas.toLocaleString());
+        setEl('res-maquinas-usadas',  `${maquinasUsadas} máquina${maquinasUsadas !== 1 ? 's' : ''}`);
+
+        // Porcentajes
+        const pctRest = totalIngresos > 0 ? ((totalRestaurante / totalIngresos) * 100).toFixed(1) : 35;
+        const pctProv = totalIngresos > 0 ? ((totalProveedor  / totalIngresos) * 100).toFixed(1) : 65;
+        setEl('res-restaurante-pct',  `${pctRest}% del total`);
+        setEl('res-proveedor-pct',    `${pctProv}% del total`);
+        setEl('res-pct-rest-label',   `${pctRest}%`);
+        setEl('res-pct-prov-label',   `${pctProv}%`);
+
+        // Barra distribución
+        const barRest = document.getElementById('res-barra-rest');
+        const barProv = document.getElementById('res-barra-prov');
+        if (barRest) barRest.style.width = `${pctRest}%`;
+        if (barProv) barProv.style.width = `${pctProv}%`;
+
+        // Propietarios
+        const contProp = document.getElementById('res-propietarios');
+        if (contProp) {
+            const dist = data.distribucion_propietarios || {};
+            const entries = Object.entries(dist);
+            if (entries.length === 0) {
+                contProp.innerHTML = `<div class="text-center py-6 text-gray-400 col-span-full text-sm">Sin datos de propietarios en este período</div>`;
+            } else {
+                contProp.innerHTML = entries.map(([nombre, datos]) => {
+                    const pct = totalProveedor > 0
+                        ? ((parseFloat(datos.total_ingresos) / totalProveedor) * 100).toFixed(1)
+                        : 0;
+                    const maquinas = Array.isArray(datos.detalles_maquinas)
+                        ? datos.detalles_maquinas.slice(0, 3).join(', ')
+                        : (datos.detalles_maquinas || '—');
+                    return `
+                        <div class="summary-card border border-gray-100">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="bg-purple-100 p-2 rounded-lg">
+                                        <i class="fas fa-user-tie text-purple-600 text-sm"></i>
+                                    </div>
+                                    <span class="font-semibold text-gray-800">${nombre}</span>
+                                </div>
+                                <span class="text-lg font-bold text-green-600">${formatearMoneda(parseFloat(datos.total_ingresos))}</span>
+                            </div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="flex-1 bg-gray-100 rounded-full h-2">
+                                    <div class="bg-purple-500 h-2 rounded-full" style="width:${pct}%"></div>
+                                </div>
+                                <span class="text-xs font-medium text-purple-600">${pct}%</span>
+                            </div>
+                            <p class="text-xs text-gray-500 truncate" title="${maquinas}">
+                                <i class="fas fa-gamepad mr-1"></i>${maquinas || 'Sin máquinas'}
+                            </p>
+                        </div>`;
+                }).join('');
+            }
+        }
+
+        // Máquinas
+        const contMaq = document.getElementById('res-maquinas');
+        if (contMaq) {
+            const maquinas = Object.values(data.resumen_maquinas || {})
+                .sort((a, b) => (b.ingresos_totales || 0) - (a.ingresos_totales || 0));
+            if (maquinas.length === 0) {
+                contMaq.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm">Sin datos de máquinas en este período</div>`;
+            } else {
+                const maxIngresos = parseFloat(maquinas[0].ingresos_totales || 1);
+                contMaq.innerHTML = maquinas.map((m, i) => {
+                    const pctBar = ((parseFloat(m.ingresos_totales || 0) / maxIngresos) * 100).toFixed(0);
+                    const colores = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
+                    const medallas = ['🥇', '🥈', '🥉'];
+                    const prefijo = i < 3 ? `<span class="text-lg">${medallas[i]}</span>` : `<span class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">${i+1}</span>`;
+                    return `
+                        <div class="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl hover:border-blue-200 transition">
+                            ${prefijo}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-medium text-gray-800 text-sm truncate">${m.maquina_nombre}</span>
+                                    <span class="font-bold text-gray-800 text-sm ml-2">${formatearMoneda(parseFloat(m.ingresos_totales || 0))}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                                        <div class="bg-blue-500 h-1.5 rounded-full" style="width:${pctBar}%"></div>
+                                    </div>
+                                    <span class="text-xs text-gray-400 shrink-0">
+                                        Rest: ${formatearMoneda(parseFloat(m.ingresos_restaurante || 0))} · Prov: ${formatearMoneda(parseFloat(m.ingresos_proveedor || 0))}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+        }
+
+    } catch (error) {
+        console.error('Error cargando resumen:', error);
+        this.mostrarAlerta('Error cargando el resumen', 'error');
+    }
+},
+
             // Actualizar datos desde la API
             actualizarDatos: async function() {
                 try {
