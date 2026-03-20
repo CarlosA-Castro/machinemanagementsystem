@@ -948,18 +948,101 @@
 
                 <!-- Pestaña Máquinas -->
                 <div id="pestanaMaquinas" class="pestana-contenido hidden">
-                    <div class="glass-card">
-                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-gamepad mr-2 text-purple-600"></i>Reporte por Máquinas
-                        </h2>
-                        <div id="tablaMaquinas">
-                            <!-- Se llenará dinámicamente -->
-                        </div>
-                    </div>
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="glass-card border-l-4 border-l-blue-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-100 p-3 rounded-xl"><i class="fas fa-gamepad text-blue-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Máquinas activas</p>
+                    <p class="text-2xl font-bold text-gray-800" id="maq-total-count">0</p>
                 </div>
             </div>
-        </main>
+        </div>
+        <div class="glass-card border-l-4 border-l-green-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-green-100 p-3 rounded-xl"><i class="fas fa-coins text-green-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Ingresos totales</p>
+                    <p class="text-2xl font-bold text-gray-800" id="maq-ingresos-total">$0</p>
+                </div>
+            </div>
+        </div>
+        <div class="glass-card border-l-4 border-l-teal-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-teal-100 p-3 rounded-xl"><i class="fas fa-utensils text-teal-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Total restaurante</p>
+                    <p class="text-2xl font-bold text-gray-800" id="maq-rest-total">$0</p>
+                </div>
+            </div>
+        </div>
+        <div class="glass-card border-l-4 border-l-purple-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-purple-100 p-3 rounded-xl"><i class="fas fa-user-tie text-purple-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Total proveedores</p>
+                    <p class="text-2xl font-bold text-gray-800" id="maq-prov-total">$0</p>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Tabla -->
+    <div class="glass-card">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+            <h2 class="text-lg font-semibold text-gray-800">
+                <i class="fas fa-gamepad mr-2 text-purple-600"></i>Rendimiento por Máquina
+            </h2>
+            <div class="flex gap-2 flex-wrap">
+                <select id="maqOrden" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="LiquidacionesApp.renderizarTablaMaquinas()">
+                    <option value="ingresos">Mayor ingreso</option>
+                    <option value="restaurante">Mayor restaurante</option>
+                    <option value="proveedor">Mayor proveedor</option>
+                    <option value="ventas">Más ventas</option>
+                    <option value="nombre">Nombre A-Z</option>
+                </select>
+                <div class="relative">
+                    <input type="text" id="maqBusqueda" placeholder="Buscar máquina..."
+                           class="border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-sm w-48"
+                           oninput="LiquidacionesApp.renderizarTablaMaquinas()">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">#</th>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Máquina</th>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Tipo</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ventas</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ingresos</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">% Rest.</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Restaurante</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Proveedor</th>
+                        <th class="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase">Participación</th>
+                    </tr>
+                </thead>
+                <tbody id="maq-tabla-body">
+                    <tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">Sin datos</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr class="bg-gray-50 font-semibold text-sm">
+                        <td colspan="4" class="text-right py-3 px-4 text-gray-600">TOTALES:</td>
+                        <td class="text-right py-3 px-4" id="maq-foot-ingresos">$0</td>
+                        <td class="text-right py-3 px-4">—</td>
+                        <td class="text-right py-3 px-4 text-teal-600" id="maq-foot-rest">$0</td>
+                        <td class="text-right py-3 px-4 text-purple-600" id="maq-foot-prov">$0</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
 
     <!-- ============================================ -->
     <!-- INFORMACIÓN DE USUARIO - VERSIÓN MÓVIL (al final) -->
@@ -2038,50 +2121,119 @@ if (el35)        el35.textContent        = '';
             
             // Actualizar tabla de máquinas
             actualizarTablaMaquinas: function(data) {
-                const maquinas = data.resumen_maquinas || {};
-                const container = document.getElementById('tablaMaquinas');
-                
-                let html = `
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Máquina</th>
-                                    <th>Tipo</th>
-                                    <th class="text-right">Ingresos Totales</th>
-                                    <th class="text-right">% Rest.</th>
-                                    <th class="text-right">Restaurante</th>
-                                    <th class="text-right">Proveedor</th>
-                                    <th class="text-right">Ventas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                Object.values(maquinas).forEach(maquina => {
-                    const ventas = maquina.detalles?.length || 0;
-                    
-                    html += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="font-medium">${maquina.maquina_nombre}</td>
-                            <td class="text-gray-600">${maquina.tipo_maquina}</td>
-                            <td class="text-right font-semibold">${formatearMoneda(maquina.ingresos_totales || 0)}</td>
-                            <td class="text-right text-blue-600">${maquina.porcentaje_restaurante || 35}%</td>
-                            <td class="text-right text-green-600">${formatearMoneda(maquina.ingresos_restaurante || 0)}</td>
-                            <td class="text-right text-purple-600">${formatearMoneda(maquina.ingresos_proveedor || 0)}</td>
-                            <td class="text-right text-gray-600">${ventas}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                            </tbody>
-                        </table>
+    const resumen    = data.resumen_maquinas || {};
+    const totalIngs  = parseFloat(data.periodo?.total_ingresos    || 0);
+    const totalRest  = parseFloat(data.periodo?.total_restaurante || 0);
+    const totalProv  = parseFloat(data.periodo?.total_proveedor   || 0);
+    const setEl      = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // Guardar para re-renderizar con filtros/orden
+    this._maquinasData = Object.entries(resumen).map(([nombre, m]) => ({
+        nombre:      m.maquina_nombre || nombre,
+        tipo:        m.tipo_maquina   || '—',
+        ventas:      parseInt(m.ventas_realizadas || 0),
+        ingresos:    parseFloat(m.ingresos_totales    || 0),
+        pct_rest:    parseFloat(m.porcentaje_restaurante || 35),
+        restaurante: parseFloat(m.ingresos_restaurante  || 0),
+        proveedor:   parseFloat(m.ingresos_proveedor    || 0),
+    }));
+
+    this._maquinasTotalIngresos = totalIngs;
+
+    // KPIs
+    const totI = this._maquinasData.reduce((s, m) => s + m.ingresos,    0);
+    const totR = this._maquinasData.reduce((s, m) => s + m.restaurante, 0);
+    const totP = this._maquinasData.reduce((s, m) => s + m.proveedor,   0);
+
+    setEl('maq-total-count',    this._maquinasData.length);
+    setEl('maq-ingresos-total', formatearMoneda(totI || totalIngs));
+    setEl('maq-rest-total',     formatearMoneda(totR || totalRest));
+    setEl('maq-prov-total',     formatearMoneda(totP || totalProv));
+
+    this.renderizarTablaMaquinas();
+},
+
+renderizarTablaMaquinas: function() {
+    const maquinas = [...(this._maquinasData || [])];
+    const orden    = document.getElementById('maqOrden')?.value    || 'ingresos';
+    const buscar   = (document.getElementById('maqBusqueda')?.value || '').toLowerCase();
+    const totalIngs = this._maquinasTotalIngresos || 1;
+    const setEl    = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // Filtrar
+    const filtradas = buscar
+        ? maquinas.filter(m => m.nombre.toLowerCase().includes(buscar) || m.tipo.toLowerCase().includes(buscar))
+        : maquinas;
+
+    // Ordenar
+    filtradas.sort((a, b) => {
+        if (orden === 'nombre')      return a.nombre.localeCompare(b.nombre);
+        if (orden === 'ventas')      return b.ventas      - a.ventas;
+        if (orden === 'restaurante') return b.restaurante - a.restaurante;
+        if (orden === 'proveedor')   return b.proveedor   - a.proveedor;
+        return b.ingresos - a.ingresos;
+    });
+
+    // Totales filtrados
+    const totI = filtradas.reduce((s, m) => s + m.ingresos,    0);
+    const totR = filtradas.reduce((s, m) => s + m.restaurante, 0);
+    const totP = filtradas.reduce((s, m) => s + m.proveedor,   0);
+    setEl('maq-foot-ingresos', formatearMoneda(totI));
+    setEl('maq-foot-rest',     formatearMoneda(totR));
+    setEl('maq-foot-prov',     formatearMoneda(totP));
+
+    const tbody = document.getElementById('maq-tabla-body');
+    if (!tbody) return;
+
+    if (filtradas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">
+            <i class="fas fa-gamepad text-3xl mb-2 block opacity-20"></i>Sin máquinas para mostrar
+        </td></tr>`;
+        return;
+    }
+
+    const maxIngresos = Math.max(...filtradas.map(m => m.ingresos), 1);
+
+    tbody.innerHTML = filtradas.map((m, i) => {
+        const pctParticipacion = totalIngs > 0 ? ((m.ingresos / totalIngs) * 100).toFixed(1) : 0;
+        const pctBarra         = ((m.ingresos / maxIngresos) * 100).toFixed(0);
+        const tipoColor        = m.tipo === 'simulador' ? 'bg-blue-100 text-blue-700'
+                               : m.tipo === 'arcade'    ? 'bg-purple-100 text-purple-700'
+                               : m.tipo === 'peluchera' ? 'bg-pink-100 text-pink-700'
+                               : 'bg-gray-100 text-gray-600';
+
+        return `
+            <tr class="border-b border-gray-50 hover:bg-gray-50 transition text-sm">
+                <td class="py-3 px-4 text-gray-400 font-medium">${i + 1}</td>
+                <td class="py-3 px-4">
+                    <div class="font-medium text-gray-800">${m.nombre}</div>
+                    <div class="w-full bg-gray-100 rounded-full h-1 mt-1.5">
+                        <div class="bg-blue-500 h-1 rounded-full" style="width:${pctBarra}%"></div>
                     </div>
-                `;
-                
-                container.innerHTML = html;
-            },
+                </td>
+                <td class="py-3 px-4">
+                    <span class="text-xs px-2 py-0.5 rounded-full capitalize ${tipoColor}">${m.tipo}</span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                    <span class="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">${m.ventas}</span>
+                </td>
+                <td class="py-3 px-4 text-right font-semibold text-gray-800">${formatearMoneda(m.ingresos)}</td>
+                <td class="py-3 px-4 text-right">
+                    <span class="text-xs text-gray-500">${m.pct_rest.toFixed(0)}%</span>
+                </td>
+                <td class="py-3 px-4 text-right text-teal-600">${formatearMoneda(m.restaurante)}</td>
+                <td class="py-3 px-4 text-right text-purple-600">${formatearMoneda(m.proveedor)}</td>
+                <td class="py-3 px-4 text-center">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <div class="w-16 bg-gray-100 rounded-full h-1.5">
+                            <div class="bg-green-500 h-1.5 rounded-full" style="width:${pctParticipacion}%"></div>
+                        </div>
+                        <span class="text-xs text-gray-500">${pctParticipacion}%</span>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+},
             
             // Resto de funciones de paginación, ordenación, etc.
             actualizarPaginacion: function() {
