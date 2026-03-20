@@ -5942,6 +5942,133 @@ def resolver_falla_maquina(maquina_id):
         if cursor: cursor.close()
         if connection: connection.close()
 
+@app.route('/api/maquinas/<int:maquina_id>/historial-juegos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def historial_juegos_maquina(maquina_id):
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio')
+        fecha_fin = request.args.get('fecha_fin')
+        estacion = request.args.get('estacion')
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        query = """
+            SELECT 
+                tu.id,
+                tu.usedAt,
+                tu.station_index,
+                qr.code as qr_code,
+                qr.qr_name,
+                tp.name as package_name,
+                tp.price as package_price,
+                ut.turns_remaining
+            FROM turnusage tu
+            LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
+            LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE tu.machineId = %s
+        """
+        params = [maquina_id]
+
+        if fecha_inicio:
+            query += " AND DATE(tu.usedAt) >= %s"
+            params.append(fecha_inicio)
+        if fecha_fin:
+            query += " AND DATE(tu.usedAt) <= %s"
+            params.append(fecha_fin)
+        if estacion is not None:
+            query += " AND tu.station_index = %s"
+            params.append(estacion)
+
+        query += " ORDER BY tu.usedAt DESC LIMIT 200"
+        cursor.execute(query, params)
+        juegos = cursor.fetchall()
+
+        for j in juegos:
+            if j.get('usedAt'):
+                j['usedAt'] = j['usedAt'].isoformat()
+
+        return jsonify({'juegos': juegos, 'total': len(juegos)})
+
+    except Exception as e:
+        app.logger.error(f"Error obteniendo historial juegos: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/maquinas/<int:maquina_id>/historial-fallas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def historial_fallas_maquina(maquina_id):
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio')
+        fecha_fin = request.args.get('fecha_fin')
+        estacion = request.args.get('estacion')
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        query = """
+            SELECT 
+                mf.id,
+                mf.reported_at,
+                mf.station_index,
+                mf.machine_name,
+                mf.turnos_devueltos,
+                mf.notes,
+                mf.is_forced,
+                mf.forced_by,
+                mf.resolved,
+                mf.resolved_at,
+                qr.code as qr_code,
+                qr.qr_name
+            FROM machinefailures mf
+            LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
+            WHERE mf.machine_id = %s
+        """
+        params = [maquina_id]
+
+        if fecha_inicio:
+            query += " AND DATE(mf.reported_at) >= %s"
+            params.append(fecha_inicio)
+        if fecha_fin:
+            query += " AND DATE(mf.reported_at) <= %s"
+            params.append(fecha_fin)
+        if estacion is not None:
+            query += " AND mf.station_index = %s"
+            params.append(estacion)
+
+        query += " ORDER BY mf.reported_at DESC LIMIT 200"
+        cursor.execute(query, params)
+        fallas = cursor.fetchall()
+
+        for f in fallas:
+            if f.get('reported_at'):
+                f['reported_at'] = f['reported_at'].isoformat()
+            if f.get('resolved_at'):
+                f['resolved_at'] = f['resolved_at'].isoformat()
+
+        return jsonify({'fallas': fallas, 'total': len(fallas)})
+
+    except Exception as e:
+        app.logger.error(f"Error obteniendo historial fallas: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
 @app.route('/api/dashboard/top-maquinas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero', 'admin_restaurante'])
