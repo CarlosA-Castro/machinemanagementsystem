@@ -875,15 +875,76 @@
 
                 <!-- Pestaña Propietarios -->
                 <div id="pestanaPropietarios" class="pestana-contenido hidden">
-                    <div class="glass-card">
-                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-users mr-2 text-purple-600"></i>Reporte por Propietarios
-                        </h2>
-                        <div id="tablaPropietarios">
-                            <!-- Se llenará dinámicamente -->
-                        </div>
-                    </div>
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="prop-kpis">
+        <div class="glass-card border-l-4 border-l-purple-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-purple-100 p-3 rounded-xl"><i class="fas fa-users text-purple-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Total Propietarios</p>
+                    <p class="text-2xl font-bold text-gray-800" id="prop-total-count">0</p>
                 </div>
+            </div>
+        </div>
+        <div class="glass-card border-l-4 border-l-green-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-green-100 p-3 rounded-xl"><i class="fas fa-hand-holding-usd text-green-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Total a Distribuir</p>
+                    <p class="text-2xl font-bold text-gray-800" id="prop-total-dist">$0</p>
+                </div>
+            </div>
+        </div>
+        <div class="glass-card border-l-4 border-l-blue-500">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-100 p-3 rounded-xl"><i class="fas fa-gamepad text-blue-600 text-lg"></i></div>
+                <div>
+                    <p class="text-sm text-gray-500">Máquinas con Propietario</p>
+                    <p class="text-2xl font-bold text-gray-800" id="prop-maquinas-count">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas propietarios -->
+    <div id="prop-tarjetas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div class="text-center py-10 text-gray-400 col-span-full">
+            <div class="loading mx-auto mb-2"></div>
+            <p class="text-sm">Cargando propietarios...</p>
+        </div>
+    </div>
+
+    <!-- Tabla detallada -->
+    <div class="glass-card">
+        <h3 class="text-base font-semibold text-gray-800 mb-4">
+            <i class="fas fa-table mr-2 text-purple-500"></i>Detalle por Propietario y Máquina
+        </h3>
+        <div class="table-container">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Propietario</th>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Máquina</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ingresos Máquina</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">% Propiedad</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Corresponde</th>
+                        <th class="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase">% del Total</th>
+                    </tr>
+                </thead>
+                <tbody id="prop-tabla-detalle">
+                    <tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">Sin datos</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr class="bg-gray-50 font-semibold text-sm">
+                        <td colspan="4" class="text-right py-3 px-4 text-gray-600">TOTAL PROVEEDORES:</td>
+                        <td class="text-right py-3 px-4 text-purple-600" id="prop-foot-total">$0</td>
+                        <td class="text-right py-3 px-4">100%</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
 
                 <!-- Pestaña Máquinas -->
                 <div id="pestanaMaquinas" class="pestana-contenido hidden">
@@ -1807,49 +1868,147 @@ if (el35)        el35.textContent        = '';
             
             // Actualizar tabla de propietarios
             actualizarTablaPropietarios: function(data) {
-                const distribucion = data.distribucion_propietarios || {};
-                const container = document.getElementById('tablaPropietarios');
-                
-                let html = `
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Propietario</th>
-                                    <th class="text-right">Total Ingresos</th>
-                                    <th class="text-right">% del Total</th>
-                                    <th class="text-right">Máquinas</th>
-                                    <th>Principales Máquinas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                Object.entries(distribucion).forEach(([nombre, datos]) => {
-                    const totalProveedor = data.periodo?.total_proveedor || 1;
-                    const porcentaje = ((datos.total_ingresos / totalProveedor) * 100).toFixed(1);
-                    const numMaquinas = datos.detalles_maquinas?.length || 0;
-                    const principalesMaquinas = datos.detalles_maquinas?.slice(0, 3).map(m => m.maquina_nombre).join(', ') || '';
-                    
-                    html += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="font-medium">${nombre}</td>
-                            <td class="text-right font-semibold text-green-600">${formatearMoneda(datos.total_ingresos)}</td>
-                            <td class="text-right">${porcentaje}%</td>
-                            <td class="text-right">${numMaquinas}</td>
-                            <td class="text-sm text-gray-600">${principalesMaquinas}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                
-                container.innerHTML = html;
-            },
+    const dist         = data.distribucion_propietarios || {};
+    const resumenMaq   = data.resumen_maquinas || {};
+    const totalProv    = parseFloat(data.periodo?.total_proveedor || 0);
+    const entries      = Object.entries(dist);
+    const setEl        = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // KPIs
+    setEl('prop-total-count',    entries.length);
+    setEl('prop-total-dist',     formatearMoneda(totalProv));
+    setEl('prop-maquinas-count', Object.keys(resumenMaq).length);
+
+    // Tarjetas por propietario
+    const contTarjetas = document.getElementById('prop-tarjetas');
+    if (contTarjetas) {
+        if (entries.length === 0) {
+            contTarjetas.innerHTML = `
+                <div class="text-center py-10 text-gray-400 col-span-full">
+                    <i class="fas fa-users text-4xl mb-3 block opacity-20"></i>
+                    <p class="text-sm">Sin datos de propietarios para este período</p>
+                    <p class="text-xs mt-1 text-gray-400">Verifica que las máquinas tengan propietarios asignados</p>
+                </div>`;
+        } else {
+            // Ordenar por ingresos desc
+            const sorted = entries.sort((a, b) => parseFloat(b[1].total_ingresos) - parseFloat(a[1].total_ingresos));
+            const colores = ['from-purple-500 to-indigo-600', 'from-blue-500 to-cyan-600', 'from-green-500 to-teal-600', 'from-orange-500 to-amber-600', 'from-pink-500 to-rose-600'];
+
+            contTarjetas.innerHTML = sorted.map(([nombre, datos], i) => {
+                const ingresos = parseFloat(datos.total_ingresos || 0);
+                const pct      = totalProv > 0 ? ((ingresos / totalProv) * 100).toFixed(1) : 0;
+                const color    = colores[i % colores.length];
+                const maquinas = Array.isArray(datos.detalles_maquinas)
+                    ? datos.detalles_maquinas
+                    : (datos.detalles_maquinas ? [datos.detalles_maquinas] : []);
+                const numMaquinas = maquinas.length;
+
+                return `
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
+                        <!-- Header degradado -->
+                        <div class="bg-gradient-to-r ${color} p-4 text-white">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-bold text-lg leading-tight">${nombre}</div>
+                                    <div class="text-sm opacity-80 mt-0.5">${numMaquinas} máquina${numMaquinas !== 1 ? 's' : ''}</div>
+                                </div>
+                                <div class="bg-white bg-opacity-20 rounded-xl px-3 py-1 text-sm font-bold">${pct}%</div>
+                            </div>
+                        </div>
+                        <!-- Body -->
+                        <div class="p-4">
+                            <div class="text-2xl font-bold text-gray-800 mb-3">${formatearMoneda(ingresos)}</div>
+                            <!-- Barra progreso -->
+                            <div class="bg-gray-100 rounded-full h-2 mb-3">
+                                <div class="h-2 rounded-full bg-gradient-to-r ${color}" style="width:${pct}%"></div>
+                            </div>
+                            <!-- Máquinas -->
+                            <div class="space-y-1">
+                                ${maquinas.slice(0, 3).map(m => {
+                                    const nombreMaq = typeof m === 'string' ? m : (m.maquina_nombre || m);
+                                    const montoMaq  = typeof m === 'object' && m.monto_propietario
+                                        ? formatearMoneda(parseFloat(m.monto_propietario))
+                                        : '';
+                                    return `<div class="flex justify-between items-center text-xs text-gray-600">
+                                        <span class="flex items-center gap-1">
+                                            <i class="fas fa-gamepad text-gray-400"></i>${nombreMaq}
+                                        </span>
+                                        ${montoMaq ? `<span class="font-medium">${montoMaq}</span>` : ''}
+                                    </div>`;
+                                }).join('')}
+                                ${maquinas.length > 3 ? `<div class="text-xs text-gray-400 mt-1">+${maquinas.length - 3} más</div>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+    }
+
+    // Tabla detallada por propietario + máquina
+    const tbody = document.getElementById('prop-tabla-detalle');
+    const footTotal = document.getElementById('prop-foot-total');
+    if (!tbody) return;
+
+    if (entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">Sin datos</td></tr>`;
+        return;
+    }
+
+    let filas = '';
+    let grandTotal = 0;
+    const sortedEntries = entries.sort((a, b) => parseFloat(b[1].total_ingresos) - parseFloat(a[1].total_ingresos));
+
+    sortedEntries.forEach(([nombre, datos]) => {
+        const ingresoProp = parseFloat(datos.total_ingresos || 0);
+        const maquinas    = Array.isArray(datos.detalles_maquinas) ? datos.detalles_maquinas : [];
+        const pctTotal    = totalProv > 0 ? ((ingresoProp / totalProv) * 100).toFixed(1) : 0;
+        grandTotal       += ingresoProp;
+
+        if (maquinas.length === 0) {
+            // Sin detalle de máquinas
+            filas += `
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="py-3 px-4 font-semibold text-gray-800">${nombre}</td>
+                    <td class="py-3 px-4 text-gray-500 text-sm">—</td>
+                    <td class="py-3 px-4 text-right text-gray-500">—</td>
+                    <td class="py-3 px-4 text-right text-gray-500">—</td>
+                    <td class="py-3 px-4 text-right font-bold text-green-600">${formatearMoneda(ingresoProp)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>
+                    </td>
+                </tr>`;
+        } else {
+            // Con detalle de máquinas — primera fila con nombre del propietario
+            maquinas.forEach((maq, idx) => {
+                const nombreMaq    = typeof maq === 'string' ? maq : (maq.maquina_nombre || '—');
+                const ingresosMaq  = typeof maq === 'object' ? parseFloat(maq.ingresos_maquina  || 0) : 0;
+                const montoMaq     = typeof maq === 'object' ? parseFloat(maq.monto_propietario || 0) : 0;
+                const pctProp      = typeof maq === 'object' ? parseFloat(maq.porcentaje_propiedad || 0) : 0;
+
+                filas += `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 text-sm">
+                        <td class="py-3 px-4 ${idx === 0 ? 'font-semibold text-gray-800' : 'text-gray-300'}">${idx === 0 ? nombre : '↳'}</td>
+                        <td class="py-3 px-4">
+                            <span class="flex items-center gap-1.5 text-gray-700">
+                                <i class="fas fa-gamepad text-purple-400 text-xs"></i>${nombreMaq}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-right text-gray-600">${ingresosMaq > 0 ? formatearMoneda(ingresosMaq) : '—'}</td>
+                        <td class="py-3 px-4 text-right">
+                            ${pctProp > 0 ? `<span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${pctProp}%</span>` : '—'}
+                        </td>
+                        <td class="py-3 px-4 text-right font-medium text-green-600">${montoMaq > 0 ? formatearMoneda(montoMaq) : formatearMoneda(ingresoProp)}</td>
+                        <td class="py-3 px-4 text-center">
+                            ${idx === 0 ? `<span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>` : ''}
+                        </td>
+                    </tr>`;
+            });
+        }
+    });
+
+    tbody.innerHTML = filas;
+    if (footTotal) footTotal.textContent = formatearMoneda(grandTotal);
+},
             
             // Actualizar tabla de máquinas
             actualizarTablaMaquinas: function(data) {
