@@ -787,69 +787,91 @@
                 </div>
 
                 <!-- Pestaña Detalle -->
-                <div id="pestanaDetalle" class="pestana-contenido hidden">
-                    <div class="glass-card">
-                        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                            <h2 class="text-xl font-semibold text-gray-800 mb-2 md:mb-0">
-                                <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Liquidaciones
-                            </h2>
-                            <div class="flex items-center">
-                                <div class="relative">
-                                    <input type="text" id="busquedaDetalle" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscarDetalle()">
-                                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-container">
-                            <table id="tablaDetalle">
-                                <thead>
-    <tr>
-        <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('fecha')">
-            Fecha <i class="fas fa-sort ml-1"></i>
-        </th>
-        <th>Paquete</th>
-        <th>Máquina</th>
-        <th>Propietario</th>
-        <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
-            Ingresos <i class="fas fa-sort ml-1"></i>
-        </th>
-        <th class="text-right">% Rest.</th>
-        <th class="text-right">Restaurante</th>
-        <th class="text-right">Proveedor</th>
-    </tr>
-</thead>
-                                <tbody id="cuerpoTablaDetalle">
-                                    <!-- Se llenará dinámicamente -->
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Paginación -->
-                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center">
-                            <div class="text-sm text-gray-600 mb-2 sm:mb-0">
-                                Mostrando <span id="mostrandoDesdeDetalle">0</span> a <span id="mostrandoHastaDetalle">0</span> de <span id="totalRegistrosDetalle">0</span> registros
-                            </div>
-                            <div class="pagination">
-                                <button id="btnPrimeraPaginaDetalle" onclick="LiquidacionesApp.irAPaginaDetalle(1)" disabled>
-                                    <i class="fas fa-angle-double-left"></i>
-                                </button>
-                                <button id="btnPaginaAnteriorDetalle" onclick="LiquidacionesApp.paginaAnteriorDetalle()" disabled>
-                                    <i class="fas fa-chevron-left"></i>
-                                </button>
-                                <div id="numerosPaginaDetalle" class="flex">
-                                    <!-- Se generan dinámicamente -->
-                                </div>
-                                <button id="btnPaginaSiguienteDetalle" onclick="LiquidacionesApp.paginaSiguienteDetalle()" disabled>
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
-                                <button id="btnUltimaPaginaDetalle" onclick="LiquidacionesApp.irAUltimaPaginaDetalle()" disabled>
-                                    <i class="fas fa-angle-double-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+               <div id="pestanaDetalle" class="pestana-contenido hidden">
+    <div class="glass-card">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+            <h2 class="text-lg font-semibold text-gray-800">
+                <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Ingresos
+            </h2>
+            <div class="flex gap-2 flex-wrap">
+                <select id="filtroDetalleAgrup" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="LiquidacionesApp.cambiarAgrupacionDetalle()">
+                    <option value="dia_maquina">Por día y máquina</option>
+                    <option value="dia">Por día</option>
+                    <option value="maquina">Por máquina</option>
+                    <option value="paquete">Por paquete</option>
+                </select>
+                <div class="relative">
+                    <input type="text" id="busquedaDetalle" placeholder="Buscar..." 
+                           class="border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-sm w-48"
+                           oninput="LiquidacionesApp.filtrarDetalle()">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
                 </div>
+            </div>
+        </div>
+
+        <!-- KPIs detalle -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="detalle-kpis">
+            <div class="bg-blue-50 rounded-xl p-3 text-center">
+                <div class="text-xl font-bold text-blue-600" id="det-total-filas">0</div>
+                <div class="text-xs text-gray-500 mt-0.5">Registros</div>
+            </div>
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+                <div class="text-xl font-bold text-green-600" id="det-total-ingresos">$0</div>
+                <div class="text-xs text-gray-500 mt-0.5">Ingresos totales</div>
+            </div>
+            <div class="bg-teal-50 rounded-xl p-3 text-center">
+                <div class="text-xl font-bold text-teal-600" id="det-total-rest">$0</div>
+                <div class="text-xs text-gray-500 mt-0.5">Restaurante</div>
+            </div>
+            <div class="bg-purple-50 rounded-xl p-3 text-center">
+                <div class="text-xl font-bold text-purple-600" id="det-total-prov">$0</div>
+                <div class="text-xs text-gray-500 mt-0.5">Proveedores</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="tablaDetalle" class="w-full">
+                <thead id="detalle-thead">
+                    <tr>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Fecha</th>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Máquina</th>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Paquete</th>
+                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Propietario</th>
+                        <th class="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ventas</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ingresos</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">% Rest.</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Restaurante</th>
+                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Proveedor</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTablaDetalle">
+                    <tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">
+                        <i class="fas fa-filter text-2xl mb-2 block opacity-30"></i>
+                        Aplica los filtros para ver el detalle
+                    </td></tr>
+                </tbody>
+                <tfoot>
+                    <tr class="bg-gray-50 font-semibold text-sm">
+                        <td colspan="5" class="text-right py-3 px-4 text-gray-600">TOTALES:</td>
+                        <td class="text-right py-3 px-4" id="det-foot-ingresos">$0</td>
+                        <td class="text-right py-3 px-4">—</td>
+                        <td class="text-right py-3 px-4 text-teal-600" id="det-foot-rest">$0</td>
+                        <td class="text-right py-3 px-4 text-purple-600" id="det-foot-prov">$0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="text-sm text-gray-500">
+                Mostrando <span id="mostrandoDesdeDetalle">0</span>–<span id="mostrandoHastaDetalle">0</span> 
+                de <span id="totalRegistrosDetalle">0</span> registros
+            </div>
+            <div class="pagination" id="paginacionDetalle"></div>
+        </div>
+    </div>
+</div>
 
                 <!-- Pestaña Propietarios -->
                 <div id="pestanaPropietarios" class="pestana-contenido hidden">
@@ -1034,24 +1056,21 @@
             
             // Cambiar pestaña activa
             cambiarPestana: function(pestana) {
-                // Ocultar todas las pestañas
-                document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                
-                // Mostrar pestaña seleccionada
-                document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
-                document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
-                
-                // Si es la pestaña de gráficos, inicializar gráficos
-                if (pestana === 'graficos') {
-                    setTimeout(() => this.inicializarGraficos(), 100);
-                }
-                
-                // Si es la pestaña de reportes, cargar datos de reporte
-                if (pestana !== 'liquidaciones' && pestana !== 'resumen') {
-                    this.cargarDatosReporte();
-                }
-            },
+    document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
+    document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
+
+    if (pestana === 'resumen' || pestana === 'propietarios' || pestana === 'maquinas') {
+        this.cargarDatosReporte();
+    }
+    if (pestana === 'detalle') {
+        this.cargarDetalle();
+    }
+    if (pestana === 'graficos') {
+        setTimeout(() => this.inicializarGraficos(), 100);
+    }
+},
             
             // Capitalizar primera letra
             capitalize: function(str) {
@@ -2150,6 +2169,180 @@ if (el35)        el35.textContent        = '';
                     }
                 });
             },
+
+            // Estado interno del detalle
+_detalleRaw: [],
+_detalleFiltrado: [],
+_detallePagina: 1,
+_detallePorPagina: 25,
+
+cargarDetalle: async function() {
+    const fechaInicio = this.estado.filtros.fechaInicio;
+    const fechaFin    = this.estado.filtros.fechaFin;
+
+    const tbody = document.getElementById('cuerpoTablaDetalle');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8">
+        <div class="loading mx-auto mb-2"></div><p class="text-gray-500 text-sm">Cargando detalle...</p>
+    </td></tr>`;
+
+    try {
+        const response = await fetch('/api/liquidaciones/calcular', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
+        });
+        if (!response.ok) throw new Error('Error cargando detalle');
+        const data = await response.json();
+
+        this._detalleRaw = data.datos_tabla || [];
+        this._detallePagina = 1;
+        this.agruparYRenderizarDetalle();
+
+    } catch (e) {
+        console.error('Error cargando detalle:', e);
+        this.mostrarAlerta('Error cargando detalle de ingresos', 'error');
+    }
+},
+
+agruparYRenderizarDetalle: function() {
+    const agrup  = document.getElementById('filtroDetalleAgrup')?.value || 'dia_maquina';
+    const buscar = (document.getElementById('busquedaDetalle')?.value || '').toLowerCase();
+    const raw    = this._detalleRaw;
+
+    // Agrupar
+    const grupos = {};
+    raw.forEach(item => {
+        let key;
+        if      (agrup === 'dia')        key = item.fecha;
+        else if (agrup === 'maquina')    key = item.maquina_nombre || 'Sin máquina';
+        else if (agrup === 'paquete')    key = item.paquete_nombre || 'Sin paquete';
+        else                             key = `${item.fecha}__${item.maquina_nombre || ''}__${item.paquete_nombre || ''}`;
+
+        if (!grupos[key]) {
+            grupos[key] = {
+                fecha:       item.fecha,
+                maquina:     item.maquina_nombre  || '—',
+                paquete:     item.paquete_nombre  || '—',
+                propietario: item.propietario     || '—',
+                pct_rest:    parseFloat(item.porcentaje_restaurante || 35),
+                ventas:      0,
+                ingresos:    0,
+                restaurante: 0,
+                proveedor:   0,
+            };
+            if (agrup === 'dia')     { grupos[key].maquina = 'Todas'; grupos[key].paquete = 'Todos'; }
+            if (agrup === 'maquina') { grupos[key].fecha = '—'; grupos[key].paquete = 'Todos'; }
+            if (agrup === 'paquete') { grupos[key].fecha = '—'; grupos[key].maquina = 'Todas'; }
+        }
+        grupos[key].ventas      += 1;
+        grupos[key].ingresos    += parseFloat(item.ingresos_totales   || 0);
+        grupos[key].restaurante += parseFloat(item.ingresos_restaurante || 0);
+        grupos[key].proveedor   += parseFloat(item.ingresos_proveedor  || 0);
+    });
+
+    let filas = Object.values(grupos).sort((a, b) => {
+        if (a.fecha && b.fecha) return b.fecha.localeCompare(a.fecha);
+        return b.ingresos - a.ingresos;
+    });
+
+    // Filtrar por búsqueda
+    if (buscar) {
+        filas = filas.filter(f =>
+            f.maquina.toLowerCase().includes(buscar)    ||
+            f.paquete.toLowerCase().includes(buscar)    ||
+            f.propietario.toLowerCase().includes(buscar)||
+            (f.fecha && f.fecha.includes(buscar))
+        );
+    }
+
+    this._detalleFiltrado = filas;
+    this.renderizarDetalle();
+},
+
+renderizarDetalle: function() {
+    const filas      = this._detalleFiltrado;
+    const porPagina  = this._detallePorPagina;
+    const pagina     = this._detallePagina;
+    const inicio     = (pagina - 1) * porPagina;
+    const fin        = Math.min(inicio + porPagina, filas.length);
+    const paginadas  = filas.slice(inicio, fin);
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // KPIs
+    const totI = filas.reduce((s, f) => s + f.ingresos,    0);
+    const totR = filas.reduce((s, f) => s + f.restaurante, 0);
+    const totP = filas.reduce((s, f) => s + f.proveedor,   0);
+    setEl('det-total-filas',    filas.length.toLocaleString());
+    setEl('det-total-ingresos', formatearMoneda(totI));
+    setEl('det-total-rest',     formatearMoneda(totR));
+    setEl('det-total-prov',     formatearMoneda(totP));
+    setEl('det-foot-ingresos',  formatearMoneda(totI));
+    setEl('det-foot-rest',      formatearMoneda(totR));
+    setEl('det-foot-prov',      formatearMoneda(totP));
+    setEl('mostrandoDesdeDetalle', filas.length ? inicio + 1 : 0);
+    setEl('mostrandoHastaDetalle', fin);
+    setEl('totalRegistrosDetalle', filas.length);
+
+    // Tabla
+    const tbody = document.getElementById('cuerpoTablaDetalle');
+    if (!tbody) return;
+
+    if (paginadas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">
+            <i class="fas fa-inbox text-2xl mb-2 block opacity-30"></i>Sin registros
+        </td></tr>`;
+    } else {
+        tbody.innerHTML = paginadas.map(f => `
+            <tr class="border-b border-gray-50 hover:bg-gray-50 transition text-sm">
+                <td class="py-3 px-4 text-gray-600">${f.fecha && f.fecha !== '—' ? this.formatearFecha(f.fecha) : '—'}</td>
+                <td class="py-3 px-4">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fas fa-gamepad text-purple-400 text-xs"></i>
+                        ${f.maquina}
+                    </span>
+                </td>
+                <td class="py-3 px-4">
+                    <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${f.paquete}</span>
+                </td>
+                <td class="py-3 px-4 text-gray-600 text-xs">${f.propietario}</td>
+                <td class="py-3 px-4 text-center">
+                    <span class="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">${f.ventas}</span>
+                </td>
+                <td class="py-3 px-4 text-right font-semibold">${formatearMoneda(f.ingresos)}</td>
+                <td class="py-3 px-4 text-right">
+                    <span class="text-xs text-gray-500">${f.pct_rest.toFixed(0)}%</span>
+                </td>
+                <td class="py-3 px-4 text-right text-teal-600">${formatearMoneda(f.restaurante)}</td>
+                <td class="py-3 px-4 text-right text-purple-600">${formatearMoneda(f.proveedor)}</td>
+            </tr>`).join('');
+    }
+
+    // Paginación
+    const totalPags = Math.ceil(filas.length / porPagina);
+    const contPag = document.getElementById('paginacionDetalle');
+    if (contPag) {
+        let btns = '';
+        btns += `<button onclick="LiquidacionesApp._detallePagina=1;LiquidacionesApp.renderizarDetalle()" ${pagina===1?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-angle-double-left"></i></button>`;
+        btns += `<button onclick="LiquidacionesApp._detallePagina--;LiquidacionesApp.renderizarDetalle()" ${pagina===1?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-chevron-left"></i></button>`;
+        for (let p = Math.max(1, pagina-2); p <= Math.min(totalPags, pagina+2); p++) {
+            btns += `<button onclick="LiquidacionesApp._detallePagina=${p};LiquidacionesApp.renderizarDetalle()" class="px-3 py-1 border rounded text-sm ${p===pagina?'bg-blue-600 text-white border-blue-600':''}">${p}</button>`;
+        }
+        btns += `<button onclick="LiquidacionesApp._detallePagina++;LiquidacionesApp.renderizarDetalle()" ${pagina>=totalPags?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-chevron-right"></i></button>`;
+        btns += `<button onclick="LiquidacionesApp._detallePagina=${totalPags};LiquidacionesApp.renderizarDetalle()" ${pagina>=totalPags?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-angle-double-right"></i></button>`;
+        contPag.innerHTML = btns;
+    }
+},
+
+cambiarAgrupacionDetalle: function() {
+    this._detallePagina = 1;
+    this.agruparYRenderizarDetalle();
+},
+
+filtrarDetalle: function() {
+    this._detallePagina = 1;
+    this.agruparYRenderizarDetalle();
+},
             
             mostrarAlerta: function(mensaje, tipo = 'info') {
                 let alerta = document.getElementById('alertaGlobal');
