@@ -5901,7 +5901,7 @@ def resolver_falla_maquina(maquina_id):
         # Limpiar errorNote y reactivar máquina
         cursor.execute("""
             UPDATE machine 
-            SET errorNote = NULL, status = 'activa', updatedAt = NOW()
+            SET errorNote = NULL, status = 'activa'
             WHERE id = %s
         """, (maquina_id,))
 

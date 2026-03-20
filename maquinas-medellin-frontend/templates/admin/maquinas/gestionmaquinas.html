@@ -497,53 +497,122 @@
         // ITEM 18: Resolver falla (máquina simple)
         // =============================================
         resolverFalla: async function(maquinaId, maquinaNombre) {
-            if (!confirm(`¿Marcar la falla de "${maquinaNombre}" como resuelta?\n\nEsto limpiará el mensaje de error y reactivará la máquina.`)) return;
-            this.mostrarAlerta(`Resolviendo falla de ${maquinaNombre}...`, 'info');
-            try {
-                const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    body: JSON.stringify({ estacion_index: null })
-                });
-                const data = await response.json();
-                if (response.ok && data.success) {
-                    this.mostrarAlerta(`✅ Falla resuelta en ${maquinaNombre}`, 'success');
-                    this.cargarMaquinas();
-                    HistorialManager.actualizar();
-                } else {
-                    this.mostrarAlerta(data.message || 'Error al resolver la falla', 'error');
-                }
-            } catch (error) {
-                console.error('Error resolviendo falla:', error);
-                this.mostrarAlerta('Error de conexión', 'error');
+    // Crear modal bonito
+    const modal = document.createElement('div');
+    modal.id = 'modalResolverFalla';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.style.backdropFilter = 'blur(5px)';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all">
+            <div class="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-4">
+                <i class="fas fa-check-circle text-green-600 text-3xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 text-center mb-2">Resolver Falla</h2>
+            <p class="text-gray-500 text-center text-sm mb-1">¿Confirmas que la falla en</p>
+            <p class="text-blue-600 font-bold text-center text-lg mb-4">${maquinaNombre}</p>
+            <div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-6 text-sm text-green-800">
+                <i class="fas fa-info-circle mr-2"></i>
+                Esto limpiará el mensaje de error, reactivará la máquina y marcará las fallas como resueltas.
+            </div>
+            <div class="flex gap-3">
+                <button id="btnCancelarResolver" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+                <button id="btnConfirmarResolver" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition">
+                    <i class="fas fa-check mr-2"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('btnCancelarResolver').onclick = () => modal.remove();
+
+    document.getElementById('btnConfirmarResolver').onclick = async () => {
+        const btn = document.getElementById('btnConfirmarResolver');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading mr-2" style="display:inline-block;border-color:rgba(255,255,255,.3);border-top-color:white"></div>Procesando...';
+        try {
+            const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ estacion_index: null })
+            });
+            const data = await response.json();
+            modal.remove();
+            if (response.ok && data.success) {
+                this.mostrarAlerta(`✅ Falla resuelta en ${maquinaNombre}`, 'success');
+                this.cargarMaquinas();
+                HistorialManager.actualizar();
+            } else {
+                this.mostrarAlerta(data.message || 'Error al resolver la falla', 'error');
             }
-        },
+        } catch (error) {
+            modal.remove();
+            this.mostrarAlerta('Error de conexión', 'error');
+        }
+    };
+},
 
         // =============================================
         // ITEM 18: Resolver falla (estación específica)
         // =============================================
         resolverFallaEstacion: async function(maquinaId, estacionIndex, estacionNombre) {
-            if (!confirm(`¿Resolver la falla de la estación "${estacionNombre}"?`)) return;
-            try {
-                const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    body: JSON.stringify({ estacion_index: estacionIndex })
-                });
-                const data = await response.json();
-                if (response.ok && data.success) {
-                    this.mostrarAlerta(`✅ Falla resuelta en ${estacionNombre}`, 'success');
-                    this.verEstaciones(maquinaId);
-                    this.cargarMaquinas();
-                } else {
-                    this.mostrarAlerta(data.message || 'Error al resolver la falla', 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                this.mostrarAlerta('Error de conexión', 'error');
-            }
-        },
+    const modal = document.createElement('div');
+    modal.id = 'modalResolverFallaEstacion';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.style.backdropFilter = 'blur(5px)';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div class="flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mx-auto mb-4">
+                <i class="fas fa-check-circle text-emerald-600 text-3xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 text-center mb-2">Resolver Falla de Estación</h2>
+            <p class="text-gray-500 text-center text-sm mb-1">¿Confirmas que la falla en</p>
+            <p class="text-blue-600 font-bold text-center text-lg mb-4">${estacionNombre}</p>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-6 text-sm text-emerald-800">
+                <i class="fas fa-info-circle mr-2"></i>
+                Se resolverán las fallas de esta estación y se reactivará la máquina.
+            </div>
+            <div class="flex gap-3">
+                <button id="btnCancelarResolverEst" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </button>
+                <button id="btnConfirmarResolverEst" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition">
+                    <i class="fas fa-check mr-2"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 
+    document.getElementById('btnCancelarResolverEst').onclick = () => modal.remove();
+
+    document.getElementById('btnConfirmarResolverEst').onclick = async () => {
+        const btn = document.getElementById('btnConfirmarResolverEst');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading mr-2" style="display:inline-block;border-color:rgba(255,255,255,.3);border-top-color:white"></div>Procesando...';
+        try {
+            const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ estacion_index: estacionIndex })
+            });
+            const data = await response.json();
+            modal.remove();
+            if (response.ok && data.success) {
+                this.mostrarAlerta(`✅ Falla resuelta en ${estacionNombre}`, 'success');
+                this.verEstaciones(maquinaId);
+                this.cargarMaquinas();
+            } else {
+                this.mostrarAlerta(data.message || 'Error al resolver la falla', 'error');
+            }
+        } catch (error) {
+            modal.remove();
+            this.mostrarAlerta('Error de conexión', 'error');
+        }
+    };
+},
         mostrarModalCrear: function() {
             document.getElementById('modalTitulo').textContent = 'Nueva Máquina';
             document.getElementById('maquinaId').value = '';
