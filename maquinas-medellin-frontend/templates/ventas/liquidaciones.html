@@ -641,7 +641,7 @@
                                 <tbody id="cuerpoTabla">
                                     <!-- Se llenará dinámicamente -->
                                 </tbody>
-                                <tfoot>
+                               <tfoot>
     <tr class="bg-gray-50 font-semibold">
         <td colspan="4" class="text-right px-4 py-3">TOTALES:</td>
         <td id="totalIngresosTabla" class="text-right px-4 py-3">$0</td>
@@ -1588,16 +1588,20 @@
     });
 
     // Totales en el pie
-    document.getElementById('totalPaquetes').textContent          = totalPaquetes.toLocaleString();
-    document.getElementById('totalIngresosTabla').textContent     = formatearMoneda(totalIngresos);
-    document.getElementById('totalIngresosRestaurante').textContent = formatearMoneda(totalRestaurante);
-    document.getElementById('totalIngresosProveedor').textContent = formatearMoneda(totalProveedor);
+    
+const elPaquetes = document.getElementById('totalPaquetes');
+const elIngresos = document.getElementById('totalIngresosTabla');
+const elRest     = document.getElementById('totalIngresosRestaurante');
+const elProv     = document.getElementById('totalIngresosProveedor');
+const el30       = document.getElementById('total30Porciento');
+const el35       = document.getElementById('total35Porciento');
 
-    // Limpiar columnas que ya no usamos
-    const el30 = document.getElementById('total30Porciento');
-    const el35 = document.getElementById('total35Porciento');
-    if (el30) el30.textContent = '';
-    if (el35) el35.textContent = '';
+if (elPaquetes)  elPaquetes.textContent  = totalPaquetes.toLocaleString();
+if (elIngresos)  elIngresos.textContent  = formatearMoneda(totalIngresos);
+if (elRest)      elRest.textContent      = formatearMoneda(totalRestaurante);
+if (elProv)      elProv.textContent      = formatearMoneda(totalProveedor);
+if (el30)        el30.textContent        = '';
+if (el35)        el35.textContent        = '';
 
     // Resumen tarjetas
     document.getElementById('totalIngresos').textContent      = formatearMoneda(totalIngresos);
