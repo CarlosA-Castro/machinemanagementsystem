@@ -495,43 +495,23 @@
             </div>
 
             <!-- Filtros -->
-            <div class="glass-card mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
-                        <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
-                        <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Reporte</label>
-                        <select id="tipoReporte" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                            <option value="ventas">Ventas de Paquetes</option>
-                            <option value="liquidaciones">Liquidaciones Registradas</option>
-                            <option value="resumen">Resumen General</option>
-                            <option value="detallado">Detalle Completo</option>
-                            <option value="propietarios">Por Propietarios</option>
-                            <option value="maquinas">Por Máquinas</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Agrupación</label>
-                        <select id="agrupacion" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                            <option value="diario">Diario</option>
-                            <option value="semanal">Semanal</option>
-                            <option value="mensual">Mensual</option>
-                            <option value="anual">Anual</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button onclick="LiquidacionesApp.aplicarFiltros()" class="btn btn-primary">
-                        <i class="fas fa-filter mr-2"></i>Aplicar Filtros
-                    </button>
-                </div>
-            </div>
+           <div class="glass-card mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+            <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+            <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+        </div>
+    </div>
+    <div class="mt-4 flex justify-end">
+        <button onclick="LiquidacionesApp.aplicarFiltros()" class="btn btn-primary">
+            <i class="fas fa-filter mr-2"></i>Aplicar Filtros
+        </button>
+    </div>
+</div>
 
             <!-- Pestañas -->
             <div class="tabs">
@@ -1050,8 +1030,6 @@
                 // Configurar fechas por defecto
                 document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
                 document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
-                document.getElementById('tipoReporte').value = this.estado.filtros.tipoReporte;
-                document.getElementById('agrupacion').value = this.estado.filtros.agrupacion;
             },
             
             // Cambiar pestaña activa
@@ -1345,8 +1323,9 @@ cargarDatosReporte: async function() {
         // Máquinas
         const contMaq = document.getElementById('res-maquinas');
         if (contMaq) {
-            const maquinas = Object.values(data.resumen_maquinas || {})
-                .sort((a, b) => (b.ingresos_totales || 0) - (a.ingresos_totales || 0));
+           const maquinas = Object.entries(data.resumen_maquinas || {})
+    .map(([nombre, datos]) => ({ ...datos, maquina_nombre: datos.maquina_nombre || nombre }))
+    .sort((a, b) => (parseFloat(b.ingresos_totales) || 0) - (parseFloat(a.ingresos_totales) || 0));
             if (maquinas.length === 0) {
                 contMaq.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm">Sin datos de máquinas en este período</div>`;
             } else {
@@ -1401,7 +1380,7 @@ cargarDatosReporte: async function() {
                     let url;
                     if (tipoReporte === 'ventas') {
                         // Usar la API simplificada para ventas
-                        url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
+                       const url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
                     } else {
                         // Para liquidaciones usar otra API (si la tienes)
                         url = `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
@@ -1581,15 +1560,17 @@ cargarDatosReporte: async function() {
             },
             
             // Aplicar filtros
-            aplicarFiltros: function() {
-                this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
-                this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
-                this.estado.filtros.tipoReporte = document.getElementById('tipoReporte').value;
-                this.estado.filtros.agrupacion = document.getElementById('agrupacion').value;
-                this.estado.filtros.paginacion.paginaActual = 1;
-                
-                this.actualizarDatos();
-            },
+           aplicarFiltros: function() {
+    this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
+    this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
+    this.estado.filtros.paginacion.paginaActual = 1;
+    this.actualizarDatos();
+    // Si estamos en resumen, recargar también
+    const pestanaResumen = document.getElementById('pestanaResumen');
+    if (pestanaResumen && !pestanaResumen.classList.contains('hidden')) {
+        this.cargarDatosReporte();
+    }
+},
             
             // Actualizar la tabla con los datos actuales
          actualizarTabla: function() {
