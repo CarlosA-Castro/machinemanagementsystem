@@ -8557,11 +8557,12 @@ def calcular_liquidacion():
                     AND qh.es_venta_real = TRUE
                     GROUP BY p.id, p.nombre
                 """, (fecha_inicio, fecha_fin))
-                
+
                 propietarios_data = cursor.fetchall()
-                
+
                 for prop in propietarios_data:
                     distribucion_propietarios[prop['propietario_nombre']] = {
+                        'propietario_id': prop['propietario_id'],
                         'total_ingresos': float(prop['total_ingresos']),
                         'ventas_asociadas': prop['ventas_asociadas'],
                         'detalles_maquinas': prop['maquinas_nombres'].split(', ') if prop['maquinas_nombres'] else []
