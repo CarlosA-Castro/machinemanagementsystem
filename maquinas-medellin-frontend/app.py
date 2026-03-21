@@ -11994,6 +11994,245 @@ def obtener_historial_devoluciones(qr_code):
         if connection:
             connection.close()
 
+# ==================== APIS PARA GASTOS DE LIQUIDACIÓN ====================
+
+@app.route('/api/gastos-liquidacion', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_gastos_liquidacion():
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio = request.args.get('fecha_inicio')
+        fecha_fin    = request.args.get('fecha_fin')
+        propietario_id = request.args.get('propietario_id')
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        query = """
+            SELECT g.*, p.nombre as propietario_nombre
+            FROM gastos_liquidacion g
+            JOIN propietarios p ON g.propietario_id = p.id
+            WHERE 1=1
+        """
+        params = []
+
+        if fecha_inicio:
+            query += " AND g.fecha_inicio >= %s"
+            params.append(fecha_inicio)
+        if fecha_fin:
+            query += " AND g.fecha_fin <= %s"
+            params.append(fecha_fin)
+        if propietario_id:
+            query += " AND g.propietario_id = %s"
+            params.append(propietario_id)
+
+        query += " ORDER BY g.fecha_inicio DESC, g.propietario_id"
+        cursor.execute(query, params)
+        gastos = cursor.fetchall()
+
+        for g in gastos:
+            if g.get('createdAt'):
+                g['createdAt'] = g['createdAt'].isoformat()
+
+        return jsonify(gastos)
+
+    except Exception as e:
+        app.logger.error(f"Error obteniendo gastos: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/gastos-liquidacion', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def crear_gasto_liquidacion():
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        propietario_id = data.get('propietario_id')
+        fecha_inicio   = data.get('fecha_inicio')
+        fecha_fin      = data.get('fecha_fin')
+        concepto       = data.get('concepto', '').strip()
+        monto          = float(data.get('monto', 0))
+        tipo           = data.get('tipo', 'fijo')
+        porcentaje     = data.get('porcentaje')
+        notas          = data.get('notas', '')
+
+        if not all([propietario_id, fecha_inicio, fecha_fin, concepto]):
+            return api_response('E005', http_status=400, data={'message': 'Faltan campos requeridos'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            INSERT INTO gastos_liquidacion
+            (propietario_id, fecha_inicio, fecha_fin, concepto, monto, tipo, porcentaje, notas, creado_por)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (propietario_id, fecha_inicio, fecha_fin, concepto, monto, tipo, porcentaje, notas, session.get('user_id')))
+
+        connection.commit()
+        gasto_id = cursor.lastrowid
+        app.logger.info(f"Gasto creado: {concepto} para propietario {propietario_id}")
+
+        return jsonify({'success': True, 'gasto_id': gasto_id})
+
+    except Exception as e:
+        app.logger.error(f"Error creando gasto: {e}")
+        if connection: connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/gastos-liquidacion/<int:gasto_id>', methods=['DELETE'])
+@handle_api_errors
+@require_login(['admin'])
+def eliminar_gasto_liquidacion(gasto_id):
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT id FROM gastos_liquidacion WHERE id = %s", (gasto_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404)
+
+        cursor.execute("DELETE FROM gastos_liquidacion WHERE id = %s", (gasto_id,))
+        connection.commit()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        app.logger.error(f"Error eliminando gasto: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/liquidaciones/distribucion-socios', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def calcular_distribucion_socios():
+    """Calcular cuánto le corresponde a cada propietario después de gastos"""
+    connection = None
+    cursor = None
+    try:
+        data         = request.get_json()
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin    = data.get('fecha_fin')
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        # 1. Ingresos por propietario desde ventas reales
+        cursor.execute("""
+            SELECT
+                p.id as propietario_id,
+                p.nombre as propietario_nombre,
+                COALESCE(SUM(
+                    tp.price
+                    * (100 - COALESCE(mpr.porcentaje_restaurante, 35)) / 100
+                    * mp.porcentaje_propiedad / 100
+                ), 0) as ingresos_brutos
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            JOIN maquinapropietario mp ON m.id = mp.maquina_id
+            JOIN propietarios p ON mp.propietario_id = p.id
+            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY p.id, p.nombre
+            ORDER BY ingresos_brutos DESC
+        """, (fecha_inicio, fecha_fin))
+
+        propietarios = cursor.fetchall()
+
+        # 2. Gastos registrados en el período
+        cursor.execute("""
+            SELECT g.*, p.nombre as propietario_nombre
+            FROM gastos_liquidacion g
+            JOIN propietarios p ON g.propietario_id = p.id
+            WHERE g.fecha_inicio >= %s AND g.fecha_fin <= %s
+            ORDER BY g.propietario_id
+        """, (fecha_inicio, fecha_fin))
+
+        gastos = cursor.fetchall()
+
+        # 3. Construir distribución
+        distribucion = {}
+        for prop in propietarios:
+            pid = prop['propietario_id']
+            distribucion[pid] = {
+                'propietario_id':   pid,
+                'nombre':           prop['propietario_nombre'],
+                'ingresos_brutos':  float(prop['ingresos_brutos']),
+                'gastos':           [],
+                'total_gastos':     0,
+                'neto':             0
+            }
+
+        # Agregar gastos a cada propietario
+        for gasto in gastos:
+            pid = gasto['propietario_id']
+            if pid not in distribucion:
+                distribucion[pid] = {
+                    'propietario_id': pid,
+                    'nombre':         gasto['propietario_nombre'],
+                    'ingresos_brutos': 0,
+                    'gastos':          [],
+                    'total_gastos':    0,
+                    'neto':            0
+                }
+            monto = float(gasto['monto'])
+            if gasto['tipo'] == 'porcentaje' and gasto['porcentaje']:
+                monto = distribucion[pid]['ingresos_brutos'] * float(gasto['porcentaje']) / 100
+            distribucion[pid]['gastos'].append({
+                'id':       gasto['id'],
+                'concepto': gasto['concepto'],
+                'monto':    monto,
+                'tipo':     gasto['tipo']
+            })
+            distribucion[pid]['total_gastos'] += monto
+
+        # Calcular neto
+        for pid in distribucion:
+            d = distribucion[pid]
+            d['neto'] = d['ingresos_brutos'] - d['total_gastos']
+
+        return jsonify({
+            'success':      True,
+            'distribucion': list(distribucion.values()),
+            'periodo':      {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin}
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error calculando distribución socios: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
 # ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':
