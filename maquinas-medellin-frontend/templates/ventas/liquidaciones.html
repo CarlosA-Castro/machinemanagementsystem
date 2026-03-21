@@ -1279,9 +1279,13 @@
     document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
     document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
 
-    if (['resumen', 'propietarios', 'maquinas'].includes(pestana)) {
-        this.cargarDatosReporte();
-    }
+   if (['resumen', 'propietarios', 'maquinas'].includes(pestana)) {
+    this.cargarDatosReporte().then(() => {
+        if (pestana === 'propietarios') {
+            this.calcularDistribucionSocios();
+        }
+    });
+}
     if (pestana === 'detalle') {
         this.cargarDetalle();
     }
@@ -2839,11 +2843,22 @@ filtrarDetalle: function() {
 },
 
 calcularDistribucionSocios: async function() {
-    const fechaInicio = this.estado.filtros.fechaInicio;
-    const fechaFin    = this.estado.filtros.fechaFin;
+    // Tomar fechas del estado o directamente de los inputs
+    const fechaInicio = this.estado.filtros.fechaInicio 
+        || document.getElementById('fechaInicio')?.value;
+    const fechaFin    = this.estado.filtros.fechaFin 
+        || document.getElementById('fechaFin')?.value;
+
+    if (!fechaInicio || !fechaFin) {
+        this.mostrarAlerta('Selecciona un rango de fechas primero', 'warning');
+        return;
+    }
 
     const cont = document.getElementById('dist-socios-tarjetas');
-    if (cont) cont.innerHTML = `<div class="col-span-full text-center py-6"><div class="loading mx-auto mb-2"></div><p class="text-gray-500 text-sm">Calculando...</p></div>`;
+    if (cont) cont.innerHTML = `<div class="col-span-full text-center py-6">
+        <div class="loading mx-auto mb-2"></div>
+        <p class="text-gray-500 text-sm">Calculando...</p>
+    </div>`;
 
     try {
         const r = await fetch('/api/liquidaciones/distribucion-socios', {
@@ -2864,9 +2879,9 @@ calcularDistribucionSocios: async function() {
         const totalNeto = dist.reduce((s, d) => s + d.neto, 0);
 
         cont.innerHTML = dist.map((d, i) => {
-            const color   = colores[i % colores.length];
-            const pct     = totalNeto > 0 ? ((d.neto / totalNeto) * 100).toFixed(1) : 0;
-            const esNeg   = d.neto < 0;
+            const color = colores[i % colores.length];
+            const pct   = totalNeto > 0 ? ((d.neto / totalNeto) * 100).toFixed(1) : 0;
+            const esNeg = d.neto < 0;
 
             return `
                 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition">
@@ -2897,7 +2912,7 @@ calcularDistribucionSocios: async function() {
                                     </span>
                                     <span class="font-medium text-red-500">-${formatearMoneda(g.monto)}</span>
                                 </div>`).join('')}
-                        </div>` : '<div class="text-xs text-gray-400 mb-3">Sin gastos registrados</div>'}
+                        </div>` : '<div class="text-xs text-gray-400 mb-3 border-t border-gray-100 pt-3">Sin gastos registrados</div>'}
                         <div class="flex justify-between items-center border-t border-gray-100 pt-3">
                             <span class="text-sm font-semibold text-gray-700">Total gastos</span>
                             <span class="text-sm font-bold text-red-500">-${formatearMoneda(d.total_gastos)}</span>
@@ -2910,8 +2925,15 @@ calcularDistribucionSocios: async function() {
                 </div>`;
         }).join('');
 
-        // Cargar también la lista de gastos
+        // Cargar lista de gastos y poblar selector
         this.cargarListaGastos();
+        fetch('/api/propietarios').then(r => r.json()).then(props => {
+            const select = document.getElementById('gastoSocioId');
+            if (select) {
+                select.innerHTML = '<option value="">Seleccionar...</option>' +
+                    props.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+            }
+        });
 
     } catch (e) {
         console.error('Error calculando distribución:', e);
