@@ -2314,6 +2314,80 @@ if (el35)        el35.textContent        = '';
     this.renderizarTablaMaquinas();
 },
 
+renderizarTablaDetallePropietarios: function(dist) {
+    const tbody     = document.getElementById('prop-tabla-detalle');
+    const footTotal = document.getElementById('prop-foot-total');
+    if (!tbody) return;
+
+    const resumenMaq = this.estado.datosReporte?.resumen_maquinas || {};
+    const distProp   = this.estado.datosReporte?.distribucion_propietarios || {};
+    const totalProv  = dist.reduce((s, d) => s + d.ingresos_brutos, 0);
+
+    let filas      = '';
+    let grandTotal = 0;
+
+    dist.sort((a, b) => b.ingresos_brutos - a.ingresos_brutos).forEach(d => {
+        const ingresoProp = d.ingresos_brutos;
+        const pctTotal    = totalProv > 0 ? ((ingresoProp / totalProv) * 100).toFixed(1) : 0;
+        grandTotal       += ingresoProp;
+
+        // Obtener máquinas desde distribucion_propietarios
+        const datoProp   = distProp[d.nombre] || {};
+        const maqNombres = Array.isArray(datoProp.detalles_maquinas)
+            ? datoProp.detalles_maquinas
+            : (typeof datoProp.detalles_maquinas === 'string'
+                ? datoProp.detalles_maquinas.split(', ')
+                : []);
+
+        if (maqNombres.length === 0) {
+            filas += `
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="py-3 px-4 font-semibold text-gray-800">${d.nombre}</td>
+                    <td class="py-3 px-4 text-gray-400 text-sm">—</td>
+                    <td class="py-3 px-4 text-right text-gray-400">—</td>
+                    <td class="py-3 px-4 text-right text-gray-400">—</td>
+                    <td class="py-3 px-4 text-right font-bold text-green-600">${formatearMoneda(ingresoProp)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>
+                    </td>
+                </tr>`;
+        } else {
+            maqNombres.forEach((maqRaw, idx) => {
+                const nombreMaq        = typeof maqRaw === 'object' ? (maqRaw.maquina_nombre || '—') : maqRaw;
+                const infoMaq          = resumenMaq[nombreMaq] || {};
+                const ingresosMaqTotal = parseFloat(infoMaq.ingresos_totales    || 0);
+                const ingresosMaqProv  = parseFloat(infoMaq.ingresos_proveedor  || 0);
+                const pctRestMaq       = parseFloat(infoMaq.porcentaje_restaurante || 35);
+
+                filas += `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 text-sm">
+                        <td class="py-3 px-4 ${idx === 0 ? 'font-semibold text-gray-800' : 'text-gray-300 text-xs pl-6'}">${idx === 0 ? d.nombre : '↳'}</td>
+                        <td class="py-3 px-4">
+                            <span class="flex items-center gap-1.5 text-gray-700">
+                                <i class="fas fa-gamepad text-purple-400 text-xs"></i>${nombreMaq}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-right text-gray-600">
+                            ${ingresosMaqTotal > 0 ? formatearMoneda(ingresosMaqTotal) : '—'}
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${(100 - pctRestMaq).toFixed(0)}%</span>
+                        </td>
+                        <td class="py-3 px-4 text-right font-medium text-green-600">
+                            ${ingresosMaqProv > 0 ? formatearMoneda(ingresosMaqProv) : formatearMoneda(ingresoProp)}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            ${idx === 0 ? `<span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>` : ''}
+                        </td>
+                    </tr>`;
+            });
+        }
+    });
+
+    tbody.innerHTML = filas || `<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">Sin datos</td></tr>`;
+    if (footTotal) footTotal.textContent = formatearMoneda(grandTotal);
+},
+
 renderizarTablaMaquinas: function() {
     const maquinas = [...(this._maquinasData || [])];
     const orden    = document.getElementById('maqOrden')?.value    || 'ingresos';
@@ -2923,6 +2997,7 @@ calcularDistribucionSocios: async function() {
 
         // Cargar lista de gastos y poblar selector
         this.cargarListaGastos();
+        this.renderizarTablaDetallePropietarios(dist);
         fetch('/api/propietarios').then(r => r.json()).then(props => {
             const select = document.getElementById('gastoSocioId');
             if (select) {
@@ -2936,6 +3011,7 @@ calcularDistribucionSocios: async function() {
         this.mostrarAlerta('Error calculando distribución', 'error');
     }
 },
+
 
 cargarListaGastos: async function() {
     const fechaInicio = this.estado.filtros.fechaInicio;
