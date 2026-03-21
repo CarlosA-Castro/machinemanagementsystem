@@ -2651,22 +2651,18 @@ renderizarTablaMaquinas: function() {
                 this.mostrarAlerta('Reporte exportado a PDF correctamente', 'success');
             },
             
-            mostrarCarga: function(mostrar) {
-                const botones = document.querySelectorAll('button');
-                botones.forEach(boton => {
-                    if (mostrar) {
-                        boton.disabled = true;
-                        if (boton.querySelector('.fa-sync-alt')) {
-                            boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
-                        }
-                    } else {
-                        boton.disabled = false;
-                        if (boton.querySelector('.fa-spinner')) {
-                            boton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
-                        }
-                    }
-                });
-            },
+           mostrarCarga: function(mostrar) {
+    const btnActualizar = document.querySelector('button[onclick*="actualizarDatos"]');
+    if (!btnActualizar) return;
+    
+    if (mostrar) {
+        btnActualizar.disabled = true;
+        btnActualizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+    } else {
+        btnActualizar.disabled = false;
+        btnActualizar.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
+    }
+},
 
             // Estado interno del detalle
 _detalleRaw: [],
