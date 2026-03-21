@@ -747,44 +747,50 @@
 </div>
 
                 <!-- Pestaña Gráficos -->
-                <div id="pestanaGraficos" class="pestana-contenido hidden">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        <div class="glass-card">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                                <i class="fas fa-chart-pie mr-2"></i>Distribución de Ingresos
-                            </h3>
-                            <div class="chart-container">
-                                <canvas id="graficoDistribucion"></canvas>
-                            </div>
-                        </div>
-                        <div class="glass-card">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                                <i class="fas fa-chart-bar mr-2"></i>Ventas por Día
-                            </h3>
-                            <div class="chart-container">
-                                <canvas id="graficoVentasDiarias"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="glass-card">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                                <i class="fas fa-chart-line mr-2"></i>Evolución de Ingresos
-                            </h3>
-                            <div class="chart-container">
-                                <canvas id="graficoEvolucion"></canvas>
-                            </div>
-                        </div>
-                        <div class="glass-card">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                                <i class="fas fa-chart-pie mr-2"></i>Ventas por Paquete
-                            </h3>
-                            <div class="chart-container">
-                                <canvas id="graficoPaquetes"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+             <div id="pestanaGraficos" class="pestana-contenido hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Evolución de ingresos -->
+        <div class="glass-card">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-base font-semibold text-gray-800">
+                    <i class="fas fa-chart-line mr-2 text-blue-500"></i>Evolución de Ingresos
+                </h3>
+                <select id="grafEvolucionTipo" class="border border-gray-300 rounded-lg px-2 py-1 text-xs" onchange="LiquidacionesApp.actualizarGraficos()">
+                    <option value="ingresos">Ingresos totales</option>
+                    <option value="restaurante">Restaurante</option>
+                    <option value="proveedor">Proveedores</option>
+                </select>
+            </div>
+            <div class="chart-container"><canvas id="graficoEvolucion"></canvas></div>
+        </div>
+
+        <!-- Distribución restaurante vs proveedores -->
+        <div class="glass-card">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-pie mr-2 text-purple-500"></i>Distribución de Ingresos
+            </h3>
+            <div class="chart-container"><canvas id="graficoDistribucion"></canvas></div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top máquinas -->
+        <div class="glass-card">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">
+                <i class="fas fa-gamepad mr-2 text-green-500"></i>Ingresos por Máquina
+            </h3>
+            <div class="chart-container"><canvas id="graficoMaquinas"></canvas></div>
+        </div>
+
+        <!-- Participación por máquina -->
+        <div class="glass-card">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-pie mr-2 text-orange-500"></i>Participación por Máquina
+            </h3>
+            <div class="chart-container"><canvas id="graficoPorcentajeMaquinas"></canvas></div>
+        </div>
+    </div>
+</div>
 
                 <!-- Pestaña Detalle -->
                <div id="pestanaDetalle" class="pestana-contenido hidden">
@@ -1211,9 +1217,15 @@
     if (pestana === 'detalle') {
         this.cargarDetalle();
     }
-    if (pestana === 'graficos') {
-        setTimeout(() => this.inicializarGraficos(), 100);
-    }
+   if (pestana === 'graficos') {
+    setTimeout(() => {
+        if (!this.estado.datosReporte) {
+            this.cargarDatosReporte().then(() => this._renderGraficos());
+        } else {
+            this._renderGraficos();
+        }
+    }, 100);
+}
 },
             
             // Capitalizar primera letra
@@ -1222,182 +1234,236 @@
             },
             
             // Inicializar gráficos
-            inicializarGraficos: function() {
-                this.crearGraficoDistribucion();
-                this.crearGraficoVentasDiarias();
-                this.crearGraficoEvolucion();
-                this.crearGraficoPaquetes();
+         inicializarGraficos: function() {
+    const data = this.estado.datosReporte;
+    if (!data) {
+        this.cargarDatosReporte().then(() => this._renderGraficos());
+        return;
+    }
+    this._renderGraficos();
+},
+
+_renderGraficos: function() {
+    const data = this.estado.datosReporte;
+    if (!data) return;
+    this._graficoEvolucion();
+    this._graficoDistribucion(data);
+    this._graficoMaquinas(data);
+    this._graficoPorcentajeMaquinas(data);
+},
+
+actualizarGraficos: function() {
+    this._graficoEvolucion();
+},
+
+_destruirGrafico: function(id) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+},
+
+_graficoEvolucion: async function() {
+    this._destruirGrafico('graficoEvolucion');
+    const ctx = document.getElementById('graficoEvolucion')?.getContext('2d');
+    if (!ctx) return;
+
+    const tipo = document.getElementById('grafEvolucionTipo')?.value || 'ingresos';
+
+    // Cargar datos reales por rango de fechas
+    try {
+        const fi = this.estado.filtros.fechaInicio;
+        const ff = this.estado.filtros.fechaFin;
+        const r  = await fetch(`/api/ventas-liquidadas?fechaInicio=${fi}&fechaFin=${ff}&pagina=1&porPagina=500`);
+        const d  = await r.json();
+        const datos = d.datos || [];
+
+        // Agrupar por fecha
+        const grupos = {};
+        datos.forEach(item => {
+            const fecha = item.fecha;
+            if (!grupos[fecha]) grupos[fecha] = { ingresos: 0, restaurante: 0, proveedor: 0 };
+            grupos[fecha].ingresos    += parseFloat(item.ingresos_totales    || 0);
+            grupos[fecha].restaurante += parseFloat(item.ingresos_restaurante || 0);
+            grupos[fecha].proveedor   += parseFloat(item.ingresos_proveedor   || 0);
+        });
+
+        const labels = Object.keys(grupos).sort();
+        const values = labels.map(f => grupos[f][tipo]);
+
+        const colores = {
+            ingresos:    { border: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
+            restaurante: { border: '#10b981', bg: 'rgba(16,185,129,0.15)' },
+            proveedor:   { border: '#8b5cf6', bg: 'rgba(139,92,246,0.15)' }
+        };
+        const col = colores[tipo];
+
+        this.estado.graficos.evolucion = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels.map(f => this.formatearFecha(f)),
+                datasets: [{
+                    label: tipo.charAt(0).toUpperCase() + tipo.slice(1),
+                    data: values,
+                    borderColor: col.border,
+                    backgroundColor: col.bg,
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: col.border,
+                    pointRadius: 4
+                }]
             },
-            
-            // Crear gráfico de distribución
-            crearGraficoDistribucion: function() {
-                const ctx = document.getElementById('graficoDistribucion').getContext('2d');
-                
-                if (this.estado.graficos.distribucion) {
-                    this.estado.graficos.distribucion.destroy();
-                }
-                
-                const gananciaRestaurante = this.estado.datosReporte?.periodo?.total_restaurante || 0;
-                const gananciaProveedor = this.estado.datosReporte?.periodo?.total_proveedor || 0;
-                
-                this.estado.graficos.distribucion = new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Restaurante', 'Proveedores'],
-                        datasets: [{
-                            data: [gananciaRestaurante, gananciaProveedor],
-                            backgroundColor: ['#10b981', '#8b5cf6'],
-                            borderWidth: 2,
-                            borderColor: '#ffffff'
-                        }]
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => formatearMoneda(v) }
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.parsed;
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = Math.round((value / total) * 100);
-                                        return `${label}: ${formatearMoneda(value)} (${percentage}%)`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            },
-            
-            // Crear gráfico de ventas diarias
-            crearGraficoVentasDiarias: function() {
-                const ctx = document.getElementById('graficoVentasDiarias').getContext('2d');
-                
-                if (this.estado.graficos.ventasDiarias) {
-                    this.estado.graficos.ventasDiarias.destroy();
+                    x: { ticks: { maxTicksLimit: 8 } }
                 }
-                
-                // Datos de ejemplo - en producción se obtendrían de la API
-                const datosEjemplo = {
-                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                    datasets: [{
-                        label: 'Ingresos',
-                        data: [120000, 190000, 150000, 180000, 220000, 300000, 280000],
-                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                        borderColor: 'rgb(59, 130, 246)',
-                        borderWidth: 2
-                    }]
-                };
-                
-                this.estado.graficos.ventasDiarias = new Chart(ctx, {
-                    type: 'bar',
-                    data: datosEjemplo,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        return formatearMoneda(value);
-                                    }
-                                }
-                            }
-                        }
+            }
+        });
+    } catch (e) {
+        console.error('Error gráfico evolución:', e);
+    }
+},
+
+_graficoDistribucion: function(data) {
+    this._destruirGrafico('graficoDistribucion');
+    const ctx = document.getElementById('graficoDistribucion')?.getContext('2d');
+    if (!ctx) return;
+
+    const periodo      = data.periodo || {};
+    const restaurante  = parseFloat(periodo.total_restaurante || 0);
+    const proveedor    = parseFloat(periodo.total_proveedor   || 0);
+
+    // Distribución por propietario dentro de proveedores
+    const distProp = data.distribucion_propietarios || {};
+    const propLabels = Object.keys(distProp);
+    const propValues = propLabels.map(k => parseFloat(distProp[k].total_ingresos || 0));
+
+    const labels = propLabels.length > 0
+        ? ['Restaurante', ...propLabels]
+        : ['Restaurante', 'Proveedores'];
+    const values = propLabels.length > 0
+        ? [restaurante, ...propValues]
+        : [restaurante, proveedor];
+
+    const palette = ['#10b981','#8b5cf6','#3b82f6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+
+    this.estado.graficos.distribucion = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: palette.slice(0, labels.length),
+                borderWidth: 3,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.label}: ${formatearMoneda(ctx.parsed)} (${((ctx.parsed / values.reduce((a,b) => a+b,0))*100).toFixed(1)}%)`
                     }
-                });
-            },
-            
-            // Crear gráfico de evolución
-            crearGraficoEvolucion: function() {
-                const ctx = document.getElementById('graficoEvolucion').getContext('2d');
-                
-                if (this.estado.graficos.evolucion) {
-                    this.estado.graficos.evolucion.destroy();
                 }
-                
-                // Datos de ejemplo
-                const datosEjemplo = {
-                    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
-                    datasets: [
-                        {
-                            label: 'Ingresos Totales',
-                            data: [850000, 920000, 780000, 1100000],
-                            borderColor: 'rgb(59, 130, 246)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        },
-                        {
-                            label: 'Ganancia Proveedores',
-                            data: [552500, 598000, 507000, 715000],
-                            borderColor: 'rgb(139, 92, 246)',
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                };
-                
-                this.estado.graficos.evolucion = new Chart(ctx, {
-                    type: 'line',
-                    data: datosEjemplo,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                ticks: {
-                                    callback: function(value) {
-                                        return formatearMoneda(value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            },
-            
-            // Crear gráfico de paquetes
-            crearGraficoPaquetes: function() {
-                const ctx = document.getElementById('graficoPaquetes').getContext('2d');
-                
-                if (this.estado.graficos.paquetes) {
-                    this.estado.graficos.paquetes.destroy();
+            }
+        }
+    });
+},
+
+_graficoMaquinas: function(data) {
+    this._destruirGrafico('graficoMaquinas');
+    const ctx = document.getElementById('graficoMaquinas')?.getContext('2d');
+    if (!ctx) return;
+
+    const maquinas = Object.entries(data.resumen_maquinas || {})
+        .map(([k, m]) => ({ nombre: m.maquina_nombre || k, ingresos: parseFloat(m.ingresos_totales || 0), rest: parseFloat(m.ingresos_restaurante || 0), prov: parseFloat(m.ingresos_proveedor || 0) }))
+        .sort((a, b) => b.ingresos - a.ingresos)
+        .slice(0, 10);
+
+    this.estado.graficos.maquinas = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: maquinas.map(m => m.nombre.length > 14 ? m.nombre.substring(0,14)+'…' : m.nombre),
+            datasets: [
+                {
+                    label: 'Restaurante',
+                    data: maquinas.map(m => m.rest),
+                    backgroundColor: 'rgba(16,185,129,0.8)',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Proveedor',
+                    data: maquinas.map(m => m.prov),
+                    backgroundColor: 'rgba(139,92,246,0.8)',
+                    borderRadius: 4
                 }
-                
-                // Datos de ejemplo
-                const datosEjemplo = {
-                    labels: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'],
-                    datasets: [{
-                        data: [12, 19, 8, 15, 10, 7, 5, 9, 11, 6],
-                        backgroundColor: [
-                            '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
-                            '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
-                        ]
-                    }]
-                };
-                
-                this.estado.graficos.paquetes = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: datosEjemplo,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatearMoneda(ctx.parsed.y)}` } }
             },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => formatearMoneda(v) } }
+            }
+        }
+    });
+},
+
+_graficoPorcentajeMaquinas: function(data) {
+    this._destruirGrafico('graficoPorcentajeMaquinas');
+    const ctx = document.getElementById('graficoPorcentajeMaquinas')?.getContext('2d');
+    if (!ctx) return;
+
+    const maquinas = Object.entries(data.resumen_maquinas || {})
+        .map(([k, m]) => ({ nombre: m.maquina_nombre || k, ingresos: parseFloat(m.ingresos_totales || 0) }))
+        .filter(m => m.ingresos > 0)
+        .sort((a, b) => b.ingresos - a.ingresos)
+        .slice(0, 8);
+
+    const total = maquinas.reduce((s, m) => s + m.ingresos, 0);
+    const palette = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+    this.estado.graficos.porcentajeMaquinas = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: maquinas.map(m => m.nombre),
+            datasets: [{
+                data: maquinas.map(m => m.ingresos),
+                backgroundColor: palette.slice(0, maquinas.length),
+                borderWidth: 3,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 10, font: { size: 10 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.label}: ${formatearMoneda(ctx.parsed)} (${((ctx.parsed / total)*100).toFixed(1)}%)`
+                    }
+                }
+            }
+        }
+    });
+},
             
             // Cargar datos para reportes
 cargarDatosReporte: async function() {
