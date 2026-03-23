@@ -627,6 +627,10 @@
                         <input type="date" name="fecha_inscripcion" required class="form-control">
                     </div>
                     <div>
+    <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Vencimiento *</label>
+    <input type="date" name="fecha_vencimiento" required class="form-control">
+</div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Cuota Anual *</label>
                         <input type="number" name="cuota_anual" required step="0.01" class="form-control">
                     </div>
@@ -1106,6 +1110,9 @@
         form.querySelector('[name="fecha_inscripcion"]').value = hoy;
         form.querySelector('[name="estado"]').value = 'activo';
         form.querySelector('[name="tipo_socio"]').value = 'propietario';
+        const unAno = new Date();
+unAno.setFullYear(unAno.getFullYear() + 1);
+form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().split('T')[0];
         
         titulo.textContent = 'Nuevo Socio';
         modal.classList.add('active');
