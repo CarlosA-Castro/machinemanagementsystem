@@ -849,18 +849,18 @@
             { data: 'codigo_socio' },
             { data: 'nombre' },
             { data: 'documento' },
-            { 
-                data: 'inversion_total',
-                render: function(data) {
-                    return GestionSocios.formatearMoneda(data || 0);
-                }
-            },
-            { 
-                data: 'cuota_anual',
-                render: function(data) {
-                    return GestionSocios.formatearMoneda(data || 0);
-                }
-            },
+           { 
+    data: 'inversion_total',
+    render: function(data) {
+        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(data || 0);
+    }
+},
+          { 
+    data: 'cuota_anual',
+    render: function(data) {
+        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(data || 0);
+    }
+},
             { 
                 data: 'estado',
                 render: function(data) {
@@ -1226,12 +1226,13 @@ form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().spl
     },
 
     actualizarDatos: function() {
-        this.dataTable.ajax.reload();
-        this.cargarEstadisticas();
-        this.cargarTopSocios();
-        this.cargarSociosRecientes();
-        this.mostrarAlerta('Datos actualizados correctamente', 'success');
-    },
+    this.dataTable.ajax.reload();
+    this.cargarEstadisticas();
+    this.cargarTopSocios();
+    this.cargarSociosRecientes();
+    const self = this;
+    setTimeout(() => self.mostrarAlerta('Datos actualizados correctamente', 'success'), 500);
+},
 
     verDetalleCompleto: async function(socioId) {
         try {
