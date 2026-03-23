@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         #particles-js {
@@ -1473,20 +1475,20 @@ form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().spl
                 </div>
                 
                 <!-- Acciones administrativas -->
-                <div class="flex justify-end space-x-3 pt-6 border-t">
-                    <button onclick="GestionSocios.generarReporteSocio(${socio.id})" 
-                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                        <i class="fas fa-file-pdf mr-2"></i>Reporte PDF
-                    </button>
-                    <button onclick="GestionSocios.enviarRecordatorio(${socio.id})" 
-                            class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
-                        <i class="fas fa-envelope mr-2"></i>Enviar Recordatorio
-                    </button>
-                    <button onclick="GestionSocios.agregarInversion(${socio.id})" 
-                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                        <i class="fas fa-plus mr-2"></i>Agregar Inversión
-                    </button>
-                </div>
+<div class="flex justify-end space-x-3 pt-6 border-t flex-wrap gap-2">
+    <button onclick="GestionSocios.generarReporteSocio(${socio.id})" 
+            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+        <i class="fas fa-file-pdf mr-2"></i>Reporte PDF
+    </button>
+    <button onclick="GestionSocios.registrarPago(${socio.id}, ${socio.cuota_anual})" 
+            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+        <i class="fas fa-credit-card mr-2"></i>Registrar Pago
+    </button>
+    <button onclick="GestionSocios.agregarInversion(${socio.id})" 
+            class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+        <i class="fas fa-plus mr-2"></i>Agregar Inversión
+    </button>
+</div>
             </div>
         `;
         
@@ -1515,37 +1517,276 @@ form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().spl
     },
 
     agregarInversion: function(socioId) {
-        this.mostrarAlerta(`Agregando inversión al socio ${socioId}...`, 'info');
-        // Implementar agregar inversión
-    },
-
-    formatearMoneda: function(valor) {
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0
-        }).format(valor || 0);
-    },
-
-    mostrarAlerta: function(mensaje, tipo) {
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            tipo === 'error' ? 'bg-red-500' : 
-            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
-        } text-white max-w-md`;
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${
-                    tipo === 'success' ? 'check-circle' : 
-                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
-                } mr-2"></i>
-                <span>${mensaje}</span>
+    const modalHTML = `
+        <div class="modal-overlay active" id="modalInversion">
+            <div class="modal-content" style="max-width:500px;">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-plus-circle mr-2 text-green-500"></i>Agregar Inversión</h3>
+                    <button onclick="document.getElementById('modalInversion').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+                </div>
+                <form onsubmit="GestionSocios.guardarInversion(event, ${socioId})">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Máquina *</label>
+                            <select id="invMaquinaId" required class="form-control" id="invMaquinaId">
+                                <option value="">Cargando máquinas...</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">% Propiedad *</label>
+                                <input type="number" id="invPorcentaje" required min="0.1" max="100" step="0.1" class="form-control" placeholder="ej. 50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Inversión Inicial</label>
+                                <input type="number" id="invMonto" min="0" class="form-control" placeholder="0">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Adquisición *</label>
+                            <input type="date" id="invFecha" required class="form-control" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                            <textarea id="invNotas" rows="2" class="form-control" placeholder="Observaciones..."></textarea>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-4">
+                        <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
+                            <i class="fas fa-save mr-2"></i>Guardar
+                        </button>
+                        <button type="button" onclick="document.getElementById('modalInversion').remove()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
             </div>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.remove(), 4000);
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Cargar máquinas
+    fetch('/api/maquinas')
+        .then(r => r.json())
+        .then(maquinas => {
+            const sel = document.getElementById('invMaquinaId');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">Seleccionar máquina...</option>' +
+                (Array.isArray(maquinas) ? maquinas : (maquinas.maquinas || [])).map(m =>
+                    `<option value="${m.id}">${m.name || m.nombre}</option>`
+                ).join('');
+        })
+        .catch(() => {
+            const sel = document.getElementById('invMaquinaId');
+            if (sel) sel.innerHTML = '<option value="">Error cargando máquinas</option>';
+        });
+},
+
+guardarInversion: async function(event, socioId) {
+    event.preventDefault();
+    try {
+        const r = await fetch(`/api/socios/${socioId}/inversiones`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                maquina_id:           document.getElementById('invMaquinaId').value,
+                porcentaje_propiedad: document.getElementById('invPorcentaje').value,
+                inversion_inicial:    document.getElementById('invMonto').value || 0,
+                fecha_adquisicion:    document.getElementById('invFecha').value,
+                notas:                document.getElementById('invNotas').value
+            })
+        });
+        const data = await r.json();
+        if (data.success) {
+            document.getElementById('modalInversion').remove();
+            this.mostrarAlerta('Inversión registrada correctamente', 'success');
+            this.verDetalleCompleto(socioId);
+        } else {
+            this.mostrarAlerta('Error al guardar inversión', 'error');
+        }
+    } catch (e) {
+        this.mostrarAlerta('Error de conexión', 'error');
     }
+},
+
+registrarPago: function(socioId, cuotaAnual) {
+    const hoy = new Date().toISOString().split('T')[0];
+    const unAno = new Date();
+    unAno.setFullYear(unAno.getFullYear() + 1);
+
+    const modalHTML = `
+        <div class="modal-overlay active" id="modalPago">
+            <div class="modal-content" style="max-width:450px;">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-credit-card mr-2 text-blue-500"></i>Registrar Pago</h3>
+                    <button onclick="document.getElementById('modalPago').remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+                </div>
+                <form onsubmit="GestionSocios.guardarPago(event, ${socioId})">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Pago</label>
+                            <select id="pagoTipo" class="form-control">
+                                <option value="cuota_anual">Cuota Anual</option>
+                                <option value="inversion">Inversión</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Monto *</label>
+                            <input type="number" id="pagoMonto" required min="0" class="form-control" value="${cuotaAnual || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
+                            <select id="pagoMetodo" class="form-control">
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="nequi">Nequi</option>
+                                <option value="daviplata">Daviplata</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Pago</label>
+                                <input type="date" id="pagoFecha" class="form-control" value="${hoy}">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Vencimiento</label>
+                                <input type="date" id="pagoVencimiento" class="form-control" value="${unAno.toISOString().split('T')[0]}">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                            <textarea id="pagoNotas" rows="2" class="form-control"></textarea>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-4">
+                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Registrar
+                        </button>
+                        <button type="button" onclick="document.getElementById('modalPago').remove()" class="flex-1 bg-gray-400 text-white py-2 rounded-lg">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+},
+
+guardarPago: async function(event, socioId) {
+    event.preventDefault();
+    try {
+        const r = await fetch(`/api/socios/${socioId}/pagos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                monto:             document.getElementById('pagoMonto').value,
+                tipo_pago:         document.getElementById('pagoTipo').value,
+                metodo_pago:       document.getElementById('pagoMetodo').value,
+                fecha_pago:        document.getElementById('pagoFecha').value,
+                fecha_vencimiento: document.getElementById('pagoVencimiento').value,
+                notas:             document.getElementById('pagoNotas').value
+            })
+        });
+        const data = await r.json();
+        if (data.success) {
+            document.getElementById('modalPago').remove();
+            this.mostrarAlerta('Pago registrado correctamente', 'success');
+            this.verDetalleCompleto(socioId);
+        } else {
+            this.mostrarAlerta('Error al registrar pago', 'error');
+        }
+    } catch (e) {
+        this.mostrarAlerta('Error de conexión', 'error');
+    }
+},
+
+generarReporteSocio: function(socioId) {
+    const contenido = document.getElementById('detalle-completo-contenido');
+    if (!contenido) return;
+
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+        this.mostrarAlerta('PDF no disponible, recarga la página', 'error');
+        return;
+    }
+
+    const doc = new jsPDF();
+    const ahora = new Date().toLocaleDateString('es-CO');
+
+    // Header
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.text('Reporte de Socio', 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Generado: ${ahora}`, 150, 18);
+
+    // Extraer texto del modal
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+
+    const nombre = contenido.querySelector('h3')?.textContent?.trim() || 'Socio';
+    doc.setFontSize(14);
+    doc.text(nombre, 14, 42);
+
+    // Stats
+    const statsEls = contenido.querySelectorAll('.bg-gray-50 .text-xl');
+    let y = 55;
+    statsEls.forEach(el => {
+        const label = el.previousElementSibling?.textContent?.trim();
+        const valor = el.textContent?.trim();
+        if (label && valor) {
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(label + ':', 14, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(11);
+            doc.text(valor, 80, y);
+            y += 8;
+        }
+    });
+
+    // Tablas
+    const tablas = contenido.querySelectorAll('table');
+    tablas.forEach(tabla => {
+        if (y > 250) { doc.addPage(); y = 20; }
+        const titulo = tabla.closest('div')?.previousElementSibling?.textContent?.trim();
+        if (titulo) {
+            y += 6;
+            doc.setFontSize(12);
+            doc.setTextColor(37, 99, 235);
+            doc.text(titulo, 14, y);
+            y += 6;
+            doc.setTextColor(0, 0, 0);
+        }
+
+        const headers = [...tabla.querySelectorAll('thead th')].map(th => th.textContent.trim());
+        const rows    = [...tabla.querySelectorAll('tbody tr')].map(tr =>
+            [...tr.querySelectorAll('td')].map(td => td.textContent.trim().substring(0, 20))
+        );
+
+        if (headers.length && rows.length) {
+            doc.autoTable({
+                startY: y,
+                head: [headers],
+                body: rows,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 8 },
+                bodyStyles: { fontSize: 8 },
+                margin: { left: 14, right: 14 }
+            });
+            y = doc.lastAutoTable.finalY + 10;
+        }
+    });
+
+    doc.save(`socio_${socioId}_${ahora.replace(/\//g,'-')}.pdf`);
+    this.mostrarAlerta('PDF generado correctamente', 'success');
+},
+
+enviarRecordatorio: function(socioId) {
+    this.mostrarAlerta('Función de email no configurada aún', 'info');
+},
 };
 
 // Inicializar cuando el DOM esté listo

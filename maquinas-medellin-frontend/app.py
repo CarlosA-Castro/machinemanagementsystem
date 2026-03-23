@@ -223,8 +223,34 @@ class MessageService:
             'E004': {'code': 'E004', 'type': 'error', 'text': 'Acceso prohibido'},
             'E005': {'code': 'E005', 'type': 'error', 'text': 'Parámetros inválidos'},
             'E006': {'code': 'E006', 'type': 'error', 'text': 'Error de conexión a la base de datos'},
+            'E007': {'code': 'E007', 'type': 'error', 'text': 'Recurso ya existe o acción inválida'},
             'A001': {'code': 'A001', 'type': 'error', 'text': 'Credenciales inválidas'},
+            'A004': {'code': 'A004', 'type': 'error', 'text': 'No autenticado'},
+            'I001': {'code': 'I001', 'type': 'info', 'text': 'Información no disponible'},
+            'M001': {'code': 'M001', 'type': 'error', 'text': 'Máquina no encontrada'},
+            'M007': {'code': 'M007', 'type': 'error', 'text': 'Reporte no encontrado'},
+            'Q001': {'code': 'Q001', 'type': 'error', 'text': 'Código QR no encontrado'},
+            'Q002': {'code': 'Q002', 'type': 'error', 'text': 'QR ya tiene paquete asignado'},
+            'Q003': {'code': 'Q003', 'type': 'error', 'text': 'No hay turnos disponibles'},
+            'Q004': {'code': 'Q004', 'type': 'error', 'text': 'Paquete no encontrado'},
             'S001': {'code': 'S001', 'type': 'success', 'text': 'Operación exitosa'},
+            'S002': {'code': 'S002', 'type': 'success', 'text': 'Creación exitosa'},
+            'S003': {'code': 'S003', 'type': 'success', 'text': 'Actualización exitosa'},
+            'S004': {'code': 'S004', 'type': 'success', 'text': 'Eliminación exitosa'},
+            'S006': {'code': 'S006', 'type': 'success', 'text': 'Registro guardado'},
+            'S007': {'code': 'S007', 'type': 'success', 'text': 'Venta registrada'},
+            'S009': {'code': 'S009', 'type': 'success', 'text': 'Reporte resuelto exitosamente'},
+            'S010': {'code': 'S010', 'type': 'success', 'text': 'Uso registrado exitosamente'},
+            'S011': {'code': 'S011', 'type': 'success', 'text': 'Datos técnicos obtenidos con éxito'},
+            'S012': {'code': 'S012', 'type': 'success', 'text': 'Falla reportada desde TFT'},
+            'S013': {'code': 'S013', 'type': 'success', 'text': 'Reinicio registrado'},
+            'S014': {'code': 'S014', 'type': 'success', 'text': 'Turno manual ingresado'},
+            'W004': {'code': 'W004', 'type': 'warning', 'text': 'Entidad en uso y no puede eliminarse'},
+            'U001': {'code': 'U001', 'type': 'error', 'text': 'Usuario no encontrado'},
+            'U002': {'code': 'U002', 'type': 'error', 'text': 'Usuario ya existe'},
+            'U003': {'code': 'U003', 'type': 'error', 'text': 'Contraseña inválida (mínimo 6 caracteres)'},
+            'U004': {'code': 'U004', 'type': 'error', 'text': 'Rol no válido'},
+            'U005': {'code': 'U005', 'type': 'error', 'text': 'No puedes realizar esta operación sobre tu propio usuario'},
         }
         
         message = default_messages.get(message_code, {
@@ -9021,13 +9047,37 @@ def crear_socio():
         connection.commit()
         
         app.logger.info(f"Socio creado: {data['nombre']} (Código: {codigo_socio})")
-        
+
+        # Crear usuario automáticamente con rol socio
+        try:
+            import hashlib, secrets
+            password_temp = secrets.token_urlsafe(8)
+            password_hash = hashlib.sha256(password_temp.encode()).hexdigest()
+            
+            cursor.execute("""
+                INSERT INTO users (name, password, role, local, isActive, createdAt)
+                VALUES (%s, %s, 'socio', 'El Mekatiadero', 1, NOW())
+            """, (data.get('nombre'), password_hash))
+            
+            user_id = cursor.lastrowid
+            
+            # Guardar referencia usuario-socio en notas del usuario
+            cursor.execute("""
+                UPDATE users SET notes = %s WHERE id = %s
+            """, (f"Socio ID: {socio_id} | Contraseña temporal: {password_temp}", user_id))
+            
+            connection.commit()
+            app.logger.info(f"Usuario creado para socio {socio_id}: user_id={user_id}, pass_temp={password_temp}")
+        except Exception as e:
+            app.logger.warning(f"No se pudo crear usuario para socio: {e}")
+            # No fallar si el usuario no se puede crear
+
         return api_response(
             'S002',
             status='success',
             data={'socio_id': socio_id, 'codigo_socio': codigo_socio}
         )
-        
+
     except Exception as e:
         app.logger.error(f"Error creando socio: {e}")
         if connection:
@@ -12230,6 +12280,244 @@ def calcular_distribucion_socios():
     except Exception as e:
         app.logger.error(f"Error calculando distribución socios: {e}")
         return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+# ==================== INVERSIONES DE SOCIOS ====================
+
+@app.route('/api/socios/<int:socio_id>/inversiones', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_inversiones_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            SELECT mp.*, m.name as maquina_nombre, m.status as maquina_estado
+            FROM maquinapropietario mp
+            JOIN machine m ON mp.maquina_id = m.id
+            JOIN propietarios p ON mp.propietario_id = p.id
+            JOIN socios s ON s.nombre = p.nombre
+            WHERE s.id = %s
+            ORDER BY mp.fecha_adquisicion DESC
+        """, (socio_id,))
+
+        inversiones = cursor.fetchall()
+        for inv in inversiones:
+            for key, val in inv.items():
+                if hasattr(val, 'isoformat'):
+                    inv[key] = val.isoformat()
+        return jsonify(inversiones)
+
+    except Exception as e:
+        app.logger.error(f"Error obteniendo inversiones socio {socio_id}: {e}")
+        return jsonify([])
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/socios/<int:socio_id>/inversiones', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def agregar_inversion_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        maquina_id        = data.get('maquina_id')
+        porcentaje        = float(data.get('porcentaje_propiedad', 0))
+        inversion_inicial = float(data.get('inversion_inicial', 0))
+        fecha             = data.get('fecha_adquisicion')
+        notas             = data.get('notas', '')
+
+        if not all([maquina_id, porcentaje]):
+            return api_response('E005', http_status=400, data={'message': 'Faltan campos requeridos'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        # Obtener propietario_id vinculado al socio
+        cursor.execute("""
+            SELECT p.id FROM propietarios p
+            JOIN socios s ON s.nombre = p.nombre
+            WHERE s.id = %s LIMIT 1
+        """, (socio_id,))
+        prop = cursor.fetchone()
+        if not prop:
+            # Crear propietario si no existe
+            cursor.execute("SELECT nombre FROM socios WHERE id = %s", (socio_id,))
+            socio = cursor.fetchone()
+            if not socio:
+                return api_response('E002', http_status=404)
+            cursor.execute("INSERT INTO propietarios (nombre) VALUES (%s)", (socio['nombre'],))
+            propietario_id = cursor.lastrowid
+        else:
+            propietario_id = prop['id']
+
+        cursor.execute("""
+            INSERT INTO maquinapropietario
+            (maquina_id, propietario_id, porcentaje_propiedad, inversion_inicial, fecha_adquisicion, estado_inversion, notas)
+            VALUES (%s, %s, %s, %s, %s, 'activa', %s)
+        """, (maquina_id, propietario_id, porcentaje, inversion_inicial, fecha, notas))
+
+        # Actualizar inversion_total del socio
+        cursor.execute("""
+            UPDATE socios SET inversion_total = inversion_total + %s WHERE id = %s
+        """, (inversion_inicial, socio_id))
+
+        connection.commit()
+        return jsonify({'success': True, 'inversion_id': cursor.lastrowid})
+
+    except Exception as e:
+        app.logger.error(f"Error agregando inversión socio {socio_id}: {e}")
+        if connection: connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+# ==================== PAGOS DE SOCIOS ====================
+
+@app.route('/api/socios/<int:socio_id>/pagos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_pagos_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            SELECT * FROM pagoscuotas
+            WHERE socio_id = %s
+            ORDER BY fecha_vencimiento DESC
+        """, (socio_id,))
+
+        pagos = cursor.fetchall()
+        for p in pagos:
+            for key, val in p.items():
+                if hasattr(val, 'isoformat'):
+                    p[key] = val.isoformat()
+        return jsonify(pagos)
+
+    except Exception as e:
+        app.logger.error(f"Error obteniendo pagos socio {socio_id}: {e}")
+        return jsonify([])
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/socios/<int:socio_id>/pagos', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def registrar_pago_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        data          = request.get_json()
+        monto         = float(data.get('monto', 0))
+        tipo_pago     = data.get('tipo_pago', 'cuota_anual')
+        metodo_pago   = data.get('metodo_pago', 'efectivo')
+        fecha_pago    = data.get('fecha_pago')
+        fecha_venc    = data.get('fecha_vencimiento')
+        notas         = data.get('notas', '')
+
+        if not monto:
+            return api_response('E005', http_status=400, data={'message': 'Monto requerido'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            INSERT INTO pagoscuotas
+            (socio_id, monto, tipo_pago, metodo_pago, fecha_pago, fecha_vencimiento, estado, notas)
+            VALUES (%s, %s, %s, %s, %s, %s, 'pagado', %s)
+        """, (socio_id, monto, tipo_pago, metodo_pago, fecha_pago, fecha_venc, notas))
+
+        connection.commit()
+        return jsonify({'success': True, 'pago_id': cursor.lastrowid})
+
+    except Exception as e:
+        app.logger.error(f"Error registrando pago socio {socio_id}: {e}")
+        if connection: connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+# ==================== INGRESOS REALES DE SOCIOS ====================
+
+@app.route('/api/socios/<int:socio_id>/ingresos/ultimos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_ingresos_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            SELECT
+                DATE(qh.fecha_hora) as fecha_periodo,
+                m.name as maquina_nombre,
+                COUNT(qh.qr_code) as turnos_totales,
+                SUM(tp.price) as ingresos_brutos,
+                SUM(
+                    tp.price
+                    * (100 - COALESCE(mpr.porcentaje_restaurante, 35)) / 100
+                    * mp.porcentaje_propiedad / 100
+                ) as ganancia_neta,
+                1 as liquidado
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            JOIN turnusage tu ON qr.id = tu.qrCodeId
+            JOIN machine m ON tu.machineId = m.id
+            JOIN maquinapropietario mp ON m.id = mp.maquina_id
+            JOIN propietarios p ON mp.propietario_id = p.id
+            JOIN socios s ON s.nombre = p.nombre
+            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+            WHERE s.id = %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            GROUP BY DATE(qh.fecha_hora), m.id
+            ORDER BY fecha_periodo DESC
+            LIMIT 50
+        """, (socio_id,))
+
+        ingresos = cursor.fetchall()
+        for ing in ingresos:
+            for key, val in ing.items():
+                if hasattr(val, 'isoformat'):
+                    ing[key] = val.isoformat()
+                elif hasattr(val, '__float__'):
+                    ing[key] = float(val)
+        return jsonify(ingresos)
+
+    except Exception as e:
+        app.logger.error(f"Error obteniendo ingresos socio {socio_id}: {e}")
+        return jsonify([])
     finally:
         if cursor: cursor.close()
         if connection: connection.close()
