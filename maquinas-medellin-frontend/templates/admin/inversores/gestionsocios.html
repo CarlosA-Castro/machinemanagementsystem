@@ -923,33 +923,32 @@
 },
 
     cargarEstadisticas: async function() {
-        try {
-            const response = await fetch('/api/socios/estadisticas');
+    const self = this;
+    try {
+        const response = await fetch('/api/socios/estadisticas');
+        if (response.ok) {
+            const data = await response.json();
+            const fmt = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
 
-            if (response.ok) {
-                const data = await response.json();
+            document.getElementById('total-socios').textContent     = data.total_socios || 0;
+            document.getElementById('inversion-total').textContent  = fmt(data.inversion_total || 0);
+            document.getElementById('pagos-pendientes').textContent = data.cuotas_pendientes || 0;
+            document.getElementById('roi-promedio').textContent     = `${(data.roi_promedio || 0).toFixed(1)}%`;
 
-                document.getElementById('total-socios').textContent = data.total_socios || 0;
-                document.getElementById('inversion-total').textContent = this.formatearMoneda(data.inversion_total || 0);
-                document.getElementById('pagos-pendientes').textContent = data.cuotas_pendientes || 0;
-                document.getElementById('roi-promedio').textContent = `${(data.roi_promedio || 0).toFixed(1)}%`;
-
-                // Actualizar gráfico de estados con datos reales
-                if (this.charts.estados) {
-                    const suspendidos = (data.total_socios || 0) - (data.socios_activos || 0) - (data.socios_inactivos || 0) - (data.socios_pendientes || 0);
-                    this.charts.estados.data.datasets[0].data = [
-                        data.socios_activos || 0,
-                        data.socios_inactivos || 0,
-                        data.socios_pendientes || 0,
-                        Math.max(0, suspendidos)
-                    ];
-                    this.charts.estados.update();
-                }
+            if (self.charts.estados) {
+                self.charts.estados.data.datasets[0].data = [
+                    data.socios_activos   || 0,
+                    data.socios_inactivos || 0,
+                    data.socios_pendientes || 0,
+                    Math.max(0, (data.total_socios || 0) - (data.socios_activos || 0) - (data.socios_inactivos || 0) - (data.socios_pendientes || 0))
+                ];
+                self.charts.estados.update();
             }
-        } catch (error) {
-            console.error('Error cargando estadísticas:', error);
         }
-    },
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+    }
+},
 
     inicializarGraficos: function() {
         // Gráfico de distribución por estado
@@ -1235,266 +1234,255 @@ form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().spl
 },
 
     verDetalleCompleto: async function(socioId) {
-        try {
-            const modal = document.getElementById('modalDetalleCompleto');
-            const contenido = document.getElementById('detalle-completo-contenido');
-            
-            // Mostrar loading
-            contenido.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="loading mx-auto mb-4"></div>
-                    <p class="text-gray-600">Cargando detalles del socio...</p>
-                </div>
-            `;
-            
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            // Cargar datos completos
-            const [socioRes, maquinasRes, ingresosRes, pagosRes] = await Promise.all([
-                fetch(`/api/socios/${socioId}`),
-                fetch(`/api/socios/${socioId}/inversiones`),
-                fetch(`/api/socios/${socioId}/ingresos/ultimos`),
-                fetch(`/api/socios/${socioId}/pagos`)
-            ]);
-            
-            const socioData = await socioRes.json();
-            const maquinas = await maquinasRes.json();
-            const ingresos = await ingresosRes.json();
-            const pagos = await pagosRes.json();
+    const self = this;
+    const modal    = document.getElementById('modalDetalleCompleto');
+    const contenido = document.getElementById('detalle-completo-contenido');
 
-            this.renderizarDetalleCompleto(socioData.socio, maquinas, ingresos, pagos);
-        } catch (error) {
-            console.error('Error cargando detalles:', error);
-            contenido.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-red-500 mb-4">
-                        <i class="fas fa-exclamation-triangle text-3xl"></i>
-                    </div>
-                    <p class="text-red-600">Error al cargar los detalles</p>
-                </div>
-            `;
-        }
-    },
+    contenido.innerHTML = `
+        <div class="text-center py-8">
+            <div class="loading mx-auto mb-4"></div>
+            <p class="text-gray-600">Cargando detalles del socio...</p>
+        </div>`;
 
-    renderizarDetalleCompleto: function(socio, maquinas, ingresos, pagos) {
-        const contenido = document.getElementById('detalle-completo-contenido');
-        
-        // Calcular estadísticas
-        const totalInvertido = maquinas.reduce((sum, m) => sum + (parseFloat(m.inversion_inicial) || 0), 0);
-        const totalIngresos = ingresos.reduce((sum, i) => sum + (parseFloat(i.ganancia_neta) || 0), 0);
-        const roi = totalInvertido > 0 ? (totalIngresos / totalInvertido * 100).toFixed(1) : 0;
-        const pagosPendientes = pagos.filter(p => p.estado === 'pendiente').length;
-        
-        const html = `
-            <div class="space-y-6">
-                <!-- Información básica -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="md:col-span-2">
-                        <div class="bg-gray-50 rounded-lg p-6">
-                            <div class="flex items-center mb-4">
-                                <div class="bg-blue-100 p-3 rounded-full mr-4">
-                                    <i class="fas fa-user-tie text-blue-600 text-xl"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-xl font-bold">${socio.nombre}</h3>
-                                    <p class="text-gray-600">
-                                        ${socio.documento} | ${socio.codigo_socio} | ${socio.tipo_socio}
-                                    </p>
-                                </div>
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    try {
+        const [socioRes, maquinasRes, ingresosRes, pagosRes] = await Promise.all([
+            fetch(`/api/socios/${socioId}`),
+            fetch(`/api/socios/${socioId}/inversiones`),
+            fetch(`/api/socios/${socioId}/ingresos/ultimos`),
+            fetch(`/api/socios/${socioId}/pagos`)
+        ]);
+
+        const socioData = await socioRes.json();
+        const maquinas  = await maquinasRes.json();
+        const ingresos  = await ingresosRes.json();
+        const pagos     = await pagosRes.json();
+
+        self.renderizarDetalleCompleto(socioData.socio, maquinas, ingresos, pagos);
+    } catch (error) {
+        console.error('Error cargando detalles:', error);
+        contenido.innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-red-500 mb-4"><i class="fas fa-exclamation-triangle text-3xl"></i></div>
+                <p class="text-red-600">Error al cargar los detalles: ${error.message}</p>
+            </div>`;
+    }
+},
+
+   renderizarDetalleCompleto: function(socio, maquinas, ingresos, pagos) {
+    const contenido = document.getElementById('detalle-completo-contenido');
+    const fmt = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
+
+    const totalInvertido   = maquinas.reduce((sum, m) => sum + (parseFloat(m.inversion_inicial) || 0), 0);
+    const totalIngresos    = ingresos.reduce((sum, i) => sum + (parseFloat(i.ganancia_neta)     || 0), 0);
+    const roi              = totalInvertido > 0 ? (totalIngresos / totalInvertido * 100).toFixed(1) : 0;
+    const pagosPendientes  = pagos.filter(p => p.estado === 'pendiente').length;
+
+    const html = `
+        <div class="space-y-6">
+            <!-- Información básica -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2">
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="bg-blue-100 p-3 rounded-full mr-4">
+                                <i class="fas fa-user-tie text-blue-600 text-xl"></i>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-sm text-gray-600">Email</p>
-                                    <p class="font-medium">${socio.email || '-'}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Teléfono</p>
-                                    <p class="font-medium">${socio.telefono || '-'}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Inscripción</p>
-                                    <p class="font-medium">${new Date(socio.fecha_inscripcion).toLocaleDateString('es-ES')}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Vencimiento</p>
-                                    <p class="font-medium">${new Date(socio.fecha_vencimiento).toLocaleDateString('es-ES')}</p>
-                                </div>
+                            <div>
+                                <h3 class="text-xl font-bold">${socio.nombre}</h3>
+                                <p class="text-gray-600">${socio.documento} | ${socio.codigo_socio} | ${socio.tipo_socio || 'propietario'}</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-600">Email</p>
+                                <p class="font-medium">${socio.email || '-'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Teléfono</p>
+                                <p class="font-medium">${socio.telefono || '-'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Inscripción</p>
+                                <p class="font-medium">${socio.fecha_inscripcion ? new Date(socio.fecha_inscripcion).toLocaleDateString('es-ES') : '-'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Vencimiento</p>
+                                <p class="font-medium">${socio.fecha_vencimiento ? new Date(socio.fecha_vencimiento).toLocaleDateString('es-ES') : '-'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Estado</p>
+                                <p class="font-medium">
+                                    <span class="badge-estado ${socio.estado === 'activo' ? 'badge-activo' : socio.estado === 'pendiente_pago' ? 'badge-pendiente' : 'badge-inactivo'}">
+                                        ${socio.estado}
+                                    </span>
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Cuota Anual</p>
+                                <p class="font-medium">${fmt(socio.cuota_anual)}</p>
                             </div>
                         </div>
                     </div>
-                    
-                    <div>
-                        <div class="bg-gray-50 rounded-lg p-6">
-                            <h4 class="text-lg font-bold mb-4">Estadísticas</h4>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-600">Inversión Total</p>
-                                    <p class="text-xl font-bold">${this.formatearMoneda(totalInvertido)}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Ingresos Totales</p>
-                                    <p class="text-xl font-bold text-green-600">${this.formatearMoneda(totalIngresos)}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">ROI</p>
-                                    <p class="text-xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}">${roi}%</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Pagos Pendientes</p>
-                                    <p class="text-xl font-bold ${pagosPendientes > 0 ? 'text-red-600' : 'text-green-600'}">${pagosPendientes}</p>
-                                </div>
+                </div>
+
+                <div>
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h4 class="text-lg font-bold mb-4">Estadísticas</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm text-gray-600">Inversión Total</p>
+                                <p class="text-xl font-bold">${fmt(totalInvertido)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Ingresos Totales</p>
+                                <p class="text-xl font-bold text-green-600">${fmt(totalIngresos)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">ROI</p>
+                                <p class="text-xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}">${roi}%</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Pagos Pendientes</p>
+                                <p class="text-xl font-bold ${pagosPendientes > 0 ? 'text-red-600' : 'text-green-600'}">${pagosPendientes}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Máquinas -->
-                <div>
-                    <h4 class="text-lg font-bold mb-4">Máquinas en Propiedad</h4>
-                    ${maquinas.length > 0 ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Máquina</th>
-                                        <th class="py-3 px-4 text-left">Porcentaje</th>
-                                        <th class="py-3 px-4 text-left">Inversión</th>
-                                        <th class="py-3 px-4 text-left">Estado</th>
-                                        <th class="py-3 px-4 text-left">Adquisición</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${maquinas.map(m => `
-                                        <tr class="border-b">
-                                            <td class="py-3 px-4">${m.maquina_nombre}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado badge-activo">${parseFloat(m.porcentaje_propiedad).toFixed(1)}%</span>
-                                            </td>
-                                            <td class="py-3 px-4">${this.formatearMoneda(m.inversion_inicial)}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado ${m.estado_inversion === 'activa' ? 'badge-activo' : 'badge-inactivo'}">
-                                                    ${m.estado_inversion}
-                                                </span>
-                                            </td>
-                                            <td class="py-3 px-4">${new Date(m.fecha_adquisicion).toLocaleDateString('es-ES')}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-gamepad text-3xl mb-2"></i>
-                            <p>No tiene máquinas asignadas</p>
-                        </div>
-                    `}
-                </div>
-                
-                <!-- Últimos ingresos -->
-                <div>
-                    <h4 class="text-lg font-bold mb-4">Últimos Ingresos</h4>
-                    ${ingresos.length > 0 ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Período</th>
-                                        <th class="py-3 px-4 text-left">Máquina</th>
-                                        <th class="py-3 px-4 text-left">Turnos</th>
-                                        <th class="py-3 px-4 text-left">Ingreso Bruto</th>
-                                        <th class="py-3 px-4 text-left">Ganancia</th>
-                                        <th class="py-3 px-4 text-left">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${ingresos.map(i => `
-                                        <tr class="border-b">
-                                            <td class="py-3 px-4">${new Date(i.fecha_periodo).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</td>
-                                            <td class="py-3 px-4">${i.maquina_nombre || 'Todas'}</td>
-                                            <td class="py-3 px-4">${i.turnos_totales || 0}</td>
-                                            <td class="py-3 px-4">${this.formatearMoneda(i.ingresos_brutos || 0)}</td>
-                                            <td class="py-3 px-4 font-bold text-green-600">${this.formatearMoneda(i.ganancia_neta || 0)}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado ${i.liquidado ? 'badge-activo' : 'badge-pendiente'}">
-                                                    ${i.liquidado ? 'Liquidado' : 'Pendiente'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-coins text-3xl mb-2"></i>
-                            <p>No hay ingresos registrados</p>
-                        </div>
-                    `}
-                </div>
-                
-                <!-- Historial de pagos -->
-                <div>
-                    <h4 class="text-lg font-bold mb-4">Historial de Pagos</h4>
-                    ${pagos.length > 0 ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Tipo</th>
-                                        <th class="py-3 px-4 text-left">Monto</th>
-                                        <th class="py-3 px-4 text-left">Fecha</th>
-                                        <th class="py-3 px-4 text-left">Vencimiento</th>
-                                        <th class="py-3 px-4 text-left">Método</th>
-                                        <th class="py-3 px-4 text-left">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${pagos.map(p => `
-                                        <tr class="border-b">
-                                            <td class="py-3 px-4">${p.tipo_pago.replace('_', ' ')}</td>
-                                            <td class="py-3 px-4">${this.formatearMoneda(p.monto)}</td>
-                                            <td class="py-3 px-4">${p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString('es-ES') : '-'}</td>
-                                            <td class="py-3 px-4">${new Date(p.fecha_vencimiento).toLocaleDateString('es-ES')}</td>
-                                            <td class="py-3 px-4">${p.metodo_pago || '-'}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado ${p.estado === 'pagado' ? 'badge-activo' : p.estado === 'pendiente' ? 'badge-pendiente' : 'badge-inactivo'}">
-                                                    ${p.estado}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-credit-card text-3xl mb-2"></i>
-                            <p>No hay pagos registrados</p>
-                        </div>
-                    `}
-                </div>
-                
-                <!-- Acciones administrativas -->
-<div class="flex justify-end space-x-3 pt-6 border-t flex-wrap gap-2">
-    <button onclick="GestionSocios.generarReporteSocio(${socio.id})" 
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-        <i class="fas fa-file-pdf mr-2"></i>Reporte PDF
-    </button>
-    <button onclick="GestionSocios.registrarPago(${socio.id}, ${socio.cuota_anual})" 
-            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-        <i class="fas fa-credit-card mr-2"></i>Registrar Pago
-    </button>
-    <button onclick="GestionSocios.agregarInversion(${socio.id})" 
-            class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
-        <i class="fas fa-plus mr-2"></i>Agregar Inversión
-    </button>
-</div>
             </div>
-        `;
-        
-        contenido.innerHTML = html;
-    },
+
+            <!-- Máquinas -->
+            <div>
+                <h4 class="text-lg font-bold mb-4">Máquinas en Propiedad</h4>
+                ${maquinas.length > 0 ? `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-3 px-4 text-left">Máquina</th>
+                                    <th class="py-3 px-4 text-left">% Propiedad</th>
+                                    <th class="py-3 px-4 text-left">Inversión</th>
+                                    <th class="py-3 px-4 text-left">Estado</th>
+                                    <th class="py-3 px-4 text-left">Adquisición</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${maquinas.map(m => `
+                                    <tr class="border-b">
+                                        <td class="py-3 px-4">${m.maquina_nombre || '—'}</td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge-estado badge-activo">${parseFloat(m.porcentaje_propiedad || 0).toFixed(1)}%</span>
+                                        </td>
+                                        <td class="py-3 px-4">${fmt(m.inversion_inicial)}</td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge-estado ${m.estado_inversion === 'activa' ? 'badge-activo' : 'badge-inactivo'}">
+                                                ${m.estado_inversion || 'activa'}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4">${m.fecha_adquisicion ? new Date(m.fecha_adquisicion).toLocaleDateString('es-ES') : '-'}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>` : `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-gamepad text-3xl mb-2"></i>
+                        <p>No tiene máquinas asignadas</p>
+                    </div>`}
+            </div>
+
+            <!-- Últimos ingresos -->
+            <div>
+                <h4 class="text-lg font-bold mb-4">Últimos Ingresos</h4>
+                ${ingresos.length > 0 ? `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-3 px-4 text-left">Fecha</th>
+                                    <th class="py-3 px-4 text-left">Máquina</th>
+                                    <th class="py-3 px-4 text-left">Turnos</th>
+                                    <th class="py-3 px-4 text-left">Ingreso Bruto</th>
+                                    <th class="py-3 px-4 text-left">Ganancia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ingresos.map(i => `
+                                    <tr class="border-b">
+                                        <td class="py-3 px-4">${i.fecha_periodo ? new Date(i.fecha_periodo).toLocaleDateString('es-ES') : '-'}</td>
+                                        <td class="py-3 px-4">${i.maquina_nombre || 'Todas'}</td>
+                                        <td class="py-3 px-4">${i.turnos_totales || 0}</td>
+                                        <td class="py-3 px-4">${fmt(i.ingresos_brutos)}</td>
+                                        <td class="py-3 px-4 font-bold text-green-600">${fmt(i.ganancia_neta)}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>` : `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-coins text-3xl mb-2"></i>
+                        <p>No hay ingresos registrados</p>
+                    </div>`}
+            </div>
+
+            <!-- Historial de pagos -->
+            <div>
+                <h4 class="text-lg font-bold mb-4">Historial de Pagos</h4>
+                ${pagos.length > 0 ? `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-3 px-4 text-left">Tipo</th>
+                                    <th class="py-3 px-4 text-left">Monto</th>
+                                    <th class="py-3 px-4 text-left">Fecha</th>
+                                    <th class="py-3 px-4 text-left">Vencimiento</th>
+                                    <th class="py-3 px-4 text-left">Método</th>
+                                    <th class="py-3 px-4 text-left">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pagos.map(p => `
+                                    <tr class="border-b">
+                                        <td class="py-3 px-4">${(p.tipo_pago || '').replace('_',' ')}</td>
+                                        <td class="py-3 px-4">${fmt(p.monto)}</td>
+                                        <td class="py-3 px-4">${p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString('es-ES') : '-'}</td>
+                                        <td class="py-3 px-4">${p.fecha_vencimiento ? new Date(p.fecha_vencimiento).toLocaleDateString('es-ES') : '-'}</td>
+                                        <td class="py-3 px-4">${p.metodo_pago || '-'}</td>
+                                        <td class="py-3 px-4">
+                                            <span class="badge-estado ${p.estado === 'pagado' ? 'badge-activo' : p.estado === 'pendiente' ? 'badge-pendiente' : 'badge-inactivo'}">
+                                                ${p.estado || '-'}
+                                            </span>
+                                        </td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>` : `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-credit-card text-3xl mb-2"></i>
+                        <p>No hay pagos registrados</p>
+                    </div>`}
+            </div>
+
+            <!-- Acciones -->
+            <div class="flex justify-end gap-2 pt-6 border-t flex-wrap">
+                <button onclick="GestionSocios.generarReporteSocio(${socio.id})"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                    <i class="fas fa-file-pdf mr-2"></i>Reporte PDF
+                </button>
+                <button onclick="GestionSocios.registrarPago(${socio.id}, ${socio.cuota_anual || 0})"
+                        class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                    <i class="fas fa-credit-card mr-2"></i>Registrar Pago
+                </button>
+                <button onclick="GestionSocios.agregarInversion(${socio.id})"
+                        class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+                    <i class="fas fa-plus mr-2"></i>Agregar Inversión
+                </button>
+            </div>
+        </div>`;
+
+    contenido.innerHTML = html;
+},
 
     cerrarModalDetalle: function() {
         const modal = document.getElementById('modalDetalleCompleto');
