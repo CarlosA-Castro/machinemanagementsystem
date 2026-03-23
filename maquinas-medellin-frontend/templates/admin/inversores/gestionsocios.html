@@ -1707,19 +1707,23 @@ guardarPago: async function(event, socioId) {
 
 
 generarReporteSocio: function(socioId) {
-    const contenido = document.getElementById('detalle-completo-contenido');
-    if (!contenido) return;
+    const mostrar = (msg, tipo) => {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${tipo === 'error' ? 'bg-red-500' : tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'} text-white max-w-md`;
+        toast.innerHTML = `<div class="flex items-center"><i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i><span>${msg}</span></div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
 
     const { jsPDF } = window.jspdf;
-    if (!jsPDF) {
-        this.mostrarAlerta('PDF no disponible, recarga la página', 'error');
-        return;
-    }
+    if (!jsPDF) { mostrar('PDF no disponible, recarga la página', 'error'); return; }
 
-    const doc = new jsPDF();
+    const contenido = document.getElementById('detalle-completo-contenido');
+    if (!contenido) { mostrar('No hay datos para exportar', 'error'); return; }
+
+    const doc  = new jsPDF();
     const ahora = new Date().toLocaleDateString('es-CO');
 
-    // Header
     doc.setFillColor(37, 99, 235);
     doc.rect(0, 0, 210, 30, 'F');
     doc.setTextColor(255, 255, 255);
@@ -1728,32 +1732,12 @@ generarReporteSocio: function(socioId) {
     doc.setFontSize(10);
     doc.text(`Generado: ${ahora}`, 150, 18);
 
-    // Extraer texto del modal
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-
     const nombre = contenido.querySelector('h3')?.textContent?.trim() || 'Socio';
     doc.setFontSize(14);
     doc.text(nombre, 14, 42);
 
-    // Stats
-    const statsEls = contenido.querySelectorAll('.bg-gray-50 .text-xl');
     let y = 55;
-    statsEls.forEach(el => {
-        const label = el.previousElementSibling?.textContent?.trim();
-        const valor = el.textContent?.trim();
-        if (label && valor) {
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text(label + ':', 14, y);
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(11);
-            doc.text(valor, 80, y);
-            y += 8;
-        }
-    });
-
-    // Tablas
     const tablas = contenido.querySelectorAll('table');
     tablas.forEach(tabla => {
         if (y > 250) { doc.addPage(); y = 20; }
@@ -1766,12 +1750,10 @@ generarReporteSocio: function(socioId) {
             y += 6;
             doc.setTextColor(0, 0, 0);
         }
-
         const headers = [...tabla.querySelectorAll('thead th')].map(th => th.textContent.trim());
         const rows    = [...tabla.querySelectorAll('tbody tr')].map(tr =>
             [...tr.querySelectorAll('td')].map(td => td.textContent.trim().substring(0, 20))
         );
-
         if (headers.length && rows.length) {
             doc.autoTable({
                 startY: y,
@@ -1787,7 +1769,7 @@ generarReporteSocio: function(socioId) {
     });
 
     doc.save(`socio_${socioId}_${ahora.replace(/\//g,'-')}.pdf`);
-    this.mostrarAlerta('PDF generado correctamente', 'success');
+    mostrar('PDF generado correctamente', 'success');
 },
 
 enviarRecordatorio: function(socioId) {

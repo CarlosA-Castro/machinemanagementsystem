@@ -9454,8 +9454,7 @@ def agregar_inversion_socio(socio_id):
             (maquina_id, propietario_id, porcentaje_propiedad)
             VALUES (%s, %s, %s)
         """, (maquina_id, propietario_id, porcentaje))
-
-        cursor.execute("UPDATE socios SET inversion_total = inversion_total + %s WHERE id = %s", (inversion_inicial, socio_id))
+        
         connection.commit()
         return jsonify({'success': True, 'inversion_id': cursor.lastrowid})
 
