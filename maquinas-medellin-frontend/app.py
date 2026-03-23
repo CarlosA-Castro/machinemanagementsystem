@@ -9411,6 +9411,103 @@ def obtener_inversiones_socio(socio_id):
         if connection:
             connection.close()
 
+@app.route('/api/socios/<int:socio_id>/inversiones', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def agregar_inversion_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        maquina_id        = data.get('maquina_id')
+        porcentaje        = float(data.get('porcentaje_propiedad', 0))
+        inversion_inicial = float(data.get('inversion_inicial', 0))
+        fecha             = data.get('fecha_adquisicion')
+        notas             = data.get('notas', '')
+
+        if not all([maquina_id, porcentaje]):
+            return api_response('E005', http_status=400, data={'message': 'Faltan campos requeridos'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            SELECT p.id FROM propietarios p
+            JOIN socios s ON s.nombre = p.nombre
+            WHERE s.id = %s LIMIT 1
+        """, (socio_id,))
+        prop = cursor.fetchone()
+        if not prop:
+            cursor.execute("SELECT nombre FROM socios WHERE id = %s", (socio_id,))
+            socio = cursor.fetchone()
+            if not socio:
+                return api_response('E002', http_status=404)
+            cursor.execute("INSERT INTO propietarios (nombre) VALUES (%s)", (socio['nombre'],))
+            propietario_id = cursor.lastrowid
+        else:
+            propietario_id = prop['id']
+
+        cursor.execute("""
+            INSERT INTO maquinapropietario
+            (maquina_id, propietario_id, porcentaje_propiedad, inversion_inicial, fecha_adquisicion, estado_inversion, notas)
+            VALUES (%s, %s, %s, %s, %s, 'activa', %s)
+        """, (maquina_id, propietario_id, porcentaje, inversion_inicial, fecha, notas))
+
+        cursor.execute("UPDATE socios SET inversion_total = inversion_total + %s WHERE id = %s", (inversion_inicial, socio_id))
+        connection.commit()
+        return jsonify({'success': True, 'inversion_id': cursor.lastrowid})
+
+    except Exception as e:
+        app.logger.error(f"Error agregando inversion socio {socio_id}: {e}")
+        if connection: connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@app.route('/api/socios/<int:socio_id>/pagos', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def registrar_pago_socio(socio_id):
+    connection = None
+    cursor = None
+    try:
+        data        = request.get_json()
+        monto       = float(data.get('monto', 0))
+        tipo_pago   = data.get('tipo_pago', 'cuota_anual')
+        metodo_pago = data.get('metodo_pago', 'efectivo')
+        fecha_pago  = data.get('fecha_pago')
+        fecha_venc  = data.get('fecha_vencimiento')
+        notas       = data.get('notas', '')
+
+        if not monto:
+            return api_response('E005', http_status=400, data={'message': 'Monto requerido'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            INSERT INTO pagoscuotas
+            (socio_id, monto, tipo_pago, metodo_pago, fecha_pago, fecha_vencimiento, estado, notas)
+            VALUES (%s, %s, %s, %s, %s, %s, 'pagado', %s)
+        """, (socio_id, monto, tipo_pago, metodo_pago, fecha_pago, fecha_venc, notas))
+
+        connection.commit()
+        return jsonify({'success': True, 'pago_id': cursor.lastrowid})
+
+    except Exception as e:
+        app.logger.error(f"Error registrando pago socio {socio_id}: {e}")
+        if connection: connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
 @app.route('/api/socios/<int:socio_id>/pagos', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])

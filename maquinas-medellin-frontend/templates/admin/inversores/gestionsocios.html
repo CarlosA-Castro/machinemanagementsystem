@@ -1572,6 +1572,7 @@ form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().spl
 
 guardarInversion: async function(event, socioId) {
     event.preventDefault();
+    const self = this;
     try {
         const r = await fetch(`/api/socios/${socioId}/inversiones`, {
             method: 'POST',
@@ -1586,14 +1587,15 @@ guardarInversion: async function(event, socioId) {
         });
         const data = await r.json();
         if (data.success) {
-            document.getElementById('modalInversion').remove();
-            this.mostrarAlerta('Inversión registrada correctamente', 'success');
-            this.verDetalleCompleto(socioId);
+            document.getElementById('modalInversion')?.remove();
+            self.mostrarAlerta('Inversión registrada correctamente', 'success');
+            self.verDetalleCompleto(socioId);
         } else {
-            this.mostrarAlerta('Error al guardar inversión', 'error');
+            self.mostrarAlerta(data.message || 'Error al guardar inversión', 'error');
         }
     } catch (e) {
-        this.mostrarAlerta('Error de conexión', 'error');
+        console.error(e);
+        self.mostrarAlerta('Error de conexión', 'error');
     }
 },
 
@@ -1663,6 +1665,7 @@ registrarPago: function(socioId, cuotaAnual) {
 
 guardarPago: async function(event, socioId) {
     event.preventDefault();
+    const self = this;
     try {
         const r = await fetch(`/api/socios/${socioId}/pagos`, {
             method: 'POST',
@@ -1678,14 +1681,15 @@ guardarPago: async function(event, socioId) {
         });
         const data = await r.json();
         if (data.success) {
-            document.getElementById('modalPago').remove();
-            this.mostrarAlerta('Pago registrado correctamente', 'success');
-            this.verDetalleCompleto(socioId);
+            document.getElementById('modalPago')?.remove();
+            self.mostrarAlerta('Pago registrado correctamente', 'success');
+            self.verDetalleCompleto(socioId);
         } else {
-            this.mostrarAlerta('Error al registrar pago', 'error');
+            self.mostrarAlerta(data.message || 'Error al registrar pago', 'error');
         }
     } catch (e) {
-        this.mostrarAlerta('Error de conexión', 'error');
+        console.error(e);
+        self.mostrarAlerta('Error de conexión', 'error');
     }
 },
 
