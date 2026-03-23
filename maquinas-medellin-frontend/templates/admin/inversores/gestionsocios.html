@@ -919,14 +919,26 @@
     cargarEstadisticas: async function() {
         try {
             const response = await fetch('/api/socios/estadisticas');
-            
+
             if (response.ok) {
                 const data = await response.json();
-                
+
                 document.getElementById('total-socios').textContent = data.total_socios || 0;
                 document.getElementById('inversion-total').textContent = this.formatearMoneda(data.inversion_total || 0);
                 document.getElementById('pagos-pendientes').textContent = data.cuotas_pendientes || 0;
                 document.getElementById('roi-promedio').textContent = `${(data.roi_promedio || 0).toFixed(1)}%`;
+
+                // Actualizar gráfico de estados con datos reales
+                if (this.charts.estados) {
+                    const suspendidos = (data.total_socios || 0) - (data.socios_activos || 0) - (data.socios_inactivos || 0) - (data.socios_pendientes || 0);
+                    this.charts.estados.data.datasets[0].data = [
+                        data.socios_activos || 0,
+                        data.socios_inactivos || 0,
+                        data.socios_pendientes || 0,
+                        Math.max(0, suspendidos)
+                    ];
+                    this.charts.estados.update();
+                }
             }
         } catch (error) {
             console.error('Error cargando estadísticas:', error);
@@ -1145,47 +1157,6 @@
     }
 },
 
-guardarSocio: async function(event) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-    const modo = form.dataset.modo;
-    const socioId = form.dataset.socioId;
-    
-    // Agregar campos necesarios
-    data.fecha_vencimiento = data.fecha_vencimiento || data.fecha_inscripcion;
-    data.tipo_socio = 'inversionista'; // Valor por defecto
-    
-    try {
-        const url = modo === 'editar' ? `/api/socios/${socioId}` : '/api/socios';
-        const method = modo === 'editar' ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        });
-        
-        if (response.ok) {
-            this.cerrarModal();
-            this.actualizarDatos();
-            this.mostrarAlerta(
-                modo === 'editar' ? 'Socio actualizado correctamente' : 'Socio creado correctamente',
-                'success'
-            );
-        } else {
-            const error = await response.json();
-            throw new Error(error.message || 'Error al guardar');
-        }
-    } catch (error) {
-        console.error('Error guardando socio:', error);
-        this.mostrarAlerta(error.message || 'Error al guardar socio', 'error');
-    }
-},
-
     guardarSocio: async function(event) {
         event.preventDefault();
         const form = event.target;
@@ -1277,12 +1248,12 @@ guardarSocio: async function(event) {
                 fetch(`/api/socios/${socioId}/pagos`)
             ]);
             
-            const socio = await socioRes.json();
+            const socioData = await socioRes.json();
             const maquinas = await maquinasRes.json();
             const ingresos = await ingresosRes.json();
             const pagos = await pagosRes.json();
-            
-            this.renderizarDetalleCompleto(socio, maquinas, ingresos, pagos);
+
+            this.renderizarDetalleCompleto(socioData.socio, maquinas, ingresos, pagos);
         } catch (error) {
             console.error('Error cargando detalles:', error);
             contenido.innerHTML = `
