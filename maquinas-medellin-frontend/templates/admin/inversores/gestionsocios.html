@@ -1572,7 +1572,13 @@ form.querySelector('[name="fecha_vencimiento"]').value = unAno.toISOString().spl
 
 guardarInversion: async function(event, socioId) {
     event.preventDefault();
-    const self = this;
+    const mostrar = (msg, tipo) => {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${tipo === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white max-w-md`;
+        toast.innerHTML = `<div class="flex items-center"><i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i><span>${msg}</span></div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
     try {
         const r = await fetch(`/api/socios/${socioId}/inversiones`, {
             method: 'POST',
@@ -1588,14 +1594,14 @@ guardarInversion: async function(event, socioId) {
         const data = await r.json();
         if (data.success) {
             document.getElementById('modalInversion')?.remove();
-            self.mostrarAlerta('Inversión registrada correctamente', 'success');
-            self.verDetalleCompleto(socioId);
+            mostrar('Inversión registrada correctamente', 'success');
+            GestionSocios.verDetalleCompleto(socioId);
         } else {
-            self.mostrarAlerta(data.message || 'Error al guardar inversión', 'error');
+            mostrar(data.message || 'Error al guardar inversión', 'error');
         }
     } catch (e) {
         console.error(e);
-        self.mostrarAlerta('Error de conexión', 'error');
+        mostrar('Error de conexión', 'error');
     }
 },
 
@@ -1627,12 +1633,12 @@ registrarPago: function(socioId, cuotaAnual) {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
-                            <select id="pagoMetodo" class="form-control">
-                                <option value="efectivo">Efectivo</option>
-                                <option value="transferencia">Transferencia</option>
-                                <option value="nequi">Nequi</option>
-                                <option value="daviplata">Daviplata</option>
-                            </select>
+                           <select id="pagoMetodo" class="form-control">
+    <option value="efectivo">Efectivo</option>
+    <option value="transferencia">Transferencia</option>
+    <option value="tarjeta">Tarjeta</option>
+    <option value="cheque">Cheque</option>
+</select>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -1665,7 +1671,13 @@ registrarPago: function(socioId, cuotaAnual) {
 
 guardarPago: async function(event, socioId) {
     event.preventDefault();
-    const self = this;
+    const mostrar = (msg, tipo) => {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${tipo === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white max-w-md`;
+        toast.innerHTML = `<div class="flex items-center"><i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i><span>${msg}</span></div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
     try {
         const r = await fetch(`/api/socios/${socioId}/pagos`, {
             method: 'POST',
@@ -1682,16 +1694,17 @@ guardarPago: async function(event, socioId) {
         const data = await r.json();
         if (data.success) {
             document.getElementById('modalPago')?.remove();
-            self.mostrarAlerta('Pago registrado correctamente', 'success');
-            self.verDetalleCompleto(socioId);
+            mostrar('Pago registrado correctamente', 'success');
+            GestionSocios.verDetalleCompleto(socioId);
         } else {
-            self.mostrarAlerta(data.message || 'Error al registrar pago', 'error');
+            mostrar(data.message || 'Error al registrar pago', 'error');
         }
     } catch (e) {
         console.error(e);
-        self.mostrarAlerta('Error de conexión', 'error');
+        mostrar('Error de conexión', 'error');
     }
 },
+
 
 generarReporteSocio: function(socioId) {
     const contenido = document.getElementById('detalle-completo-contenido');

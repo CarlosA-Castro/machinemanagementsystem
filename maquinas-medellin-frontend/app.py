@@ -9451,9 +9451,9 @@ def agregar_inversion_socio(socio_id):
 
         cursor.execute("""
             INSERT INTO maquinapropietario
-            (maquina_id, propietario_id, porcentaje_propiedad, inversion_inicial, fecha_adquisicion, estado_inversion, notas)
-            VALUES (%s, %s, %s, %s, %s, 'activa', %s)
-        """, (maquina_id, propietario_id, porcentaje, inversion_inicial, fecha, notas))
+            (maquina_id, propietario_id, porcentaje_propiedad)
+            VALUES (%s, %s, %s)
+        """, (maquina_id, propietario_id, porcentaje))
 
         cursor.execute("UPDATE socios SET inversion_total = inversion_total + %s WHERE id = %s", (inversion_inicial, socio_id))
         connection.commit()
@@ -9491,11 +9491,20 @@ def registrar_pago_socio(socio_id):
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
+        from datetime import datetime
+        anio = datetime.now().year
+        if fecha_pago:
+            try:
+                 anio = int(fecha_pago.split('-')[0])
+            except:
+                 pass
+
         cursor.execute("""
             INSERT INTO pagoscuotas
-            (socio_id, monto, tipo_pago, metodo_pago, fecha_pago, fecha_vencimiento, estado, notas)
-            VALUES (%s, %s, %s, %s, %s, %s, 'pagado', %s)
-        """, (socio_id, monto, tipo_pago, metodo_pago, fecha_pago, fecha_venc, notas))
+            (socio_id, anio, monto, fecha_pago, metodo_pago, estado, notas)
+            VALUES (%s, %s, %s, %s, %s, 'pagado', %s)
+        """, (socio_id, anio, monto, fecha_pago, metodo_pago, notas))
+
 
         connection.commit()
         return jsonify({'success': True, 'pago_id': cursor.lastrowid})
