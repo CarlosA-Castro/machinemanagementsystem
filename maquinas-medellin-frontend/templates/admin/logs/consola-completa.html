@@ -351,10 +351,11 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Fuente:</label>
                         <select id="fuenteLogs" class="w-full border border-gray-300 rounded-lg p-3" onchange="LogsConsole.actualizarLogs()">
                             <option value="todos" selected>Todas las fuentes</option>
-                            <option value="flask">Flask App</option>
+                            <option value="transacciones">Transacciones</option>
                             <option value="access">Acceso HTTP</option>
                             <option value="app">Aplicación</option>
-                            <option value="system">Sistema</option>
+                            <option value="error">Errores</option>
+                            <option value="session">Sesiones</option>
                         </select>
                     </div>
                     <div>
@@ -440,6 +441,35 @@
                         <div class="bg-purple-100 p-3 rounded-lg">
                             <i class="fas fa-users text-purple-600 text-xl"></i>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats transaccionales -->
+            <div class="glass-card mb-6">
+                <h3 class="text-base font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-exchange-alt mr-2 text-yellow-500"></i>Transacciones Hoy
+                </h3>
+                <div id="statsTransacciones" class="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+                    <div class="bg-green-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500">Turnos QR</p>
+                        <p id="txn-turno_qr" class="text-xl font-bold text-green-600">—</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500">Turnos Manuales</p>
+                        <p id="txn-turno_manual" class="text-xl font-bold text-blue-600">—</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500">Pagos Cuota</p>
+                        <p id="txn-pago_cuota" class="text-xl font-bold text-yellow-600">—</p>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500">Fallas Reportadas</p>
+                        <p id="txn-falla_maquina" class="text-xl font-bold text-red-600">—</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500">Inversiones</p>
+                        <p id="txn-inversion" class="text-xl font-bold text-purple-600">—</p>
                     </div>
                 </div>
             </div>
@@ -720,26 +750,79 @@
         html = '<div class="text-center py-8"><p class="text-gray-400">No se encontraron logs con los filtros actuales</p></div>';
     } else {
         // Los logs ya vienen ordenados del servidor
+        const tipoColores = {
+            turno_qr:      '#34d399',
+            turno_manual:  '#60a5fa',
+            pago_cuota:    '#f59e0b',
+            inversion:     '#a78bfa',
+            liquidacion:   '#818cf8',
+            falla_maquina: '#f87171',
+            resolver_falla:'#34d399',
+            config_maquina:'#94a3b8',
+            login:         '#38bdf8',
+            logout:        '#94a3b8',
+        };
+
+        const formatMoney = v => v != null
+            ? new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', minimumFractionDigits:0}).format(v)
+            : '';
+
         logs.forEach(log => {
             const timestamp = log.timestamp || '--:--:--';
             const level = log.nivel || 'INFO';
             const message = log.mensaje || '';
             const source = log.fuente || 'unknown';
             const modulo = log.modulo || '';
-            
-            // Determinar clase CSS basada en nivel
+
             const levelClass = `log-level-${level}`;
-            const lineClass = `log-line-${source === 'access' ? 'access' : level.toLowerCase()}`;
-            
-            // Formatear la línea
-            html += `
-                <div class="log-line ${lineClass}">
-                    <span class="log-timestamp">${timestamp}</span>
-                    <span class="log-level ${levelClass}">${level}</span>
-                    <span class="text-gray-300">${message}</span>
-                    ${modulo ? `<span class="text-gray-500 text-xs">(${modulo})</span>` : ''}
-                </div>
-            `;
+            const lineClass = source === 'transaccion'
+                ? 'log-line'
+                : `log-line-${source === 'access' ? 'access' : level.toLowerCase()}`;
+
+            if (source === 'transaccion') {
+                const tipo = log.tipo || '';
+                const color = tipoColores[tipo] || '#94a3b8';
+                const monto = log.monto != null ? `<span style="color:#f59e0b;font-weight:bold"> ${formatMoney(log.monto)}</span>` : '';
+                const maquina = log.maquina_nombre ? `<span style="color:#60a5fa"> [${log.maquina_nombre}]</span>` : '';
+                const usuario = log.usuario ? `<span style="color:#94a3b8"> · ${log.usuario}</span>` : '';
+                const extra = log.datos_extra ? Object.entries(log.datos_extra)
+                    .filter(([k]) => !['origen','estado'].includes(k))
+                    .map(([k,v]) => `<span style="color:#6b7280">${k}=</span><span style="color:#d1d5db">${v}</span>`)
+                    .join(' ') : '';
+
+                html += `
+                    <div class="log-line" style="border-left:3px solid ${color}">
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span style="color:${color};font-weight:bold;padding:0 4px;border:1px solid ${color};border-radius:3px;font-size:0.75rem">${tipo.toUpperCase()}</span>
+                        ${maquina}${monto}${usuario}
+                        <span class="text-gray-300"> ${log.mensaje.replace(/^\[TXN:[^\]]+\] /,'')}</span>
+                        ${extra ? `<div style="margin-left:12px;font-size:0.78rem;color:#6b7280;margin-top:2px">${extra}</div>` : ''}
+                    </div>
+                `;
+            } else if (source === 'access') {
+                const status = log.status_code || '';
+                const statusColor = status >= 500 ? '#f87171' : status >= 400 ? '#fbbf24' : '#34d399';
+                const rt = log.response_time != null ? `<span style="color:#6b7280"> ${log.response_time}ms</span>` : '';
+                html += `
+                    <div class="log-line log-line-access">
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span class="log-level ${levelClass}">${level}</span>
+                        <span style="color:#60a5fa">${log.metodo || ''}</span>
+                        <span class="text-gray-300"> ${log.path || message}</span>
+                        <span style="color:${statusColor};font-weight:bold"> ${status}</span>${rt}
+                        ${log.ip ? `<span style="color:#6b7280"> · ${log.ip}</span>` : ''}
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="log-line ${lineClass}">
+                        <span class="log-timestamp">${timestamp}</span>
+                        <span class="log-level ${levelClass}">${level}</span>
+                        <span class="text-gray-300"> ${message}</span>
+                        ${modulo ? `<span class="text-gray-500 text-xs"> (${modulo})</span>` : ''}
+                    </div>
+                `;
+            }
         });
     }
     
@@ -795,16 +878,30 @@
     
     cargarEstadisticas: function() {
         fetch('/api/logs/estadisticas')
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 document.getElementById('totalLogsHoy').textContent = data.total_logs_hoy || 0;
                 document.getElementById('erroresHoy').textContent = data.errores_hoy || 0;
                 document.getElementById('accesosHoy').textContent = data.accesos_hoy || 0;
                 document.getElementById('usuariosActivos').textContent = data.usuarios_activos_hoy || 0;
             })
-            .catch(error => {
-                console.error('Error cargando estadísticas:', error);
-            });
+            .catch(e => console.error('Error cargando estadísticas:', e));
+
+        // Stats transaccionales del día
+        const hoy = new Date().toISOString().split('T')[0];
+        fetch(`/api/logs/consola-completa?fuente=transacciones&fecha_inicio=${hoy}&fecha_fin=${hoy}&limit=1000&orden=desc`)
+            .then(r => r.json())
+            .then(data => {
+                const conteo = { turno_qr: 0, turno_manual: 0, pago_cuota: 0, falla_maquina: 0, inversion: 0 };
+                (data.logs || []).forEach(l => {
+                    if (l.tipo && conteo.hasOwnProperty(l.tipo)) conteo[l.tipo]++;
+                });
+                Object.entries(conteo).forEach(([tipo, n]) => {
+                    const el = document.getElementById(`txn-${tipo}`);
+                    if (el) el.textContent = n;
+                });
+            })
+            .catch(e => console.error('Error cargando stats transaccionales:', e));
     },
     
     limpiarConsola: function() {

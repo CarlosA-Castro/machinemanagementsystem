@@ -1,4 +1,5 @@
-from flask import Flask, json, request, jsonify, render_template, redirect, url_for, session, send_file
+from flask import Flask, json, request, jsonify, render_template, redirect, url_for, session, send_file, g
+import time
 import mysql.connector
 from mysql.connector import pooling
 from flask_cors import CORS
@@ -68,13 +69,16 @@ file_handler = RotatingFileHandler(
     backupCount=10
 )
 file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    '%(asctime)s [%(levelname)-8s] %(message)s  (%(filename)s:%(lineno)d)'
 ))
 file_handler.setLevel(logging.INFO)
 
-# Handler para consola
+# Handler para consola (EC2 docker logs)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter(
+    '%(asctime)s [%(levelname)-8s] %(message)s'
+))
 
 # Configurar app logger
 app.logger.addHandler(file_handler)
@@ -91,7 +95,118 @@ werkzeug_logger.setLevel(logging.INFO)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 
-# CLASE DE SERVICIO DE MENSAJES 
+# ============================================================
+# LOGGING TRANSACCIONAL Y HOOKS DE REQUEST
+# ============================================================
+
+# Rutas que se omiten del access_log para no saturar la BD
+_SKIP_ACCESS_LOG = ('/static', '/api/logs', '/favicon', '/api/esp32/check-commands')
+
+def _log_transaccion(tipo, descripcion, categoria='operacional', usuario=None, usuario_id=None,
+                     maquina_id=None, maquina_nombre=None, entidad=None, entidad_id=None,
+                     monto=None, datos_extra=None, estado='ok'):
+    """
+    Registra un evento transaccional en transaction_logs y en el logger.
+    Llamar desde cualquier endpoint financiero/operacional clave.
+    """
+    try:
+        extra_parts = []
+        if maquina_nombre:
+            extra_parts.append(f"Máquina={maquina_nombre}")
+        if monto is not None:
+            extra_parts.append(f"Monto=${monto:,.0f}")
+        if usuario:
+            extra_parts.append(f"Usuario={usuario}")
+        if entidad and entidad_id:
+            extra_parts.append(f"{entidad}#{entidad_id}")
+        extra_str = ' | '.join(extra_parts)
+        log_line = f"[TXN:{tipo.upper()}] {descripcion}"
+        if extra_str:
+            log_line += f" — {extra_str}"
+        if estado == 'error':
+            app.logger.error(log_line)
+        elif estado == 'advertencia':
+            app.logger.warning(log_line)
+        else:
+            app.logger.info(log_line)
+    except Exception:
+        pass
+
+    try:
+        ip = None
+        try:
+            ip = request.remote_addr
+        except RuntimeError:
+            pass
+
+        connection = get_db_connection()
+        if not connection:
+            return
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO transaction_logs
+                (tipo, categoria, descripcion, usuario, usuario_id, maquina_id, maquina_nombre,
+                 entidad, entidad_id, monto, datos_extra, ip_address, estado)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            tipo[:50], categoria[:30], descripcion[:500],
+            usuario, usuario_id, maquina_id, maquina_nombre,
+            entidad, entidad_id, monto,
+            json.dumps(datos_extra, default=str) if datos_extra else None,
+            ip, estado
+        ))
+        connection.commit()
+        cursor.close()
+        connection.close()
+    except Exception as e:
+        app.logger.warning(f"[TXN] No se pudo guardar en transaction_logs: {e}")
+
+
+@app.before_request
+def _before_request_log():
+    g._req_start = time.time()
+
+
+@app.after_request
+def _after_request_log(response):
+    try:
+        path = request.path
+        if any(path.startswith(p) for p in _SKIP_ACCESS_LOG):
+            return response
+
+        duration_ms = int((time.time() - getattr(g, '_req_start', time.time())) * 1000)
+        status = response.status_code
+        method = request.method
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', '-')
+        ip = request.remote_addr
+
+        # Log en consola EC2 con formato rico
+        log_fn = app.logger.error if status >= 500 else app.logger.warning if status >= 400 else app.logger.info
+        log_fn(f"[HTTP] {method} {path} → {status} | {duration_ms}ms | {ip} | {user_name}")
+
+        # Insertar en access_logs
+        try:
+            connection = get_db_connection()
+            if connection:
+                cur = connection.cursor()
+                cur.execute("""
+                    INSERT INTO access_logs
+                        (method, path, status_code, response_time_ms, user_id, user_name, ip_address, user_agent)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (method, path[:500], status, duration_ms, user_id, user_name, ip,
+                      (request.user_agent.string[:500] if request.user_agent else None)))
+                connection.commit()
+                cur.close()
+                connection.close()
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return response
+
+
+# CLASE DE SERVICIO DE MENSAJES
 
 class MessageService:
     """Servicio para gestionar mensajes desde la base de datos"""
@@ -223,34 +338,8 @@ class MessageService:
             'E004': {'code': 'E004', 'type': 'error', 'text': 'Acceso prohibido'},
             'E005': {'code': 'E005', 'type': 'error', 'text': 'Parámetros inválidos'},
             'E006': {'code': 'E006', 'type': 'error', 'text': 'Error de conexión a la base de datos'},
-            'E007': {'code': 'E007', 'type': 'error', 'text': 'Recurso ya existe o acción inválida'},
             'A001': {'code': 'A001', 'type': 'error', 'text': 'Credenciales inválidas'},
-            'A004': {'code': 'A004', 'type': 'error', 'text': 'No autenticado'},
-            'I001': {'code': 'I001', 'type': 'info', 'text': 'Información no disponible'},
-            'M001': {'code': 'M001', 'type': 'error', 'text': 'Máquina no encontrada'},
-            'M007': {'code': 'M007', 'type': 'error', 'text': 'Reporte no encontrado'},
-            'Q001': {'code': 'Q001', 'type': 'error', 'text': 'Código QR no encontrado'},
-            'Q002': {'code': 'Q002', 'type': 'error', 'text': 'QR ya tiene paquete asignado'},
-            'Q003': {'code': 'Q003', 'type': 'error', 'text': 'No hay turnos disponibles'},
-            'Q004': {'code': 'Q004', 'type': 'error', 'text': 'Paquete no encontrado'},
             'S001': {'code': 'S001', 'type': 'success', 'text': 'Operación exitosa'},
-            'S002': {'code': 'S002', 'type': 'success', 'text': 'Creación exitosa'},
-            'S003': {'code': 'S003', 'type': 'success', 'text': 'Actualización exitosa'},
-            'S004': {'code': 'S004', 'type': 'success', 'text': 'Eliminación exitosa'},
-            'S006': {'code': 'S006', 'type': 'success', 'text': 'Registro guardado'},
-            'S007': {'code': 'S007', 'type': 'success', 'text': 'Venta registrada'},
-            'S009': {'code': 'S009', 'type': 'success', 'text': 'Reporte resuelto exitosamente'},
-            'S010': {'code': 'S010', 'type': 'success', 'text': 'Uso registrado exitosamente'},
-            'S011': {'code': 'S011', 'type': 'success', 'text': 'Datos técnicos obtenidos con éxito'},
-            'S012': {'code': 'S012', 'type': 'success', 'text': 'Falla reportada desde TFT'},
-            'S013': {'code': 'S013', 'type': 'success', 'text': 'Reinicio registrado'},
-            'S014': {'code': 'S014', 'type': 'success', 'text': 'Turno manual ingresado'},
-            'W004': {'code': 'W004', 'type': 'warning', 'text': 'Entidad en uso y no puede eliminarse'},
-            'U001': {'code': 'U001', 'type': 'error', 'text': 'Usuario no encontrado'},
-            'U002': {'code': 'U002', 'type': 'error', 'text': 'Usuario ya existe'},
-            'U003': {'code': 'U003', 'type': 'error', 'text': 'Contraseña inválida (mínimo 6 caracteres)'},
-            'U004': {'code': 'U004', 'type': 'error', 'text': 'Rol no válido'},
-            'U005': {'code': 'U005', 'type': 'error', 'text': 'No puedes realizar esta operación sobre tu propio usuario'},
         }
         
         message = default_messages.get(message_code, {
@@ -5001,8 +5090,28 @@ def ingresar_turno_manual():
         except Exception as log_error:
             app.logger.warning(f"No se pudo registrar log: {log_error}")
         
-        app.logger.info(f"✅ Turno manual ingresado - Usage ID: {usage_id}, QR: {qr_prueba['code']}, Command ID: {command_id}")
-        
+        app.logger.info(f"✅ Turno manual ingresado — Máquina: {machine_name} ({machine_id}) | Usage ID: {usage_id} | QR: {qr_prueba['code']} | Command ID: {command_id} | Admin: {user_name}")
+
+        _log_transaccion(
+            tipo='turno_manual',
+            categoria='operacional',
+            descripcion=f"Turno manual ingresado por admin en {machine_name}",
+            usuario=user_name,
+            usuario_id=user_id,
+            maquina_id=machine_id,
+            maquina_nombre=machine_name,
+            entidad='machine',
+            entidad_id=machine_id,
+            datos_extra={
+                'usage_id': usage_id,
+                'command_id': command_id,
+                'qr_code': qr_prueba['code'],
+                'qr_name': qr_prueba['qr_name'],
+                'turns_remaining': qr_prueba['turns_remaining'] - 1,
+                'origen': 'admin_manual'
+            }
+        )
+
         return api_response(
             'S014',
             status='success',
@@ -5927,7 +6036,7 @@ def resolver_falla_maquina(maquina_id):
         # Limpiar errorNote y reactivar máquina
         cursor.execute("""
             UPDATE machine 
-            SET errorNote = NULL, status = 'activa'
+            SET errorNote = NULL, status = 'activa', updatedAt = NOW()
             WHERE id = %s
         """, (maquina_id,))
 
@@ -5953,7 +6062,21 @@ def resolver_falla_maquina(maquina_id):
         """, (maquina_id,))
 
         connection.commit()
-        app.logger.info(f"Falla resuelta: máquina {maquina_id}" + (f" estación {estacion_index}" if estacion_index is not None else ""))
+        estacion_str = f" estación {estacion_index}" if estacion_index is not None else ""
+        app.logger.info(f"Falla resuelta — Máquina: {maquina['name']} ({maquina_id}){estacion_str} | Admin: {session.get('user_name','-')}")
+
+        _log_transaccion(
+            tipo='resolver_falla',
+            categoria='operacional',
+            descripcion=f"Falla resuelta en {maquina['name']}" + estacion_str,
+            usuario=session.get('user_name'),
+            usuario_id=session.get('user_id'),
+            maquina_id=maquina_id,
+            maquina_nombre=maquina['name'],
+            entidad='machine',
+            entidad_id=maquina_id,
+            datos_extra={'estacion_index': estacion_index}
+        )
 
         return jsonify({
             'success': True,
@@ -5963,133 +6086,6 @@ def resolver_falla_maquina(maquina_id):
     except Exception as e:
         app.logger.error(f"Error resolviendo falla: {e}")
         if connection: connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
-@app.route('/api/maquinas/<int:maquina_id>/historial-juegos', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def historial_juegos_maquina(maquina_id):
-    connection = None
-    cursor = None
-    try:
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
-        estacion = request.args.get('estacion')
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        query = """
-            SELECT 
-                tu.id,
-                tu.usedAt,
-                tu.station_index,
-                qr.code as qr_code,
-                qr.qr_name,
-                tp.name as package_name,
-                tp.price as package_price,
-                ut.turns_remaining
-            FROM turnusage tu
-            LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
-            LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
-            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE tu.machineId = %s
-        """
-        params = [maquina_id]
-
-        if fecha_inicio:
-            query += " AND DATE(tu.usedAt) >= %s"
-            params.append(fecha_inicio)
-        if fecha_fin:
-            query += " AND DATE(tu.usedAt) <= %s"
-            params.append(fecha_fin)
-        if estacion is not None:
-            query += " AND tu.station_index = %s"
-            params.append(estacion)
-
-        query += " ORDER BY tu.usedAt DESC LIMIT 200"
-        cursor.execute(query, params)
-        juegos = cursor.fetchall()
-
-        for j in juegos:
-            if j.get('usedAt'):
-                j['usedAt'] = j['usedAt'].isoformat()
-
-        return jsonify({'juegos': juegos, 'total': len(juegos)})
-
-    except Exception as e:
-        app.logger.error(f"Error obteniendo historial juegos: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
-
-@app.route('/api/maquinas/<int:maquina_id>/historial-fallas', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def historial_fallas_maquina(maquina_id):
-    connection = None
-    cursor = None
-    try:
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
-        estacion = request.args.get('estacion')
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        query = """
-            SELECT 
-                mf.id,
-                mf.reported_at,
-                mf.station_index,
-                mf.machine_name,
-                mf.turnos_devueltos,
-                mf.notes,
-                mf.is_forced,
-                mf.forced_by,
-                mf.resolved,
-                mf.resolved_at,
-                qr.code as qr_code,
-                qr.qr_name
-            FROM machinefailures mf
-            LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
-            WHERE mf.machine_id = %s
-        """
-        params = [maquina_id]
-
-        if fecha_inicio:
-            query += " AND DATE(mf.reported_at) >= %s"
-            params.append(fecha_inicio)
-        if fecha_fin:
-            query += " AND DATE(mf.reported_at) <= %s"
-            params.append(fecha_fin)
-        if estacion is not None:
-            query += " AND mf.station_index = %s"
-            params.append(estacion)
-
-        query += " ORDER BY mf.reported_at DESC LIMIT 200"
-        cursor.execute(query, params)
-        fallas = cursor.fetchall()
-
-        for f in fallas:
-            if f.get('reported_at'):
-                f['reported_at'] = f['reported_at'].isoformat()
-            if f.get('resolved_at'):
-                f['resolved_at'] = f['resolved_at'].isoformat()
-
-        return jsonify({'fallas': fallas, 'total': len(fallas)})
-
-    except Exception as e:
-        app.logger.error(f"Error obteniendo historial fallas: {e}")
         return api_response('E001', http_status=500)
     finally:
         if cursor: cursor.close()
@@ -6437,13 +6433,32 @@ def esp32_registrar_uso():
         
         info_actualizada = cursor.fetchone()
         
-        app.logger.info(f"ESP32: Uso registrado - QR: {qr_code}, Turnos restantes: {info_actualizada['turns_remaining']}, Usage ID: {usage_id}, Estación: {station_index}")
+        turnos_restantes = info_actualizada['turns_remaining']
+        app.logger.info(f"ESP32: Uso registrado — QR: {qr_code} | Máquina: {machine_id} | Estación: {station_index} | Turnos restantes: {turnos_restantes} | Usage ID: {usage_id}")
+
+        _log_transaccion(
+            tipo='turno_qr',
+            categoria='operacional',
+            descripcion=f"Turno vía QR {qr_code} ({qr_name}) — Estación {station_index}",
+            maquina_id=machine_id,
+            entidad='qr',
+            entidad_id=qr_id,
+            datos_extra={
+                'qr_code': qr_code,
+                'qr_name': qr_name,
+                'usage_id': usage_id,
+                'station_index': station_index,
+                'turns_remaining': turnos_restantes,
+                'package_name': info_actualizada['package_name'],
+                'origen': 'esp32'
+            }
+        )
 
         return api_response(
             'S010',
             status='success',
             data={
-                'turns_remaining': info_actualizada['turns_remaining'],
+                'turns_remaining': turnos_restantes,
                 'package_name': info_actualizada['package_name'],
                 'qr_name': qr_name,
                 'qr_code': qr_code,
@@ -6812,13 +6827,33 @@ def esp32_reportar_falla():
         
         connection.commit()
         
-        app.logger.info(f"✅ [TFT] Falla reportada exitosamente - ID: {failure_id}, QR: {qr_code}, Turnos devueltos: {turnos_devueltos}, Nuevos turnos: {nuevos_turnos}")
-        
+        app.logger.info(f"✅ [TFT] Falla reportada — ID: {failure_id} | Máquina: {machine_name} ({machine_id}) | QR: {qr_code} | Turnos devueltos: {turnos_devueltos} | Turnos restantes: {nuevos_turnos}")
+
+        _log_transaccion(
+            tipo='falla_maquina',
+            categoria='operacional',
+            descripcion=f"Falla reportada desde ESP32/TFT en {machine_name} — turno devuelto",
+            maquina_id=machine_id,
+            maquina_nombre=machine_name,
+            entidad='qr',
+            entidad_id=qr_id,
+            datos_extra={
+                'failure_id': failure_id,
+                'qr_code': qr_code,
+                'usage_id': usage_id,
+                'turnos_devueltos': turnos_devueltos,
+                'turnos_restantes': nuevos_turnos,
+                'is_forced': is_forced,
+                'notes': notes,
+                'origen': 'esp32_tft'
+            }
+        )
+
         # ==========================================
         # 10. RESPUESTA AL ESP32
         # ==========================================
         return api_response(
-            'S012',  # Código nuevo: Falla reportada desde TFT
+            'S012',
             status='success',
             data={
                 'failure_id': failure_id,
@@ -8583,12 +8618,11 @@ def calcular_liquidacion():
                     AND qh.es_venta_real = TRUE
                     GROUP BY p.id, p.nombre
                 """, (fecha_inicio, fecha_fin))
-
+                
                 propietarios_data = cursor.fetchall()
-
+                
                 for prop in propietarios_data:
                     distribucion_propietarios[prop['propietario_nombre']] = {
-                        'propietario_id': prop['propietario_id'],
                         'total_ingresos': float(prop['total_ingresos']),
                         'ventas_asociadas': prop['ventas_asociadas'],
                         'detalles_maquinas': prop['maquinas_nombres'].split(', ') if prop['maquinas_nombres'] else []
@@ -9047,37 +9081,13 @@ def crear_socio():
         connection.commit()
         
         app.logger.info(f"Socio creado: {data['nombre']} (Código: {codigo_socio})")
-
-        # Crear usuario automáticamente con rol socio
-        try:
-            import hashlib, secrets
-            password_temp = secrets.token_urlsafe(8)
-            password_hash = hashlib.sha256(password_temp.encode()).hexdigest()
-            
-            cursor.execute("""
-                INSERT INTO users (name, password, role, local, isActive, createdAt)
-                VALUES (%s, %s, 'socio', 'El Mekatiadero', 1, NOW())
-            """, (data.get('nombre'), password_hash))
-            
-            user_id = cursor.lastrowid
-            
-            # Guardar referencia usuario-socio en notas del usuario
-            cursor.execute("""
-                UPDATE users SET notes = %s WHERE id = %s
-            """, (f"Socio ID: {socio_id} | Contraseña temporal: {password_temp}", user_id))
-            
-            connection.commit()
-            app.logger.info(f"Usuario creado para socio {socio_id}: user_id={user_id}, pass_temp={password_temp}")
-        except Exception as e:
-            app.logger.warning(f"No se pudo crear usuario para socio: {e}")
-            # No fallar si el usuario no se puede crear
-
+        
         return api_response(
             'S002',
             status='success',
             data={'socio_id': socio_id, 'codigo_socio': codigo_socio}
         )
-
+        
     except Exception as e:
         app.logger.error(f"Error creando socio: {e}")
         if connection:
@@ -9411,111 +9421,6 @@ def obtener_inversiones_socio(socio_id):
         if connection:
             connection.close()
 
-@app.route('/api/socios/<int:socio_id>/inversiones', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-def agregar_inversion_socio(socio_id):
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        maquina_id        = data.get('maquina_id')
-        porcentaje        = float(data.get('porcentaje_propiedad', 0))
-        inversion_inicial = float(data.get('inversion_inicial', 0))
-        fecha             = data.get('fecha_adquisicion')
-        notas             = data.get('notas', '')
-
-        if not all([maquina_id, porcentaje]):
-            return api_response('E005', http_status=400, data={'message': 'Faltan campos requeridos'})
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        cursor.execute("""
-            SELECT p.id FROM propietarios p
-            JOIN socios s ON s.nombre = p.nombre
-            WHERE s.id = %s LIMIT 1
-        """, (socio_id,))
-        prop = cursor.fetchone()
-        if not prop:
-            cursor.execute("SELECT nombre FROM socios WHERE id = %s", (socio_id,))
-            socio = cursor.fetchone()
-            if not socio:
-                return api_response('E002', http_status=404)
-            cursor.execute("INSERT INTO propietarios (nombre) VALUES (%s)", (socio['nombre'],))
-            propietario_id = cursor.lastrowid
-        else:
-            propietario_id = prop['id']
-
-        cursor.execute("""
-            INSERT INTO maquinapropietario
-            (maquina_id, propietario_id, porcentaje_propiedad)
-            VALUES (%s, %s, %s)
-        """, (maquina_id, propietario_id, porcentaje))
-        
-        connection.commit()
-        return jsonify({'success': True, 'inversion_id': cursor.lastrowid})
-
-    except Exception as e:
-        app.logger.error(f"Error agregando inversion socio {socio_id}: {e}")
-        if connection: connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
-
-@app.route('/api/socios/<int:socio_id>/pagos', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-def registrar_pago_socio(socio_id):
-    connection = None
-    cursor = None
-    try:
-        data        = request.get_json()
-        monto       = float(data.get('monto', 0))
-        tipo_pago   = data.get('tipo_pago', 'cuota_anual')
-        metodo_pago = data.get('metodo_pago', 'efectivo')
-        fecha_pago  = data.get('fecha_pago')
-        fecha_venc  = data.get('fecha_vencimiento')
-        notas       = data.get('notas', '')
-
-        if not monto:
-            return api_response('E005', http_status=400, data={'message': 'Monto requerido'})
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        from datetime import datetime
-        anio = datetime.now().year
-        if fecha_pago:
-            try:
-                 anio = int(fecha_pago.split('-')[0])
-            except:
-                 pass
-
-        cursor.execute("""
-            INSERT INTO pagoscuotas
-            (socio_id, anio, monto, fecha_pago, metodo_pago, estado, notas)
-            VALUES (%s, %s, %s, %s, %s, 'pagado', %s)
-        """, (socio_id, anio, monto, fecha_pago, metodo_pago, notas))
-
-
-        connection.commit()
-        return jsonify({'success': True, 'pago_id': cursor.lastrowid})
-
-    except Exception as e:
-        app.logger.error(f"Error registrando pago socio {socio_id}: {e}")
-        if connection: connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
 @app.route('/api/socios/<int:socio_id>/pagos', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
@@ -9670,14 +9575,32 @@ def crear_inversion():
         
         connection.commit()
         
-        app.logger.info(f"Inversión creada: ID {inversion_id} para socio {data['socio_id']}")
-        
+        app.logger.info(f"Inversión creada — ID: {inversion_id} | Socio: {data['socio_id']} | Máquina: {data['maquina_id']} | %: {data['porcentaje_inversion']} | Monto: ${float(data['monto_inicial']):,.0f}")
+
+        _log_transaccion(
+            tipo='inversion',
+            categoria='financiero',
+            descripcion=f"Nueva inversión {data['porcentaje_inversion']}% en máquina {data['maquina_id']} — socio {data['socio_id']}",
+            usuario=session.get('user_name'),
+            usuario_id=session.get('user_id'),
+            maquina_id=data['maquina_id'],
+            entidad='socio',
+            entidad_id=data['socio_id'],
+            monto=float(data['monto_inicial']),
+            datos_extra={
+                'inversion_id': inversion_id,
+                'porcentaje_inversion': float(data['porcentaje_inversion']),
+                'fecha_inicio': str(data['fecha_inicio']),
+                'estado': data.get('estado', 'activa')
+            }
+        )
+
         return api_response(
             'S002',
             status='success',
             data={'inversion_id': inversion_id}
         )
-        
+
     except Exception as e:
         app.logger.error(f"Error creando inversión: {e}")
         if connection:
@@ -9814,14 +9737,32 @@ def crear_pago_cuota():
         
         connection.commit()
         
-        app.logger.info(f"Pago de cuota creado: ID {pago_id} para socio {data['socio_id']}")
-        
+        app.logger.info(f"Pago de cuota creado — ID: {pago_id} | Socio: {data['socio_id']} | Año: {data['anio']} | Monto: ${float(data['monto']):,.0f} | Método: {data.get('metodo_pago','efectivo')}")
+
+        _log_transaccion(
+            tipo='pago_cuota',
+            categoria='financiero',
+            descripcion=f"Pago cuota anual {data['anio']} — socio {data['socio_id']} vía {data.get('metodo_pago','efectivo')}",
+            usuario=session.get('user_name'),
+            usuario_id=session.get('user_id'),
+            entidad='socio',
+            entidad_id=data['socio_id'],
+            monto=float(data['monto']),
+            datos_extra={
+                'pago_id': pago_id,
+                'anio': data['anio'],
+                'metodo_pago': data.get('metodo_pago', 'efectivo'),
+                'estado': data.get('estado', 'pendiente'),
+                'comprobante': data.get('comprobante', '')
+            }
+        )
+
         return api_response(
             'S002',
             status='success',
             data={'pago_id': pago_id}
         )
-        
+
     except Exception as e:
         app.logger.error(f"Error creando pago de cuota: {e}")
         if connection:
@@ -10810,46 +10751,103 @@ def obtener_logs_consola():
         if fuente in ['todos', 'error']:
             try:
                 error_query = """
-                    SELECT 
+                    SELECT
                         'error' as fuente,
-                        'ERROR' as nivel,
-                        CONCAT(error_type, ': ', SUBSTRING(error_message, 1, 200)) as mensaje,
+                        level as nivel,
+                        SUBSTRING(message, 1, 300) as mensaje,
                         module as modulo,
                         ip_address,
                         user_id,
                         created_at,
-                        request_method as metodo,
-                        request_path as path,
+                        NULL as metodo,
+                        endpoint as path,
                         NULL as status_code,
                         NULL as response_time_ms
-                    FROM error_logs 
+                    FROM error_logs
                     WHERE 1=1
                 """
                 params = []
-                
+
                 if buscar:
-                    error_query += " AND (error_message LIKE %s OR error_type LIKE %s OR module LIKE %s)"
-                    params.extend([f'%{buscar}%', f'%{buscar}%', f'%{buscar}%'])
-                
+                    error_query += " AND (message LIKE %s OR module LIKE %s)"
+                    params.extend([f'%{buscar}%', f'%{buscar}%'])
+
                 if fecha_inicio:
                     error_query += " AND DATE(created_at) >= %s"
                     params.append(fecha_inicio)
-                
+
                 if fecha_fin:
                     error_query += " AND DATE(created_at) <= %s"
                     params.append(fecha_fin)
-                
+
                 error_query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
                 params.append(limit)
-                
+
                 cursor.execute(error_query, params)
                 results = cursor.fetchall()
                 all_logs.extend(results)
-                app.logger.info(f"Error logs obtenidos: {len(results)} registros")
-                
+
             except Exception as e:
                 app.logger.error(f"Error ejecutando consulta error logs: {e}")
-        
+
+        # 5. Log transaccional (financiero / operacional)
+        if fuente in ['todos', 'transacciones']:
+            try:
+                txn_query = """
+                    SELECT
+                        'transaccion' as fuente,
+                        CASE
+                            WHEN estado = 'error' THEN 'ERROR'
+                            WHEN estado = 'advertencia' THEN 'WARNING'
+                            ELSE 'INFO'
+                        END as nivel,
+                        CONCAT('[', UPPER(tipo), '] ', descripcion) as mensaje,
+                        tipo as modulo,
+                        ip_address,
+                        usuario_id as user_id,
+                        created_at,
+                        NULL as metodo,
+                        NULL as path,
+                        NULL as status_code,
+                        NULL as response_time_ms,
+                        tipo,
+                        categoria,
+                        usuario,
+                        maquina_id,
+                        maquina_nombre,
+                        entidad,
+                        entidad_id,
+                        monto,
+                        moneda,
+                        datos_extra,
+                        estado
+                    FROM transaction_logs
+                    WHERE 1=1
+                """
+                params = []
+
+                if buscar:
+                    txn_query += " AND (descripcion LIKE %s OR tipo LIKE %s OR usuario LIKE %s OR maquina_nombre LIKE %s)"
+                    params.extend([f'%{buscar}%'] * 4)
+
+                if fecha_inicio:
+                    txn_query += " AND DATE(created_at) >= %s"
+                    params.append(fecha_inicio)
+
+                if fecha_fin:
+                    txn_query += " AND DATE(created_at) <= %s"
+                    params.append(fecha_fin)
+
+                txn_query += f" ORDER BY created_at {orden.upper()} LIMIT %s"
+                params.append(limit)
+
+                cursor.execute(txn_query, params)
+                results = cursor.fetchall()
+                all_logs.extend(results)
+
+            except Exception as e:
+                app.logger.error(f"Error ejecutando consulta transaction logs: {e}")
+
         cursor.close()
         connection.close()
         
@@ -10883,6 +10881,26 @@ def obtener_logs_consola():
                         'path': log.get('path', ''),
                         'status_code': log.get('status_code'),
                         'response_time': log.get('response_time_ms')
+                    })
+                elif log.get('fuente') == 'transaccion':
+                    datos_extra = log.get('datos_extra')
+                    if isinstance(datos_extra, str):
+                        try:
+                            datos_extra = json.loads(datos_extra)
+                        except Exception:
+                            datos_extra = {}
+                    log_entry.update({
+                        'tipo': log.get('tipo', ''),
+                        'categoria': log.get('categoria', ''),
+                        'usuario': log.get('usuario', ''),
+                        'maquina_id': log.get('maquina_id'),
+                        'maquina_nombre': log.get('maquina_nombre', ''),
+                        'entidad': log.get('entidad', ''),
+                        'entidad_id': log.get('entidad_id'),
+                        'monto': float(log['monto']) if log.get('monto') is not None else None,
+                        'moneda': log.get('moneda', 'COP'),
+                        'datos_extra': datos_extra,
+                        'estado': log.get('estado', 'ok')
                     })
                 
                 logs_data.append(log_entry)
@@ -12150,244 +12168,6 @@ def obtener_historial_devoluciones(qr_code):
         if connection:
             connection.close()
 
-# ==================== APIS PARA GASTOS DE LIQUIDACIÓN ====================
-
-@app.route('/api/gastos-liquidacion', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_gastos_liquidacion():
-    connection = None
-    cursor = None
-    try:
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin    = request.args.get('fecha_fin')
-        propietario_id = request.args.get('propietario_id')
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        query = """
-            SELECT g.*, p.nombre as propietario_nombre
-            FROM gastos_liquidacion g
-            JOIN propietarios p ON g.propietario_id = p.id
-            WHERE 1=1
-        """
-        params = []
-
-        if fecha_inicio:
-            query += " AND g.fecha_inicio >= %s"
-            params.append(fecha_inicio)
-        if fecha_fin:
-            query += " AND g.fecha_fin <= %s"
-            params.append(fecha_fin)
-        if propietario_id:
-            query += " AND g.propietario_id = %s"
-            params.append(propietario_id)
-
-        query += " ORDER BY g.fecha_inicio DESC, g.propietario_id"
-        cursor.execute(query, params)
-        gastos = cursor.fetchall()
-
-        for g in gastos:
-            if g.get('createdAt'):
-                g['createdAt'] = g['createdAt'].isoformat()
-
-        return jsonify(gastos)
-
-    except Exception as e:
-        app.logger.error(f"Error obteniendo gastos: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
-
-@app.route('/api/gastos-liquidacion', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-def crear_gasto_liquidacion():
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        propietario_id = data.get('propietario_id')
-        fecha_inicio   = data.get('fecha_inicio')
-        fecha_fin      = data.get('fecha_fin')
-        concepto       = data.get('concepto', '').strip()
-        monto          = float(data.get('monto', 0))
-        tipo           = data.get('tipo', 'fijo')
-        porcentaje     = data.get('porcentaje')
-        notas          = data.get('notas', '')
-
-        if not all([propietario_id, fecha_inicio, fecha_fin, concepto]):
-            return api_response('E005', http_status=400, data={'message': 'Faltan campos requeridos'})
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        cursor.execute("""
-            INSERT INTO gastos_liquidacion
-            (propietario_id, fecha_inicio, fecha_fin, concepto, monto, tipo, porcentaje, notas, creado_por)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (propietario_id, fecha_inicio, fecha_fin, concepto, monto, tipo, porcentaje, notas, session.get('user_id')))
-
-        connection.commit()
-        gasto_id = cursor.lastrowid
-        app.logger.info(f"Gasto creado: {concepto} para propietario {propietario_id}")
-
-        return jsonify({'success': True, 'gasto_id': gasto_id})
-
-    except Exception as e:
-        app.logger.error(f"Error creando gasto: {e}")
-        if connection: connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
-
-@app.route('/api/gastos-liquidacion/<int:gasto_id>', methods=['DELETE'])
-@handle_api_errors
-@require_login(['admin'])
-def eliminar_gasto_liquidacion(gasto_id):
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        cursor.execute("SELECT id FROM gastos_liquidacion WHERE id = %s", (gasto_id,))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404)
-
-        cursor.execute("DELETE FROM gastos_liquidacion WHERE id = %s", (gasto_id,))
-        connection.commit()
-
-        return jsonify({'success': True})
-
-    except Exception as e:
-        app.logger.error(f"Error eliminando gasto: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
-
-
-@app.route('/api/liquidaciones/distribucion-socios', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-def calcular_distribucion_socios():
-    """Calcular cuánto le corresponde a cada propietario después de gastos"""
-    connection = None
-    cursor = None
-    try:
-        data         = request.get_json()
-        fecha_inicio = data.get('fecha_inicio')
-        fecha_fin    = data.get('fecha_fin')
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        # 1. Ingresos por propietario desde ventas reales
-        cursor.execute("""
-            SELECT
-                p.id as propietario_id,
-                p.nombre as propietario_nombre,
-                COALESCE(SUM(
-                    tp.price
-                    * (100 - COALESCE(mpr.porcentaje_restaurante, 35)) / 100
-                    * mp.porcentaje_propiedad / 100
-                ), 0) as ingresos_brutos
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            JOIN turnusage tu ON qr.id = tu.qrCodeId
-            JOIN machine m ON tu.machineId = m.id
-            JOIN maquinapropietario mp ON m.id = mp.maquina_id
-            JOIN propietarios p ON mp.propietario_id = p.id
-            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE
-            GROUP BY p.id, p.nombre
-            ORDER BY ingresos_brutos DESC
-        """, (fecha_inicio, fecha_fin))
-
-        propietarios = cursor.fetchall()
-
-        # 2. Gastos registrados en el período
-        cursor.execute("""
-            SELECT g.*, p.nombre as propietario_nombre
-            FROM gastos_liquidacion g
-            JOIN propietarios p ON g.propietario_id = p.id
-            WHERE g.fecha_inicio >= %s AND g.fecha_fin <= %s
-            ORDER BY g.propietario_id
-        """, (fecha_inicio, fecha_fin))
-
-        gastos = cursor.fetchall()
-
-        # 3. Construir distribución
-        distribucion = {}
-        for prop in propietarios:
-            pid = prop['propietario_id']
-            distribucion[pid] = {
-                'propietario_id':   pid,
-                'nombre':           prop['propietario_nombre'],
-                'ingresos_brutos':  float(prop['ingresos_brutos']),
-                'gastos':           [],
-                'total_gastos':     0,
-                'neto':             0
-            }
-
-        # Agregar gastos a cada propietario
-        for gasto in gastos:
-            pid = gasto['propietario_id']
-            if pid not in distribucion:
-                distribucion[pid] = {
-                    'propietario_id': pid,
-                    'nombre':         gasto['propietario_nombre'],
-                    'ingresos_brutos': 0,
-                    'gastos':          [],
-                    'total_gastos':    0,
-                    'neto':            0
-                }
-            monto = float(gasto['monto'])
-            if gasto['tipo'] == 'porcentaje' and gasto['porcentaje']:
-                monto = distribucion[pid]['ingresos_brutos'] * float(gasto['porcentaje']) / 100
-            distribucion[pid]['gastos'].append({
-                'id':       gasto['id'],
-                'concepto': gasto['concepto'],
-                'monto':    monto,
-                'tipo':     gasto['tipo']
-            })
-            distribucion[pid]['total_gastos'] += monto
-
-        # Calcular neto
-        for pid in distribucion:
-            d = distribucion[pid]
-            d['neto'] = d['ingresos_brutos'] - d['total_gastos']
-
-        return jsonify({
-            'success':      True,
-            'distribucion': list(distribucion.values()),
-            'periodo':      {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin}
-        })
-
-    except Exception as e:
-        app.logger.error(f"Error calculando distribución socios: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor: cursor.close()
-        if connection: connection.close()
 # ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':
