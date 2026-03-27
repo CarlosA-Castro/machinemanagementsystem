@@ -85,13 +85,10 @@ app.logger.addHandler(file_handler)
 app.logger.addHandler(console_handler)
 app.logger.setLevel(logging.INFO)
 
-# Configurar werkzeug logger para acceso HTTP
-werkzeug_logger = logging.getLogger('werkzeug')
-werkzeug_logger.addHandler(file_handler)
-werkzeug_logger.addHandler(console_handler)
-werkzeug_logger.setLevel(logging.INFO)
+# Werkzeug: solo errores (nuestro after_request ya registra los requests)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-# Reducir verbosidad de algunos loggers
+# Reducir verbosidad de otros loggers ruidosos
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 
@@ -99,8 +96,15 @@ logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 # LOGGING TRANSACCIONAL Y HOOKS DE REQUEST
 # ============================================================
 
-# Rutas que se omiten del access_log para no saturar la BD
-_SKIP_ACCESS_LOG = ('/static', '/api/logs', '/favicon', '/api/esp32/check-commands')
+# Rutas que se omiten del access_log (ruido: polling, assets, health checks)
+_SKIP_ACCESS_LOG = (
+    '/static',
+    '/favicon',
+    '/api/logs',           # auto-refresh de la consola cada 5s
+    '/api/esp32/check-commands',  # polling del ESP32 cada pocos segundos
+    '/api/esp32/status',
+    '/api/tft/',
+)
 
 def _log_transaccion(tipo, descripcion, categoria='operacional', usuario=None, usuario_id=None,
                      maquina_id=None, maquina_nombre=None, entidad=None, entidad_id=None,
