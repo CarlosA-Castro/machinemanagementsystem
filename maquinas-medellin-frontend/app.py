@@ -4924,9 +4924,21 @@ def eliminar_maquina(maquina_id):
                 }
             )
 
-        cursor.execute("DELETE FROM MaquinaPorcentajeRestaurante WHERE maquina_id = %s", (maquina_id,))
-        cursor.execute("DELETE FROM MaquinaPropietario WHERE maquina_id = %s", (maquina_id,))
-        cursor.execute("DELETE FROM errorreport WHERE machineId = %s", (maquina_id,))
+        # Eliminar todas las tablas relacionadas (FK cleanup)
+        tablas_fk = [
+            ("machinetechnical",           "machine_id"),
+            ("esp32_commands",             "machine_id"),
+            ("machine_resets",             "machine_id"),
+            ("machinefailures",            "machine_id"),
+            ("maquinapropietario",         "maquina_id"),
+            ("maquinaporcentajerestaurante","maquina_id"),
+            ("errorreport",                "machineId"),
+        ]
+        for tabla, col in tablas_fk:
+            try:
+                cursor.execute(f"DELETE FROM {tabla} WHERE {col} = %s", (maquina_id,))
+            except Exception as fk_err:
+                app.logger.warning(f"FK cleanup {tabla}: {fk_err}")
 
         cursor.execute("DELETE FROM machine WHERE id = %s", (maquina_id,))
         
@@ -5011,7 +5023,8 @@ def ingresar_turno_manual():
             json.dumps({
                 'duration_ms': 500,
                 'machine_name': machine_name,
-                'station_index': station_index,
+                'station': station_index,        # ESP32 lee 'station'
+                'station_index': station_index,  # alias compat
                 'estacion_nombre': estacion_nombre,
                 'origen': 'admin_manual'
             }),
