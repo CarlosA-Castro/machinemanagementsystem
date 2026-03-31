@@ -4546,8 +4546,34 @@ def guardar_technical_maquina(maquina_id):
             ))
         
         connection.commit()
+
+        # Si es multi-estación, enviar comando de actualización de nombres al TFT del ESP32
+        machine_subtype = data.get('machine_subtype', 'simple')
+        stations = data.get('stations', [])
+        if machine_subtype == 'multi_station' and stations:
+            try:
+                from datetime import datetime as _dt
+                station_names_list = [s['name'] if isinstance(s, dict) else str(s) for s in stations]
+                cursor.execute("""
+                    INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                """, (
+                    maquina_id,
+                    'UPDATE_STATION_NAMES',
+                    json.dumps({
+                        'station_names': station_names_list,
+                        'station_count': len(station_names_list)
+                    }),
+                    'admin_config',
+                    'queued'
+                ))
+                connection.commit()
+                app.logger.info(f"✅ Comando UPDATE_STATION_NAMES encolado para máquina {maquina_id}: {station_names_list}")
+            except Exception as cmd_err:
+                app.logger.warning(f"No se pudo encolar UPDATE_STATION_NAMES: {cmd_err}")
+
         return api_response('S003', status='success')
-        
+
     except Exception as e:
         app.logger.error(f"Error guardando datos técnicos: {e}")
         return api_response('E001', http_status=500)
@@ -4968,138 +4994,41 @@ def ingresar_turno_manual():
                     'message': f'La máquina está en estado "{maquina["status"]}". Solo se pueden ingresar turnos en máquinas activas.'
                 }
             )
-        
-        # Obtener un QR de prueba válido (el más reciente con turnos disponibles)
-        cursor.execute("""
-            SELECT qr.id, qr.code, qr.qr_name, ut.turns_remaining
-            FROM qrcode qr
-            JOIN userturns ut ON qr.id = ut.qr_code_id
-            WHERE ut.turns_remaining > 0
-            ORDER BY qr.createdAt DESC
-            LIMIT 1
-        """)
-        
-        qr_prueba = cursor.fetchone()
-        
-        if not qr_prueba:
-            # Si no hay QR con turnos, crear uno temporal
-            app.logger.warning("No hay QR con turnos disponibles. Creando QR de prueba...")
-            
-            # Obtener un paquete activo
-            cursor.execute("SELECT id, turns FROM turnpackage WHERE isActive = TRUE ORDER BY id LIMIT 1")
-            paquete = cursor.fetchone()
-            
-            if not paquete:
-                return api_response('E002', http_status=404, data={'message': 'No hay paquetes activos disponibles'})
-            
-            # Generar código QR temporal
-            from datetime import datetime
-            temp_qr_code = f"TEMP-{machine_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            # Insertar QR temporal
-            cursor.execute("""
-                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (temp_qr_code, paquete['turns'], 1, paquete['id'], f"Prueba Admin - {machine_name}"))
-            
-            qr_id = cursor.lastrowid
-            
-            cursor.execute("""
-                INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
-                VALUES (%s, %s, %s, %s)
-            """, (qr_id, paquete['turns'], paquete['turns'], paquete['id']))
-            
-            # Registrar en historial
-            hora_colombia = get_colombia_time()
-            cursor.execute("""
-                INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
-                VALUES (%s, %s, %s, %s, %s, %s, FALSE)
-            """, (temp_qr_code, user_id, user_name, 'Administración', 
-                  format_datetime_for_db(hora_colombia), f"Prueba Admin - {machine_name}"))
-            
-            qr_prueba = {
-                'id': qr_id,
-                'code': temp_qr_code,
-                'qr_name': f"Prueba Admin - {machine_name}",
-                'turns_remaining': paquete['turns']
-            }
-            
-            app.logger.info(f"✅ QR de prueba creado: {temp_qr_code}")
-        
-        # SIMULAR UN JUEGO (turnusage)
+
+        # Obtener estación (para máquinas multi-estación)
+        station_index = data.get('estacion', 0)
+        estacion_nombre = data.get('estacion_nombre', f'Estación {station_index + 1}')
+
         hora_actual = get_colombia_time()
-        
-        cursor.execute("""
-            INSERT INTO turnusage (qrCodeId, machineId, usedAt)
-            VALUES (%s, %s, %s)
-        """, (qr_prueba['id'], machine_id, format_datetime_for_db(hora_actual)))
-        
-        usage_id = cursor.lastrowid
-        
-        # REDUCIR TURNOS EN 1 (simular uso)
-        cursor.execute("""
-            UPDATE userturns 
-            SET turns_remaining = turns_remaining - 1
-            WHERE qr_code_id = %s
-        """, (qr_prueba['id'],))
-        
-        cursor.execute("""
-            UPDATE qrcode 
-            SET remainingTurns = remainingTurns - 1
-            WHERE id = %s
-        """, (qr_prueba['id'],))
-        
-        # Actualizar fecha del último uso de la máquina
-        cursor.execute("""
-            UPDATE machine 
-            SET dateLastQRUsed = NOW()
-            WHERE id = %s
-        """, (machine_id,))
-        
-        # ==========================================
-        # NUEVO: ENVIAR COMANDO AL ESP32
-        # ==========================================
+
+        # ENVIAR COMANDO AL ESP32 — activar relé sin consumir ningún QR
         cursor.execute("""
             INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (
-            machine_id, 
-            'ACTIVATE_RELAY', 
+            machine_id,
+            'ACTIVATE_RELAY',
             json.dumps({
-                'duration_ms': 500, 
+                'duration_ms': 500,
                 'machine_name': machine_name,
-                'qr_code': qr_prueba['code'],
-                'usage_id': usage_id
-            }), 
-            user_name, 
+                'station_index': station_index,
+                'estacion_nombre': estacion_nombre,
+                'origen': 'admin_manual'
+            }),
+            user_name,
             'queued',
             format_datetime_for_db(hora_actual)
         ))
-        
+
         command_id = cursor.lastrowid
-        app.logger.info(f"✅ Comando ACTIVATE_RELAY encolado con ID: {command_id}")
-        
+        app.logger.info(f"✅ Comando ACTIVATE_RELAY encolado con ID: {command_id} (estación {station_index})")
+
         connection.commit()
-        
-        # Registrar en logs de acción
-        try:
-            cursor.execute("""
-                INSERT INTO app_logs (level, module, message, user_id, created_at)
-                VALUES (%s, %s, %s, %s, %s)
-            """, ('INFO', 'machine_action', 
-                  f"Admin {user_name} ingresó turno manual en máquina {machine_name} (ID: {machine_id}) - Usage ID: {usage_id}, Command ID: {command_id}", 
-                  user_id,
-                  format_datetime_for_db(hora_actual)))
-            connection.commit()
-        except Exception as log_error:
-            app.logger.warning(f"No se pudo registrar log: {log_error}")
-        
-        app.logger.info(f"✅ Turno manual ingresado — Máquina: {machine_name} ({machine_id}) | Usage ID: {usage_id} | QR: {qr_prueba['code']} | Command ID: {command_id} | Admin: {user_name}")
 
         _log_transaccion(
             tipo='turno_manual',
             categoria='operacional',
-            descripcion=f"Turno manual ingresado por admin en {machine_name}",
+            descripcion=f"Turno manual admin en {machine_name} — {estacion_nombre}",
             usuario=user_name,
             usuario_id=user_id,
             maquina_id=machine_id,
@@ -5107,14 +5036,14 @@ def ingresar_turno_manual():
             entidad='machine',
             entidad_id=machine_id,
             datos_extra={
-                'usage_id': usage_id,
                 'command_id': command_id,
-                'qr_code': qr_prueba['code'],
-                'qr_name': qr_prueba['qr_name'],
-                'turns_remaining': qr_prueba['turns_remaining'] - 1,
+                'station_index': station_index,
+                'estacion_nombre': estacion_nombre,
                 'origen': 'admin_manual'
             }
         )
+
+        app.logger.info(f"✅ Turno manual admin — Máquina: {machine_name} ({machine_id}) | Estación: {estacion_nombre} | Command ID: {command_id} | Admin: {user_name}")
 
         return api_response(
             'S014',
@@ -5122,13 +5051,11 @@ def ingresar_turno_manual():
             data={
                 'machine_id': machine_id,
                 'machine_name': machine_name,
-                'usage_id': usage_id,
                 'command_id': command_id,
-                'qr_code': qr_prueba['code'],
-                'qr_name': qr_prueba['qr_name'],
-                'turns_remaining': qr_prueba['turns_remaining'] - 1,
+                'station_index': station_index,
+                'estacion_nombre': estacion_nombre,
                 'timestamp': hora_actual.isoformat(),
-                'message': f'Turno ingresado correctamente. Comando enviado al ESP32 (ID: {command_id})'
+                'message': f'Comando enviado al ESP32 (ID: {command_id}). Sin uso de QR.'
             }
         )
         
@@ -5223,6 +5150,10 @@ def reiniciar_maquina_manual():
             app.logger.warning(f"Error insertando en machine_resets: {e}")
             reset_id = None
         
+        # Obtener estación desde el request (para multi-estación)
+        station_index = data.get('estacion', 0)
+        estacion_nombre = data.get('estacion_nombre', f'Estación {station_index + 1}')
+
         # Registrar en esp32_commands
         hora_actual = get_colombia_time()
         try:
@@ -5230,15 +5161,21 @@ def reiniciar_maquina_manual():
                 INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (
-                machine_id, 
-                'RESET', 
-                json.dumps({'reset_time': reset_time, 'machine_name': machine_name}), 
-                user_name, 
+                machine_id,
+                'RESET',
+                json.dumps({
+                    'reset_time': reset_time,
+                    'machine_name': machine_name,
+                    'station_index': station_index,
+                    'estacion_nombre': estacion_nombre,
+                    'restart_tft': True
+                }),
+                user_name,
                 'queued',
                 format_datetime_for_db(hora_actual)
             ))
             command_id = cursor.lastrowid
-            app.logger.info(f"✅ Comando RESET encolado con ID: {command_id}")
+            app.logger.info(f"✅ Comando RESET encolado con ID: {command_id} (estación {station_index})")
         except Exception as e:
             app.logger.error(f"Error insertando en esp32_commands: {e}")
             command_id = None
