@@ -30,6 +30,7 @@ services:
       FLYWAY_USER: myuser
       FLYWAY_PASSWORD: mypassword
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_OUT_OF_ORDER: "true"
     volumes:
       - ./db/migration:/flyway/sql
 

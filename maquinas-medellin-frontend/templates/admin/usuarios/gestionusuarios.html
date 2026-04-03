@@ -718,7 +718,7 @@
                             </div>
                             <div class="flex items-center gap-1">
                                 <span class="text-xs px-2 py-0.5 rounded-full bg-white bg-opacity-75 whitespace-nowrap">${rol.total_usuarios || 0} usuarios</span>
-                                ${!esBase ? `<button onclick="RolesApp.eliminarRol('${rol.id}', '${rol.nombre}')" class="text-red-500 hover:text-red-700 ml-1" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>` : ''}
+                                ${rol.id !== 'admin' ? `<button onclick="RolesApp.eliminarRol('${rol.id}', '${rol.nombre}')" class="text-red-500 hover:text-red-700 ml-1" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>` : ''}
                             </div>
                         </div>
                         <p class="text-xs mb-2 opacity-80">${rol.descripcion || 'Sin descripción'}</p>

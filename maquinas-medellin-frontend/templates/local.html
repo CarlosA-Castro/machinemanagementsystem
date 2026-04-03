@@ -604,28 +604,25 @@ fetch('/api/mis-permisos')
         setTimeout(() => {
           const canvas = tempDiv.querySelector('canvas');
           if (canvas) {
-            const img = new Image();
-            img.src = canvas.toDataURL('image/png');
-            img.onload = () => {
-              const anchoQR = 35, altoQR = 35;
-              const xCentrado = (anchoPapel - anchoQR) / 2;
-              const yQR = 10;
-              doc.addImage(img, 'PNG', xCentrado, yQR, anchoQR, altoQR);
-              doc.setFontSize(8); doc.setFont(undefined, 'bold');
-              const textos = [`*** REIMPRESIÓN ***`, `Nombre: ${nombre || 'Sin nombre'}`, `Código: ${codigoQR}`, `ID: ${numero}`];
-              textos.forEach((t, i) => {
-                const x = (anchoPapel - doc.getTextWidth(t)) / 2;
-                doc.text(t, x, yQR + altoQR + 4 + (i * 4));
-              });
-              doc.setLineWidth(0.5);
-              doc.line(5, yQR + altoQR + 18, anchoPapel - 5, yQR + altoQR + 18);
-              doc.setFontSize(6); doc.setFont(undefined, 'normal');
-              const textoInfo = "Reimpresión - Presentar para canjear";
-              doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 22);
-              doc.save(`QR-Reimpresion-${nombre || codigoQR}.pdf`);
-              this.mostrarAlerta("✅ QR reimpreso exitosamente", "success");
-              document.body.removeChild(loadingMessage);
-            };
+            const dataUrl = canvas.toDataURL('image/png');
+            const anchoQR = 35, altoQR = 35;
+            const xCentrado = (anchoPapel - anchoQR) / 2;
+            const yQR = 10;
+            doc.addImage(dataUrl, 'PNG', xCentrado, yQR, anchoQR, altoQR);
+            doc.setFontSize(8); doc.setFont(undefined, 'bold');
+            const textos = [`*** REIMPRESIÓN ***`, `Nombre: ${nombre || 'Sin nombre'}`, `Código: ${codigoQR}`, `ID: ${numero}`];
+            textos.forEach((t, i) => {
+              const x = (anchoPapel - doc.getTextWidth(t)) / 2;
+              doc.text(t, x, yQR + altoQR + 4 + (i * 4));
+            });
+            doc.setLineWidth(0.5);
+            doc.line(5, yQR + altoQR + 18, anchoPapel - 5, yQR + altoQR + 18);
+            doc.setFontSize(6); doc.setFont(undefined, 'normal');
+            const textoInfo = "Reimpresión - Presentar para canjear";
+            doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 22);
+            doc.save(`QR-Reimpresion-${nombre || codigoQR}.pdf`);
+            this.mostrarAlerta("✅ QR reimpreso exitosamente", "success");
+            document.body.removeChild(loadingMessage);
           }
         }, 200);
       },
@@ -844,7 +841,7 @@ fetch('/api/mis-permisos')
         fetch('/api/obtener-siguiente-qr', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => res.json())
         .then(data => {
-          const codigoEjemplo = data.siguiente_codigo || 'QR0001';
+          const codigoEjemplo = data.data?.siguiente_codigo || data.siguiente_codigo || 'QR0001';
           document.getElementById('qrPreview').innerHTML = '';
           new QRCode(document.getElementById('qrPreview'), { text: codigoEjemplo, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.H });
           document.getElementById('previewText').innerHTML = `
@@ -929,32 +926,29 @@ fetch('/api/mis-permisos')
             setTimeout(() => {
               const canvas = tempDiv.querySelector('canvas');
               if (canvas) {
-                const img = new Image();
-                img.src = canvas.toDataURL('image/png');
-                img.onload = () => {
-                  const anchoQR = 35, altoQR = 35;
-                  const xCentrado = (anchoPapel - anchoQR) / 2;
-                  const yQR = 10;
-                  doc.addImage(img, 'PNG', xCentrado, yQR, anchoQR, altoQR);
-                  doc.setFontSize(8); doc.setFont(undefined, 'bold');
-                  const numero = codigoQR.replace('QR', '');
-                  const textos = [
-                    { t: `Nombre: ${nombre}`, y: yQR + altoQR + 8 },
-                    { t: `Código: ${codigoQR}`, y: yQR + altoQR + 12 },
-                    { t: `ID: ${numero}`, y: yQR + altoQR + 16 },
-                    { t: `Paquete: P${paquete.id}`, y: yQR + altoQR + 20 },
-                    { t: `Precio: $${paquete.price.toLocaleString('es-CO')}`, y: yQR + altoQR + 24 },
-                    { t: `Turnos: ${paquete.turns}`, y: yQR + altoQR + 28 }
-                  ];
-                  textos.forEach(({ t, y }) => doc.text(t, (anchoPapel - doc.getTextWidth(t)) / 2, y));
-                  doc.setLineWidth(0.5);
-                  doc.line(5, yQR + altoQR + 30, anchoPapel - 5, yQR + altoQR + 30);
-                  doc.setFontSize(6); doc.setFont(undefined, 'normal');
-                  const textoInfo = "Tiene 3 días para redimirse - Presentar para canjear";
-                  doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 34);
-                  setTimeout(() => generarPaginaRecursiva(i + 1), 100);
-                };
+                const dataUrl = canvas.toDataURL('image/png');
+                const anchoQR = 35, altoQR = 35;
+                const xCentrado = (anchoPapel - anchoQR) / 2;
+                const yQR = 10;
+                doc.addImage(dataUrl, 'PNG', xCentrado, yQR, anchoQR, altoQR);
+                doc.setFontSize(8); doc.setFont(undefined, 'bold');
+                const numero = codigoQR.replace('QR', '');
+                const textos = [
+                  { t: `Nombre: ${nombre}`, y: yQR + altoQR + 8 },
+                  { t: `Código: ${codigoQR}`, y: yQR + altoQR + 12 },
+                  { t: `ID: ${numero}`, y: yQR + altoQR + 16 },
+                  { t: `Paquete: P${paquete.id}`, y: yQR + altoQR + 20 },
+                  { t: `Precio: $${paquete.price.toLocaleString('es-CO')}`, y: yQR + altoQR + 24 },
+                  { t: `Turnos: ${paquete.turns}`, y: yQR + altoQR + 28 }
+                ];
+                textos.forEach(({ t, y }) => doc.text(t, (anchoPapel - doc.getTextWidth(t)) / 2, y));
+                doc.setLineWidth(0.5);
+                doc.line(5, yQR + altoQR + 30, anchoPapel - 5, yQR + altoQR + 30);
+                doc.setFontSize(6); doc.setFont(undefined, 'normal');
+                const textoInfo = "Tiene 3 días para redimirse - Presentar para canjear";
+                doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 34);
               }
+              setTimeout(() => generarPaginaRecursiva(i + 1), 100);
             }, 200);
           };
           generarPaginaRecursiva(0);

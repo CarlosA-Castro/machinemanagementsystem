@@ -433,16 +433,20 @@ def require_login(roles=None):
                             if isinstance(permisos, str):
                                 permisos = json.loads(permisos)
 
+                            # admin_restaurante nunca obtiene acceso admin aunque tenga admin_panel
+                            es_admin_restaurante = (user_role == 'admin_restaurante')
+
                             # Si la ruta requiere admin y el rol tiene admin_panel, permitir
-                            if 'admin' in roles and 'admin_panel' in permisos:
+                            # (excepto admin_restaurante que tiene los mismos permisos que cajero)
+                            if 'admin' in roles and 'admin_panel' in permisos and not es_admin_restaurante:
                                 return func(*args, **kwargs)
 
                             # Si la ruta requiere cajero y el rol tiene permiso 'ver', permitir
                             if 'cajero' in roles and 'ver' in permisos:
                                 return func(*args, **kwargs)
 
-                            # Si la ruta requiere admin_restaurante y tiene reportes, permitir
-                            if 'admin_restaurante' in roles and 'reportes' in permisos:
+                            # Si la ruta requiere admin_restaurante y tiene 'ver' o 'reportes', permitir
+                            if 'admin_restaurante' in roles and ('ver' in permisos or 'reportes' in permisos):
                                 return func(*args, **kwargs)
 
                 except Exception as e:
@@ -8189,9 +8193,9 @@ def agregar_nuevo_rol_automatico():
 @handle_api_errors
 @require_login(['admin'])
 def eliminar_rol(rol_id):
-    roles_protegidos = ['admin', 'cajero', 'admin_restaurante', 'socio']
+    roles_protegidos = ['admin']
     if rol_id in roles_protegidos:
-        return api_response('E005', http_status=400, data={'message': 'No se pueden eliminar los roles base del sistema'})
+        return api_response('E005', http_status=400, data={'message': 'El rol administrador no se puede eliminar'})
 
     connection = None
     cursor = None
