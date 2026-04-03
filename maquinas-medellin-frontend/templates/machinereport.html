@@ -807,16 +807,14 @@
           </div>
 
           <!-- SELECTOR DE ESTACIÓN (solo visible en máquinas multi-estación) -->
-<div id="selectorEstaciones" class="hidden mb-4">
-  <label class="block text-sm font-medium text-gray-700 mb-2">
-    <i class="fas fa-th-large mr-2 text-blue-600"></i>¿Cuál estación presenta la falla?
-  </label>
-  <div id="botonesEstaciones" class="grid grid-cols-2 gap-2">
+<div id="selectorEstaciones" class="hidden mb-4 mx-0 -mx-6 px-6 py-4 bg-red-50 border-y-2 border-red-300">
+  <p class="text-red-700 font-bold text-sm mb-3 flex items-center">
+    <i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>
+    SELECCIONA LA ESTACIÓN CON FALLA — OBLIGATORIO
+  </p>
+  <div id="botonesEstaciones" class="grid grid-cols-2 gap-3">
     <!-- Se llena dinámicamente -->
   </div>
-  <p class="text-xs text-gray-500 mt-2 text-center">
-    <i class="fas fa-info-circle mr-1"></i>Selecciona la estación con el problema
-  </p>
 </div>
 
           <div class="p-6">
@@ -882,8 +880,8 @@
               <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium btn-touch flex-1">
                 <i class="fas fa-times mr-2"></i>Cancelar
               </button>
-              <button onclick="confirmarFalla()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium btn-touch flex-1">
-                <i class="fas fa-exclamation-triangle mr-2"></i>Reportar Falla
+              <button onclick="confirmarFalla()" class="px-4 py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl font-bold text-base btn-touch flex-1 shadow-lg shadow-red-200 border-2 border-red-700">
+                <i class="fas fa-exclamation-triangle mr-2"></i>⚠ REPORTAR FALLA
               </button>
             </div>
           </div>
@@ -1397,20 +1395,25 @@ function getGradientColor(tipo) {
     }
 
     function cargarEstacionesEnModal(infoMaquina) {
-  const stationNames = infoMaquina.station_names || [];
-  if (!stationNames.length) return;
+  const rawStations = infoMaquina.station_names || [];
+  if (!rawStations.length) return;
 
-  estacionesDisponibles = stationNames;
+  // station_names puede ser array de strings o de objetos {name, relayPin}
+  const nombres = rawStations.map((s, i) =>
+    (s && typeof s === 'object') ? (s.name || `Estación ${i + 1}`) : String(s || `Estación ${i + 1}`)
+  );
+
+  estacionesDisponibles = nombres;
 
   const contenedor = document.getElementById('botonesEstaciones');
   contenedor.innerHTML = '';
 
-  stationNames.forEach((nombre, index) => {
+  nombres.forEach((nombre, index) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.id = `btn-estacion-${index}`;
-    btn.className = 'py-3 px-4 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-700 font-medium text-sm transition-all hover:border-blue-400 hover:bg-blue-50 btn-touch';
-    btn.innerHTML = `<i class="fas fa-desktop mr-2"></i>${nombre || 'Estación ' + (index + 1)}`;
+    btn.className = 'py-3 px-4 rounded-lg border-2 border-orange-300 bg-orange-50 text-orange-800 font-semibold text-sm transition-all hover:border-red-500 hover:bg-red-50 hover:text-red-800 btn-touch';
+    btn.innerHTML = `<i class="fas fa-desktop mr-2"></i>${nombre}`;
     btn.onclick = () => seleccionarEstacion(index, nombre);
     contenedor.appendChild(btn);
   });

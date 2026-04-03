@@ -784,7 +784,7 @@ fetch('/api/mis-permisos')
       renderizarPaquetesEnSelector: function(paquetes) {
         const container = document.getElementById('paquetes-container-selector');
         container.innerHTML = '';
-        paquetes.forEach(paquete => {
+        paquetes.filter(p => p.isActive !== false && p.isActive !== 0).forEach(paquete => {
           const button = document.createElement('button');
           button.className = 'btnPaquete btn-touch';
           button.innerHTML = `<div class="font-bold text-lg">P${paquete.id}</div><div class="paquete-info"><div class="font-semibold text-green-600">${paquete.turns} turnos</div><div class="font-semibold text-blue-600">$${paquete.price.toLocaleString('es-CO')}</div><div class="text-xs text-gray-500 mt-1">${paquete.name}</div></div>`;

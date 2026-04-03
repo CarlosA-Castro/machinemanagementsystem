@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -800,16 +801,19 @@
 
     mostrarDatos: function(data) {
         console.log('📈 Datos recibidos:', data);
-        
+
+        // Guardar datos para exportación PDF
+        this.datosVentas = data;
+
         // Ocultar loading
         document.getElementById('cargandoVentas').classList.add('hidden');
-        
+
         // Actualizar estadísticas
         this.actualizarEstadisticas(data.estadisticas);
-        
+
         // Actualizar gráficos
         this.actualizarGraficos(data.graficos);
-        
+
         // Actualizar tabla CON NOMBRE QR
         this.actualizarTabla(data.ventas);
     },
@@ -944,35 +948,78 @@
     },
 
     exportarReporte: function() {
-        const rango = document.getElementById('filtroRango').value;
-        let fechaInicio, fechaFin;
-
-        if (rango === 'personalizado') {
-            fechaInicio = document.getElementById('filtroFechaInicio').value;
-            fechaFin = document.getElementById('filtroFechaFin').value;
-        } else {
-            fechaInicio = document.getElementById('filtroFechaInicio').value;
-            fechaFin = document.getElementById('filtroFechaFin').value;
+        if (!this.datosVentas) {
+            this.mostrarAlerta('No hay datos cargados para exportar', 'error');
+            return;
         }
 
-        // Mostrar loading
-        this.mostrarAlerta('<div class="loading mr-2"></div> Generando PDF...', 'info');
+        this.mostrarAlerta('Generando PDF...', 'info');
 
-        // Crear enlace de descarga
-        const link = document.createElement('a');
-        link.href = `/api/exportar-ventas-pdf?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
-        link.target = '_blank';
-        link.download = `ventas_${fechaInicio}_${fechaFin}.pdf`;
-        
-        // Simular clic en el enlace
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
 
-        // Actualizar mensaje después de un breve delay
+        const fechaInicio = document.getElementById('filtroFechaInicio').value;
+        const fechaFin = document.getElementById('filtroFechaFin').value;
+
+        // Título
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Reporte de Ventas - Inversiones Arcade', 148, 18, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Período: ${fechaInicio} a ${fechaFin}`, 148, 26, { align: 'center' });
+
+        // Estadísticas
+        const est = this.datosVentas.estadisticas;
+        doc.setFontSize(10);
+        doc.text(
+            `Total Ventas: ${this.formatearMoneda(est.total_ventas)}    Paquetes: ${est.total_paquetes}    Paquete Promedio: ${this.formatearMoneda(est.ticket_promedio)}`,
+            148, 34, { align: 'center' }
+        );
+
+        // Cabecera de tabla
+        const headers  = ['Fecha',  'Hora',  'QR',   'Paquete',  'Turnos', 'Precio',  'Vendedor', 'Estado'];
+        const colWidths = [28,       20,      30,      60,         18,       30,         35,         26];
+        const startX = 10;
+        let y = 46;
+
+        doc.setFillColor(37, 99, 235);
+        doc.rect(startX, y - 5, 277, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        let x = startX + 2;
+        headers.forEach((h, i) => { doc.text(h, x, y); x += colWidths[i]; });
+
+        // Filas
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        y += 9;
+
+        const ventas = this.datosVentas.ventas || [];
+        ventas.forEach((v, idx) => {
+            if (y > 195) { doc.addPage(); y = 20; }
+            if (idx % 2 === 0) {
+                doc.setFillColor(245, 247, 250);
+                doc.rect(startX, y - 5, 277, 8, 'F');
+            }
+            x = startX + 2;
+            const row = [
+                String(v.fecha || ''), String(v.hora || ''),
+                String(v.qr_nombre || '').substring(0, 14),
+                String(v.paquete || '').substring(0, 28),
+                String(v.turnos || 0), this.formatearMoneda(v.precio),
+                String(v.vendedor || '').substring(0, 16),
+                String(v.estado || '')
+            ];
+            row.forEach((cell, i) => { doc.text(cell, x, y); x += colWidths[i]; });
+            y += 8;
+        });
+
+        doc.save(`ventas_${fechaInicio}_${fechaFin}.pdf`);
         setTimeout(() => {
             this.mostrarAlerta('✅ PDF generado y descargado correctamente', 'success');
-        }, 1000);
+        }, 400);
     },
 
     mostrarError: function(mensaje) {

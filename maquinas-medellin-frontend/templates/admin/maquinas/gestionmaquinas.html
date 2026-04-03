@@ -1143,7 +1143,7 @@
                                         </button>
                                         <span class="action-btn-label text-indigo-600">Estaciones</span>
                                     </div>
-                                    ${(maquina.errorNote) ? `
+                                    ${(maquina.errorNote || maquina.status !== 'activa') ? `
                                     <div class="action-btn-wrap">
                                         <button onclick="MaquinaManager.resolverFalla(${maquina.id})" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
                                             <i class="fas fa-wrench"></i>
@@ -2151,18 +2151,11 @@
                     if (response.ok) {
                         this.mostrarAlerta('Falla resuelta correctamente', 'success');
                         this.cargarMaquinas();
-
-                        await fetch('/api/logs/accion', {
+                        fetch('/api/logs/accion', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                accion: 'RESOLVER_FALLA',
-                                detalles: {
-                                    machine_id: maquinaId,
-                                    tipo: 'simple'
-                                }
-                            })
-                        });
+                            body: JSON.stringify({ accion: 'RESOLVER_FALLA', detalles: { machine_id: maquinaId, tipo: 'simple' } })
+                        }).catch(() => {});
                     } else {
                         const data = await response.json();
                         this.mostrarAlerta(data.message || 'Error al resolver falla', 'error');
@@ -2310,21 +2303,12 @@
 
                     if (response.ok) {
                         this.mostrarAlerta(`Falla resuelta en ${nombreEstacion}`, 'success');
-                        // Recargar el modal de estaciones
                         this.verEstaciones(maquinaId);
-
-                        await fetch('/api/logs/accion', {
+                        fetch('/api/logs/accion', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                accion: 'RESOLVER_FALLA_ESTACION',
-                                detalles: {
-                                    machine_id: maquinaId,
-                                    station_index: stationIndex,
-                                    station_name: nombreEstacion
-                                }
-                            })
-                        });
+                            body: JSON.stringify({ accion: 'RESOLVER_FALLA_ESTACION', detalles: { machine_id: maquinaId, station_index: stationIndex, station_name: nombreEstacion } })
+                        }).catch(() => {});
                     } else {
                         const data = await response.json();
                         this.mostrarAlerta(data.message || 'Error al resolver falla de estación', 'error');
