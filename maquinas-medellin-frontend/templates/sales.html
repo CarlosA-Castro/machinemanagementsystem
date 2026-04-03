@@ -822,24 +822,6 @@
         document.getElementById('ticketPromedio').textContent = 
             this.formatearMoneda(estadisticas.ticket_promedio);
         
-        // Actualizar tendencias con colores
-        const tendenciaVentasElem = document.getElementById('tendenciaVentas');
-        const tendenciaPaquetesElem = document.getElementById('tendenciaPaquetes');
-        
-        tendenciaVentasElem.textContent = estadisticas.tendencia_ventas + '%';
-        tendenciaPaquetesElem.textContent = estadisticas.tendencia_paquetes + '%';
-        
-        // Colores según la tendencia
-        const colorVentas = estadisticas.tendencia_ventas >= 0 ? 'text-green-600' : 'text-red-600';
-        const colorPaquetes = estadisticas.tendencia_paquetes >= 0 ? 'text-green-600' : 'text-red-600';
-        const iconoVentas = estadisticas.tendencia_ventas >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
-        const iconoPaquetes = estadisticas.tendencia_paquetes >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
-        
-        tendenciaVentasElem.className = `text-sm ${colorVentas}`;
-        tendenciaPaquetesElem.className = `text-sm ${colorPaquetes}`;
-        
-        tendenciaVentasElem.innerHTML = `<i class="fas ${iconoVentas} mr-1"></i> ${estadisticas.tendencia_ventas}%`;
-        tendenciaPaquetesElem.innerHTML = `<i class="fas ${iconoPaquetes} mr-1"></i> ${estadisticas.tendencia_paquetes}%`;
     },
 
     actualizarGraficos: function(graficos) {

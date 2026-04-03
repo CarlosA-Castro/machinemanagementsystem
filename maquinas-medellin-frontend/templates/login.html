@@ -189,9 +189,6 @@
         window.location.href = "/socios";
       } else if (data.role === 'admin') {
         this.mostrarModalSeleccion(data.role);
-      } else if (data.role === 'admin_restaurante') {
-        // También mostrar modal para admin_restaurante
-        this.mostrarModalSeleccion(data.role);
       } else {
         // Para cajeros y otros roles, redirigir a local
         window.location.href = "/local";
