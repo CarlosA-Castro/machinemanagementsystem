@@ -2750,52 +2750,85 @@ def reportar_falla_maquina():
     """Reportar falla en una máquina"""
     connection = None
     cursor = None
-    
+
     try:
         data = request.get_json()
         machine_id = data['machine_id']
         description = data['description'].strip()
         problem_type = data.get('problem_type', 'mantenimiento')
+        station_index = data.get('station_index', None)
         user_id = session.get('user_id', 1)
-        
-        connection = mysql.connector.connect(
-             host=os.getenv("DB_HOST", "mysql"),
-    user=os.getenv("DB_USER", "myuser"),
-    password=os.getenv("DB_PASSWORD", "mypassword"),
-    database=os.getenv("DB_NAME", "maquinasmedellin"),
-    port=3306,
-    auth_plugin="mysql_native_password"
-)
-        cursor = connection.cursor(dictionary=True)
-        
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
         cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
         maquina = cursor.fetchone()
-        
+
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
-        
+
         nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
-        
+
+        # Insertar reporte con station_index y problem_type
         cursor.execute("""
-            INSERT INTO errorreport 
-            (machineId, userId, description, reportedAt, isResolved)
-            VALUES (%s, %s, %s, NOW(), FALSE)
-        """, (machine_id, user_id, description))
-        
+            INSERT INTO errorreport
+            (machineId, userId, description, problem_type, reportedAt, isResolved, station_index)
+            VALUES (%s, %s, %s, %s, NOW(), FALSE, %s)
+        """, (machine_id, user_id, description, problem_type, station_index))
+
         error_report_id = cursor.lastrowid
-        
+
         cursor.execute("""
-            UPDATE machine 
-            SET status = %s, 
+            UPDATE machine
+            SET status = %s,
                 errorNote = %s,
                 dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
             WHERE id = %s
         """, (nuevo_estado, description, machine_id))
-        
+
+        # Contar fallas activas para esta máquina/estación
+        if station_index is not None:
+            cursor.execute("""
+                SELECT COUNT(*) as cnt FROM errorreport
+                WHERE machineId = %s AND station_index = %s AND isResolved = 0
+            """, (machine_id, station_index))
+        else:
+            cursor.execute("""
+                SELECT COUNT(*) as cnt FROM errorreport
+                WHERE machineId = %s AND isResolved = 0
+            """, (machine_id,))
+        fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
+
+        # Si hay 3 o más fallas sin resolver → encolar MAINTENANCE al ESP32
+        if fallas_activas >= 3:
+            try:
+                cursor.execute("""
+                    INSERT INTO esp32_commands
+                    (machine_id, command, parameters, triggered_by, status, triggered_at)
+                    VALUES (%s, 'MAINTENANCE', %s, 'sistema_auto', 'queued', NOW())
+                """, (machine_id, json.dumps({
+                    'machine_name': maquina['name'],
+                    'station_index': station_index,
+                    'failure_count': fallas_activas,
+                    'reason': '3 fallas sin resolver — apagado automático'
+                })))
+                app.logger.warning(
+                    f"⚠ MAINTENANCE encolado — {maquina['name']} "
+                    f"(station={station_index}) fallas_activas={fallas_activas}"
+                )
+            except Exception as cmd_err:
+                app.logger.error(f"No se pudo encolar MAINTENANCE: {cmd_err}")
+
         connection.commit()
-        
-        app.logger.info(f"Falla reportada - Máquina: {maquina['name']}, Reporte: #{error_report_id}")
-        
+
+        app.logger.info(
+            f"Falla reportada — {maquina['name']} reporte#{error_report_id} "
+            f"estación={station_index} fallas_activas={fallas_activas}"
+        )
+
         return api_response(
             'S002',
             status='success',
@@ -2803,10 +2836,12 @@ def reportar_falla_maquina():
                 'machine_id': machine_id,
                 'machine_name': maquina['name'],
                 'new_status': nuevo_estado,
-                'error_report_id': error_report_id
+                'error_report_id': error_report_id,
+                'fallas_activas': fallas_activas,
+                'maintenance_triggered': fallas_activas >= 3
             }
         )
-        
+
     except Exception as e:
         app.logger.error(f"Error reportando falla: {e}")
         if connection:
@@ -6014,10 +6049,24 @@ def resolver_falla_maquina(maquina_id):
 
         # Resolver reportes manuales en errorreport
         cursor.execute("""
-            UPDATE errorreport 
+            UPDATE errorreport
             SET isResolved = 1, resolved_at = NOW()
             WHERE machineId = %s AND isResolved = 0
         """, (maquina_id,))
+
+        # Enviar comando RESUME al ESP32 para reanudar operación normal
+        try:
+            cursor.execute("""
+                INSERT INTO esp32_commands
+                (machine_id, command, parameters, triggered_by, status, triggered_at)
+                VALUES (%s, 'RESUME', %s, %s, 'queued', NOW())
+            """, (maquina_id, json.dumps({
+                'machine_name': maquina['name'],
+                'estacion_index': estacion_index,
+                'resolved_by': session.get('user_name', 'admin')
+            }), session.get('user_name', 'admin')))
+        except Exception as cmd_err:
+            app.logger.error(f"No se pudo encolar RESUME: {cmd_err}")
 
         connection.commit()
         estacion_str = f" estación {estacion_index}" if estacion_index is not None else ""

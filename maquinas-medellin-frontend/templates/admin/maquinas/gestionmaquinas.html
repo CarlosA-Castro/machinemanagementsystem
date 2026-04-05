@@ -759,6 +759,33 @@
         </div>
     </div>
 
+    <!-- Modal Confirmar Resolver Falla -->
+    <div id="modalConfirmarResolver" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div class="flex flex-col items-center text-center mb-5">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <i class="fas fa-wrench text-2xl text-green-600"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">Resolver Falla</h3>
+                <p class="text-sm text-gray-500" id="resolverConfirmMsg">¿Confirmar resolución de falla?</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 text-xs text-amber-800">
+                <i class="fas fa-info-circle mr-1"></i>
+                Se limpiará la nota de error, el estado cambiará a <strong>Activa</strong> y se enviará señal RESUME a la ESP32.
+            </div>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('modalConfirmarResolver').classList.add('hidden')"
+                        class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition">
+                    Cancelar
+                </button>
+                <button id="resolverConfirmBtn" onclick="MaquinaManager._ejecutarResolver()"
+                        class="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition flex items-center justify-center gap-2">
+                    <i class="fas fa-check"></i> Resolver
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalConfirmarReinicio" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
@@ -1110,7 +1137,7 @@
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.id}</td>
                             <td class="py-3 px-4">
                                 <div class="font-medium text-gray-800">${maquina.name}</div>
-                                ${maquina.errorNote ? `<div class="text-xs text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>${maquina.errorNote.substring(0, 30)}...</div>` : ''}
+                                ${maquina.errorNote ? `<span class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-100 border border-red-300 text-red-700 rounded-full text-xs font-semibold max-w-[180px] truncate" title="${maquina.errorNote}"><i class="fas fa-circle-exclamation text-red-500 flex-shrink-0"></i><span class="truncate">${maquina.errorNote.substring(0, 28)}${maquina.errorNote.length > 28 ? '…' : ''}</span></span>` : ''}
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600 capitalize">${maquina.type}</td>
                             <td class="py-3 px-4">
@@ -1145,7 +1172,7 @@
                                     </div>
                                     ${(maquina.errorNote || maquina.status !== 'activa') ? `
                                     <div class="action-btn-wrap">
-                                        <button onclick="MaquinaManager.resolverFalla(${maquina.id})" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
+                                        <button onclick="MaquinaManager.resolverFalla(${maquina.id}, null, '${(maquina.name||'').replace(/'/g,"\\'")}' )" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
                                             <i class="fas fa-wrench"></i>
                                         </button>
                                         <span class="action-btn-label text-green-600">Resolver</span>
@@ -1856,49 +1883,49 @@
                 }
             }
             
+            const hasFallas = station.stats.failures > 0;
             html += `
-                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all">
+                <div class="bg-white border ${hasFallas ? 'border-red-200' : 'border-gray-200'} rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-3">
                         <div>
-                            <h4 class="text-lg font-bold">${stationName}</h4>
-                            <p class="text-sm opacity-90">Estación ${station.index + 1}</p>
+                            <h4 class="text-base font-bold text-gray-800">${stationName}</h4>
+                            <p class="text-xs text-gray-500">Estación ${station.index + 1}</p>
                         </div>
-                        <div class="bg-white bg-opacity-20 rounded-lg px-3 py-1">
+                        <span class="bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-1 rounded-lg">
                             <i class="fas fa-microchip mr-1"></i>GPIO${station.relayPin}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold text-blue-700">${station.stats.totalPlays}</div>
+                            <div class="text-xs text-blue-500">Jugadas</div>
+                        </div>
+                        <div class="bg-${hasFallas ? 'red' : 'gray'}-50 border border-${hasFallas ? 'red' : 'gray'}-100 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold text-${hasFallas ? 'red' : 'gray'}-600">${station.stats.failures}</div>
+                            <div class="text-xs text-${hasFallas ? 'red' : 'gray'}-400">Fallas</div>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-2 my-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                            <div class="text-xl font-bold">${station.stats.totalPlays}</div>
-                            <div class="text-xs">Jugadas</div>
-                        </div>
-                        <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                            <div class="text-xl font-bold">${station.stats.failures}</div>
-                            <div class="text-xs">Fallas</div>
-                        </div>
-                    </div>
-                    
-                    <div class="text-xs text-white opacity-80 mb-3 space-y-1">
+
+                    <div class="text-xs text-gray-500 mb-3 space-y-1">
                         <div><i class="far fa-clock mr-1"></i>Último juego: ${ultimaJugadaTexto}</div>
-                        <div><i class="fas fa-exclamation-triangle mr-1"></i>Última falla: ${ultimaFallaTexto}</div>
+                        <div><i class="fas fa-exclamation-triangle mr-1 ${hasFallas ? 'text-red-400' : ''}"></i>Última falla: ${ultimaFallaTexto}</div>
                     </div>
-                    
-                    <div class="flex justify-end space-x-2 mt-2">
-                        <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquinaId}, ${station.index}, '${stationName}')" 
-                                class="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquinaId}, ${station.index}, '${stationName}')"
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center">
                             <i class="fas fa-play mr-1"></i> Turno
                         </button>
-                        <button onclick="MaquinaManager.mostrarModalReinicio(${maquinaId}, ${station.index}, '${stationName}')" 
-                                class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+                        <button onclick="MaquinaManager.mostrarModalReinicio(${maquinaId}, ${station.index}, '${stationName}')"
+                                class="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center">
                             <i class="fas fa-power-off mr-1"></i> Reiniciar
                         </button>
-                        ${station.stats.failures > 0 ? `
-                        <button onclick="MaquinaManager.resolverFallaEstacion(${maquinaId}, ${station.index}, '${stationName}')" 
-                                class="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
-                            <i class="fas fa-wrench mr-1"></i> Resolver
-                        </button>
-                        ` : ''}
+                        ${hasFallas ? `
+                        <button onclick="MaquinaManager.resolverFalla(${maquinaId}, ${station.index}, '${stationName}')"
+                                class="w-full mt-1 bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1">
+                            <i class="fas fa-wrench"></i> Resolver falla (${station.stats.failures} reporte${station.stats.failures > 1 ? 's' : ''})
+                        </button>` : ''}
                     </div>
                 </div>
             `;
@@ -2138,26 +2165,46 @@
                 }, 4000);
             },
 
-            resolverFalla: async function(maquinaId) {
-                if (!confirm('¿Resolver la falla de esta máquina? Se limpiará la nota de error y el estado cambiará a Activa.')) return;
+            // Datos pendientes para _ejecutarResolver
+            _resolverPending: null,
 
+            resolverFalla: function(maquinaId, stationIndex, name) {
+                // stationIndex: number o null (para máquinas simples)
+                const esEstacion = stationIndex !== undefined && stationIndex !== null;
+                const label = esEstacion ? `estación "${name || `Estación ${stationIndex + 1}`}"` : `máquina "${name || ''}"`;
+                document.getElementById('resolverConfirmMsg').textContent = `¿Confirmar resolución de falla de la ${label}?`;
+                this._resolverPending = { maquinaId, stationIndex: esEstacion ? stationIndex : null, name };
+                document.getElementById('modalConfirmarResolver').classList.remove('hidden');
+                document.getElementById('modalConfirmarResolver').classList.add('flex');
+            },
+
+            _ejecutarResolver: async function() {
+                const { maquinaId, stationIndex, name } = this._resolverPending || {};
+                if (!maquinaId) return;
+                document.getElementById('modalConfirmarResolver').classList.add('hidden');
+                document.getElementById('modalConfirmarResolver').classList.remove('flex');
+
+                const body = stationIndex !== null ? { estacion_index: stationIndex } : {};
                 try {
                     const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({})
+                        body: JSON.stringify(body)
                     });
-
                     if (response.ok) {
-                        this.mostrarAlerta('Falla resuelta correctamente', 'success');
+                        const msg = stationIndex !== null
+                            ? `Falla resuelta en ${name || `Estación ${stationIndex + 1}`}`
+                            : 'Falla resuelta correctamente';
+                        this.mostrarAlerta(msg, 'success');
                         this.cargarMaquinas();
+                        if (stationIndex !== null) this.verEstaciones(maquinaId);
                         fetch('/api/logs/accion', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ accion: 'RESOLVER_FALLA', detalles: { machine_id: maquinaId, tipo: 'simple' } })
+                            body: JSON.stringify({ accion: 'RESOLVER_FALLA', detalles: { machine_id: maquinaId, station_index: stationIndex } })
                         }).catch(() => {});
                     } else {
-                        const data = await response.json();
+                        const data = await response.json().catch(() => ({}));
                         this.mostrarAlerta(data.message || 'Error al resolver falla', 'error');
                     }
                 } catch (error) {
@@ -2288,35 +2335,9 @@
                 }
             },
 
-            resolverFallaEstacion: async function(maquinaId, stationIndex, stationName) {
-                const nombreEstacion = String(stationName || `Estación ${stationIndex + 1}`);
-                if (!confirm(`¿Resolver la falla de la estación "${nombreEstacion}"?`)) return;
-
-                try {
-                    const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            estacion_index: stationIndex
-                        })
-                    });
-
-                    if (response.ok) {
-                        this.mostrarAlerta(`Falla resuelta en ${nombreEstacion}`, 'success');
-                        this.verEstaciones(maquinaId);
-                        fetch('/api/logs/accion', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ accion: 'RESOLVER_FALLA_ESTACION', detalles: { machine_id: maquinaId, station_index: stationIndex, station_name: nombreEstacion } })
-                        }).catch(() => {});
-                    } else {
-                        const data = await response.json();
-                        this.mostrarAlerta(data.message || 'Error al resolver falla de estación', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error resolviendo falla de estación:', error);
-                    this.mostrarAlerta('Error de conexión', 'error');
-                }
+            cerrarModalResolver: function() {
+                document.getElementById('modalConfirmarResolver').classList.add('hidden');
+                document.getElementById('modalConfirmarResolver').classList.remove('flex');
             }
         };
 

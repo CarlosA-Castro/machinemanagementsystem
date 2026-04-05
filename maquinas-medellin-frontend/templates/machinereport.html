@@ -277,9 +277,10 @@
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       max-width: 500px;
       width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
       transform: scale(0.9);
       transition: transform 0.3s ease;
-      overflow: hidden;
     }
     
     .modal-overlay.active .modal-content {
@@ -807,12 +808,13 @@
           </div>
 
           <!-- SELECTOR DE ESTACIÓN (solo visible en máquinas multi-estación) -->
-<div id="selectorEstaciones" class="hidden mb-4 mx-0 -mx-6 px-6 py-4 bg-red-50 border-y-2 border-red-300">
-  <p class="text-red-700 font-bold text-sm mb-3 flex items-center">
-    <i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>
-    SELECCIONA LA ESTACIÓN CON FALLA — OBLIGATORIO
-  </p>
-  <div id="botonesEstaciones" class="grid grid-cols-2 gap-3">
+<div id="selectorEstaciones" class="hidden mb-4 rounded-xl border-2 border-red-300 bg-red-50 overflow-hidden">
+  <div class="bg-red-600 px-4 py-2 flex items-center gap-2">
+    <i class="fas fa-exclamation-triangle text-white text-sm"></i>
+    <p class="text-white font-bold text-sm tracking-wide">SELECCIONA LA ESTACIÓN CON FALLA</p>
+    <span class="ml-auto text-red-200 text-xs font-semibold">OBLIGATORIO</span>
+  </div>
+  <div id="botonesEstaciones" class="grid grid-cols-2 gap-2 p-3">
     <!-- Se llena dinámicamente -->
   </div>
 </div>
