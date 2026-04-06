@@ -6068,8 +6068,8 @@ def resolver_falla_maquina(maquina_id):
 
         # Limpiar errorNote y reactivar máquina
         cursor.execute("""
-            UPDATE machine 
-            SET errorNote = NULL, status = 'activa', updatedAt = NOW()
+            UPDATE machine
+            SET errorNote = NULL, status = 'activa'
             WHERE id = %s
         """, (maquina_id,))
 
@@ -8034,13 +8034,15 @@ def obtener_reportes_maquina(maquina_id):
         
         # Obtener reportes de la máquina
         cursor.execute("""
-            SELECT 
+            SELECT
                 er.id,
                 er.machineId,
                 er.userId,
                 er.description,
                 er.reportedAt,
                 er.isResolved,
+                COALESCE(er.station_index, NULL) as station_index,
+                COALESCE(er.problem_type, 'mantenimiento') as problem_type,
                 u.name as user_name
             FROM errorreport er
             JOIN users u ON er.userId = u.id

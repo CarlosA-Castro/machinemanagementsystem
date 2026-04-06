@@ -2274,18 +2274,22 @@
                         (s && typeof s === 'object') ? (s.name || `Estación ${i+1}`) : String(s || `Estación ${i+1}`)
                     );
 
-                    const [juegosRes, fallasRes] = await Promise.all([
+                    const [juegosRes, fallasRes, reportesRes] = await Promise.all([
                         fetch(`/api/turnusage/recientes?limit=200&machine_id=${maquinaId}`),
-                        fetch(`/api/machinefailures/recientes?limit=200&machine_id=${maquinaId}`)
+                        fetch(`/api/machinefailures/recientes?limit=200&machine_id=${maquinaId}`),
+                        fetch(`/api/maquinas/${maquinaId}/reportes`)
                     ]);
 
                     const juegos = juegosRes.ok ? await juegosRes.json() : [];
                     const fallas = fallasRes.ok ? await fallasRes.json() : [];
+                    const reportesData = reportesRes.ok ? await reportesRes.json() : {};
+                    const reportes = reportesData.reportes || [];
 
                     // Unificar y ordenar por fecha desc
                     const eventos = [
                         ...juegos.map(j => ({ tipo: 'juego', fecha: new Date(j.usedAt || 0), datos: j })),
-                        ...fallas.map(f => ({ tipo: 'falla', fecha: new Date(f.reported_at || f.reportedAt || 0), datos: f }))
+                        ...fallas.map(f => ({ tipo: 'falla', fecha: new Date(f.reported_at || f.reportedAt || 0), datos: f })),
+                        ...reportes.map(r => ({ tipo: 'reporte', fecha: new Date(r.reportedAt || 0), datos: r }))
                     ].sort((a, b) => b.fecha - a.fecha);
 
                     if (eventos.length === 0) {
@@ -2295,6 +2299,7 @@
                     }
 
                     // Resumen rápido
+                    const totalFallas = fallas.length + reportes.length;
                     let resumenHtml = `
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                             <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
@@ -2302,8 +2307,8 @@
                                 <div class="text-xs text-green-600">Juegos totales</div>
                             </div>
                             <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                                <div class="text-2xl font-bold text-red-700">${fallas.length}</div>
-                                <div class="text-xs text-red-600">Fallas totales</div>
+                                <div class="text-2xl font-bold text-red-700">${totalFallas}</div>
+                                <div class="text-xs text-red-600">Fallas totales${reportes.length > 0 ? ` <span class="text-orange-500">(${reportes.length} reportadas)</span>` : ''}</div>
                             </div>
                             ${esMulti ? stationNames.map((sn, si) => {
                                 const jEst = juegos.filter(j => j.station_index == si || (si === 0 && j.station_index === undefined)).length;
@@ -2340,7 +2345,7 @@
                                         </div>
                                     </div>
                                 </div>`;
-                        } else {
+                        } else if (ev.tipo === 'falla') {
                             const f = ev.datos;
                             const stIdx = f.station_index ?? 0;
                             const stLabel = esMulti ? `<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${stationNames[stIdx] || `Est.${stIdx+1}`}</span>` : '';
@@ -2351,7 +2356,7 @@
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center flex-wrap gap-1">
-                                            <span class="text-sm font-medium text-red-800">Falla</span>
+                                            <span class="text-sm font-medium text-red-800">Falla QR</span>
                                             ${stLabel}
                                             ${f.is_forced ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Forzada</span>' : ''}
                                         </div>
@@ -2359,6 +2364,32 @@
                                             <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
                                             ${f.turnos_devueltos ? `<span class="text-red-600">Turnos devueltos: ${f.turnos_devueltos}</span>` : ''}
                                             ${f.notes ? `<span class="italic">${f.notes.substring(0,40)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>`;
+                        } else {
+                            const r = ev.datos;
+                            const stIdx = r.station_index;
+                            const stLabel = (esMulti && stIdx !== null && stIdx !== undefined)
+                                ? `<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${stationNames[stIdx] || `Est.${stIdx+1}`}</span>` : '';
+                            const resolvedBadge = r.isResolved
+                                ? '<span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Resuelta</span>'
+                                : '<span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Pendiente</span>';
+                            listaHtml += `
+                                <div class="flex items-start gap-3 p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                                    <div class="mt-0.5 w-6 h-6 flex items-center justify-center bg-orange-500 rounded-full flex-shrink-0">
+                                        <i class="fas fa-flag text-white" style="font-size:0.6rem"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center flex-wrap gap-1">
+                                            <span class="text-sm font-medium text-orange-800">Reporte cajero</span>
+                                            ${stLabel}
+                                            ${resolvedBadge}
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
+                                            <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
+                                            ${r.user_name ? `<span><i class="fas fa-user mr-1"></i>${r.user_name}</span>` : ''}
+                                            ${r.description ? `<span class="italic">${r.description.substring(0,50)}</span>` : ''}
                                         </div>
                                     </div>
                                 </div>`;
