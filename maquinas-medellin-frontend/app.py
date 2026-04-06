@@ -2810,8 +2810,8 @@ def reportar_falla_maquina():
             """, (machine_id,))
         fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
 
-        # Si hay 3 o más fallas sin resolver → encolar MAINTENANCE al ESP32
-        if fallas_activas >= 3:
+        # Cualquier falla reportada por cajero → encolar MAINTENANCE al ESP32
+        if fallas_activas >= 1:
             try:
                 cursor.execute("""
                     INSERT INTO esp32_commands
