@@ -4392,9 +4392,11 @@ def obtener_maquina(maquina_id):
             except:
                 ultimo_uso_texto = maquina['dateLastQRUsed'].strftime('%Y-%m-%d %H:%M')
         
-        # Obtener fallas activas por estación y globales (resiliente si la columna no existe)
+        # Fallas activas por estación: cajero (errorreport) + ESP32 (machinefailures)
         active_failure_stations = []
         machine_level_failures = 0
+
+        cajero_by_station = {}
         try:
             cursor.execute("""
                 SELECT station_index, COUNT(*) as cnt
@@ -4404,23 +4406,43 @@ def obtener_maquina(maquina_id):
             """, (maquina_id,))
             for row in cursor.fetchall():
                 if row['station_index'] is not None:
-                    active_failure_stations.append({
-                        'station_index': row['station_index'],
-                        'count': row['cnt']
-                    })
+                    cajero_by_station[row['station_index']] = row['cnt']
                 else:
                     machine_level_failures += row['cnt']
         except Exception:
-            # Columna station_index no existe aún (pre-V32) — contar como machine-level
             try:
-                cursor.execute("""
-                    SELECT COUNT(*) as cnt FROM errorreport
-                    WHERE machineId = %s AND isResolved = 0
-                """, (maquina_id,))
+                cursor.execute("SELECT COUNT(*) as cnt FROM errorreport WHERE machineId = %s AND isResolved = 0", (maquina_id,))
                 r = cursor.fetchone()
                 machine_level_failures = (r or {}).get('cnt', 0)
             except Exception:
                 pass
+
+        esp32_by_station = {}
+        try:
+            cursor.execute("""
+                SELECT station_index, COUNT(*) as cnt
+                FROM machinefailures
+                WHERE machine_id = %s AND resolved = 0
+                GROUP BY station_index
+            """, (maquina_id,))
+            for row in cursor.fetchall():
+                if row['station_index'] is not None:
+                    esp32_by_station[row['station_index']] = row['cnt']
+                else:
+                    machine_level_failures += row['cnt']
+        except Exception:
+            pass  # resolved/station_index pre-V32 — ignorar
+
+        all_stations = set(list(cajero_by_station.keys()) + list(esp32_by_station.keys()))
+        for idx in all_stations:
+            c = cajero_by_station.get(idx, 0)
+            e = esp32_by_station.get(idx, 0)
+            active_failure_stations.append({
+                'station_index': idx,
+                'count': c + e,
+                'cajero_count': c,
+                'esp32_count': e
+            })
 
         return jsonify({
             'id': maquina['id'],
