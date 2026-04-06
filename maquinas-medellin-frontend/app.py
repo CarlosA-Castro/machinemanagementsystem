@@ -4392,22 +4392,35 @@ def obtener_maquina(maquina_id):
             except:
                 ultimo_uso_texto = maquina['dateLastQRUsed'].strftime('%Y-%m-%d %H:%M')
         
-        # Obtener estaciones con fallas activas (resiliente si la columna no existe)
+        # Obtener fallas activas por estación y globales (resiliente si la columna no existe)
         active_failure_stations = []
+        machine_level_failures = 0
         try:
             cursor.execute("""
                 SELECT station_index, COUNT(*) as cnt
                 FROM errorreport
-                WHERE machineId = %s AND isResolved = 0 AND station_index IS NOT NULL
+                WHERE machineId = %s AND isResolved = 0
                 GROUP BY station_index
             """, (maquina_id,))
             for row in cursor.fetchall():
-                active_failure_stations.append({
-                    'station_index': row['station_index'],
-                    'count': row['cnt']
-                })
+                if row['station_index'] is not None:
+                    active_failure_stations.append({
+                        'station_index': row['station_index'],
+                        'count': row['cnt']
+                    })
+                else:
+                    machine_level_failures += row['cnt']
         except Exception:
-            pass  # Columna station_index puede no existir aún (pre-V32)
+            # Columna station_index no existe aún (pre-V32) — contar como machine-level
+            try:
+                cursor.execute("""
+                    SELECT COUNT(*) as cnt FROM errorreport
+                    WHERE machineId = %s AND isResolved = 0
+                """, (maquina_id,))
+                r = cursor.fetchone()
+                machine_level_failures = (r or {}).get('cnt', 0)
+            except Exception:
+                pass
 
         return jsonify({
             'id': maquina['id'],
@@ -4430,6 +4443,7 @@ def obtener_maquina(maquina_id):
             'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
             'show_station_selection': bool(maquina.get('show_station_selection', False)),
             'active_failure_stations': active_failure_stations,
+            'machine_level_failures': machine_level_failures,
         })
         
     except Exception as e:

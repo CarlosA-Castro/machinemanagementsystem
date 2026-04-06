@@ -1800,11 +1800,13 @@
         if (fallasResponse.ok) {
             todasFallas = await fallasResponse.json();
         }
+        let machineLevelFailures = 0;
         if (maquinaInfoResponse.ok) {
             const mInfo = await maquinaInfoResponse.json();
             (mInfo.active_failure_stations || []).forEach(f => {
                 activeFailureStations[f.station_index] = (activeFailureStations[f.station_index] || 0) + f.count;
             });
+            machineLevelFailures = mInfo.machine_level_failures || 0;
         }
         
         // 5. Procesar estadísticas POR ESTACIÓN
@@ -1844,14 +1846,32 @@
         });
         
         // 6. Generar HTML con los datos reales
-        let html = `
-            <div class="mb-4 p-4 bg-blue-50 rounded-lg">
-                <p class="text-sm text-gray-700">
-                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>
-                    Última actualización: ${new Date().toLocaleString('es-CO')}
-                </p>
-                <p class="text-xs text-gray-500 mt-1">
-                    Total máquina: ${todosJuegos.length} juegos, ${todasFallas.length} fallas
+        let html = '';
+
+        // Banner de falla global (sin estación específica — pre-V32 o machine-level)
+        if (machineLevelFailures > 0) {
+            html += `
+            <div class="mb-4 bg-red-50 border-2 border-red-300 rounded-xl overflow-hidden">
+                <div class="bg-red-600 px-4 py-2 flex items-center gap-2">
+                    <i class="fas fa-exclamation-triangle text-white"></i>
+                    <span class="text-white font-bold text-sm">FALLA ACTIVA — ${machineLevelFailures} reporte${machineLevelFailures > 1 ? 's' : ''} sin resolver</span>
+                </div>
+                <div class="px-4 py-3 flex items-center justify-between">
+                    <p class="text-sm text-red-700">La estación específica no fue registrada (reporte manual). Resolver toda la máquina para reactivarla.</p>
+                    <button onclick="MaquinaManager.resolverFalla(${maquinaId}, null, '${maquina.name.replace(/'/g,"\\'")}', true)"
+                            class="ml-4 flex-shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                        <i class="fas fa-wrench"></i> Resolver
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        html += `
+            <div class="mb-3 p-3 bg-blue-50 rounded-lg">
+                <p class="text-xs text-gray-500">
+                    <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+                    Actualizado: ${new Date().toLocaleString('es-CO')} —
+                    Total: ${todosJuegos.length} juegos, ${todasFallas.length} fallas QR
                 </p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
