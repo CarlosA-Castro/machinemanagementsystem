@@ -1782,21 +1782,29 @@
         // 4. Cargar estadísticas REALES para CADA ESTACIÓN
         console.log('🔍 Cargando estadísticas para máquina', maquinaId);
         
-        // Obtener TODOS los juegos de esta máquina
-        const juegosResponse = await fetch(`/api/turnusage/recientes?limit=500&machine_id=${maquinaId}`);
-        const fallasResponse = await fetch(`/api/machinefailures/recientes?limit=500&machine_id=${maquinaId}`);
-        
+        // Obtener TODOS los juegos y fallas de esta máquina (ambas fuentes)
+        const [juegosResponse, fallasResponse, maquinaInfoResponse] = await Promise.all([
+            fetch(`/api/turnusage/recientes?limit=500&machine_id=${maquinaId}`),
+            fetch(`/api/machinefailures/recientes?limit=500&machine_id=${maquinaId}`),
+            fetch(`/api/maquinas/${maquinaId}`)
+        ]);
+
         let todosJuegos = [];
         let todasFallas = [];
-        
+        // active_failure_stations: [{station_index, count}] desde errorreport (cajero reports)
+        let activeFailureStations = {};
+
         if (juegosResponse.ok) {
             todosJuegos = await juegosResponse.json();
-            console.log('🎮 Juegos encontrados para máquina:', todosJuegos.length);
         }
-        
         if (fallasResponse.ok) {
             todasFallas = await fallasResponse.json();
-            console.log('⚠️ Fallas encontradas para máquina:', todasFallas.length);
+        }
+        if (maquinaInfoResponse.ok) {
+            const mInfo = await maquinaInfoResponse.json();
+            (mInfo.active_failure_stations || []).forEach(f => {
+                activeFailureStations[f.station_index] = (activeFailureStations[f.station_index] || 0) + f.count;
+            });
         }
         
         // 5. Procesar estadísticas POR ESTACIÓN
@@ -1820,12 +1828,16 @@
                 ultimoJuego = juegosEstacion[0];
             }
             
+            // Combinar fallas de machinefailures + errorreport (cajero reports)
+            const fallasCajero = activeFailureStations[station.index] || 0;
+            const totalFallas = fallasEstacion.length + fallasCajero;
+
             return {
                 ...station,
                 stats: {
                     totalPlays: juegosEstacion.length,
                     lastPlay: ultimoJuego ? new Date(ultimoJuego.usedAt) : null,
-                    failures: fallasEstacion.length,
+                    failures: totalFallas,
                     lastFailure: fallasEstacion.length > 0 ? fallasEstacion[0] : null
                 }
             };
