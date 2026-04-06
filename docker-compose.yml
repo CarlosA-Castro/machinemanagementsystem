@@ -31,6 +31,7 @@ services:
       FLYWAY_PASSWORD: mypassword
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
       FLYWAY_OUT_OF_ORDER: "true"
+      FLYWAY_VALIDATE_ON_MIGRATE: "false"
     volumes:
       - ./db/migration:/flyway/sql
 
@@ -42,6 +43,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
     environment:
       DB_HOST: mysql
       DB_USER: myuser

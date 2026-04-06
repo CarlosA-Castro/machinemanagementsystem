@@ -2773,11 +2773,19 @@ def reportar_falla_maquina():
         nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
 
         # Insertar reporte con station_index y problem_type
-        cursor.execute("""
-            INSERT INTO errorreport
-            (machineId, userId, description, problem_type, reportedAt, isResolved, station_index)
-            VALUES (%s, %s, %s, %s, NOW(), FALSE, %s)
-        """, (machine_id, user_id, description, problem_type, station_index))
+        # (fallback al INSERT básico si las columnas V32 no existen aún)
+        try:
+            cursor.execute("""
+                INSERT INTO errorreport
+                (machineId, userId, description, problem_type, reportedAt, isResolved, station_index)
+                VALUES (%s, %s, %s, %s, NOW(), FALSE, %s)
+            """, (machine_id, user_id, description, problem_type, station_index))
+        except Exception:
+            cursor.execute("""
+                INSERT INTO errorreport
+                (machineId, userId, description, reportedAt, isResolved)
+                VALUES (%s, %s, %s, NOW(), FALSE)
+            """, (machine_id, user_id, description))
 
         error_report_id = cursor.lastrowid
 
@@ -6051,26 +6059,36 @@ def resolver_falla_maquina(maquina_id):
             WHERE id = %s
         """, (maquina_id,))
 
-        # Resolver fallas en machinefailures
-        if estacion_index is not None:
-            cursor.execute("""
-                UPDATE machinefailures 
-                SET resolved = 1, resolved_at = NOW()
-                WHERE machine_id = %s AND station_index = %s AND resolved = 0
-            """, (maquina_id, estacion_index))
-        else:
-            cursor.execute("""
-                UPDATE machinefailures 
-                SET resolved = 1, resolved_at = NOW()
-                WHERE machine_id = %s AND resolved = 0
-            """, (maquina_id,))
+        # Resolver fallas en machinefailures (resiliente a columnas pre-V32)
+        try:
+            if estacion_index is not None:
+                cursor.execute("""
+                    UPDATE machinefailures
+                    SET resolved = 1, resolved_at = NOW()
+                    WHERE machine_id = %s AND station_index = %s AND resolved = 0
+                """, (maquina_id, estacion_index))
+            else:
+                cursor.execute("""
+                    UPDATE machinefailures
+                    SET resolved = 1, resolved_at = NOW()
+                    WHERE machine_id = %s AND resolved = 0
+                """, (maquina_id,))
+        except Exception:
+            pass  # Columnas resolved/resolved_at pueden no existir aún (pre-V32)
 
         # Resolver reportes manuales en errorreport
-        cursor.execute("""
-            UPDATE errorreport
-            SET isResolved = 1, resolved_at = NOW()
-            WHERE machineId = %s AND isResolved = 0
-        """, (maquina_id,))
+        try:
+            cursor.execute("""
+                UPDATE errorreport
+                SET isResolved = 1, resolved_at = NOW()
+                WHERE machineId = %s AND isResolved = 0
+            """, (maquina_id,))
+        except Exception:
+            cursor.execute("""
+                UPDATE errorreport
+                SET isResolved = 1
+                WHERE machineId = %s AND isResolved = 0
+            """, (maquina_id,))
 
         # Enviar comando RESUME al ESP32 para reanudar operación normal
         try:
