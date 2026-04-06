@@ -6753,8 +6753,9 @@ def esp32_reportar_falla():
         turnos_devueltos = data.get('turnos_devueltos', 1)
         is_forced = data.get('is_forced', False)
         notes = data.get('notes', 'Reporte desde TFT - Botón REPORTAR')
-        
-        app.logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}")
+        station_index = data.get('selected_station', None)  # None = máquina simple
+
+        app.logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}, estación: {station_index}")
         
         if not machine_id or not qr_code:
             return api_response('E005', http_status=400, data={
@@ -6847,21 +6848,20 @@ def esp32_reportar_falla():
             )
         
         # ==========================================
-        # 7. REGISTRAR LA FALLA EN MACHINEFAILURES
+        # 7. REGISTRAR LA FALLA EN MACHINEFAILURES (con station_index si V32 existe)
         # ==========================================
-        cursor.execute("""
-            INSERT INTO machinefailures 
-            (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            qr_id,
-            machine_id,
-            machine_name,
-            turnos_devueltos,
-            notes,
-            0,  # is_forced = FALSE (reporte genuino desde TFT)
-            None  # forced_by = NULL
-        ))
+        try:
+            cursor.execute("""
+                INSERT INTO machinefailures
+                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by, station_index)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (qr_id, machine_id, machine_name, turnos_devueltos, notes, 0, None, station_index))
+        except Exception:
+            cursor.execute("""
+                INSERT INTO machinefailures
+                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (qr_id, machine_id, machine_name, turnos_devueltos, notes, 0, None))
         
         failure_id = cursor.lastrowid
         
@@ -6885,7 +6885,61 @@ def esp32_reportar_falla():
         # ==========================================
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         nuevos_turnos = cursor.fetchone()['turns_remaining']
-        
+
+        # ==========================================
+        # 9b. CONTAR FALLAS ACTIVAS (sin resolver) EN ESTA MÁQUINA/ESTACIÓN
+        # ==========================================
+        fallas_activas = 0
+        try:
+            if station_index is not None:
+                cursor.execute("""
+                    SELECT COUNT(*) as cnt FROM machinefailures
+                    WHERE machine_id = %s AND station_index = %s AND resolved = 0
+                """, (machine_id, station_index))
+            else:
+                cursor.execute("""
+                    SELECT COUNT(*) as cnt FROM machinefailures
+                    WHERE machine_id = %s AND resolved = 0
+                """, (machine_id,))
+            fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
+        except Exception:
+            # resolved columna no existe (pre-V32): contar todas
+            cursor.execute("SELECT COUNT(*) as cnt FROM machinefailures WHERE machine_id = %s", (machine_id,))
+            fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
+
+        # ==========================================
+        # 9c. SI ≥3 FALLAS: CAMBIAR ESTADO Y ENCOLAR MAINTENANCE
+        # ==========================================
+        if fallas_activas >= 3:
+            estacion_str = f" (estación {station_index + 1})" if station_index is not None else ""
+            error_note = f"{fallas_activas} fallas ESP32{estacion_str} sin resolver"
+
+            cursor.execute("""
+                UPDATE machine
+                SET status = 'mantenimiento', errorNote = %s,
+                    dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                WHERE id = %s
+            """, (error_note, machine_id))
+
+            try:
+                cursor.execute("""
+                    INSERT INTO esp32_commands
+                    (machine_id, command, parameters, triggered_by, status, triggered_at)
+                    VALUES (%s, 'MAINTENANCE', %s, 'sistema_auto', 'queued', NOW())
+                """, (machine_id, json.dumps({
+                    'machine_name': machine_name,
+                    'station_index': station_index,
+                    'failure_count': fallas_activas,
+                    'reason': f'{fallas_activas} fallas ESP32 sin resolver'
+                })))
+            except Exception as cmd_err:
+                app.logger.error(f"No se pudo encolar MAINTENANCE desde ESP32: {cmd_err}")
+
+            app.logger.warning(
+                f"⚠ [TFT] MAINTENANCE encolado — {machine_name} "
+                f"estación={station_index} fallas_activas={fallas_activas}"
+            )
+
         connection.commit()
         
         app.logger.info(f"✅ [TFT] Falla reportada — ID: {failure_id} | Máquina: {machine_name} ({machine_id}) | QR: {qr_code} | Turnos devueltos: {turnos_devueltos} | Turnos restantes: {nuevos_turnos}")
@@ -6923,6 +6977,8 @@ def esp32_reportar_falla():
                 'usage_id': usage_id,
                 'turnos_devueltos': turnos_devueltos,
                 'turnos_restantes': nuevos_turnos,
+                'fallas_activas': fallas_activas,
+                'mantenimiento_activado': fallas_activas >= 3,
                 'message': 'Falla reportada y turno devuelto automáticamente'
             }
         )
