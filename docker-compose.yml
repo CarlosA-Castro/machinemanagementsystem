@@ -24,7 +24,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    command: migrate
+    command: repair migrate
     environment:
       FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin
       FLYWAY_USER: myuser
