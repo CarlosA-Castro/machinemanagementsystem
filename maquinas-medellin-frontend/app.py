@@ -6074,21 +6074,24 @@ def resolver_falla_maquina(maquina_id):
         """, (maquina_id,))
 
         # Resolver fallas en machinefailures (resiliente a columnas pre-V32)
+        # Usa cursor fresco para no contaminar el cursor principal si la columna no existe
         try:
+            cur2 = get_db_cursor(connection)
             if estacion_index is not None:
-                cursor.execute("""
+                cur2.execute("""
                     UPDATE machinefailures
                     SET resolved = 1, resolved_at = NOW()
                     WHERE machine_id = %s AND station_index = %s AND resolved = 0
                 """, (maquina_id, estacion_index))
             else:
-                cursor.execute("""
+                cur2.execute("""
                     UPDATE machinefailures
                     SET resolved = 1, resolved_at = NOW()
                     WHERE machine_id = %s AND resolved = 0
                 """, (maquina_id,))
-        except Exception:
-            pass  # Columnas resolved/resolved_at pueden no existir aún (pre-V32)
+            cur2.close()
+        except Exception as mf_err:
+            app.logger.warning(f"machinefailures update omitido (columnas pre-V32?): {mf_err}")
 
         # Resolver reportes manuales en errorreport
         try:
@@ -6097,7 +6100,8 @@ def resolver_falla_maquina(maquina_id):
                 SET isResolved = 1, resolved_at = NOW()
                 WHERE machineId = %s AND isResolved = 0
             """, (maquina_id,))
-        except Exception:
+        except Exception as er_err:
+            app.logger.warning(f"errorreport update con resolved_at falló, reintentando sin resolved_at: {er_err}")
             cursor.execute("""
                 UPDATE errorreport
                 SET isResolved = 1
@@ -6141,7 +6145,7 @@ def resolver_falla_maquina(maquina_id):
         })
 
     except Exception as e:
-        app.logger.error(f"Error resolviendo falla: {e}")
+        app.logger.error(f"Error resolviendo falla maquina {maquina_id}: {e}\n{traceback.format_exc()}")
         if connection: connection.rollback()
         return api_response('E001', http_status=500)
     finally:
