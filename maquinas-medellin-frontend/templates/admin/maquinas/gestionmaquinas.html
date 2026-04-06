@@ -1172,7 +1172,7 @@
                                     </div>
                                     ${(maquina.errorNote || maquina.status !== 'activa') ? `
                                     <div class="action-btn-wrap">
-                                        <button onclick="MaquinaManager.resolverFalla(${maquina.id}, null, '${(maquina.name||'').replace(/'/g,"\\'")}' )" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
+                                        <button onclick="${esMulti ? `MaquinaManager.verEstaciones(${maquina.id})` : `MaquinaManager.resolverFalla(${maquina.id}, null, '${(maquina.name||'').replace(/'/g,"\\'")}')` }" class="action-button text-green-600 hover:text-green-800" title="${esMulti ? 'Ver estaciones para resolver falla' : 'Resolver falla'}">
                                             <i class="fas fa-wrench"></i>
                                         </button>
                                         <span class="action-btn-label text-green-600">Resolver</span>

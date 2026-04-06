@@ -4384,6 +4384,23 @@ def obtener_maquina(maquina_id):
             except:
                 ultimo_uso_texto = maquina['dateLastQRUsed'].strftime('%Y-%m-%d %H:%M')
         
+        # Obtener estaciones con fallas activas (resiliente si la columna no existe)
+        active_failure_stations = []
+        try:
+            cursor.execute("""
+                SELECT station_index, COUNT(*) as cnt
+                FROM errorreport
+                WHERE machineId = %s AND isResolved = 0 AND station_index IS NOT NULL
+                GROUP BY station_index
+            """, (maquina_id,))
+            for row in cursor.fetchall():
+                active_failure_stations.append({
+                    'station_index': row['station_index'],
+                    'count': row['cnt']
+                })
+        except Exception:
+            pass  # Columna station_index puede no existir aún (pre-V32)
+
         return jsonify({
             'id': maquina['id'],
             'name': maquina['name'],
@@ -4404,6 +4421,7 @@ def obtener_maquina(maquina_id):
             'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
             'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
             'show_station_selection': bool(maquina.get('show_station_selection', False)),
+            'active_failure_stations': active_failure_stations,
         })
         
     except Exception as e:
