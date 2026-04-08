@@ -6648,10 +6648,20 @@ def esp32_check_commands(machine_id):
         """, (machine_id,))
         
         commands = cursor.fetchall()
-        
+
+        # Parsear parameters de JSON string a objeto para que el ESP32 lo reciba correctamente
+        parsed = []
+        for cmd in commands:
+            row = dict(cmd)
+            try:
+                row['parameters'] = json.loads(row['parameters']) if isinstance(row['parameters'], str) else (row['parameters'] or {})
+            except Exception:
+                row['parameters'] = {}
+            parsed.append(row)
+
         return jsonify({
-            'has_commands': len(commands) > 0,
-            'commands': commands
+            'has_commands': len(parsed) > 0,
+            'commands': parsed
         })
         
     except Exception as e:
