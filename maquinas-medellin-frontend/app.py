@@ -1080,16 +1080,9 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         else:
             contador_bd = resultado['counter_value']
 
-        cursor.execute("""
-            SELECT MAX(CAST(SUBSTRING(code, 3) AS UNSIGNED)) AS max_real
-            FROM qrcode
-        """)
-        max_real = cursor.fetchone()['max_real'] or 0
-
-        contador_actual = max(contador_bd, max_real)
-
-        numero_inicial = contador_actual + 1
-        numero_final = contador_actual + cantidad_qr
+        # Confiar solo en el contador global (FOR UPDATE evita race conditions)
+        numero_inicial = contador_bd + 1
+        numero_final = contador_bd + cantidad_qr
 
         cursor.execute("""
             UPDATE globalcounter
@@ -5120,18 +5113,6 @@ def ingresar_turno_manual():
         
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
-        
-        # Verificar estado de la máquina
-        if maquina['status'] != 'activa':
-            return api_response(
-                'M003',
-                http_status=400,
-                data={
-                    'machine_id': machine_id,
-                    'current_status': maquina['status'],
-                    'message': f'La máquina está en estado "{maquina["status"]}". Solo se pueden ingresar turnos en máquinas activas.'
-                }
-            )
 
         # Obtener estación (para máquinas multi-estación)
         station_index = data.get('estacion', 0)
@@ -5149,8 +5130,8 @@ def ingresar_turno_manual():
             json.dumps({
                 'duration_ms': 500,
                 'machine_name': machine_name,
-                'station': station_index,        # ESP32 lee 'station'
-                'station_index': station_index,  # alias compat
+                'station': station_index,
+                'station_index': station_index,
                 'estacion_nombre': estacion_nombre,
                 'origen': 'admin_manual'
             }),
@@ -5161,6 +5142,9 @@ def ingresar_turno_manual():
 
         command_id = cursor.lastrowid
         app.logger.info(f"✅ Comando ACTIVATE_RELAY encolado con ID: {command_id} (estación {station_index})")
+
+        # Registrar en historial de actividad de la máquina
+        cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
 
         connection.commit()
 
@@ -5307,7 +5291,8 @@ def reiniciar_maquina_manual():
                     'machine_name': machine_name,
                     'station_index': station_index,
                     'estacion_nombre': estacion_nombre,
-                    'restart_tft': True
+                    'restart_tft': True,
+                    'origen': 'admin_web'
                 }),
                 user_name,
                 'queued',
