@@ -103,8 +103,13 @@ _SKIP_ACCESS_LOG = (
     '/api/logs',           # auto-refresh de la consola cada 5s
     '/api/esp32/check-commands',  # polling del ESP32 cada pocos segundos
     '/api/esp32/status',
+    '/api/esp32/heartbeat',
     '/api/tft/',
 )
+
+# Cache en memoria para estatus WiFi/servidor de cada ESP32 por machine_id
+# { machine_id: {'wifi': bool, 'server': bool, 'last_seen': datetime} }
+esp32_heartbeat_cache = {}
 
 def _log_transaccion(tipo, descripcion, categoria='operacional', usuario=None, usuario_id=None,
                      maquina_id=None, maquina_nombre=None, entidad=None, entidad_id=None,
@@ -4129,6 +4134,13 @@ def obtener_maquinas():
                 f"{p['nombre']} ({p['porcentaje_propiedad']}%)" for p in propietarios
             ]) if propietarios else "Sin propietarios"
             
+            hb = esp32_heartbeat_cache.get(maquina['id'])
+            if hb:
+                ahora = get_colombia_time()
+                segundos = (ahora - hb['last_seen']).total_seconds()
+                esp32_online = segundos < 90
+            else:
+                esp32_online = False
             maquinas_formateadas.append({
                 'id': maquina['id'],
                 'name': maquina['name'],
@@ -4141,7 +4153,10 @@ def obtener_maquinas():
                 'errorNote': maquina['errorNote'],
                 'porcentaje_restaurante': float(maquina['porcentaje_restaurante']),
                 'propietarios': propietarios,
-                'info_propietarios': info_propietarios
+                'info_propietarios': info_propietarios,
+                'esp32_wifi': hb['wifi'] if (hb and esp32_online) else False,
+                'esp32_server': hb['server'] if (hb and esp32_online) else False,
+                'esp32_online': esp32_online
             })
         
         return jsonify(maquinas_formateadas)
@@ -4837,6 +4852,13 @@ def obtener_maquinas_por_tipo():
         }
         
         for maquina in maquinas:
+            hb = esp32_heartbeat_cache.get(maquina['id'])
+            if hb:
+                ahora = get_colombia_time()
+                segundos = (ahora - hb['last_seen']).total_seconds()
+                esp32_online = segundos < 90
+            else:
+                esp32_online = False
             maquina_info = {
                 'id': maquina['id'],
                 'name': maquina['name'],
@@ -4847,9 +4869,12 @@ def obtener_maquinas_por_tipo():
                 'dailyFailedTurns': maquina['dailyFailedTurns'],
                 'dateLastQRUsed': maquina['dateLastQRUsed'].isoformat() if maquina['dateLastQRUsed'] else None,
                 'valor_por_turno': float(maquina['valor_por_turno']),
-                'imagen': obtener_nombre_imagen(maquina['name'])  # Función para mapear nombre a imagen
+                'imagen': obtener_nombre_imagen(maquina['name']),
+                'esp32_wifi': hb['wifi'] if (hb and esp32_online) else False,
+                'esp32_server': hb['server'] if (hb and esp32_online) else False,
+                'esp32_online': esp32_online
             }
-            
+
             tipo = maquina['type'].lower() if maquina['type'] else 'otros'
             if tipo in resultado:
                 resultado[tipo].append(maquina_info)
@@ -6455,6 +6480,22 @@ def esp32_status():
         'message': 'Servidor funcionando correctamente',
         'timestamp': get_colombia_time().isoformat()
     })
+
+@app.route('/api/esp32/heartbeat', methods=['POST'])
+def esp32_heartbeat():
+    """Recibe latido periódico del ESP32 con su estado WiFi/servidor"""
+    try:
+        data = request.get_json(silent=True) or {}
+        machine_id = data.get('machine_id')
+        if machine_id:
+            esp32_heartbeat_cache[int(machine_id)] = {
+                'wifi': bool(data.get('wifi_connected', True)),
+                'server': bool(data.get('server_online', True)),
+                'last_seen': get_colombia_time()
+            }
+        return jsonify({'status': 'ok'})
+    except Exception:
+        return jsonify({'status': 'ok'})
 
 @app.route('/api/esp32/registrar-uso', methods=['POST'])
 @handle_api_errors

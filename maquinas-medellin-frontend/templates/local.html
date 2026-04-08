@@ -239,10 +239,10 @@
 
       <!-- Generador de QR -->
       <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
-        <h2 class="text-lg lg:text-xl font-bold mb-4"><i class="fas fa-qrcode mr-2"></i>Generar Códigos QR</h2>
+        <h2 class="text-lg lg:text-xl font-bold mb-4"><i class="fas fa-qrcode mr-2"></i>Generar Venta de QR</h2>
         <button onclick="LocalApp.mostrarModalGenerador()"
                 class="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg font-semibold btn-touch w-full">
-          <i class="fas fa-file-pdf mr-2"></i>Generar QR en PDF
+          <i class="fas fa-file-pdf mr-2"></i>Generar venta de QR
         </button>
       </div>
 
@@ -937,7 +937,7 @@ fetch('/api/mis-permisos')
                   { t: `Nombre: ${nombre}`, y: yQR + altoQR + 8 },
                   { t: `Código: ${codigoQR}`, y: yQR + altoQR + 12 },
                   { t: `ID: ${numero}`, y: yQR + altoQR + 16 },
-                  { t: `Paquete: P${paquete.id}`, y: yQR + altoQR + 20 },
+                  { t: `Paquete: ${paquete.name} (P${paquete.id})`, y: yQR + altoQR + 20 },
                   { t: `Precio: $${paquete.price.toLocaleString('es-CO')}`, y: yQR + altoQR + 24 },
                   { t: `Turnos: ${paquete.turns}`, y: yQR + altoQR + 28 }
                 ];
@@ -1036,9 +1036,30 @@ fetch('/api/mis-permisos')
         const numeroLimpio = numero ? numero.replace(/[\s+()-]/g, '') : '';
         this.descargarQR(d.qrDataUrl, d.nombre, d.codigo);
         document.getElementById('modalWhatsAppNumero')?.remove();
+        const horaVenta = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
         this._wppData = null;
         if (esMobile) {
-          window.location.href = numeroLimpio ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}` : `whatsapp://send?text=${textoEncoded}`;
+          const wppUrl = numeroLimpio ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}` : `whatsapp://send?text=${textoEncoded}`;
+          const overlayM = document.createElement('div');
+          overlayM.innerHTML = `
+            <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+              <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                  <div class="text-3xl mb-1">✅</div>
+                  <p class="font-bold text-green-700 text-base">Venta confirmada</p>
+                  <p class="text-xs text-green-600 mt-1">${horaVenta}</p>
+                </div>
+                <p class="text-sm text-gray-600 mb-1"><b>${d.nombre}</b> · ${d.paquete?.name || ''}</p>
+                <p class="text-xs text-gray-500 mb-4">Código: ${d.codigo}</p>
+                <button id="btnWppMobile" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 mb-2">
+                  <i class="fab fa-whatsapp text-xl"></i>Abrir WhatsApp
+                </button>
+                <button id="btnWppMobileCerrar" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg text-sm">Cerrar</button>
+              </div>
+            </div>`;
+          document.body.appendChild(overlayM);
+          document.getElementById('btnWppMobile').addEventListener('click', () => { window.location.href = wppUrl; overlayM.remove(); });
+          document.getElementById('btnWppMobileCerrar').addEventListener('click', () => overlayM.remove());
           return;
         }
         const urlDesktop = numeroLimpio ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}` : `whatsapp://send?text=${textoEncoded}`;
@@ -1047,9 +1068,14 @@ fetch('/api/mis-permisos')
         selector.innerHTML = `
           <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-              <div class="text-4xl mb-3">💬</div>
-              <h3 class="text-lg font-bold mb-2 text-gray-800">¿Dónde abrir WhatsApp?</h3>
-              <p class="text-sm text-gray-500 mb-5">El QR ya fue descargado. Elige cómo enviar el mensaje:</p>
+              <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                <div class="text-2xl mb-1">✅</div>
+                <p class="font-bold text-green-700">Venta confirmada</p>
+                <p class="text-xs text-green-600 mt-1">${horaVenta}</p>
+              </div>
+              <div class="text-4xl mb-2">💬</div>
+              <h3 class="text-base font-bold mb-1 text-gray-800">¿Dónde abrir WhatsApp?</h3>
+              <p class="text-xs text-gray-500 mb-4">QR descargado · <b>${d.nombre}</b></p>
               <div class="space-y-3">
                 <button id="btnWppDesktop" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
                   <i class="fab fa-whatsapp text-xl"></i>WhatsApp Desktop (app)
@@ -1057,16 +1083,14 @@ fetch('/api/mis-permisos')
                 <button id="btnWppWeb" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
                   <i class="fas fa-globe text-xl"></i>WhatsApp Web (navegador)
                 </button>
-                <button id="btnWppCancelarSelector" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Cancelar</button>
+                <button id="btnWppCancelarSelector" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Cerrar</button>
               </div>
-              <p class="text-xs text-gray-400 mt-4"><i class="fas fa-download mr-1"></i>El QR ya fue descargado como imagen</p>
             </div>
           </div>`;
         document.body.appendChild(selector);
         document.getElementById('btnWppDesktop').addEventListener('click', () => { window.location.href = urlDesktop; selector.remove(); });
         document.getElementById('btnWppWeb').addEventListener('click', () => { window.open(urlWeb, '_blank'); selector.remove(); });
         document.getElementById('btnWppCancelarSelector').addEventListener('click', () => selector.remove());
-        this.mostrarAlerta("✅ QR descargado. Selecciona cómo enviar.", "success");
       },
 
       descargarQR: function(qrDataUrl, nombre, codigo) {

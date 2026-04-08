@@ -441,6 +441,7 @@
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Subtipo</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estaciones</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estado</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">ESP32</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Local</th>
                                 <th class="text-center py-3 px-4 text-sm font-medium text-gray-700">Acciones</th>
                             </tr>
@@ -926,6 +927,9 @@
                 }
 
                 HistorialManager.init();
+
+                // Polling en tiempo real: refresca lista de máquinas cada 20s
+                setInterval(() => this.cargarMaquinas(), 20000);
             },
 
             marcarEnlaceActivo: function() {
@@ -1149,6 +1153,21 @@
                                 <div class="flex flex-wrap gap-1">${stationsHtml}</div>
                             </td>
                             <td class="py-3 px-4"><span class="${estadoClass}">${estadoText}</span></td>
+                            <td class="py-3 px-4">
+                                ${(() => {
+                                    const wOk = maquina.esp32_wifi === true;
+                                    const sOk = maquina.esp32_server === true;
+                                    const online = maquina.esp32_online === true;
+                                    const wColor = online && wOk ? '#22c55e' : '#d1d5db';
+                                    const sColor = online && sOk ? '#22c55e' : '#d1d5db';
+                                    const wTip  = online && wOk ? 'WiFi: conectado' : 'WiFi: sin señal';
+                                    const sTip  = online && sOk ? 'Servidor: online' : 'Servidor: offline';
+                                    return `<span class="inline-flex items-center gap-1">
+                                        <span title="${wTip}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${wColor};border:1px solid #9ca3af;flex-shrink:0"></span>
+                                        <span title="${sTip}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sColor};border:1px solid #9ca3af;flex-shrink:0"></span>
+                                    </span>`;
+                                })()}
+                            </td>
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
                             <td class="py-3 px-4">
                                 <div class="flex justify-center space-x-1">

@@ -861,7 +861,6 @@
               </label>
               <select id="tipoProblema" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="mantenimiento">Requiere mantenimiento</option>
-                <option value="fuera_servicio">Fuera de servicio</option>
               </select>
             </div>
 
@@ -1000,7 +999,9 @@
 
        // Cargar máquinas desde el backend
        cargarMaquinasDesdeAPI();
-      
+       // Polling en tiempo real: refresca estado ESP32 cada 20s
+       setInterval(cargarMaquinasDesdeAPI, 20000);
+
       console.log("Machine Report App inicializada correctamente");
     });
 
@@ -1091,6 +1092,12 @@ function generateCategoryHTML(tipo, machines) {
                     <img src="/static/img/${maquina.imagen || 'default.jpg'}" alt="${maquina.name}" class="w-full h-full object-cover">
                 </div>
                 <p class="font-semibold text-center text-sm">${maquina.name}</p>
+                <div class="flex items-center justify-center gap-1 mt-1">
+                    <span title="${maquina.esp32_online && maquina.esp32_wifi ? 'WiFi: conectado' : 'WiFi: sin señal'}"
+                          style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${maquina.esp32_online && maquina.esp32_wifi ? '#22c55e' : '#d1d5db'};border:1px solid #9ca3af"></span>
+                    <span title="${maquina.esp32_online && maquina.esp32_server ? 'Servidor: online' : 'Servidor: offline'}"
+                          style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${maquina.esp32_online && maquina.esp32_server ? '#22c55e' : '#d1d5db'};border:1px solid #9ca3af"></span>
+                </div>
             </div>
         `;
     });
