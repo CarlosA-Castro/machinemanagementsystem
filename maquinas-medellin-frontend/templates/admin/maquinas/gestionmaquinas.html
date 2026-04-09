@@ -2373,7 +2373,7 @@
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
                                             <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
                                             ${j.qr_code ? `<span><i class="fas fa-qrcode mr-1"></i>${j.qr_code.substring(0,10)}...</span>` : ''}
-                                            ${j.turns_remaining !== undefined ? `<span class="text-green-600">Turnos restantes: ${j.turns_remaining}</span>` : ''}
+                                            ${j.turns_remaining !== undefined ? `<span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
                                         </div>
                                     </div>
                                 </div>`;
@@ -2521,7 +2521,7 @@
                                 ${j.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${j.qr_name}</span>` : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}
-                                ${j.turns_remaining !== undefined ? ` · <span class="text-green-600">${j.turns_remaining} turnos</span>` : ''}
+                                ${j.turns_remaining !== undefined ? ` · <span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
                             </div>
                         </div>`;
                     }).join('');

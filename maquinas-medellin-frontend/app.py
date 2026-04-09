@@ -1628,7 +1628,11 @@ def registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
         
-        cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        turns_after_basic = turnos_data['turns_remaining'] - 1
+        try:
+            cursor.execute("INSERT INTO turnusage (qrCodeId, machineId, turns_remaining_after) VALUES (%s, %s, %s)", (qr_id, machine_id, turns_after_basic))
+        except Exception:
+            cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
         connection.commit()
         
@@ -4218,7 +4222,9 @@ def obtener_turnusage_recientes():
                 COALESCE(qr.code, '') as qr_code,
                 COALESCE(qr.qr_name, '') as qr_name,
                 COALESCE(tp.name, 'Sin paquete') as package_name,
-                COALESCE(ut.turns_remaining, 0) as turns_remaining
+                -- turns_remaining_after: valor guardado al momento del uso (histórico correcto).
+                -- Para registros anteriores a V33 (NULL), cae en ut.turns_remaining (valor actual).
+                COALESCE(tu.turns_remaining_after, ut.turns_remaining, 0) as turns_remaining
             FROM turnusage tu
             LEFT JOIN machine m ON tu.machineId = m.id
             LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
@@ -6535,15 +6541,25 @@ def esp32_registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
 
-        # Insertar con station_index
-        cursor.execute("""
-            INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt) 
-            VALUES (%s, %s, %s, NOW())
-        """, (qr_id, machine_id, station_index))
+        # Calcular turnos después del uso (para guardar histórico correcto)
+        turns_after = turnos_data['turns_remaining'] - 1
+
+        # Insertar con station_index y turns_remaining_after (histórico por fila)
+        try:
+            cursor.execute("""
+                INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt, turns_remaining_after)
+                VALUES (%s, %s, %s, NOW(), %s)
+            """, (qr_id, machine_id, station_index, turns_after))
+        except Exception:
+            # Fallback si la columna V33 aún no existe
+            cursor.execute("""
+                INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt)
+                VALUES (%s, %s, %s, NOW())
+            """, (qr_id, machine_id, station_index))
 
         usage_id = cursor.lastrowid
-        app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}")
-        
+        app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}, Turnos tras uso: {turns_after}")
+
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
 
         cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
