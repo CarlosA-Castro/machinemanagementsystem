@@ -2762,12 +2762,19 @@ def reportar_falla_maquina():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
+        cursor.execute("""
+            SELECT m.id, m.name,
+                   COALESCE(mt.machine_subtype, 'simple') AS machine_subtype
+            FROM machine m
+            LEFT JOIN machinetechnical mt ON mt.machine_id = m.id
+            WHERE m.id = %s
+        """, (machine_id,))
         maquina = cursor.fetchone()
 
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
 
+        es_multi = maquina.get('machine_subtype') == 'multi_station'
         nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
 
         # Insertar reporte con station_index y problem_type
@@ -2787,13 +2794,24 @@ def reportar_falla_maquina():
 
         error_report_id = cursor.lastrowid
 
-        cursor.execute("""
-            UPDATE machine
-            SET status = %s,
-                errorNote = %s,
-                dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-            WHERE id = %s
-        """, (nuevo_estado, description, machine_id))
+        # Para máquinas multi-estación con falla en estación específica:
+        # no cambiar el status global (la estación se gestiona vía esp32_commands).
+        # Para máquinas simples o fallas globales: cambiar status normalmente.
+        if es_multi and station_index is not None:
+            cursor.execute("""
+                UPDATE machine
+                SET errorNote = %s,
+                    dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                WHERE id = %s
+            """, (description, machine_id))
+        else:
+            cursor.execute("""
+                UPDATE machine
+                SET status = %s,
+                    errorNote = %s,
+                    dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                WHERE id = %s
+            """, (nuevo_estado, description, machine_id))
 
         # Contar fallas activas para esta máquina/estación
         if station_index is not None:
