@@ -2390,10 +2390,12 @@
                                         <div class="flex items-center flex-wrap gap-1">
                                             <span class="text-sm font-medium text-red-800">Falla QR</span>
                                             ${stLabel}
+                                            ${f.qr_name ? `<span class="text-xs text-gray-500">${f.qr_name}</span>` : ''}
                                             ${f.is_forced ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Forzada</span>' : ''}
                                         </div>
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
                                             <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
+                                            ${f.qr_code ? `<span><i class="fas fa-qrcode mr-1"></i>${f.qr_code.substring(0,10)}...</span>` : ''}
                                             ${f.turnos_devueltos ? `<span class="text-red-600">Turnos devueltos: ${f.turnos_devueltos}</span>` : ''}
                                             ${f.notes ? `<span class="italic">${f.notes.substring(0,40)}</span>` : ''}
                                         </div>
