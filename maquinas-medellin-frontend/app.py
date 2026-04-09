@@ -7005,12 +7005,33 @@ def esp32_reportar_falla():
             estacion_str = f" (estación {station_index + 1})" if station_index is not None else ""
             error_note = f"{fallas_activas} fallas ESP32{estacion_str} sin resolver"
 
-            cursor.execute("""
-                UPDATE machine
-                SET status = 'mantenimiento', errorNote = %s,
-                    dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                WHERE id = %s
-            """, (error_note, machine_id))
+            # Verificar si es multi-estación para no bloquear la máquina globalmente
+            try:
+                cursor.execute("""
+                    SELECT COALESCE(mt.machine_subtype, 'simple') AS machine_subtype
+                    FROM machinetechnical mt WHERE mt.machine_id = %s
+                """, (machine_id,))
+                row = cursor.fetchone()
+                es_multi_esp32 = (row and row.get('machine_subtype') == 'multi_station')
+            except Exception:
+                es_multi_esp32 = False
+
+            if es_multi_esp32 and station_index is not None:
+                # Multi-estación: solo actualizar nota, no cambiar status global
+                cursor.execute("""
+                    UPDATE machine
+                    SET errorNote = %s,
+                        dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                    WHERE id = %s
+                """, (error_note, machine_id))
+            else:
+                # Máquina simple: cambiar status a mantenimiento
+                cursor.execute("""
+                    UPDATE machine
+                    SET status = 'mantenimiento', errorNote = %s,
+                        dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                    WHERE id = %s
+                """, (error_note, machine_id))
 
             try:
                 cursor.execute("""

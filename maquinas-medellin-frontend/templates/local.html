@@ -964,7 +964,18 @@ fetch('/api/mis-permisos')
             new QRCode(tempDiv, { text: primerCodigo, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
             setTimeout(() => {
               const canvas = tempDiv.querySelector('canvas');
-              if (canvas) this.mostrarModalNumeroWhatsApp(canvas.toDataURL('image/png'), nombre, primerCodigo, paquete);
+              if (canvas) {
+                // Agregar borde blanco (quiet zone) para que el scanner GM67 lo lea correctamente
+                const padding = 30;
+                const paddedCanvas = document.createElement('canvas');
+                paddedCanvas.width  = canvas.width  + padding * 2;
+                paddedCanvas.height = canvas.height + padding * 2;
+                const ctx = paddedCanvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, paddedCanvas.width, paddedCanvas.height);
+                ctx.drawImage(canvas, padding, padding);
+                this.mostrarModalNumeroWhatsApp(paddedCanvas.toDataURL('image/png'), nombre, primerCodigo, paquete);
+              }
             }, 500);
           }
         } catch (error) { this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error"); }
