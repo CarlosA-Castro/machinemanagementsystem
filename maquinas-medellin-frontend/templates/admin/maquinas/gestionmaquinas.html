@@ -2535,13 +2535,15 @@
                         const hora = new Date(f.reported_at || f.reportedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
                         const dia  = new Date(f.reported_at || f.reportedAt).toLocaleDateString('es-CO');
                         return `<div class="border-b border-gray-100 last:border-0 py-2">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <i class="fas fa-exclamation-triangle text-red-500 text-xs flex-shrink-0"></i>
                                 <span class="text-sm font-medium text-gray-800">${f.machine_name || '—'}</span>
+                                ${f.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${f.qr_name}</span>` : ''}
                                 ${f.is_forced ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Forzada</span>' : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}
                                 ${f.turnos_devueltos ? ` · <span class="text-red-600">${f.turnos_devueltos} devueltos</span>` : ''}
+                                ${f.notes ? ` · <span class="italic">${f.notes.substring(0,30)}</span>` : ''}
                             </div>
                         </div>`;
                     }).join('');
