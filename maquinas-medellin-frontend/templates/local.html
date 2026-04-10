@@ -966,7 +966,8 @@ fetch('/api/mis-permisos')
               const canvas = tempDiv.querySelector('canvas');
               if (canvas) {
                 // Agregar borde blanco (quiet zone) para que el scanner GM67 lo lea correctamente
-                const padding = 30;
+                // El GM67 requiere al menos 4 módulos de quiet zone — 60px garantiza suficiente margen
+                const padding = 60;
                 const paddedCanvas = document.createElement('canvas');
                 paddedCanvas.width  = canvas.width  + padding * 2;
                 paddedCanvas.height = canvas.height + padding * 2;

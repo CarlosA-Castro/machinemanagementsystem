@@ -4144,11 +4144,48 @@ def obtener_maquinas():
         """)
         
         maquinas = cursor.fetchall()
-        
+
+        # Obtener fallas activas por máquina y estación (una sola query para todas)
+        failures_by_machine = {}  # {machine_id: [{station_index, count, esp32_count}]}
+        try:
+            cursor.execute("""
+                SELECT machine_id, station_index, COUNT(*) as cnt
+                FROM machinefailures
+                WHERE resolved = 0
+                GROUP BY machine_id, station_index
+            """)
+            for row in cursor.fetchall():
+                mid = row['machine_id']
+                if mid not in failures_by_machine:
+                    failures_by_machine[mid] = []
+                failures_by_machine[mid].append({
+                    'station_index': row['station_index'],
+                    'count': row['cnt'],
+                    'esp32_count': row['cnt'],
+                    'cajero_count': 0
+                })
+        except Exception:
+            pass  # pre-V32: no station_index column
+
+        # Obtener config técnica (subtype + station_names) para todas las máquinas
+        technical_by_machine = {}
+        try:
+            cursor.execute("""
+                SELECT machine_id, machine_subtype, station_names
+                FROM machinetechnical
+            """)
+            for row in cursor.fetchall():
+                technical_by_machine[row['machine_id']] = {
+                    'machine_subtype': row['machine_subtype'],
+                    'station_names': json.loads(row['station_names']) if row.get('station_names') else []
+                }
+        except Exception:
+            pass
+
         maquinas_formateadas = []
         for maquina in maquinas:
             cursor.execute("""
-                SELECT 
+                SELECT
                     p.id,
                     p.nombre,
                     mp.porcentaje_propiedad
@@ -4156,13 +4193,13 @@ def obtener_maquinas():
                 JOIN propietarios p ON mp.propietario_id = p.id
                 WHERE mp.maquina_id = %s
             """, (maquina['id'],))
-            
+
             propietarios = cursor.fetchall()
-            
+
             info_propietarios = ", ".join([
                 f"{p['nombre']} ({p['porcentaje_propiedad']}%)" for p in propietarios
             ]) if propietarios else "Sin propietarios"
-            
+
             hb = esp32_heartbeat_cache.get(maquina['id'])
             if hb:
                 ahora = get_colombia_time()
@@ -4170,6 +4207,10 @@ def obtener_maquinas():
                 esp32_online = segundos < 90
             else:
                 esp32_online = False
+
+            tech = technical_by_machine.get(maquina['id'], {})
+            active_failure_stations = failures_by_machine.get(maquina['id'], [])
+
             maquinas_formateadas.append({
                 'id': maquina['id'],
                 'name': maquina['name'],
@@ -4185,9 +4226,11 @@ def obtener_maquinas():
                 'info_propietarios': info_propietarios,
                 'esp32_wifi': hb['wifi'] if (hb and esp32_online) else False,
                 'esp32_server': hb['server'] if (hb and esp32_online) else False,
-                'esp32_online': esp32_online
+                'esp32_online': esp32_online,
+                'technical': tech,
+                'active_failure_stations': active_failure_stations,
             })
-        
+
         return jsonify(maquinas_formateadas)
         
     except Exception as e:
@@ -6136,15 +6179,7 @@ def resolver_falla_maquina(maquina_id):
         if not maquina:
             return api_response('E005', http_status=404, data={'message': 'Máquina no encontrada'})
 
-        # Limpiar errorNote y reactivar máquina
-        cursor.execute("""
-            UPDATE machine
-            SET errorNote = NULL, status = 'activa'
-            WHERE id = %s
-        """, (maquina_id,))
-
         # Resolver fallas en machinefailures (resiliente a columnas pre-V32)
-        # Usa cursor fresco para no contaminar el cursor principal si la columna no existe
         try:
             cur2 = get_db_cursor(connection)
             if estacion_index is not None:
@@ -6162,6 +6197,40 @@ def resolver_falla_maquina(maquina_id):
             cur2.close()
         except Exception as mf_err:
             app.logger.warning(f"machinefailures update omitido (columnas pre-V32?): {mf_err}")
+
+        # Determinar si hay otras estaciones aún con fallas sin resolver (multi-estación)
+        # Si se resolvió una estación específica, verificar si quedan otras con 3+ fallas
+        otras_fallas_activas = False
+        if estacion_index is not None:
+            try:
+                cur3 = get_db_cursor(connection)
+                cur3.execute("""
+                    SELECT station_index, COUNT(*) as cnt
+                    FROM machinefailures
+                    WHERE machine_id = %s AND resolved = 0
+                    GROUP BY station_index
+                    HAVING cnt >= 3
+                """, (maquina_id,))
+                otras_fallas_activas = cur3.fetchone() is not None
+                cur3.close()
+            except Exception:
+                pass  # Si falla la consulta, asumimos safe default (reactivar)
+
+        # Limpiar errorNote y reactivar máquina solo si no quedan otras estaciones bloqueadas
+        if otras_fallas_activas:
+            # Otras estaciones siguen en mantenimiento — no reactivar globalmente
+            cursor.execute("""
+                UPDATE machine
+                SET errorNote = CONCAT(COALESCE(errorNote, ''), ' [Estacion resuelta]')
+                WHERE id = %s
+            """, (maquina_id,))
+            app.logger.info(f"Máquina {maquina_id}: estación {estacion_index} resuelta, otras estaciones aún en falla — status sin cambiar")
+        else:
+            cursor.execute("""
+                UPDATE machine
+                SET errorNote = NULL, status = 'activa'
+                WHERE id = %s
+            """, (maquina_id,))
 
         # Resolver reportes manuales en errorreport
         try:
@@ -6549,14 +6618,20 @@ def esp32_registrar_uso():
         qr_id = qr_data['id']
         qr_name = qr_data['qr_name']
         
-        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
-        turnos_data = cursor.fetchone()
-        
-        if not turnos_data or turnos_data['turns_remaining'] <= 0:
+        # Decremento atómico: protege contra race condition si dos ESP32
+        # usan el mismo QR simultáneamente. Solo decrementa si aún hay turnos.
+        cursor.execute("""
+            UPDATE userturns
+            SET turns_remaining = turns_remaining - 1
+            WHERE qr_code_id = %s AND turns_remaining > 0
+        """, (qr_id,))
+        if cursor.rowcount == 0:
             return api_response('Q003', http_status=400)
 
-        # Calcular turnos después del uso (para guardar histórico correcto)
-        turns_after = turnos_data['turns_remaining'] - 1
+        # Leer el valor actualizado para el histórico
+        cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
+        turnos_data = cursor.fetchone()
+        turns_after = turnos_data['turns_remaining'] if turnos_data else 0
 
         # Insertar con station_index y turns_remaining_after (histórico por fila)
         try:
@@ -6573,8 +6648,6 @@ def esp32_registrar_uso():
 
         usage_id = cursor.lastrowid
         app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}, Turnos tras uso: {turns_after}")
-
-        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
 
         cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
         
@@ -6810,6 +6883,22 @@ def esp32_machine_config(machine_id):
             else:
                 station_names = [config['name']]
         
+        # Fallas activas por estación (para pre-cargar stationInMaintenance en el ESP32 al arrancar)
+        active_failure_stations = []
+        try:
+            cursor.execute("""
+                SELECT station_index, COUNT(*) as cnt
+                FROM machinefailures
+                WHERE machine_id = %s AND resolved = 0
+                GROUP BY station_index
+            """, (machine_id,))
+            active_failure_stations = [
+                {'station_index': r['station_index'], 'count': r['cnt']}
+                for r in cursor.fetchall()
+            ]
+        except Exception:
+            pass  # Tabla pre-V32 sin columna resolved: ignorar
+
         response_data = {
             'id': config['id'],
             'name': config['name'],
@@ -6824,9 +6913,10 @@ def esp32_machine_config(machine_id):
             'game_type': config['game_type'] or 'time_based',
             'has_failure_report': bool(config['has_failure_report']),
             'show_station_selection': bool(config['show_station_selection']),
-            'last_play_time': config['last_play_time']
+            'last_play_time': config['last_play_time'],
+            'active_failure_stations': active_failure_stations
         }
-        
+
         return jsonify({'status': 'success', 'data': response_data})
         
     except Exception as e:
@@ -6932,15 +7022,19 @@ def esp32_reportar_falla():
             FROM machinefailures
             WHERE qr_code_id = %s 
             AND machine_id = %s
-            AND ABS(TIMESTAMPDIFF(MINUTE, reported_at, NOW())) < 5
+            AND ABS(TIMESTAMPDIFF(SECOND, reported_at, NOW())) < 10
             ORDER BY reported_at DESC
             LIMIT 1
         """, (qr_id, machine_id))
-        
+
         falla_reciente = cursor.fetchone()
-        
+
         if falla_reciente:
-            app.logger.info(f"⚠️ [TFT] Falla ya reportada hace menos de 5 minutos (ID: {falla_reciente['id']})")
+            app.logger.info(f"⚠️ [TFT] Falla duplicada en menos de 10 segundos (ID: {falla_reciente['id']})")
+            # Obtener turnos actuales del QR para incluirlos en la respuesta
+            cursor.execute("SELECT remainingTurns FROM qrcode WHERE id = %s", (qr_id,))
+            qr_turns = cursor.fetchone()
+            turnos_actuales = qr_turns['remainingTurns'] if qr_turns else 0
             return api_response(
                 'W007',
                 status='warning',
@@ -6948,7 +7042,8 @@ def esp32_reportar_falla():
                 data={
                     'message': 'Falla ya reportada recientemente',
                     'failure_id': falla_reciente['id'],
-                    'already_reported': True
+                    'already_reported': True,
+                    'turnos_restantes': turnos_actuales
                 }
             )
         
@@ -7031,21 +7126,66 @@ def esp32_reportar_falla():
                 es_multi_esp32 = False
 
             if es_multi_esp32 and station_index is not None:
-                # Multi-estación: solo actualizar nota, no cambiar status global
-                cursor.execute("""
-                    UPDATE machine
-                    SET errorNote = %s,
-                        dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                    WHERE id = %s
-                """, (error_note, machine_id))
+                # Multi-estación: verificar si TODAS las estaciones están en mantenimiento.
+                # Si todas están bloqueadas, cambiar el estado global a 'mantenimiento'.
+                todas_bloqueadas = False
+                try:
+                    # Contar estaciones configuradas en la máquina
+                    cursor.execute("""
+                        SELECT station_names FROM machinetechnical WHERE machine_id = %s
+                    """, (machine_id,))
+                    mt_row = cursor.fetchone()
+                    total_estaciones = 2  # default
+                    if mt_row and mt_row.get('station_names'):
+                        try:
+                            sn = json.loads(mt_row['station_names']) if isinstance(mt_row['station_names'], str) else mt_row['station_names']
+                            total_estaciones = len(sn)
+                        except Exception:
+                            pass
+                    # Estaciones con >=3 fallas sin resolver
+                    cursor.execute("""
+                        SELECT COUNT(DISTINCT station_index) as bloqueadas
+                        FROM machinefailures
+                        WHERE machine_id = %s AND resolved = 0
+                        GROUP BY station_index
+                        HAVING COUNT(*) >= 3
+                    """, (machine_id,))
+                    bloqueadas = len(cursor.fetchall())
+                    todas_bloqueadas = (bloqueadas >= total_estaciones)
+                except Exception:
+                    pass
+
+                if todas_bloqueadas:
+                    cursor.execute("""
+                        UPDATE machine
+                        SET status = 'mantenimiento', errorNote = %s,
+                            dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                        WHERE id = %s
+                    """, (error_note, machine_id))
+                    app.logger.warning(
+                        f"⚠ [TFT] TODAS las estaciones bloqueadas — maquina {machine_id} → 'mantenimiento'"
+                    )
+                else:
+                    cursor.execute("""
+                        UPDATE machine
+                        SET errorNote = %s,
+                            dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+                        WHERE id = %s
+                    """, (error_note, machine_id))
+                    app.logger.warning(
+                        f"⚠ [TFT] Estacion {station_index} bloqueada (multi) — maquina {machine_id} sigue activa"
+                    )
             else:
-                # Máquina simple: cambiar status a mantenimiento
+                # Máquina simple: cambiar estado global a mantenimiento
                 cursor.execute("""
                     UPDATE machine
                     SET status = 'mantenimiento', errorNote = %s,
                         dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
                     WHERE id = %s
                 """, (error_note, machine_id))
+                app.logger.warning(
+                    f"⚠ [TFT] Maquina {machine_id} → status='mantenimiento'"
+                )
 
             try:
                 cursor.execute("""

@@ -1125,8 +1125,20 @@
                         (s && typeof s === 'object') ? (s.name || `Est.${i+1}`) : String(s || `Est.${i+1}`)
                     );
 
+                    const stationFailures = maquina.active_failure_stations || [];
                     const stationsHtml = esMulti
-                        ? stationNames.map(n => `<span class="station-pill">${n}</span>`).join('')
+                        ? stationNames.map((n, i) => {
+                            const failInfo = stationFailures.find(f => f.station_index === i);
+                            const failCount = failInfo ? failInfo.count : 0;
+                            if (failCount >= 3) {
+                                // Estación en mantenimiento (3+ fallas sin resolver)
+                                return `<span class="station-pill" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5" title="${failCount} fallas sin resolver — EN MANTENIMIENTO">${n} <span style="background:#dc2626;color:#fff;border-radius:9999px;padding:0 5px;font-size:10px;font-weight:700">${failCount}</span> <i class="fas fa-wrench" style="font-size:10px"></i></span>`;
+                            } else if (failCount > 0) {
+                                // Estación con fallas pero aún operativa
+                                return `<span class="station-pill" style="background:#fef9c3;color:#92400e;border:1px solid #fcd34d" title="${failCount} falla(s) sin resolver">${n} <span style="background:#f59e0b;color:#fff;border-radius:9999px;padding:0 5px;font-size:10px;font-weight:700">${failCount}</span></span>`;
+                            }
+                            return `<span class="station-pill">${n}</span>`;
+                        }).join('')
                         : `<span class="text-xs text-gray-500">—</span>`;
 
                     const rowClass = esMulti ? 'border-b border-gray-100 machine-card multi-station-row' : 'border-b border-gray-100 hover:bg-gray-50 machine-card';
