@@ -10925,7 +10925,7 @@ def obtener_logs_transaccional_consolidado():
             SELECT
                 mf.id,
                 DATE_FORMAT(mf.reported_at, '%%Y-%%m-%%d')  AS fecha,
-                DATE_FORMAT(mf.reported_at, '%%H:%%i:%%s')  AS hora,
+                DATE_FORMAT(mf.reported_at, '%%H:%%i:%%S')  AS hora,
                 mf.machine_id,
                 COALESCE(mf.machine_name, 'Desconocida')    AS machine_name,
                 mf.station_index,
