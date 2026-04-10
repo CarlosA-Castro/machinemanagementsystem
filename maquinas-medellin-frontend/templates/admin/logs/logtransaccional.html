@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Logs Transaccionales - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        #particles-js {
+            position: fixed; width: 100%; height: 100%;
+            z-index: -1; top: 0; left: 0;
+        }
+        .glass-card {
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(6px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 8px 32px rgba(31,38,135,0.10);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, var(--kpi-from), var(--kpi-to));
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: -30%; right: -10%;
+            width: 160px; height: 160px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .kpi-ventas    { --kpi-from: #059669; --kpi-to: #10b981; }
+        .kpi-paquetes  { --kpi-from: #2563eb; --kpi-to: #60a5fa; }
+        .kpi-turnos    { --kpi-from: #7c3aed; --kpi-to: #a78bfa; }
+        .kpi-fallas    { --kpi-from: #dc2626; --kpi-to: #f87171; }
+        .kpi-devueltos { --kpi-from: #d97706; --kpi-to: #fbbf24; }
+
+        .btn-periodo {
+            padding: 0.4rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s;
+            border: 2px solid transparent;
+            background: rgba(255,255,255,0.85);
+            color: #374151;
+        }
+        .btn-periodo.active, .btn-periodo:hover {
+            background: #2563eb; color: white; border-color: #2563eb;
+        }
+        .badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .badge-turno_qr      { background:#d1fae5; color:#065f46; }
+        .badge-turno_manual  { background:#dbeafe; color:#1e40af; }
+        .badge-falla_maquina { background:#fee2e2; color:#991b1b; }
+        .badge-resolver_falla{ background:#fef9c3; color:#92400e; }
+        .badge-inversion     { background:#ede9fe; color:#4c1d95; }
+        .badge-pago_cuota    { background:#fce7f3; color:#9d174d; }
+
+        .feed-item {
+            border-left: 4px solid #e5e7eb;
+            padding: 0.6rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0 8px 8px 0;
+            background: #f9fafb;
+            cursor: pointer;
+            transition: background .12s;
+        }
+        .feed-item:hover { background: #f1f5f9; }
+        .feed-item.turno_qr      { border-color: #10b981; }
+        .feed-item.turno_manual  { border-color: #3b82f6; }
+        .feed-item.falla_maquina { border-color: #ef4444; }
+        .feed-item.resolver_falla{ border-color: #f59e0b; }
+        .feed-item.inversion     { border-color: #8b5cf6; }
+        .feed-item.pago_cuota    { border-color: #ec4899; }
+
+        .feed-detail {
+            display: none;
+            background: #1e293b;
+            color: #94a3b8;
+            font-family: monospace;
+            font-size: 0.78rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-top: 0.4rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .feed-detail.open { display: block; }
+
+        .maquina-row { cursor: pointer; transition: background .1s; }
+        .maquina-row:hover { background: #f0f9ff !important; }
+        .maquina-detail { display: none; }
+        .maquina-detail.open { display: table-row-group; }
+
+        .status-activa       { background:#d1fae5; color:#065f46; }
+        .status-mantenimiento{ background:#fef3c7; color:#92400e; }
+        .status-inactiva     { background:#fee2e2; color:#991b1b; }
+
+        .nav-link {
+            display: flex; align-items: center;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.9rem;
+            color: #d1d5db;
+            border-radius: 8px;
+            transition: all .15s;
+            text-decoration: none;
+        }
+        .nav-link:hover, .nav-link.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+        }
+        .nav-link.active { font-weight: 700; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-spin {
+            display: inline-block; width: 18px; height: 18px;
+            border: 3px solid rgba(59,130,246,0.3);
+            border-radius: 50%; border-top-color: #3b82f6;
+            animation: spin 1s linear infinite;
+        }
+        .table-fixed-head thead th {
+            position: sticky; top: 0; background: #f8fafc; z-index: 1;
+        }
+        .scrollable-table { max-height: 360px; overflow-y: auto; }
+        .scrollable-feed  { max-height: 520px; overflow-y: auto; }
+
+        .paquete-bar {
+            height: 8px; border-radius: 4px;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            transition: width .5s ease;
+        }
+
+        @media (max-width: 1024px) {
+            aside { display: none; }
+        }
+        @media (max-width: 768px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="particles-js"></div>
+
+<div class="flex min-h-screen">
+
+    <!-- ══════════ SIDEBAR ══════════ -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh">
+        <div class="p-4 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">
+                <div>
+                    <div class="font-bold text-sm">Inversiones Arcade</div>
+                    <div class="text-xs text-gray-400">Panel Admin</div>
+                </div>
+            </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+            <a href="/admin" class="nav-link"><i class="fas fa-home mr-2"></i>Inicio</a>
+            <a href="/admin/usuarios/gestionusuarios" class="nav-link"><i class="fas fa-users mr-2"></i>Usuarios</a>
+            <a href="/admin/maquinas/gestionmaquinas" class="nav-link"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+            <a href="/admin/paquetes/gestionpaquetes" class="nav-link"><i class="fas fa-box mr-2"></i>Paquetes</a>
+            <a href="/admin/locales/listalocales" class="nav-link"><i class="fas fa-store mr-2"></i>Locales</a>
+            <a href="/admin/mensajes/gestionmensajes" class="nav-link"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+            <a href="/admin/ventas/liquidaciones" class="nav-link"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+            <a href="/admin/inversores/gestionsocios" class="nav-link"><i class="fas fa-handshake mr-2"></i>Socios</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
+            <a href="/admin/logs/transaccionales" class="nav-link active"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
+            <a href="/admin/logs/consola-completa" class="nav-link"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+            <a href="/admin/logs/gestionlogs" class="nav-link"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
+        </nav>
+        <div class="p-4 border-t border-gray-700 text-sm">
+            <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
+            <div class="text-gray-400 text-xs mb-2">
+                <span id="horaActualSidebar">{{ hora_actual }}</span> · {{ fecha_actual }}
+            </div>
+            <a href="/logout" class="text-red-400 hover:underline text-xs">
+                <i class="fas fa-sign-out-alt mr-1"></i>Salir
+            </a>
+        </div>
+    </aside>
+
+    <!-- ══════════ CONTENIDO PRINCIPAL ══════════ -->
+    <main class="flex-1 p-4 lg:p-6 overflow-y-auto">
+
+        <!-- ── HEADER ── -->
+        <div class="glass-card mb-5">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">
+                        <i class="fas fa-receipt mr-2 text-blue-600"></i>Logs Transaccionales
+                    </h1>
+                    <p class="text-gray-500 text-sm mt-1">
+                        Ventas · Máquinas · ESP32/TFT · Actividad en tiempo real
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Botones período rápido -->
+                    <button class="btn-periodo active" onclick="LT.setPeriodo('hoy')">Hoy</button>
+                    <button class="btn-periodo" onclick="LT.setPeriodo('ayer')">Ayer</button>
+                    <button class="btn-periodo" onclick="LT.setPeriodo('7d')">7 días</button>
+                    <button class="btn-periodo" onclick="LT.setPeriodo('30d')">30 días</button>
+                    <!-- Rango personalizado -->
+                    <div class="flex items-center gap-1 ml-2">
+                        <input type="date" id="fechaInicio" class="border border-gray-300 rounded-lg px-2 py-1 text-sm" />
+                        <span class="text-gray-500 text-sm">→</span>
+                        <input type="date" id="fechaFin" class="border border-gray-300 rounded-lg px-2 py-1 text-sm" />
+                        <button onclick="LT.setPeriodo('custom')" class="btn-periodo">Aplicar</button>
+                    </div>
+                    <!-- Refresh -->
+                    <button onclick="LT.cargar()" id="btnRefresh"
+                        class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer select-none">
+                        <input type="checkbox" id="autoRefresh" class="rounded"> Auto
+                    </label>
+                    <!-- Export CSV -->
+                    <button onclick="LT.exportCSV()"
+                        class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-2">
+                        <i class="fas fa-download"></i> CSV
+                    </button>
+                </div>
+            </div>
+            <!-- Periodo activo label -->
+            <p class="text-xs text-gray-400 mt-2" id="periodoLabel">Cargando...</p>
+        </div>
+
+        <!-- ── KPIs ── -->
+        <div class="kpi-grid grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
+            <div class="kpi-card kpi-ventas">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1">
+                    <i class="fas fa-dollar-sign mr-1"></i>Ingresos Ventas
+                </div>
+                <div class="text-2xl font-bold" id="kpiIngresos">—</div>
+                <div class="text-xs opacity-70 mt-1">paquetes vendidos</div>
+            </div>
+            <div class="kpi-card kpi-paquetes">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1">
+                    <i class="fas fa-ticket-alt mr-1"></i>Paquetes Vendidos
+                </div>
+                <div class="text-2xl font-bold" id="kpiPaquetes">—</div>
+                <div class="text-xs opacity-70 mt-1" id="kpiTicketProm">ticket promedio —</div>
+            </div>
+            <div class="kpi-card kpi-turnos">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1">
+                    <i class="fas fa-gamepad mr-1"></i>Turnos Jugados
+                </div>
+                <div class="text-2xl font-bold" id="kpiTurnos">—</div>
+                <div class="text-xs opacity-70 mt-1">desde ESP32/TFT</div>
+            </div>
+            <div class="kpi-card kpi-fallas">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>Fallas ESP32
+                </div>
+                <div class="text-2xl font-bold" id="kpiFallas">—</div>
+                <div class="text-xs opacity-70 mt-1">reportadas desde TFT</div>
+            </div>
+            <div class="kpi-card kpi-devueltos">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1">
+                    <i class="fas fa-undo mr-1"></i>Turnos Devueltos
+                </div>
+                <div class="text-2xl font-bold" id="kpiDevueltos">—</div>
+                <div class="text-xs opacity-70 mt-1">por fallas</div>
+            </div>
+        </div>
+
+        <!-- ── GRÁFICA DUAL ── -->
+        <div class="glass-card mb-5">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-chart-area mr-2 text-blue-600"></i>Evolución del Período
+                </h2>
+                <div class="flex gap-4 text-xs text-gray-500">
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-1"></span>Ventas $</span>
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-purple-500 mr-1"></span>Turnos jugados</span>
+                </div>
+            </div>
+            <div style="height:220px; position:relative;">
+                <canvas id="chartEvolucion"></canvas>
+                <div id="chartLoading" class="absolute inset-0 flex items-center justify-center text-gray-400">
+                    <div class="loading-spin mr-2"></div> Cargando...
+                </div>
+            </div>
+        </div>
+
+        <!-- ── DOS COLUMNAS: VENTAS | POR MÁQUINA ── -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
+
+            <!-- VENTAS -->
+            <div class="glass-card" style="padding-bottom:1rem">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-bold text-gray-800">
+                        <i class="fas fa-shopping-cart mr-2 text-green-600"></i>Ventas del Período
+                    </h2>
+                    <span class="text-xs text-gray-400" id="totalVentasLabel">—</span>
+                </div>
+
+                <!-- Top paquetes -->
+                <div class="mb-4" id="topPaquetesSection">
+                    <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Top paquetes</p>
+                    <div id="topPaquetesContainer" class="space-y-2">
+                        <div class="text-gray-400 text-sm">—</div>
+                    </div>
+                </div>
+
+                <!-- Tabla ventas -->
+                <div class="scrollable-table table-fixed-head">
+                    <table class="w-full text-xs border-collapse">
+                        <thead>
+                            <tr class="text-left text-gray-500 border-b-2 border-gray-200">
+                                <th class="py-2 px-2">Hora</th>
+                                <th class="py-2 px-2">QR</th>
+                                <th class="py-2 px-2">Paquete</th>
+                                <th class="py-2 px-2 text-right">Precio</th>
+                                <th class="py-2 px-2">Cajero</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaVentas">
+                            <tr><td colspan="5" class="text-center py-6 text-gray-400">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- POR MÁQUINA -->
+            <div class="glass-card" style="padding-bottom:1rem">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-bold text-gray-800">
+                        <i class="fas fa-gamepad mr-2 text-purple-600"></i>Actividad por Máquina
+                    </h2>
+                    <span class="text-xs text-gray-400">Click para ver fallas</span>
+                </div>
+                <div class="scrollable-table table-fixed-head">
+                    <table class="w-full text-xs border-collapse">
+                        <thead>
+                            <tr class="text-left text-gray-500 border-b-2 border-gray-200">
+                                <th class="py-2 px-2">Máquina</th>
+                                <th class="py-2 px-2 text-center">Turnos</th>
+                                <th class="py-2 px-2 text-center">Fallas</th>
+                                <th class="py-2 px-2 text-center">Dev.</th>
+                                <th class="py-2 px-2">Estado</th>
+                                <th class="py-2 px-2">Último uso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaMaquinas">
+                            <tr><td colspan="6" class="text-center py-6 text-gray-400">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── PANEL ESP32 ── -->
+        <div class="glass-card mb-5">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4">
+                <h2 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-microchip mr-2 text-red-600"></i>Fallas ESP32 / TFT — Detalle Completo
+                </h2>
+                <div class="flex gap-2 flex-wrap">
+                    <select id="filtroMaquinaFalla" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                        <option value="">Todas las máquinas</option>
+                    </select>
+                    <select id="filtroOrigenFalla" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                        <option value="">Todos los orígenes</option>
+                        <option value="tft">Solo TFT</option>
+                        <option value="cajero">Solo cajero web</option>
+                    </select>
+                    <input type="text" id="buscarFalla" placeholder="Buscar QR, máquina..."
+                        class="border border-gray-300 rounded-lg px-2 py-1 text-xs w-40"
+                        oninput="LT.filtrarFallas()">
+                    <span class="text-xs text-gray-400 self-center" id="countFallas">— fallas</span>
+                </div>
+            </div>
+            <div class="scrollable-table table-fixed-head">
+                <table class="w-full text-xs border-collapse">
+                    <thead>
+                        <tr class="text-left text-gray-500 border-b-2 border-gray-200">
+                            <th class="py-2 px-2">Fecha / Hora</th>
+                            <th class="py-2 px-2">Máquina</th>
+                            <th class="py-2 px-2 text-center">Est.</th>
+                            <th class="py-2 px-2">QR</th>
+                            <th class="py-2 px-2 text-center">Dev.</th>
+                            <th class="py-2 px-2">Origen</th>
+                            <th class="py-2 px-2">Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaFallasEsp32">
+                        <tr><td colspan="7" class="text-center py-6 text-gray-400">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── FEED DE ACTIVIDAD ── -->
+        <div class="glass-card">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4">
+                <h2 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-stream mr-2 text-indigo-600"></i>Feed de Actividad
+                </h2>
+                <div class="flex gap-2 flex-wrap items-center">
+                    <select id="filtroFeedTipo" class="border border-gray-300 rounded-lg px-2 py-1 text-xs" onchange="LT.filtrarFeed()">
+                        <option value="">Todos los tipos</option>
+                        <option value="turno_qr">Turno QR</option>
+                        <option value="turno_manual">Turno manual</option>
+                        <option value="falla_maquina">Falla máquina</option>
+                        <option value="resolver_falla">Resolver falla</option>
+                        <option value="inversion">Inversión</option>
+                        <option value="pago_cuota">Pago cuota</option>
+                    </select>
+                    <input type="text" id="buscarFeed" placeholder="Buscar..."
+                        class="border border-gray-300 rounded-lg px-2 py-1 text-xs w-36"
+                        oninput="LT.filtrarFeed()">
+                    <span class="text-xs text-gray-400" id="countFeed">— eventos</span>
+                </div>
+            </div>
+            <div class="scrollable-feed" id="feedContainer">
+                <div class="text-center py-10 text-gray-400">
+                    <div class="loading-spin mx-auto mb-2"></div>
+                    Cargando actividad...
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DATOS GLOBALES
+// ═══════════════════════════════════════════════════════════
+const LT = {
+    datos: null,
+    periodoActivo: 'hoy',
+    autoRefreshTimer: null,
+    chart: null,
+
+    // ── Utilidades de fecha ───────────────────────────────
+    hoy() {
+        return new Date().toISOString().slice(0,10);
+    },
+    restarDias(d) {
+        const dt = new Date(); dt.setDate(dt.getDate() - d);
+        return dt.toISOString().slice(0,10);
+    },
+    fmtPeso(n) {
+        if (!n && n !== 0) return '—';
+        return '$' + Number(n).toLocaleString('es-CO', {maximumFractionDigits:0});
+    },
+    fmtNum(n) {
+        return n != null ? Number(n).toLocaleString('es-CO') : '—';
+    },
+    fmtFecha(iso) {
+        if (!iso) return '—';
+        try {
+            const d = new Date(iso.replace(' ','T'));
+            return d.toLocaleString('es-CO', {
+                day:'2-digit', month:'2-digit',
+                hour:'2-digit', minute:'2-digit', hour12:false
+            });
+        } catch { return iso; }
+    },
+
+    // ── Control de período ────────────────────────────────
+    setPeriodo(p) {
+        this.periodoActivo = p;
+        document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
+        const mapBtn = {hoy:0, ayer:1, '7d':2, '30d':3, custom:4};
+        const btns = document.querySelectorAll('.btn-periodo');
+        if (p !== 'custom') btns[mapBtn[p]]?.classList.add('active');
+
+        let fi, ff;
+        const hoy = this.hoy();
+        if      (p === 'hoy')    { fi = hoy;               ff = hoy; }
+        else if (p === 'ayer')   { fi = this.restarDias(1); ff = this.restarDias(1); }
+        else if (p === '7d')     { fi = this.restarDias(6); ff = hoy; }
+        else if (p === '30d')    { fi = this.restarDias(29);ff = hoy; }
+        else {
+            fi = document.getElementById('fechaInicio').value || hoy;
+            ff = document.getElementById('fechaFin').value   || hoy;
+        }
+        document.getElementById('fechaInicio').value = fi;
+        document.getElementById('fechaFin').value   = ff;
+        this.cargar();
+    },
+
+    // ── Carga principal ───────────────────────────────────
+    async cargar() {
+        const fi = document.getElementById('fechaInicio').value;
+        const ff = document.getElementById('fechaFin').value;
+        const btn = document.getElementById('btnRefresh');
+        btn.innerHTML = '<div class="loading-spin"></div>';
+        btn.disabled = true;
+
+        const label = fi === ff
+            ? `Período: ${fi}`
+            : `Período: ${fi} → ${ff}`;
+        document.getElementById('periodoLabel').textContent = label;
+
+        try {
+            const r = await fetch(`/api/logs/transaccional-consolidado?fecha_inicio=${fi}&fecha_fin=${ff}&limit=200`);
+            if (!r.ok) throw new Error('Error ' + r.status);
+            this.datos = await r.json();
+            this.renderKpis();
+            this.renderGrafica();
+            this.renderVentas();
+            this.renderMaquinas();
+            this.renderFallasEsp32();
+            this.renderFeed();
+        } catch (e) {
+            console.error(e);
+            document.getElementById('periodoLabel').textContent = '⚠️ Error cargando datos — ' + e.message;
+        } finally {
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
+            btn.disabled = false;
+        }
+    },
+
+    // ── KPIs ─────────────────────────────────────────────
+    renderKpis() {
+        const k = this.datos.kpis;
+        const pv = k.paquetes_vendidos || 0;
+        const tp = pv > 0 ? (k.ingresos_ventas / pv) : 0;
+        document.getElementById('kpiIngresos').textContent  = this.fmtPeso(k.ingresos_ventas);
+        document.getElementById('kpiPaquetes').textContent  = this.fmtNum(k.paquetes_vendidos);
+        document.getElementById('kpiTicketProm').textContent= 'ticket prom. ' + this.fmtPeso(tp);
+        document.getElementById('kpiTurnos').textContent    = this.fmtNum(k.turnos_jugados);
+        document.getElementById('kpiFallas').textContent    = this.fmtNum(k.fallas_total);
+        document.getElementById('kpiDevueltos').textContent = this.fmtNum(k.turnos_devueltos);
+    },
+
+    // ── Gráfica ───────────────────────────────────────────
+    renderGrafica() {
+        document.getElementById('chartLoading').style.display = 'none';
+        const g = this.datos.grafica;
+        const esHoras = g.tipo === 'horas';
+
+        // Construir mapa de datos
+        const ventasMap = {};
+        g.ventas.forEach(v => { ventasMap[String(v.periodo)] = v.ventas_monto; });
+        const turnosMap = {};
+        g.turnos.forEach(t => { turnosMap[String(t.periodo)] = t.turnos; });
+
+        // Labels unificados
+        let labels;
+        if (esHoras) {
+            labels = Array.from({length:24}, (_,i) => `${String(i).padStart(2,'0')}:00`);
+        } else {
+            const allKeys = [...new Set([
+                ...g.ventas.map(v => String(v.periodo)),
+                ...g.turnos.map(t => String(t.periodo)),
+            ])].sort();
+            labels = allKeys;
+        }
+
+        const dataVentas = labels.map(l => {
+            const k = esHoras ? String(parseInt(l)) : l;
+            return ventasMap[k] || 0;
+        });
+        const dataTurnos = labels.map(l => {
+            const k = esHoras ? String(parseInt(l)) : l;
+            return turnosMap[k] || 0;
+        });
+
+        const ctx = document.getElementById('chartEvolucion').getContext('2d');
+        if (this.chart) this.chart.destroy();
+        this.chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Ventas ($)',
+                        data: dataVentas,
+                        backgroundColor: 'rgba(59,130,246,0.75)',
+                        borderColor: '#2563eb',
+                        borderWidth: 1.5,
+                        borderRadius: 4,
+                        yAxisID: 'yVentas',
+                        order: 2,
+                    },
+                    {
+                        label: 'Turnos jugados',
+                        data: dataTurnos,
+                        type: 'line',
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139,92,246,0.15)',
+                        borderWidth: 2.5,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#8b5cf6',
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'yTurnos',
+                        order: 1,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed.y;
+                                return ctx.dataset.label.includes('$')
+                                    ? ` ${ctx.dataset.label}: $${Number(v).toLocaleString('es-CO',{maximumFractionDigits:0})}`
+                                    : ` ${ctx.dataset.label}: ${v}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    yVentas: {
+                        type: 'linear', position: 'left',
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: v => '$' + Number(v).toLocaleString('es-CO',{maximumFractionDigits:0})
+                        }
+                    },
+                    yTurnos: {
+                        type: 'linear', position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { font: { size: 10 } }
+                    },
+                    x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+                }
+            }
+        });
+    },
+
+    // ── Ventas ───────────────────────────────────────────
+    renderVentas() {
+        const ventas = this.datos.ventas || [];
+        document.getElementById('totalVentasLabel').textContent =
+            `${ventas.length} registros · ${this.fmtPeso(this.datos.kpis.ingresos_ventas)}`;
+
+        // Top paquetes
+        const top = this.datos.top_paquetes || [];
+        const maxCant = top[0]?.cantidad || 1;
+        const totalVentas = top.reduce((s,p) => s + p.cantidad, 0) || 1;
+        document.getElementById('topPaquetesContainer').innerHTML = top.length
+            ? top.map(p => `
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-semibold text-gray-700">${p.paquete}</span>
+                        <span class="text-gray-500">${p.cantidad} vendidos · ${this.fmtPeso(p.total)}</span>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="paquete-bar" style="width:${Math.round(p.cantidad/maxCant*100)}%"></div>
+                    </div>
+                </div>`).join('')
+            : '<div class="text-gray-400 text-xs">Sin ventas en el período</div>';
+
+        // Tabla
+        const tbody = document.getElementById('tablaVentas');
+        if (!ventas.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-gray-400">Sin ventas en el período</td></tr>';
+            return;
+        }
+        tbody.innerHTML = ventas.map((v,i) => `
+            <tr class="border-b border-gray-100 hover:bg-green-50 transition-colors" style="${i%2===0?'background:#f9fafb':''}">
+                <td class="py-1.5 px-2 font-mono text-gray-500">${v.hora || v.fecha}</td>
+                <td class="py-1.5 px-2">
+                    <span class="font-semibold text-gray-800">${v.qr_name || v.qr_code}</span>
+                    <br><span class="text-gray-400 text-xs">${v.qr_code}</span>
+                </td>
+                <td class="py-1.5 px-2">
+                    <span class="badge" style="background:#dbeafe;color:#1e40af">${v.paquete || '—'}</span>
+                </td>
+                <td class="py-1.5 px-2 text-right font-bold text-green-700">${this.fmtPeso(v.precio)}</td>
+                <td class="py-1.5 px-2 text-gray-500">${v.cajero || '—'}</td>
+            </tr>`).join('');
+    },
+
+    // ── Por máquina ──────────────────────────────────────
+    renderMaquinas() {
+        const maquinas = this.datos.por_maquina || [];
+        const fallasPorMaq = {};
+        (this.datos.fallas_esp32 || []).forEach(f => {
+            if (!fallasPorMaq[f.machine_id]) fallasPorMaq[f.machine_id] = [];
+            fallasPorMaq[f.machine_id].push(f);
+        });
+
+        const tbody = document.getElementById('tablaMaquinas');
+        if (!maquinas.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400">Sin datos</td></tr>';
+            return;
+        }
+        tbody.innerHTML = maquinas.map(m => {
+            const ultimoUso = m.ultimo_uso ? this.fmtFecha(m.ultimo_uso) : '—';
+            const statusCls = m.estado === 'activa' ? 'status-activa'
+                           : m.estado === 'mantenimiento' ? 'status-mantenimiento'
+                           : 'status-inactiva';
+            const fallasDetalle = (fallasPorMaq[m.id] || []).map(f => `
+                <tr style="background:#fff8f8">
+                    <td class="py-1 px-4 text-gray-400" colspan="2">${f.hora} ${f.fecha}</td>
+                    <td class="py-1 px-2 text-center text-gray-600">${f.station_index ?? '—'}</td>
+                    <td class="py-1 px-2 text-blue-700 font-semibold">${f.qr_name || f.qr_code || '—'}</td>
+                    <td class="py-1 px-2 text-center text-orange-600 font-bold">${f.turnos_devueltos}</td>
+                    <td class="py-1 px-2">
+                        <span class="badge ${f.is_forced ? 'badge-resolver_falla' : 'badge-falla_maquina'}">
+                            ${f.is_forced ? 'forzado' : 'TFT'}
+                        </span>
+                    </td>
+                    <td class="py-1 px-2 text-gray-500">${f.notes || '—'}</td>
+                </tr>`).join('');
+
+            return `
+                <tr class="maquina-row border-b border-gray-100" onclick="LT.toggleMaquina(${m.id})"
+                    data-maqid="${m.id}" style="${m.turnos_periodo === 0 ? 'opacity:0.6' : ''}">
+                    <td class="py-2 px-2 font-semibold text-gray-800">
+                        <i class="fas fa-chevron-right text-gray-300 mr-1 text-xs" id="chevron-${m.id}"></i>
+                        ${m.nombre}
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                        <span class="font-bold text-purple-700">${m.turnos_periodo}</span>
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                        <span class="font-bold ${m.fallas_periodo > 0 ? 'text-red-600' : 'text-gray-400'}">${m.fallas_periodo}</span>
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                        <span class="text-orange-600 font-semibold">${m.turnos_devueltos_periodo || 0}</span>
+                    </td>
+                    <td class="py-2 px-2">
+                        <span class="badge ${statusCls}">${m.estado}</span>
+                    </td>
+                    <td class="py-2 px-2 text-gray-400 text-xs">${ultimoUso}</td>
+                </tr>
+                ${m.fallas_periodo > 0 ? `
+                <tbody class="maquina-detail" id="detail-${m.id}">
+                    <tr style="background:#fff8f8">
+                        <td colspan="6" class="px-2 pt-1 pb-0">
+                            <p class="text-xs font-semibold text-red-600 uppercase tracking-wide">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>Fallas en este período
+                            </p>
+                        </td>
+                    </tr>
+                    ${fallasDetalle}
+                    <tr><td colspan="6" class="py-1"></td></tr>
+                </tbody>` : ''}`;
+        }).join('');
+    },
+
+    toggleMaquina(id) {
+        const detail = document.getElementById(`detail-${id}`);
+        const chevron = document.getElementById(`chevron-${id}`);
+        if (!detail) return;
+        const open = detail.classList.toggle('open');
+        if (chevron) chevron.style.transform = open ? 'rotate(90deg)' : '';
+    },
+
+    // ── Fallas ESP32 ─────────────────────────────────────
+    _fallasFiltradas: [],
+    renderFallasEsp32() {
+        const fallas = this.datos.fallas_esp32 || [];
+        this._fallasFiltradas = fallas;
+
+        // Poblar filtro máquinas
+        const maqSelect = document.getElementById('filtroMaquinaFalla');
+        const maquinas = [...new Map(fallas.map(f => [f.machine_id, f.machine_name])).entries()];
+        maqSelect.innerHTML = '<option value="">Todas las máquinas</option>'
+            + maquinas.map(([id,n]) => `<option value="${id}">${n}</option>`).join('');
+
+        this.filtrarFallas();
+    },
+
+    filtrarFallas() {
+        const fallas = this.datos?.fallas_esp32 || [];
+        const maqId   = document.getElementById('filtroMaquinaFalla').value;
+        const origen  = document.getElementById('filtroOrigenFalla').value;
+        const buscar  = document.getElementById('buscarFalla').value.toLowerCase();
+
+        const filtradas = fallas.filter(f => {
+            if (maqId && String(f.machine_id) !== maqId) return false;
+            if (origen === 'tft' && f.is_forced) return false;
+            if (origen === 'cajero' && !f.is_forced) return false;
+            if (buscar && !(
+                (f.qr_name||'').toLowerCase().includes(buscar) ||
+                (f.qr_code||'').toLowerCase().includes(buscar) ||
+                (f.machine_name||'').toLowerCase().includes(buscar) ||
+                (f.notes||'').toLowerCase().includes(buscar)
+            )) return false;
+            return true;
+        });
+
+        document.getElementById('countFallas').textContent = `${filtradas.length} fallas`;
+        const tbody = document.getElementById('tablaFallasEsp32');
+
+        if (!filtradas.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-gray-400">Sin fallas en el período</td></tr>';
+            return;
+        }
+        tbody.innerHTML = filtradas.map((f,i) => `
+            <tr class="border-b border-gray-100 hover:bg-red-50 transition-colors" style="${i%2===0?'':'background:#fafafa'}">
+                <td class="py-1.5 px-2 font-mono text-gray-500 text-xs">${f.fecha}<br>${f.hora}</td>
+                <td class="py-1.5 px-2 font-semibold text-gray-800">${f.machine_name}</td>
+                <td class="py-1.5 px-2 text-center">
+                    ${f.station_index != null
+                        ? `<span class="badge" style="background:#ede9fe;color:#4c1d95">Est. ${f.station_index}</span>`
+                        : '<span class="text-gray-300">—</span>'}
+                </td>
+                <td class="py-1.5 px-2">
+                    <span class="font-semibold text-blue-700">${f.qr_name || f.qr_code || '—'}</span>
+                    ${f.qr_name && f.qr_code ? `<br><span class="text-gray-400 text-xs">${f.qr_code}</span>` : ''}
+                </td>
+                <td class="py-1.5 px-2 text-center">
+                    <span class="font-bold text-orange-600">${f.turnos_devueltos}</span>
+                </td>
+                <td class="py-1.5 px-2">
+                    <span class="badge ${f.is_forced ? 'badge-resolver_falla' : 'badge-falla_maquina'}">
+                        ${f.is_forced ? `<i class="fas fa-user"></i> ${f.forced_by || 'cajero'}` : '<i class="fas fa-microchip"></i> TFT'}
+                    </span>
+                </td>
+                <td class="py-1.5 px-2 text-gray-500 max-w-xs truncate" title="${f.notes}">${f.notes || '—'}</td>
+            </tr>`).join('');
+    },
+
+    // ── Feed de actividad ────────────────────────────────
+    _feedFiltrado: [],
+    renderFeed() {
+        this._feedFiltrado = this.datos.feed || [];
+        this.filtrarFeed();
+    },
+
+    filtrarFeed() {
+        const feed = this.datos?.feed || [];
+        const tipo  = document.getElementById('filtroFeedTipo').value;
+        const buscar = document.getElementById('buscarFeed').value.toLowerCase();
+
+        const filtrado = feed.filter(e => {
+            if (tipo && e.tipo !== tipo) return false;
+            if (buscar && !(
+                (e.descripcion||'').toLowerCase().includes(buscar) ||
+                (e.usuario||'').toLowerCase().includes(buscar) ||
+                (e.maquina_nombre||'').toLowerCase().includes(buscar)
+            )) return false;
+            return true;
+        });
+
+        document.getElementById('countFeed').textContent = `${filtrado.length} eventos`;
+
+        const iconMap = {
+            turno_qr:      { icon: 'fas fa-gamepad',          label: 'Turno QR' },
+            turno_manual:  { icon: 'fas fa-hand-pointer',     label: 'Turno manual' },
+            falla_maquina: { icon: 'fas fa-exclamation-circle',label: 'Falla máquina' },
+            resolver_falla:{ icon: 'fas fa-check-circle',     label: 'Falla resuelta' },
+            inversion:     { icon: 'fas fa-chart-line',       label: 'Inversión' },
+            pago_cuota:    { icon: 'fas fa-credit-card',      label: 'Pago cuota' },
+        };
+
+        const container = document.getElementById('feedContainer');
+        if (!filtrado.length) {
+            container.innerHTML = '<div class="text-center py-8 text-gray-400">Sin actividad registrada en el período</div>';
+            return;
+        }
+
+        container.innerHTML = filtrado.map((e, idx) => {
+            const meta = iconMap[e.tipo] || { icon: 'fas fa-circle', label: e.tipo };
+            const hora = e.created_at ? this.fmtFecha(e.created_at) : '—';
+            const montoHtml = e.monto != null ? `<span class="text-green-600 font-bold ml-2">${this.fmtPeso(e.monto)}</span>` : '';
+            const maqHtml   = e.maquina_nombre ? `<span class="text-gray-400 text-xs ml-2"><i class="fas fa-gamepad mr-1"></i>${e.maquina_nombre}</span>` : '';
+            const userHtml  = e.usuario ? `<span class="text-gray-400 text-xs ml-2"><i class="fas fa-user mr-1"></i>${e.usuario}</span>` : '';
+            const estadoBadge = e.estado === 'error'
+                ? '<span class="badge" style="background:#fee2e2;color:#dc2626">error</span>'
+                : '';
+            const extra = e.datos_extra && Object.keys(e.datos_extra).length > 0
+                ? JSON.stringify(e.datos_extra, null, 2)
+                : null;
+
+            return `<div class="feed-item ${e.tipo}" onclick="LT.toggleFeed(${idx})">
+                <div class="flex items-start gap-2">
+                    <i class="${meta.icon} mt-0.5 text-sm" style="min-width:16px"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-1 mb-0.5">
+                            <span class="badge badge-${e.tipo}">${meta.label}</span>
+                            ${estadoBadge}
+                            <span class="text-xs text-gray-400 font-mono">${hora}</span>
+                        </div>
+                        <p class="text-sm text-gray-700 leading-snug">${e.descripcion || '—'}</p>
+                        <div class="flex flex-wrap gap-0">${maqHtml}${userHtml}${montoHtml}</div>
+                    </div>
+                </div>
+                ${extra ? `<div class="feed-detail" id="feed-detail-${idx}">${extra}</div>` : ''}
+            </div>`;
+        }).join('');
+    },
+
+    toggleFeed(idx) {
+        const el = document.getElementById(`feed-detail-${idx}`);
+        if (el) el.classList.toggle('open');
+    },
+
+    // ── Auto-refresh ──────────────────────────────────────
+    setupAutoRefresh() {
+        const cb = document.getElementById('autoRefresh');
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                this.autoRefreshTimer = setInterval(() => this.cargar(), 30000);
+            } else {
+                clearInterval(this.autoRefreshTimer);
+            }
+        });
+    },
+
+    // ── Export CSV ────────────────────────────────────────
+    exportCSV() {
+        const ventas = this.datos?.ventas || [];
+        if (!ventas.length) { alert('Sin ventas para exportar'); return; }
+        const fi = document.getElementById('fechaInicio').value;
+        const ff = document.getElementById('fechaFin').value;
+        const head = 'Fecha,Hora,QR,Nombre QR,Paquete,Precio,Cajero\n';
+        const rows = ventas.map(v =>
+            `${v.fecha},${v.hora},"${v.qr_code}","${v.qr_name || ''}","${v.paquete || ''}",${v.precio},"${v.cajero || ''}"`
+        ).join('\n');
+        const blob = new Blob(['\ufeff' + head + rows], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `ventas_${fi}_${ff}.csv`;
+        a.click();
+    },
+
+    // ── Reloj sidebar ─────────────────────────────────────
+    startClock() {
+        const update = () => {
+            const now = new Date();
+            const t = now.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            document.getElementById('horaActualSidebar').textContent = t;
+        };
+        update();
+        setInterval(update, 1000);
+    },
+
+    // ── Init ─────────────────────────────────────────────
+    init() {
+        const hoy = this.hoy();
+        document.getElementById('fechaInicio').value = hoy;
+        document.getElementById('fechaFin').value   = hoy;
+        this.setupAutoRefresh();
+        this.startClock();
+        this.cargar();
+    }
+};
+
+// ── Particles ─────────────────────────────────────────────
+particlesJS('particles-js', {
+    particles: {
+        number: { value: 35, density: { enable: true, value_area: 900 } },
+        color: { value: '#3b82f6' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.25, random: true },
+        size: { value: 3, random: true },
+        line_linked: { enable: true, distance: 140, color: '#3b82f6', opacity: 0.15, width: 1 },
+        move: { enable: true, speed: 1.5, random: true, out_mode: 'out' }
+    },
+    interactivity: {
+        detect_on: 'canvas',
+        events: { onhover: { enable: false }, onclick: { enable: false } }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => LT.init());
+</script>
+</body>
+</html>
