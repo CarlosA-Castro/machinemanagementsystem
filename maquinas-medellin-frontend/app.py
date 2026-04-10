@@ -10873,10 +10873,9 @@ def obtener_logs_transaccional_consolidado():
         # ── Ventas detalladas ─────────────────────────────────────────────
         cursor.execute("""
             SELECT
-                DATE_FORMAT(qh.fecha_hora, '%%Y-%%m-%%d') AS fecha,
-                DATE_FORMAT(qh.fecha_hora, '%%H:%%i')     AS hora,
+                qh.fecha_hora,
                 qh.qr_code,
-                COALESCE(qr.qr_name, qh.qr_code)          AS qr_name,
+                COALESCE(qr.qr_name, qh.qr_code) AS qr_name,
                 tp.name  AS paquete,
                 tp.price AS precio,
                 tp.turns AS turnos_paquete,
@@ -10895,6 +10894,8 @@ def obtener_logs_transaccional_consolidado():
         for v in cursor.fetchall():
             row = dict(v)
             row['precio'] = float(row['precio']) if row['precio'] else 0
+            if row.get('fecha_hora') and hasattr(row['fecha_hora'], 'isoformat'):
+                row['fecha_hora'] = row['fecha_hora'].isoformat()
             ventas.append(row)
 
         # ── Top paquetes ──────────────────────────────────────────────────
@@ -10924,17 +10925,16 @@ def obtener_logs_transaccional_consolidado():
         cursor.execute("""
             SELECT
                 mf.id,
-                DATE_FORMAT(mf.reported_at, '%%Y-%%m-%%d')  AS fecha,
-                DATE_FORMAT(mf.reported_at, '%%H:%%i:%%S')  AS hora,
+                mf.reported_at,
                 mf.machine_id,
-                COALESCE(mf.machine_name, 'Desconocida')    AS machine_name,
+                COALESCE(mf.machine_name, 'Desconocida') AS machine_name,
                 mf.station_index,
-                COALESCE(qr.code, '')                        AS qr_code,
-                COALESCE(qr.qr_name, '')                     AS qr_name,
+                COALESCE(qr.code, '')                    AS qr_code,
+                COALESCE(qr.qr_name, '')                 AS qr_name,
                 mf.turnos_devueltos,
-                COALESCE(mf.notes, '')                       AS notes,
-                COALESCE(mf.is_forced, 0)                    AS is_forced,
-                COALESCE(mf.forced_by, '')                   AS forced_by
+                COALESCE(mf.notes, '')                   AS notes,
+                COALESCE(mf.is_forced, 0)                AS is_forced,
+                COALESCE(mf.forced_by, '')               AS forced_by
             FROM machinefailures mf
             LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
             WHERE DATE(mf.reported_at) BETWEEN %s AND %s
@@ -10944,6 +10944,8 @@ def obtener_logs_transaccional_consolidado():
         fallas_esp32 = []
         for f in cursor.fetchall():
             row = dict(f)
+            if row.get('reported_at') and hasattr(row['reported_at'], 'isoformat'):
+                row['reported_at'] = row['reported_at'].isoformat()
             fallas_esp32.append(row)
 
         # ── Por máquina ───────────────────────────────────────────────────
