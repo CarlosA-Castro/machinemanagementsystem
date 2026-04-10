@@ -7015,39 +7015,6 @@ def esp32_reportar_falla():
             app.logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
         
         # ==========================================
-        # 6. VERIFICAR SI YA SE REPORTÓ ESTA FALLA
-        # ==========================================
-        cursor.execute("""
-            SELECT id, reported_at
-            FROM machinefailures
-            WHERE qr_code_id = %s 
-            AND machine_id = %s
-            AND ABS(TIMESTAMPDIFF(SECOND, reported_at, NOW())) < 10
-            ORDER BY reported_at DESC
-            LIMIT 1
-        """, (qr_id, machine_id))
-
-        falla_reciente = cursor.fetchone()
-
-        if falla_reciente:
-            app.logger.info(f"⚠️ [TFT] Falla duplicada en menos de 10 segundos (ID: {falla_reciente['id']})")
-            # Obtener turnos actuales del QR para incluirlos en la respuesta
-            cursor.execute("SELECT remainingTurns FROM qrcode WHERE id = %s", (qr_id,))
-            qr_turns = cursor.fetchone()
-            turnos_actuales = qr_turns['remainingTurns'] if qr_turns else 0
-            return api_response(
-                'W007',
-                status='warning',
-                http_status=200,  # 200 para no generar error en ESP32
-                data={
-                    'message': 'Falla ya reportada recientemente',
-                    'failure_id': falla_reciente['id'],
-                    'already_reported': True,
-                    'turnos_restantes': turnos_actuales
-                }
-            )
-        
-        # ==========================================
         # 7. REGISTRAR LA FALLA EN MACHINEFAILURES (con station_index si V32 existe)
         # ==========================================
         try:
