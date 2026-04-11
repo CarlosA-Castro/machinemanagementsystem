@@ -313,6 +313,90 @@
       0%,100%{transform:translateY(0);opacity:.6} 50%{transform:translateY(7px);opacity:.25}
     }
 
+    /* ===== SCROLL PROGRESS BAR ===== */
+    #scroll-progress {
+      position: fixed; top: 0; left: 0; height: 2px; z-index: 9999;
+      background: linear-gradient(90deg, var(--blueg) 0%, var(--cream) 100%);
+      width: 0%; transition: width 0.08s linear;
+      pointer-events: none;
+    }
+
+    /* ===== AMBIENT ORBS ===== */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(90px); pointer-events: none; z-index: 0;
+      opacity: 0.09;
+    }
+    .orb-1 { width:420px;height:420px;background:var(--navy);top:-120px;left:-120px;animation:orbFloat1 9s ease-in-out infinite; }
+    .orb-2 { width:320px;height:320px;background:var(--blueg);top:38%;right:-80px;animation:orbFloat2 12s ease-in-out infinite; }
+    .orb-3 { width:280px;height:280px;background:var(--navy-m);bottom:8%;left:15%;animation:orbFloat3 10s ease-in-out infinite; }
+    @keyframes orbFloat1 {
+      0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(40px,30px) scale(1.15)}
+    }
+    @keyframes orbFloat2 {
+      0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-30px,-40px) scale(1.1)}
+    }
+    @keyframes orbFloat3 {
+      0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(25px,-35px) scale(1.2)}
+    }
+
+    /* ===== HERO TITLE ACCENT (shimmer on "Arcade") ===== */
+    .hero-title-accent {
+      display: inline-block;
+      background: linear-gradient(90deg, var(--cream) 0%, #a8c4d8 40%, var(--cream) 80%);
+      background-size: 250% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: titleShimmer 4s ease-in-out infinite;
+    }
+    @keyframes titleShimmer {
+      0%,100% { background-position: 0% 50%; }
+      50%      { background-position: 100% 50%; }
+    }
+
+    /* ===== HERO BADGE PULSE DOT ===== */
+    .pulse-dot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--cream);
+      animation: dotPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { transform: scale(1); opacity: 0.7; }
+      50%      { transform: scale(1.6); opacity: 1; }
+    }
+
+    /* ===== CTA BUTTON GLOW PULSE ===== */
+    .btn-glow {
+      animation: ctaGlow 2.8s ease-in-out infinite;
+    }
+    @keyframes ctaGlow {
+      0%,100% { box-shadow: 0 4px 18px rgba(15,26,46,0.5); }
+      50%      { box-shadow: 0 4px 18px rgba(15,26,46,0.5), 0 0 32px rgba(68,93,117,0.5), 0 0 2px rgba(244,241,235,0.2); }
+    }
+
+    /* ===== FEAT ICON WIGGLE ===== */
+    .feat-card:hover .feat-icon {
+      background: rgba(36,53,85,0.9);
+      box-shadow: 0 0 20px rgba(244,241,235,0.15);
+      animation: iconWiggle 0.4s ease-in-out;
+    }
+    @keyframes iconWiggle {
+      0%,100%{transform:rotate(0deg) scale(1)} 25%{transform:rotate(-10deg) scale(1.1)} 75%{transform:rotate(10deg) scale(1.1)}
+    }
+
+    /* ===== MACHINE CARD 3D ===== */
+    .machine-card {
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    /* ===== STAT BOX GLOW ON COUNT ===== */
+    .stat-box.counting {
+      border-color: rgba(244,241,235,0.35);
+      box-shadow: 0 0 28px rgba(68,93,117,0.25);
+    }
+
     /* ===== MOBILE ===== */
     #mobile-menu { display:none; }
     #mobile-menu.open { display:block; }
@@ -322,6 +406,10 @@
 </head>
 <body>
 
+<div id="scroll-progress"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
 <div id="particles-js"></div>
 
 <!-- ===================== NAVBAR ===================== -->
@@ -378,14 +466,14 @@
       <div style="flex:1;min-width:280px;text-align:left;">
 
         <div class="hero-badge reveal">
-          <i class="fas fa-map-marker-alt" style="font-size:0.6rem;color:var(--red);"></i>
+          <span class="pulse-dot"></span>
           Medellín, Colombia
         </div>
 
         <h1 class="reveal d1"
             style="font-size:clamp(2.4rem,6vw,4rem);font-weight:900;line-height:1.08;letter-spacing:-0.025em;margin-bottom:1.25rem;">
           Inversiones<br>
-          <span class="text-red">Arcade</span>
+          <span class="hero-title-accent">Arcade</span>
         </h1>
 
         <p class="reveal d2"
@@ -394,7 +482,7 @@
         </p>
 
         <div class="reveal d3" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.75rem;">
-          <a href="/login" class="btn-primary">
+          <a href="/login" class="btn-primary btn-glow">
             <i class="fas fa-gamepad"></i> Acceder al Sistema
           </a>
           <a href="#plataforma" class="btn-secondary">
@@ -733,13 +821,19 @@
 <script>
   particlesJS('particles-js', {
     particles: {
-      number: { value: 55, density: { enable: true, value_area: 700 } },
+      number: { value: 75, density: { enable: true, value_area: 750 } },
       color: { value: '#445d75' },
       shape: { type: 'circle' },
-      opacity: { value: 0.35, random: true },
-      size: { value: 2.2, random: true },
-      line_linked: { enable: true, distance: 130, color: '#1c2b4a', opacity: 0.3, width: 1 },
-      move: { enable: true, speed: 0.7, direction: 'none', random: true }
+      opacity: {
+        value: 0.55, random: true,
+        anim: { enable: true, speed: 0.7, opacity_min: 0.2, sync: false }
+      },
+      size: {
+        value: 2.6, random: true,
+        anim: { enable: true, speed: 1.2, size_min: 0.6, sync: false }
+      },
+      line_linked: { enable: true, distance: 140, color: '#1c2b4a', opacity: 0.45, width: 1.1 },
+      move: { enable: true, speed: 0.9, direction: 'none', random: true, straight: false, out_mode: 'out' }
     },
     interactivity: {
       detect_on: 'canvas',
@@ -749,18 +843,21 @@
         resize: true
       },
       modes: {
-        grab: { distance: 130, line_linked: { opacity: 0.7 } },
-        push: { particles_nb: 3 }
+        grab: { distance: 160, line_linked: { opacity: 0.9 } },
+        push: { particles_nb: 4 }
       }
     },
     retina_detect: true
   });
 </script>
 
-<!-- Navbar scroll -->
+<!-- Navbar scroll + progress bar -->
 <script>
+  var progressBar = document.getElementById('scroll-progress');
   window.addEventListener('scroll', function() {
     document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40);
+    var docH = document.documentElement.scrollHeight - window.innerHeight;
+    progressBar.style.width = (docH > 0 ? (window.scrollY / docH * 100) : 0) + '%';
   });
 </script>
 
@@ -786,18 +883,35 @@
         var el = box.querySelector('[data-counter]');
         if (el && !box.dataset.counted) {
           box.dataset.counted = '1';
-          var start = performance.now(), dur = 1600;
+          box.classList.add('counting');
+          var start = performance.now(), dur = 1800;
           (function step(now) {
             var p = Math.min((now - start) / dur, 1);
             var ease = 1 - Math.pow(1 - p, 3);
             el.textContent = Math.floor(ease * target) + (p >= 1 ? suffix : '');
-            if (p < 1) requestAnimationFrame(step);
+            if (p < 1) { requestAnimationFrame(step); }
+            else { setTimeout(function(){ box.classList.remove('counting'); }, 600); }
           })(start);
         }
       });
     }, { threshold: 0.4 });
     document.querySelectorAll('.stat-box').forEach(function(b) { obs.observe(b); });
   })();
+</script>
+
+<!-- 3D tilt on machine cards -->
+<script>
+  document.querySelectorAll('.machine-card').forEach(function(card) {
+    card.addEventListener('mousemove', function(e) {
+      var r = card.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width  - 0.5;
+      var y = (e.clientY - r.top)  / r.height - 0.5;
+      card.style.transform = 'scale(1.04) perspective(700px) rotateY(' + (x * 9) + 'deg) rotateX(' + (-y * 9) + 'deg)';
+    });
+    card.addEventListener('mouseleave', function() {
+      card.style.transform = '';
+    });
+  });
 </script>
 
 </body>

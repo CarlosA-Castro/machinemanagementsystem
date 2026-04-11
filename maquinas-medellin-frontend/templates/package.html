@@ -440,96 +440,41 @@
       init: function() {
         // Configuración de partículas MEJORADA (más visibles)
         particlesJS('particles-js', {
-          particles: {
-            number: { 
-              value: 80, // Más partículas
-              density: { 
-                enable: true, 
-                value_area: 800 
-              }
-            },
-            color: { 
-              value: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'] // Variedad de colores
-            },
-            shape: { 
-              type: 'circle',
-              stroke: {
-                width: 0,
-                color: '#000000'
-              }
-            },
-            opacity: { 
-              value: 0.6, // Más opaco
-              random: true,
-              anim: { 
-                enable: true, 
-                speed: 1, 
-                opacity_min: 0.2, 
-                sync: false 
-              }
-            },
-            size: { 
-              value: 4, // Tamaño mayor
-              random: true,
-              anim: { 
-                enable: true, 
-                speed: 2, 
-                size_min: 0.5, 
-                sync: false 
-              }
-            },
-            line_linked: { 
-              enable: true, 
-              distance: 120, 
-              color: '#3b82f6', 
-              opacity: 0.4, // Más visible
-              width: 1.5 // Más ancho
-            },
-            move: { 
-              enable: true, 
-              speed: 1.2, // Más rápido
-              direction: 'none', 
-              random: true,
-              straight: false,
-              out_mode: 'out',
-              bounce: false,
-              attract: { 
-                enable: false, 
-                rotateX: 600, 
-                rotateY: 1200 
-              }
-            }
-          },
-          interactivity: {
-            detect_on: 'canvas',
-            events: {
-              onhover: { 
-                enable: true, 
-                mode: 'grab' 
+            particles: {
+              number: { value: 80, density: { enable: true, value_area: 800 } },
+              color: { value: '#3b82f6' },
+              shape: { type: 'circle' },
+              opacity: {
+                value: 0.6, random: true,
+                anim: { enable: true, speed: 0.8, opacity_min: 0.2, sync: false }
               },
-              onclick: { 
-                enable: true, 
-                mode: 'push' 
+              size: {
+                value: 3, random: true,
+                anim: { enable: true, speed: 1.5, size_min: 0.5, sync: false }
               },
-              resize: true
-            },
-            modes: {
-              grab: { 
-                distance: 150, 
-                line_linked: { 
-                  opacity: 0.8 
-                } 
+              line_linked: {
+                enable: true, distance: 140, color: '#3b82f6',
+                opacity: 0.4, width: 1.2
               },
-              push: { 
-                particles_nb: 4 
-              },
-              remove: { 
-                particles_nb: 2 
+              move: {
+                enable: true, speed: 1.4, direction: 'none',
+                random: true, straight: false, out_mode: 'out', bounce: false
               }
-            }
-          },
-          retina_detect: true
-        });
+            },
+            interactivity: {
+              detect_on: 'canvas',
+              events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: true, mode: 'push' },
+                resize: true
+              },
+              modes: {
+                grab: { distance: 160, line_linked: { opacity: 0.9 } },
+                push: { particles_nb: 4 }
+              }
+            },
+            retina_detect: true
+          });
 
         // Inicializar hora en tiempo real (igual que en local.html)
         this.actualizarHora();

@@ -239,10 +239,10 @@
 
       <!-- Generador de QR -->
       <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
-        <h2 class="text-lg lg:text-xl font-bold mb-4"><i class="fas fa-qrcode mr-2"></i>Generar Venta de QR</h2>
+        <h2 class="text-lg lg:text-xl font-bold mb-4"><i class="fas fa-qrcode mr-2"></i>Generar Códigos QR</h2>
         <button onclick="LocalApp.mostrarModalGenerador()"
                 class="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg font-semibold btn-touch w-full">
-          <i class="fas fa-file-pdf mr-2"></i>Generar venta de QR
+          <i class="fas fa-file-pdf mr-2"></i>Generar QR en PDF
         </button>
       </div>
 
@@ -395,21 +395,41 @@
       
       init: function() {
         particlesJS('particles-js', {
-          particles: {
-            number: { value: 80, density: { enable: true, value_area: 800 } },
-            color: { value: '#3b82f6' }, shape: { type: 'circle' },
-            opacity: { value: 0.5, random: true, anim: { enable: true, speed: 1, opacity_min: 0.1, sync: false } },
-            size: { value: 3, random: true, anim: { enable: true, speed: 2, size_min: 0.1, sync: false } },
-            line_linked: { enable: true, distance: 150, color: '#3b82f6', opacity: 0.4, width: 1 },
-            move: { enable: true, speed: 1.5, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
-          },
-          interactivity: {
-            detect_on: 'canvas',
-            events: { onhover: { enable: true, mode: 'grab' }, onclick: { enable: true, mode: 'push' }, resize: true },
-            modes: { grab: { distance: 180, line_linked: { opacity: 0.8 } }, push: { particles_nb: 4 } }
-          },
-          retina_detect: true
-        });
+            particles: {
+              number: { value: 80, density: { enable: true, value_area: 800 } },
+              color: { value: '#3b82f6' },
+              shape: { type: 'circle' },
+              opacity: {
+                value: 0.6, random: true,
+                anim: { enable: true, speed: 0.8, opacity_min: 0.2, sync: false }
+              },
+              size: {
+                value: 3, random: true,
+                anim: { enable: true, speed: 1.5, size_min: 0.5, sync: false }
+              },
+              line_linked: {
+                enable: true, distance: 140, color: '#3b82f6',
+                opacity: 0.4, width: 1.2
+              },
+              move: {
+                enable: true, speed: 1.4, direction: 'none',
+                random: true, straight: false, out_mode: 'out', bounce: false
+              }
+            },
+            interactivity: {
+              detect_on: 'canvas',
+              events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: true, mode: 'push' },
+                resize: true
+              },
+              modes: {
+                grab: { distance: 160, line_linked: { opacity: 0.9 } },
+                push: { particles_nb: 4 }
+              }
+            },
+            retina_detect: true
+          });
 
         this.cargarHistorialQR();
         this.actualizarHora();
@@ -561,10 +581,11 @@ fetch('/api/mis-permisos')
                             class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
                       <i class="fas fa-info-circle mr-1"></i>Detalles
                     </button>
+                    ${esVenta ? `
                     <button onclick="LocalApp.reimprimirQR('${qrCode.replace(/'/g, "\\'")}', '${qrName.replace(/'/g, "\\'")}')"
-                            class="text-purple-600 hover:text-purple-800 text-xs btn-touch px-2 py-1 rounded bg-purple-50 hover:bg-purple-100 transition">
-                      <i class="fas fa-print mr-1"></i>Reimprimir
-                    </button>
+                            class="text-green-600 hover:text-green-800 text-xs btn-touch px-2 py-1 rounded bg-green-50 hover:bg-green-100 transition">
+                      <i class="fas fa-print mr-1"></i>Imprimir
+                    </button>` : ''}
                   </div>
                 </td>`;
               tabla.appendChild(fila);
@@ -609,7 +630,7 @@ fetch('/api/mis-permisos')
             const yQR = 10;
             doc.addImage(dataUrl, 'PNG', xCentrado, yQR, anchoQR, altoQR);
             doc.setFontSize(8); doc.setFont(undefined, 'bold');
-            const textos = [`*** REIMPRESIÓN ***`, `Nombre: ${nombre || 'Sin nombre'}`, `Código: ${codigoQR}`, `ID: ${numero}`];
+            const textos = [`*** REIMPRESION ***`, `Nombre: ${nombre || 'Sin nombre'}`, `Codigo: ${codigoQR}`, `ID: ${numero}`];
             textos.forEach((t, i) => {
               const x = (anchoPapel - doc.getTextWidth(t)) / 2;
               doc.text(t, x, yQR + altoQR + 4 + (i * 4));
@@ -617,12 +638,12 @@ fetch('/api/mis-permisos')
             doc.setLineWidth(0.5);
             doc.line(5, yQR + altoQR + 18, anchoPapel - 5, yQR + altoQR + 18);
             doc.setFontSize(6); doc.setFont(undefined, 'normal');
-            const textoInfo = "Reimpresión - Presentar para canjear";
+            const textoInfo = "Reimpresion - Presentar para canjear";
             doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 22);
             doc.save(`QR-Reimpresion-${nombre || codigoQR}.pdf`);
             this.mostrarAlerta("✅ QR reimpreso exitosamente", "success");
-            document.body.removeChild(loadingMessage);
           }
+          document.body.removeChild(loadingMessage);
         }, 200);
       },
 
@@ -936,7 +957,7 @@ fetch('/api/mis-permisos')
                   { t: `Nombre: ${nombre}`, y: yQR + altoQR + 8 },
                   { t: `Código: ${codigoQR}`, y: yQR + altoQR + 12 },
                   { t: `ID: ${numero}`, y: yQR + altoQR + 16 },
-                  { t: `Paquete: ${paquete.name} (P${paquete.id})`, y: yQR + altoQR + 20 },
+                  { t: `Paquete: P${paquete.id}`, y: yQR + altoQR + 20 },
                   { t: `Precio: $${paquete.price.toLocaleString('es-CO')}`, y: yQR + altoQR + 24 },
                   { t: `Turnos: ${paquete.turns}`, y: yQR + altoQR + 28 }
                 ];
@@ -963,19 +984,7 @@ fetch('/api/mis-permisos')
             new QRCode(tempDiv, { text: primerCodigo, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
             setTimeout(() => {
               const canvas = tempDiv.querySelector('canvas');
-              if (canvas) {
-                // Agregar borde blanco (quiet zone) para que el scanner GM67 lo lea correctamente
-                // El GM67 requiere al menos 4 módulos de quiet zone — 60px garantiza suficiente margen
-                const padding = 60;
-                const paddedCanvas = document.createElement('canvas');
-                paddedCanvas.width  = canvas.width  + padding * 2;
-                paddedCanvas.height = canvas.height + padding * 2;
-                const ctx = paddedCanvas.getContext('2d');
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, paddedCanvas.width, paddedCanvas.height);
-                ctx.drawImage(canvas, padding, padding);
-                this.mostrarModalNumeroWhatsApp(paddedCanvas.toDataURL('image/png'), nombre, primerCodigo, paquete);
-              }
+              if (canvas) this.mostrarModalNumeroWhatsApp(canvas.toDataURL('image/png'), nombre, primerCodigo, paquete);
             }, 500);
           }
         } catch (error) { this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error"); }
@@ -1047,30 +1056,9 @@ fetch('/api/mis-permisos')
         const numeroLimpio = numero ? numero.replace(/[\s+()-]/g, '') : '';
         this.descargarQR(d.qrDataUrl, d.nombre, d.codigo);
         document.getElementById('modalWhatsAppNumero')?.remove();
-        const horaVenta = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
         this._wppData = null;
         if (esMobile) {
-          const wppUrl = numeroLimpio ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}` : `whatsapp://send?text=${textoEncoded}`;
-          const overlayM = document.createElement('div');
-          overlayM.innerHTML = `
-            <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-              <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                  <div class="text-3xl mb-1">✅</div>
-                  <p class="font-bold text-green-700 text-base">Venta confirmada</p>
-                  <p class="text-xs text-green-600 mt-1">${horaVenta}</p>
-                </div>
-                <p class="text-sm text-gray-600 mb-1"><b>${d.nombre}</b> · ${d.paquete?.name || ''}</p>
-                <p class="text-xs text-gray-500 mb-4">Código: ${d.codigo}</p>
-                <button id="btnWppMobile" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 mb-2">
-                  <i class="fab fa-whatsapp text-xl"></i>Abrir WhatsApp
-                </button>
-                <button id="btnWppMobileCerrar" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg text-sm">Cerrar</button>
-              </div>
-            </div>`;
-          document.body.appendChild(overlayM);
-          document.getElementById('btnWppMobile').addEventListener('click', () => { window.location.href = wppUrl; overlayM.remove(); });
-          document.getElementById('btnWppMobileCerrar').addEventListener('click', () => overlayM.remove());
+          window.location.href = numeroLimpio ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}` : `whatsapp://send?text=${textoEncoded}`;
           return;
         }
         const urlDesktop = numeroLimpio ? `whatsapp://send?phone=${numeroLimpio}&text=${textoEncoded}` : `whatsapp://send?text=${textoEncoded}`;
@@ -1079,14 +1067,9 @@ fetch('/api/mis-permisos')
         selector.innerHTML = `
           <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-              <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                <div class="text-2xl mb-1">✅</div>
-                <p class="font-bold text-green-700">Venta confirmada</p>
-                <p class="text-xs text-green-600 mt-1">${horaVenta}</p>
-              </div>
-              <div class="text-4xl mb-2">💬</div>
-              <h3 class="text-base font-bold mb-1 text-gray-800">¿Dónde abrir WhatsApp?</h3>
-              <p class="text-xs text-gray-500 mb-4">QR descargado · <b>${d.nombre}</b></p>
+              <div class="text-4xl mb-3">💬</div>
+              <h3 class="text-lg font-bold mb-2 text-gray-800">¿Dónde abrir WhatsApp?</h3>
+              <p class="text-sm text-gray-500 mb-5">El QR ya fue descargado. Elige cómo enviar el mensaje:</p>
               <div class="space-y-3">
                 <button id="btnWppDesktop" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
                   <i class="fab fa-whatsapp text-xl"></i>WhatsApp Desktop (app)
@@ -1094,14 +1077,16 @@ fetch('/api/mis-permisos')
                 <button id="btnWppWeb" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
                   <i class="fas fa-globe text-xl"></i>WhatsApp Web (navegador)
                 </button>
-                <button id="btnWppCancelarSelector" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Cerrar</button>
+                <button id="btnWppCancelarSelector" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Cancelar</button>
               </div>
+              <p class="text-xs text-gray-400 mt-4"><i class="fas fa-download mr-1"></i>El QR ya fue descargado como imagen</p>
             </div>
           </div>`;
         document.body.appendChild(selector);
         document.getElementById('btnWppDesktop').addEventListener('click', () => { window.location.href = urlDesktop; selector.remove(); });
         document.getElementById('btnWppWeb').addEventListener('click', () => { window.open(urlWeb, '_blank'); selector.remove(); });
         document.getElementById('btnWppCancelarSelector').addEventListener('click', () => selector.remove());
+        this.mostrarAlerta("✅ QR descargado. Selecciona cómo enviar.", "success");
       },
 
       descargarQR: function(qrDataUrl, nombre, codigo) {

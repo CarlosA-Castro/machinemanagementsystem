@@ -495,23 +495,43 @@
             </div>
 
             <!-- Filtros -->
-           <div class="glass-card mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
-            <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
-            <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-        </div>
-    </div>
-    <div class="mt-4 flex justify-end">
-        <button onclick="LiquidacionesApp.aplicarFiltros()" class="btn btn-primary">
-            <i class="fas fa-filter mr-2"></i>Aplicar Filtros
-        </button>
-    </div>
-</div>
+            <div class="glass-card mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                        <input type="date" id="fechaInicio" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                        <input type="date" id="fechaFin" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Reporte</label>
+                        <select id="tipoReporte" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="ventas">Ventas de Paquetes</option>
+                            <option value="liquidaciones">Liquidaciones Registradas</option>
+                            <option value="resumen">Resumen General</option>
+                            <option value="detallado">Detalle Completo</option>
+                            <option value="propietarios">Por Propietarios</option>
+                            <option value="maquinas">Por Máquinas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Agrupación</label>
+                        <select id="agrupacion" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            <option value="diario">Diario</option>
+                            <option value="semanal">Semanal</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="LiquidacionesApp.aplicarFiltros()" class="btn btn-primary">
+                        <i class="fas fa-filter mr-2"></i>Aplicar Filtros
+                    </button>
+                </div>
+            </div>
 
             <!-- Pestañas -->
             <div class="tabs">
@@ -621,15 +641,17 @@
                                 <tbody id="cuerpoTabla">
                                     <!-- Se llenará dinámicamente -->
                                 </tbody>
-                               <tfoot>
-    <tr class="bg-gray-50 font-semibold">
-        <td colspan="4" class="text-right px-4 py-3">TOTALES:</td>
-        <td id="totalIngresosTabla" class="text-right px-4 py-3">$0</td>
-        <td class="text-right px-4 py-3">—</td>
-        <td id="totalIngresosRestaurante" class="text-right px-4 py-3 text-green-600">$0</td>
-        <td id="totalIngresosProveedor" class="text-right px-4 py-3 text-purple-600">$0</td>
-    </tr>
-</tfoot>
+                                <tfoot>
+                                    <tr class="bg-gray-50 font-semibold">
+                                        <td class="text-right">TOTALES:</td>
+                                        <td id="totalPaquetes" class="text-right">0</td>
+                                        <td id="totalIngresosTabla" class="text-right">$0</td>
+                                        <td id="total30Porciento" class="text-right">$0</td>
+                                        <td id="total35Porciento" class="text-right">$0</td>
+                                        <td id="totalIngresosRestaurante" class="text-right">$0</td>
+                                        <td id="totalIngresosProveedor" class="text-right">$0</td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
 
@@ -660,463 +682,256 @@
                 </div>
 
                 <!-- Pestaña Resumen -->
-             <div id="pestanaResumen" class="pestana-contenido hidden">
-    <!-- KPIs principales -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="stat-card" style="border-left-color: #3b82f6;">
-            <div class="flex items-center">
-                <div class="stat-icon" style="color:#3b82f6;"><i class="fas fa-coins"></i></div>
-                <div class="ml-4">
-                    <p class="stat-label">Ingresos Totales</p>
-                    <p class="stat-value" id="res-ingresos-totales">$0</p>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card" style="border-left-color: #10b981;">
-            <div class="flex items-center">
-                <div class="stat-icon" style="color:#10b981;"><i class="fas fa-utensils"></i></div>
-                <div class="ml-4">
-                    <p class="stat-label">Restaurante</p>
-                    <p class="stat-value" id="res-restaurante">$0</p>
-                    <p class="text-xs text-gray-500 mt-0.5" id="res-restaurante-pct">—</p>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card" style="border-left-color: #8b5cf6;">
-            <div class="flex items-center">
-                <div class="stat-icon" style="color:#8b5cf6;"><i class="fas fa-user-tie"></i></div>
-                <div class="ml-4">
-                    <p class="stat-label">Proveedores</p>
-                    <p class="stat-value" id="res-proveedor">$0</p>
-                    <p class="text-xs text-gray-500 mt-0.5" id="res-proveedor-pct">—</p>
-                </div>
-            </div>
-        </div>
-        <div class="stat-card" style="border-left-color: #f59e0b;">
-            <div class="flex items-center">
-                <div class="stat-icon" style="color:#f59e0b;"><i class="fas fa-shopping-cart"></i></div>
-                <div class="ml-4">
-                    <p class="stat-label">Total Ventas</p>
-                    <p class="stat-value" id="res-total-ventas">0</p>
-                    <p class="text-xs text-gray-500 mt-0.5" id="res-maquinas-usadas">0 máquinas</p>
-                </div>
-            </div>
-        </div>
-    </div>
+                <div id="pestanaResumen" class="pestana-contenido hidden">
+                    <!-- Resumen General -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card" style="border-left-color: #3b82f6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #3b82f6;">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ingresos Totales</p>
+                                    <p class="stat-value" id="totalIngresosResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #10b981;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #10b981;">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Total</p>
+                                    <p class="stat-value" id="gananciaTotalResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #8b5cf6;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #8b5cf6;">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Proveedor</p>
+                                    <p class="stat-value" id="gananciaProveedorResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #f59e0b;">
+                            <div class="flex items-center">
+                                <div class="stat-icon" style="color: #f59e0b;">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="stat-label">Ganancia Restaurante</p>
+                                    <p class="stat-value" id="gananciaRestauranteResumen">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Barra visual distribución -->
-    <div class="glass-card mb-6">
-        <h3 class="text-base font-semibold text-gray-700 mb-3">
-            <i class="fas fa-chart-pie mr-2 text-blue-500"></i>Distribución de ingresos
-        </h3>
-        <div class="flex rounded-full overflow-hidden h-6 mb-2" id="res-barra-dist">
-            <div class="bg-green-500 flex items-center justify-center text-white text-xs font-medium transition-all" id="res-barra-rest" style="width:35%">Rest.</div>
-            <div class="bg-purple-500 flex items-center justify-center text-white text-xs font-medium transition-all" id="res-barra-prov" style="width:65%">Prov.</div>
-        </div>
-        <div class="flex gap-6 text-sm text-gray-600">
-            <span><span class="inline-block w-3 h-3 rounded-full bg-green-500 mr-1"></span>Restaurante <span id="res-pct-rest-label" class="font-semibold">35%</span></span>
-            <span><span class="inline-block w-3 h-3 rounded-full bg-purple-500 mr-1"></span>Proveedores <span id="res-pct-prov-label" class="font-semibold">65%</span></span>
-        </div>
-    </div>
+                    <!-- Estadísticas Adicionales -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-blue-100 p-3 mr-4">
+                                    <i class="fas fa-shopping-cart text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Total Ventas</p>
+                                    <p class="text-xl font-bold" id="totalVentas">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-green-100 p-3 mr-4">
+                                    <i class="fas fa-gamepad text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Máquinas Activas</p>
+                                    <p class="text-xl font-bold" id="maquinasActivas">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-purple-100 p-3 mr-4">
+                                    <i class="fas fa-ticket-alt text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Turnos Usados</p>
+                                    <p class="text-xl font-bold" id="turnosUsados">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="flex items-center">
+                                <div class="rounded-full bg-orange-100 p-3 mr-4">
+                                    <i class="fas fa-dollar-sign text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Compra Promedio</p>
+                                    <p class="text-xl font-bold" id="ticketPromedio">$0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Distribución por propietarios -->
-    <div class="glass-card mb-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">
-            <i class="fas fa-users mr-2 text-purple-600"></i>Distribución por Propietarios
-        </h2>
-        <div id="res-propietarios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div class="text-center py-8 text-gray-400 col-span-full">
-                <div class="loading mx-auto mb-2"></div>
-                <p class="text-sm">Cargando...</p>
-            </div>
-        </div>
-    </div>
+                    <!-- Distribución por Propietarios -->
+                    <div class="glass-card mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Distribución por Propietarios
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="distribucionPropietarios">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
 
-    <!-- Top máquinas -->
-    <div class="glass-card">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">
-            <i class="fas fa-trophy mr-2 text-yellow-500"></i>Rendimiento por Máquina
-        </h2>
-        <div id="res-maquinas" class="space-y-3">
-            <div class="text-center py-8 text-gray-400">
-                <div class="loading mx-auto mb-2"></div>
-                <p class="text-sm">Cargando...</p>
-            </div>
-        </div>
-    </div>
-</div>
+                    <!-- Top Máquinas -->
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-trophy mr-2 text-yellow-600"></i>Top 5 Máquinas Más Rentables
+                        </h2>
+                        <div class="space-y-4" id="topMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Pestaña Gráficos -->
-             <div id="pestanaGraficos" class="pestana-contenido hidden">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <!-- Evolución de ingresos -->
-        <div class="glass-card">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-base font-semibold text-gray-800">
-                    <i class="fas fa-chart-line mr-2 text-blue-500"></i>Evolución de Ingresos
-                </h3>
-                <select id="grafEvolucionTipo" class="border border-gray-300 rounded-lg px-2 py-1 text-xs" onchange="LiquidacionesApp.actualizarGraficos()">
-                    <option value="ingresos">Ingresos totales</option>
-                    <option value="restaurante">Restaurante</option>
-                    <option value="proveedor">Proveedores</option>
-                </select>
-            </div>
-            <div class="chart-container"><canvas id="graficoEvolucion"></canvas></div>
-        </div>
-
-        <!-- Distribución restaurante vs proveedores -->
-        <div class="glass-card">
-            <h3 class="text-base font-semibold text-gray-800 mb-4">
-                <i class="fas fa-chart-pie mr-2 text-purple-500"></i>Distribución de Ingresos
-            </h3>
-            <div class="chart-container"><canvas id="graficoDistribucion"></canvas></div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top máquinas -->
-        <div class="glass-card">
-            <h3 class="text-base font-semibold text-gray-800 mb-4">
-                <i class="fas fa-gamepad mr-2 text-green-500"></i>Ingresos por Máquina
-            </h3>
-            <div class="chart-container"><canvas id="graficoMaquinas"></canvas></div>
-        </div>
-
-        <!-- Participación por máquina -->
-        <div class="glass-card">
-            <h3 class="text-base font-semibold text-gray-800 mb-4">
-                <i class="fas fa-chart-pie mr-2 text-orange-500"></i>Participación por Máquina
-            </h3>
-            <div class="chart-container"><canvas id="graficoPorcentajeMaquinas"></canvas></div>
-        </div>
-    </div>
-</div>
+                <div id="pestanaGraficos" class="pestana-contenido hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-pie mr-2"></i>Distribución de Ingresos
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoDistribucion"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-bar mr-2"></i>Ventas por Día
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoVentasDiarias"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-line mr-2"></i>Evolución de Ingresos
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoEvolucion"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-chart-pie mr-2"></i>Ventas por Paquete
+                            </h3>
+                            <div class="chart-container">
+                                <canvas id="graficoPaquetes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Pestaña Detalle -->
-               <div id="pestanaDetalle" class="pestana-contenido hidden">
-    <div class="glass-card">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
-            <h2 class="text-lg font-semibold text-gray-800">
-                <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Ingresos
-            </h2>
-            <div class="flex gap-2 flex-wrap">
-                <select id="filtroDetalleAgrup" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="LiquidacionesApp.cambiarAgrupacionDetalle()">
-                    <option value="dia_maquina">Por día y máquina</option>
-                    <option value="dia">Por día</option>
-                    <option value="maquina">Por máquina</option>
-                    <option value="paquete">Por paquete</option>
-                </select>
-                <div class="relative">
-                    <input type="text" id="busquedaDetalle" placeholder="Buscar..." 
-                           class="border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-sm w-48"
-                           oninput="LiquidacionesApp.filtrarDetalle()">
-                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                <div id="pestanaDetalle" class="pestana-contenido hidden">
+                    <div class="glass-card">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2 md:mb-0">
+                                <i class="fas fa-table mr-2 text-purple-600"></i>Detalle de Liquidaciones
+                            </h2>
+                            <div class="flex items-center">
+                                <div class="relative">
+                                    <input type="text" id="busquedaDetalle" placeholder="Buscar..." class="border border-gray-300 rounded-lg pl-10 pr-4 py-2 w-full md:w-64" onkeyup="LiquidacionesApp.buscarDetalle()">
+                                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table id="tablaDetalle">
+                                <thead>
+                                    <tr>
+                                        <th class="cursor-pointer" onclick="LiquidacionesApp.ordenarPor('fecha')">
+                                            Fecha <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th>Paquete</th>
+                                        <th>Máquina</th>
+                                        <th class="text-right">Turnos</th>
+                                        <th class="text-right cursor-pointer" onclick="LiquidacionesApp.ordenarPor('ingresos')">
+                                            Ingresos <i class="fas fa-sort ml-1"></i>
+                                        </th>
+                                        <th class="text-right">% Rest.</th>
+                                        <th class="text-right">Restaurante</th>
+                                        <th class="text-right">Proveedor</th>
+                                        <th>Propietario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpoTablaDetalle">
+                                    <!-- Se llenará dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center">
+                            <div class="text-sm text-gray-600 mb-2 sm:mb-0">
+                                Mostrando <span id="mostrandoDesdeDetalle">0</span> a <span id="mostrandoHastaDetalle">0</span> de <span id="totalRegistrosDetalle">0</span> registros
+                            </div>
+                            <div class="pagination">
+                                <button id="btnPrimeraPaginaDetalle" onclick="LiquidacionesApp.irAPaginaDetalle(1)" disabled>
+                                    <i class="fas fa-angle-double-left"></i>
+                                </button>
+                                <button id="btnPaginaAnteriorDetalle" onclick="LiquidacionesApp.paginaAnteriorDetalle()" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div id="numerosPaginaDetalle" class="flex">
+                                    <!-- Se generan dinámicamente -->
+                                </div>
+                                <button id="btnPaginaSiguienteDetalle" onclick="LiquidacionesApp.paginaSiguienteDetalle()" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                                <button id="btnUltimaPaginaDetalle" onclick="LiquidacionesApp.irAUltimaPaginaDetalle()" disabled>
+                                    <i class="fas fa-angle-double-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- KPIs detalle -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="detalle-kpis">
-            <div class="bg-blue-50 rounded-xl p-3 text-center">
-                <div class="text-xl font-bold text-blue-600" id="det-total-filas">0</div>
-                <div class="text-xs text-gray-500 mt-0.5">Registros</div>
-            </div>
-            <div class="bg-green-50 rounded-xl p-3 text-center">
-                <div class="text-xl font-bold text-green-600" id="det-total-ingresos">$0</div>
-                <div class="text-xs text-gray-500 mt-0.5">Ingresos totales</div>
-            </div>
-            <div class="bg-teal-50 rounded-xl p-3 text-center">
-                <div class="text-xl font-bold text-teal-600" id="det-total-rest">$0</div>
-                <div class="text-xs text-gray-500 mt-0.5">Restaurante</div>
-            </div>
-            <div class="bg-purple-50 rounded-xl p-3 text-center">
-                <div class="text-xl font-bold text-purple-600" id="det-total-prov">$0</div>
-                <div class="text-xs text-gray-500 mt-0.5">Proveedores</div>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table id="tablaDetalle" class="w-full">
-                <thead id="detalle-thead">
-                    <tr>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Fecha</th>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Máquina</th>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Paquete</th>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Propietario</th>
-                        <th class="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ventas</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ingresos</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">% Rest.</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Restaurante</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Proveedor</th>
-                    </tr>
-                </thead>
-                <tbody id="cuerpoTablaDetalle">
-                    <tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">
-                        <i class="fas fa-filter text-2xl mb-2 block opacity-30"></i>
-                        Aplica los filtros para ver el detalle
-                    </td></tr>
-                </tbody>
-                <tfoot>
-                    <tr class="bg-gray-50 font-semibold text-sm">
-                        <td colspan="5" class="text-right py-3 px-4 text-gray-600">TOTALES:</td>
-                        <td class="text-right py-3 px-4" id="det-foot-ingresos">$0</td>
-                        <td class="text-right py-3 px-4">—</td>
-                        <td class="text-right py-3 px-4 text-teal-600" id="det-foot-rest">$0</td>
-                        <td class="text-right py-3 px-4 text-purple-600" id="det-foot-prov">$0</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <!-- Paginación -->
-        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <div class="text-sm text-gray-500">
-                Mostrando <span id="mostrandoDesdeDetalle">0</span>–<span id="mostrandoHastaDetalle">0</span> 
-                de <span id="totalRegistrosDetalle">0</span> registros
-            </div>
-            <div class="pagination" id="paginacionDetalle"></div>
-        </div>
-    </div>
-</div>
 
                 <!-- Pestaña Propietarios -->
                 <div id="pestanaPropietarios" class="pestana-contenido hidden">
-    <!-- KPIs -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="prop-kpis">
-        <div class="glass-card border-l-4 border-l-purple-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-purple-100 p-3 rounded-xl"><i class="fas fa-users text-purple-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Total Propietarios</p>
-                    <p class="text-2xl font-bold text-gray-800" id="prop-total-count">0</p>
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Reporte por Propietarios
+                        </h2>
+                        <div id="tablaPropietarios">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="glass-card border-l-4 border-l-green-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-green-100 p-3 rounded-xl"><i class="fas fa-hand-holding-usd text-green-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Total a Distribuir</p>
-                    <p class="text-2xl font-bold text-gray-800" id="prop-total-dist">$0</p>
-                </div>
-            </div>
-        </div>
-        <div class="glass-card border-l-4 border-l-blue-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-100 p-3 rounded-xl"><i class="fas fa-gamepad text-blue-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Máquinas con Propietario</p>
-                    <p class="text-2xl font-bold text-gray-800" id="prop-maquinas-count">0</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tarjetas propietarios -->
-    <div id="prop-tarjetas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <div class="text-center py-10 text-gray-400 col-span-full">
-            <div class="loading mx-auto mb-2"></div>
-            <p class="text-sm">Cargando propietarios...</p>
-        </div>
-    </div>
-
-    <!-- Tabla detallada -->
-    <div class="glass-card">
-        <h3 class="text-base font-semibold text-gray-800 mb-4">
-            <i class="fas fa-table mr-2 text-purple-500"></i>Detalle por Propietario y Máquina
-        </h3>
-        <div class="table-container">
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-gray-50">
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Propietario</th>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Máquina</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ingresos Máquina</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">% Propiedad</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Corresponde</th>
-                        <th class="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase">% del Total</th>
-                    </tr>
-                </thead>
-                <tbody id="prop-tabla-detalle">
-                    <tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">Sin datos</td></tr>
-                </tbody>
-                <tfoot>
-                    <tr class="bg-gray-50 font-semibold text-sm">
-                        <td colspan="4" class="text-right py-3 px-4 text-gray-600">TOTAL PROVEEDORES:</td>
-                        <td class="text-right py-3 px-4 text-purple-600" id="prop-foot-total">$0</td>
-                        <td class="text-right py-3 px-4">100%</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-    <!-- DISTRIBUCIÓN ENTRE SOCIOS -->
-<div class="glass-card mt-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-5 gap-3">
-        <h2 class="text-lg font-semibold text-gray-800">
-            <i class="fas fa-handshake mr-2 text-blue-600"></i>Distribución Neta entre Socios
-        </h2>
-        <button onclick="LiquidacionesApp.calcularDistribucionSocios()"
-                class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-            <i class="fas fa-calculator"></i>Calcular distribución
-        </button>
-    </div>
-
-    <!-- Tarjetas resultado -->
-    <div id="dist-socios-tarjetas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <div class="text-center py-8 text-gray-400 col-span-full text-sm">
-            <i class="fas fa-calculator text-3xl mb-2 block opacity-20"></i>
-            Presiona "Calcular distribución" para ver cuánto le corresponde a cada socio
-        </div>
-    </div>
-
-    <!-- Registrar gasto -->
-    <div class="border border-gray-200 rounded-xl p-4 bg-gray-50">
-        <h3 class="text-sm font-semibold text-gray-700 mb-3">
-            <i class="fas fa-plus-circle mr-1.5 text-green-500"></i>Registrar Gasto para el Período
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Socio</label>
-                <select id="gastoSocioId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">Seleccionar...</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Concepto</label>
-                <input type="text" id="gastoConcepto" placeholder="ej. Gasto fijo mensual"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Monto</label>
-                <input type="number" id="gastoMonto" placeholder="0"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Tipo</label>
-                <select id="gastoTipo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                        onchange="LiquidacionesApp.cambiarTipoGasto()">
-                    <option value="fijo">Monto fijo</option>
-                    <option value="porcentaje">% sobre ingresos</option>
-                    <option value="otro">Otro</option>
-                </select>
-            </div>
-            <div id="gastoPctWrapper" class="hidden">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Porcentaje %</label>
-                <input type="number" id="gastoPorcentaje" placeholder="ej. 10"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" max="100">
-            </div>
-            <div class="flex items-end">
-                <button onclick="LiquidacionesApp.guardarGasto()"
-                        class="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1.5">
-                    <i class="fas fa-save"></i>Guardar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lista de gastos registrados -->
-    <div id="dist-gastos-lista" class="mt-4"></div>
-</div>
-</div>
 
                 <!-- Pestaña Máquinas -->
                 <div id="pestanaMaquinas" class="pestana-contenido hidden">
-    <!-- KPIs -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="glass-card border-l-4 border-l-blue-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-100 p-3 rounded-xl"><i class="fas fa-gamepad text-blue-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Máquinas activas</p>
-                    <p class="text-2xl font-bold text-gray-800" id="maq-total-count">0</p>
+                    <div class="glass-card">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-gamepad mr-2 text-purple-600"></i>Reporte por Máquinas
+                        </h2>
+                        <div id="tablaMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="glass-card border-l-4 border-l-green-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-green-100 p-3 rounded-xl"><i class="fas fa-coins text-green-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Ingresos totales</p>
-                    <p class="text-2xl font-bold text-gray-800" id="maq-ingresos-total">$0</p>
-                </div>
-            </div>
-        </div>
-        <div class="glass-card border-l-4 border-l-teal-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-teal-100 p-3 rounded-xl"><i class="fas fa-utensils text-teal-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Total restaurante</p>
-                    <p class="text-2xl font-bold text-gray-800" id="maq-rest-total">$0</p>
-                </div>
-            </div>
-        </div>
-        <div class="glass-card border-l-4 border-l-purple-500">
-            <div class="flex items-center gap-3">
-                <div class="bg-purple-100 p-3 rounded-xl"><i class="fas fa-user-tie text-purple-600 text-lg"></i></div>
-                <div>
-                    <p class="text-sm text-gray-500">Total proveedores</p>
-                    <p class="text-2xl font-bold text-gray-800" id="maq-prov-total">$0</p>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
-
-    <!-- Tabla -->
-    <div class="glass-card">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
-            <h2 class="text-lg font-semibold text-gray-800">
-                <i class="fas fa-gamepad mr-2 text-purple-600"></i>Rendimiento por Máquina
-            </h2>
-            <div class="flex gap-2 flex-wrap">
-                <select id="maqOrden" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="LiquidacionesApp.renderizarTablaMaquinas()">
-                    <option value="ingresos">Mayor ingreso</option>
-                    <option value="restaurante">Mayor restaurante</option>
-                    <option value="proveedor">Mayor proveedor</option>
-                    <option value="ventas">Más ventas</option>
-                    <option value="nombre">Nombre A-Z</option>
-                </select>
-                <div class="relative">
-                    <input type="text" id="maqBusqueda" placeholder="Buscar máquina..."
-                           class="border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-sm w-48"
-                           oninput="LiquidacionesApp.renderizarTablaMaquinas()">
-                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
-                </div>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-gray-50">
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">#</th>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Máquina</th>
-                        <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Tipo</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ventas</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Ingresos</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">% Rest.</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Restaurante</th>
-                        <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Proveedor</th>
-                        <th class="text-center py-3 px-4 text-xs font-medium text-gray-600 uppercase">Participación</th>
-                    </tr>
-                </thead>
-                <tbody id="maq-tabla-body">
-                    <tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">Sin datos</td></tr>
-                </tbody>
-                <tfoot>
-                    <tr class="bg-gray-50 font-semibold text-sm">
-                        <td colspan="4" class="text-right py-3 px-4 text-gray-600">TOTALES:</td>
-                        <td class="text-right py-3 px-4" id="maq-foot-ingresos">$0</td>
-                        <td class="text-right py-3 px-4">—</td>
-                        <td class="text-right py-3 px-4 text-teal-600" id="maq-foot-rest">$0</td>
-                        <td class="text-right py-3 px-4 text-purple-600" id="maq-foot-prov">$0</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-</div>
 
     <!-- ============================================ -->
     <!-- INFORMACIÓN DE USUARIO - VERSIÓN MÓVIL (al final) -->
@@ -1270,35 +1085,30 @@
                 // Configurar fechas por defecto
                 document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
                 document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
+                document.getElementById('tipoReporte').value = this.estado.filtros.tipoReporte;
+                document.getElementById('agrupacion').value = this.estado.filtros.agrupacion;
             },
             
             // Cambiar pestaña activa
-           cambiarPestana: function(pestana) {
-    document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
-    document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
-
-   if (['resumen', 'propietarios', 'maquinas'].includes(pestana)) {
-    this.cargarDatosReporte().then(() => {
-        if (pestana === 'propietarios') {
-            this.calcularDistribucionSocios();
-        }
-    });
-}
-    if (pestana === 'detalle') {
-        this.cargarDetalle();
-    }
-   if (pestana === 'graficos') {
-    setTimeout(() => {
-        if (!this.estado.datosReporte) {
-            this.cargarDatosReporte().then(() => this._renderGraficos());
-        } else {
-            this._renderGraficos();
-        }
-    }, 100);
-}
-},
+            cambiarPestana: function(pestana) {
+                // Ocultar todas las pestañas
+                document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                
+                // Mostrar pestaña seleccionada
+                document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
+                document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
+                
+                // Si es la pestaña de gráficos, inicializar gráficos
+                if (pestana === 'graficos') {
+                    setTimeout(() => this.inicializarGraficos(), 100);
+                }
+                
+                // Si es la pestaña de reportes, cargar datos de reporte
+                if (pestana !== 'liquidaciones' && pestana !== 'resumen') {
+                    this.cargarDatosReporte();
+                }
+            },
             
             // Capitalizar primera letra
             capitalize: function(str) {
@@ -1306,437 +1116,279 @@
             },
             
             // Inicializar gráficos
-         inicializarGraficos: function() {
-    const data = this.estado.datosReporte;
-    if (!data) {
-        this.cargarDatosReporte().then(() => this._renderGraficos());
-        return;
-    }
-    this._renderGraficos();
-},
-
-_renderGraficos: function() {
-    const data = this.estado.datosReporte;
-    if (!data) return;
-    this._graficoEvolucion();
-    this._graficoDistribucion(data);
-    this._graficoMaquinas(data);
-    this._graficoPorcentajeMaquinas(data);
-},
-
-actualizarGraficos: function() {
-    this._graficoEvolucion();
-},
-
-_destruirGrafico: function(id) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    const existing = Chart.getChart(canvas);
-    if (existing) existing.destroy();
-},
-
-_graficoEvolucion: async function() {
-    this._destruirGrafico('graficoEvolucion');
-    const ctx = document.getElementById('graficoEvolucion')?.getContext('2d');
-    if (!ctx) return;
-
-    const tipo = document.getElementById('grafEvolucionTipo')?.value || 'ingresos';
-
-    // Cargar datos reales por rango de fechas
-    try {
-        const fi = this.estado.filtros.fechaInicio;
-        const ff = this.estado.filtros.fechaFin;
-        const r  = await fetch(`/api/ventas-liquidadas?fechaInicio=${fi}&fechaFin=${ff}&pagina=1&porPagina=500`);
-        const d  = await r.json();
-        const datos = d.datos || [];
-
-        // Agrupar por fecha
-        const grupos = {};
-        datos.forEach(item => {
-            const fecha = item.fecha;
-            if (!grupos[fecha]) grupos[fecha] = { ingresos: 0, restaurante: 0, proveedor: 0 };
-            grupos[fecha].ingresos    += parseFloat(item.ingresos_totales    || 0);
-            grupos[fecha].restaurante += parseFloat(item.ingresos_restaurante || 0);
-            grupos[fecha].proveedor   += parseFloat(item.ingresos_proveedor   || 0);
-        });
-
-        const labels = Object.keys(grupos).sort();
-        const values = labels.map(f => grupos[f][tipo]);
-
-        const colores = {
-            ingresos:    { border: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
-            restaurante: { border: '#10b981', bg: 'rgba(16,185,129,0.15)' },
-            proveedor:   { border: '#8b5cf6', bg: 'rgba(139,92,246,0.15)' }
-        };
-        const col = colores[tipo];
-
-        this.estado.graficos.evolucion = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels.map(f => this.formatearFecha(f)),
-                datasets: [{
-                    label: tipo.charAt(0).toUpperCase() + tipo.slice(1),
-                    data: values,
-                    borderColor: col.border,
-                    backgroundColor: col.bg,
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: col.border,
-                    pointRadius: 4
-                }]
+            inicializarGraficos: function() {
+                this.crearGraficoDistribucion();
+                this.crearGraficoVentasDiarias();
+                this.crearGraficoEvolucion();
+                this.crearGraficoPaquetes();
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: v => formatearMoneda(v) }
+            
+            // Crear gráfico de distribución
+            crearGraficoDistribucion: function() {
+                const ctx = document.getElementById('graficoDistribucion').getContext('2d');
+                
+                if (this.estado.graficos.distribucion) {
+                    this.estado.graficos.distribucion.destroy();
+                }
+                
+                const gananciaRestaurante = this.estado.datosReporte?.periodo?.total_restaurante || 0;
+                const gananciaProveedor = this.estado.datosReporte?.periodo?.total_proveedor || 0;
+                
+                this.estado.graficos.distribucion = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Restaurante', 'Proveedores'],
+                        datasets: [{
+                            data: [gananciaRestaurante, gananciaProveedor],
+                            backgroundColor: ['#10b981', '#8b5cf6'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
                     },
-                    x: { ticks: { maxTicksLimit: 8 } }
-                }
-            }
-        });
-    } catch (e) {
-        console.error('Error gráfico evolución:', e);
-    }
-},
-
-_graficoDistribucion: function(data) {
-    this._destruirGrafico('graficoDistribucion');
-    const ctx = document.getElementById('graficoDistribucion')?.getContext('2d');
-    if (!ctx) return;
-
-    const periodo      = data.periodo || {};
-    const restaurante  = parseFloat(periodo.total_restaurante || 0);
-    const proveedor    = parseFloat(periodo.total_proveedor   || 0);
-
-    // Distribución por propietario dentro de proveedores
-    const distProp = data.distribucion_propietarios || {};
-    const propLabels = Object.keys(distProp);
-    const propValues = propLabels.map(k => parseFloat(distProp[k].total_ingresos || 0));
-
-    const labels = propLabels.length > 0
-        ? ['Restaurante', ...propLabels]
-        : ['Restaurante', 'Proveedores'];
-    const values = propLabels.length > 0
-        ? [restaurante, ...propValues]
-        : [restaurante, proveedor];
-
-    const palette = ['#10b981','#8b5cf6','#3b82f6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
-
-    this.estado.graficos.distribucion = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels,
-            datasets: [{
-                data: values,
-                backgroundColor: palette.slice(0, labels.length),
-                borderWidth: 3,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.label}: ${formatearMoneda(ctx.parsed)} (${((ctx.parsed / values.reduce((a,b) => a+b,0))*100).toFixed(1)}%)`
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${label}: ${formatearMoneda(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        }
-    });
-},
-
-_graficoMaquinas: function(data) {
-    this._destruirGrafico('graficoMaquinas');
-    const ctx = document.getElementById('graficoMaquinas')?.getContext('2d');
-    if (!ctx) return;
-
-    const maquinas = Object.entries(data.resumen_maquinas || {})
-        .map(([k, m]) => ({ nombre: m.maquina_nombre || k, ingresos: parseFloat(m.ingresos_totales || 0), rest: parseFloat(m.ingresos_restaurante || 0), prov: parseFloat(m.ingresos_proveedor || 0) }))
-        .sort((a, b) => b.ingresos - a.ingresos)
-        .slice(0, 10);
-
-    this.estado.graficos.maquinas = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: maquinas.map(m => m.nombre.length > 14 ? m.nombre.substring(0,14)+'…' : m.nombre),
-            datasets: [
-                {
-                    label: 'Restaurante',
-                    data: maquinas.map(m => m.rest),
-                    backgroundColor: 'rgba(16,185,129,0.8)',
-                    borderRadius: 4
-                },
-                {
-                    label: 'Proveedor',
-                    data: maquinas.map(m => m.prov),
-                    backgroundColor: 'rgba(139,92,246,0.8)',
-                    borderRadius: 4
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' },
-                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatearMoneda(ctx.parsed.y)}` } }
+                });
             },
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true, beginAtZero: true, ticks: { callback: v => formatearMoneda(v) } }
-            }
-        }
-    });
-},
-
-_graficoPorcentajeMaquinas: function(data) {
-    this._destruirGrafico('graficoPorcentajeMaquinas');
-    const ctx = document.getElementById('graficoPorcentajeMaquinas')?.getContext('2d');
-    if (!ctx) return;
-
-    const maquinas = Object.entries(data.resumen_maquinas || {})
-        .map(([k, m]) => ({ nombre: m.maquina_nombre || k, ingresos: parseFloat(m.ingresos_totales || 0) }))
-        .filter(m => m.ingresos > 0)
-        .sort((a, b) => b.ingresos - a.ingresos)
-        .slice(0, 8);
-
-    const total = maquinas.reduce((s, m) => s + m.ingresos, 0);
-    const palette = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
-
-    this.estado.graficos.porcentajeMaquinas = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: maquinas.map(m => m.nombre),
-            datasets: [{
-                data: maquinas.map(m => m.ingresos),
-                backgroundColor: palette.slice(0, maquinas.length),
-                borderWidth: 3,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { padding: 10, font: { size: 10 } } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.label}: ${formatearMoneda(ctx.parsed)} (${((ctx.parsed / total)*100).toFixed(1)}%)`
-                    }
+            
+            // Crear gráfico de ventas diarias
+            crearGraficoVentasDiarias: function() {
+                const ctx = document.getElementById('graficoVentasDiarias').getContext('2d');
+                
+                if (this.estado.graficos.ventasDiarias) {
+                    this.estado.graficos.ventasDiarias.destroy();
                 }
-            }
-        }
-    });
-},
+                
+                // Datos de ejemplo - en producción se obtendrían de la API
+                const datosEjemplo = {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                    datasets: [{
+                        label: 'Ingresos',
+                        data: [120000, 190000, 150000, 180000, 220000, 300000, 280000],
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 2
+                    }]
+                };
+                
+                this.estado.graficos.ventasDiarias = new Chart(ctx, {
+                    type: 'bar',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatearMoneda(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de evolución
+            crearGraficoEvolucion: function() {
+                const ctx = document.getElementById('graficoEvolucion').getContext('2d');
+                
+                if (this.estado.graficos.evolucion) {
+                    this.estado.graficos.evolucion.destroy();
+                }
+                
+                // Datos de ejemplo
+                const datosEjemplo = {
+                    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+                    datasets: [
+                        {
+                            label: 'Ingresos Totales',
+                            data: [850000, 920000, 780000, 1100000],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Ganancia Proveedores',
+                            data: [552500, 598000, 507000, 715000],
+                            borderColor: 'rgb(139, 92, 246)',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                };
+                
+                this.estado.graficos.evolucion = new Chart(ctx, {
+                    type: 'line',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatearMoneda(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            
+            // Crear gráfico de paquetes
+            crearGraficoPaquetes: function() {
+                const ctx = document.getElementById('graficoPaquetes').getContext('2d');
+                
+                if (this.estado.graficos.paquetes) {
+                    this.estado.graficos.paquetes.destroy();
+                }
+                
+                // Datos de ejemplo
+                const datosEjemplo = {
+                    labels: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'],
+                    datasets: [{
+                        data: [12, 19, 8, 15, 10, 7, 5, 9, 11, 6],
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
+                            '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
+                        ]
+                    }]
+                };
+                
+                this.estado.graficos.paquetes = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: datosEjemplo,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            },
             
             // Cargar datos para reportes
-cargarDatosReporte: async function() {
-    const fechaInicio = this.estado.filtros.fechaInicio;
-    const fechaFin    = this.estado.filtros.fechaFin;
-
-    try {
-        const response = await fetch('/api/liquidaciones/calcular', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
-        });
-
-        if (!response.ok) throw new Error('Error al calcular liquidación');
-        const data = await response.json();
-        this.estado.datosReporte = data;
-
-        const periodo = data.periodo || {};
-        const totalIngresos    = parseFloat(periodo.total_ingresos    || 0);
-        const totalRestaurante = parseFloat(periodo.total_restaurante || 0);
-        const totalProveedor   = parseFloat(periodo.total_proveedor   || 0);
-        const totalVentas      = parseInt(periodo.total_ventas        || 0);
-        const maquinasUsadas   = parseInt(periodo.maquinas_utilizadas || 0);
-
-        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-        // KPIs resumen
-        setEl('res-ingresos-totales', formatearMoneda(totalIngresos));
-        setEl('res-restaurante',      formatearMoneda(totalRestaurante));
-        setEl('res-proveedor',        formatearMoneda(totalProveedor));
-        setEl('res-total-ventas',     totalVentas.toLocaleString());
-        setEl('res-maquinas-usadas',  `${maquinasUsadas} máquina${maquinasUsadas !== 1 ? 's' : ''}`);
-
-        // Porcentajes
-        const pctRest = totalIngresos > 0 ? ((totalRestaurante / totalIngresos) * 100).toFixed(1) : 35;
-        const pctProv = totalIngresos > 0 ? ((totalProveedor   / totalIngresos) * 100).toFixed(1) : 65;
-        setEl('res-restaurante-pct', `${pctRest}% del total`);
-        setEl('res-proveedor-pct',   `${pctProv}% del total`);
-        setEl('res-pct-rest-label',  `${pctRest}%`);
-        setEl('res-pct-prov-label',  `${pctProv}%`);
-
-        // Barra distribución
-        const barRest = document.getElementById('res-barra-rest');
-        const barProv = document.getElementById('res-barra-prov');
-        if (barRest) barRest.style.width = `${pctRest}%`;
-        if (barProv) barProv.style.width = `${pctProv}%`;
-
-        // Tarjetas propietarios en pestaña Resumen
-        const contProp = document.getElementById('res-propietarios');
-        if (contProp) {
-            const dist    = data.distribucion_propietarios || {};
-            const entries = Object.entries(dist);
-            if (entries.length === 0) {
-                contProp.innerHTML = `<div class="text-center py-6 text-gray-400 col-span-full text-sm">Sin datos de propietarios en este período</div>`;
-            } else {
-                contProp.innerHTML = entries.map(([nombre, datos]) => {
-                    const pct = totalProveedor > 0
-                        ? ((parseFloat(datos.total_ingresos) / totalProveedor) * 100).toFixed(1)
-                        : 0;
-                    const maquinas = Array.isArray(datos.detalles_maquinas)
-                        ? datos.detalles_maquinas.slice(0, 3).join(', ')
-                        : (datos.detalles_maquinas || '—');
-                    return `
-                        <div class="summary-card border border-gray-100">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex items-center gap-2">
-                                    <div class="bg-purple-100 p-2 rounded-lg">
-                                        <i class="fas fa-user-tie text-purple-600 text-sm"></i>
-                                    </div>
-                                    <span class="font-semibold text-gray-800">${nombre}</span>
-                                </div>
-                                <span class="text-lg font-bold text-green-600">${formatearMoneda(parseFloat(datos.total_ingresos))}</span>
-                            </div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="flex-1 bg-gray-100 rounded-full h-2">
-                                    <div class="bg-purple-500 h-2 rounded-full" style="width:${pct}%"></div>
-                                </div>
-                                <span class="text-xs font-medium text-purple-600">${pct}%</span>
-                            </div>
-                            <p class="text-xs text-gray-500 truncate" title="${maquinas}">
-                                <i class="fas fa-gamepad mr-1"></i>${maquinas || 'Sin máquinas'}
-                            </p>
-                        </div>`;
-                }).join('');
-            }
-        }
-
-        // Máquinas en pestaña Resumen
-        const contMaq = document.getElementById('res-maquinas');
-        if (contMaq) {
-            const maquinas = Object.entries(data.resumen_maquinas || {})
-                .map(([nombre, datos]) => ({ ...datos, maquina_nombre: datos.maquina_nombre || nombre }))
-                .sort((a, b) => (parseFloat(b.ingresos_totales) || 0) - (parseFloat(a.ingresos_totales) || 0));
-
-            if (maquinas.length === 0) {
-                contMaq.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm">Sin datos de máquinas en este período</div>`;
-            } else {
-                const maxIngresos = parseFloat(maquinas[0].ingresos_totales || 1);
-                const medallas    = ['🥇', '🥈', '🥉'];
-                contMaq.innerHTML = maquinas.map((m, i) => {
-                    const pctBar = ((parseFloat(m.ingresos_totales || 0) / maxIngresos) * 100).toFixed(0);
-                    const prefijo = i < 3
-                        ? `<span class="text-lg">${medallas[i]}</span>`
-                        : `<span class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">${i+1}</span>`;
-                    return `
-                        <div class="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl hover:border-blue-200 transition">
-                            ${prefijo}
-                            <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="font-medium text-gray-800 text-sm truncate">${m.maquina_nombre}</span>
-                                    <span class="font-bold text-gray-800 text-sm ml-2">${formatearMoneda(parseFloat(m.ingresos_totales || 0))}</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="flex-1 bg-gray-100 rounded-full h-1.5">
-                                        <div class="bg-blue-500 h-1.5 rounded-full" style="width:${pctBar}%"></div>
-                                    </div>
-                                    <span class="text-xs text-gray-400 shrink-0">
-                                        Rest: ${formatearMoneda(parseFloat(m.ingresos_restaurante || 0))} · Prov: ${formatearMoneda(parseFloat(m.ingresos_proveedor || 0))}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>`;
-                }).join('');
-            }
-        }
-
-        // ← NUEVO: alimentar pestañas Propietarios y Máquinas
-        this.actualizarTablaPropietarios(data);
-        this.actualizarTablaMaquinas(data);
-        this.poblarSelectorSocios(data);
-
-    } catch (error) {
-        console.error('Error cargando resumen:', error);
-        this.mostrarAlerta('Error cargando el resumen', 'error');
-    }
-},
-
-poblarSelectorSocios: function(data) {
-    const select = document.getElementById('gastoSocioId');
-    if (!select) return;
-    const dist = data.distribucion_propietarios || {};
-    const entries = Object.entries(dist);
-
-    // Si hay datos del período úsalos, si no cargar desde API
-    if (entries.length > 0) {
-        select.innerHTML = '<option value="">Seleccionar...</option>' +
-            entries.map(([nombre, datos]) => {
-                const id = datos.propietario_id || '';
-                return `<option value="${id}">${nombre}</option>`;
-            }).join('');
-    } else {
-        // Fallback: cargar propietarios desde API
-        fetch('/api/propietarios').then(r => r.json()).then(props => {
-            select.innerHTML = '<option value="">Seleccionar...</option>' +
-                props.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
-        });
-    }
-},
-
+            cargarDatosReporte: async function() {
+                try {
+                    const { fechaInicio, fechaFin } = this.estado.filtros;
+                    
+                    const response = await fetch('/api/liquidaciones/calcular', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            fecha_inicio: fechaInicio,
+                            fecha_fin: fechaFin
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.estado.datosReporte = data;
+                        this.actualizarResumenReporte(data);
+                        this.actualizarDistribucionPropietarios(data);
+                        this.actualizarTopMaquinas(data);
+                        this.actualizarTablaDetalle(data);
+                        this.actualizarTablaPropietarios(data);
+                        this.actualizarTablaMaquinas(data);
+                    }
+                } catch (error) {
+                    console.error('Error cargando datos de reporte:', error);
+                }
+            },
+            
             // Actualizar datos desde la API
             actualizarDatos: async function() {
-    try {
-        this.mostrarCarga(true);
-
-        const fechaInicio = this.estado.filtros.fechaInicio;
-        const fechaFin    = this.estado.filtros.fechaFin;
-        const pagina      = this.estado.filtros.paginacion.paginaActual;
-        const porPagina   = this.estado.filtros.paginacion.registrosPorPagina;
-
-        console.log('🔄 Actualizando datos con filtros:', { fechaInicio, fechaFin, pagina, porPagina });
-
-        const url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${pagina}&porPagina=${porPagina}`;
-
-        console.log('📡 URL de la API:', url);
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Error ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-
-        console.log('✅ Datos recibidos:', { totalRegistros: data.totalRegistros, datosRecibidos: data.datos?.length });
-
-        this.estado.datos = data.datos || [];
-        this.estado.filtros.paginacion.totalRegistros = data.totalRegistros || 0;
-        this.estado.filtros.paginacion.totalPaginas   = Math.ceil((data.totalRegistros || 0) / porPagina);
-
-        this.actualizarTabla();
-        this.actualizarResumen(data);
-        this.actualizarPaginacion();
-
-    } catch (error) {
-        console.error('❌ Error al actualizar datos:', error);
-        this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
-    } finally {
-        this.mostrarCarga(false);
-    }
-},
+                try {
+                    this.mostrarCarga(true);
+                    
+                    // Obtener filtros actuales
+                    const { fechaInicio, fechaFin, tipoReporte, busqueda, orden, paginacion } = this.estado.filtros;
+                    
+                    console.log('🔄 Actualizando datos con filtros:', {
+                        fechaInicio, fechaFin, tipoReporte, 
+                        pagina: paginacion.paginaActual, 
+                        registros: paginacion.registrosPorPagina 
+                    });
+                    
+                    let url;
+                    if (tipoReporte === 'ventas') {
+                        // Usar la API simplificada para ventas
+                        url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
+                    } else {
+                        // Para liquidaciones usar otra API (si la tienes)
+                        url = `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
+                    }
+                    
+                    if (busqueda) {
+                        url += `&busqueda=${encodeURIComponent(busqueda)}`;
+                    }
+                    
+                    console.log('📡 URL de la API:', url);
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('❌ Error en la respuesta:', response.status, errorText);
+                        throw new Error(`Error ${response.status}: ${errorText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    console.log('✅ Datos recibidos correctamente:', {
+                        totalRegistros: data.totalRegistros,
+                        datosRecibidos: data.datos ? data.datos.length : 0,
+                        totalIngresos: data.totalIngresos
+                    });
+                    
+                    // Actualizar estado
+                    this.estado.datos = data.datos || [];
+                    this.estado.filtros.paginacion.totalRegistros = data.totalRegistros || 0;
+                    this.estado.filtros.paginacion.totalPaginas = Math.ceil((data.totalRegistros || 0) / this.estado.filtros.paginacion.registrosPorPagina);
+                    
+                    // Actualizar UI
+                    this.actualizarTabla();
+                    this.actualizarResumen(data);
+                    this.actualizarPaginacion();
+                    
+                } catch (error) {
+                    console.error('❌ Error al actualizar datos:', error);
+                    this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
+                    
+                    // Mostrar datos de ejemplo en caso de error (para desarrollo)
+                    this.mostrarDatosEjemplo();
+                } finally {
+                    this.mostrarCarga(false);
+                }
+            },
             
             // Función para calcular liquidación completa
             calcularLiquidacionCompleta: async function() {
@@ -1869,106 +1521,107 @@ poblarSelectorSocios: function(data) {
             },
             
             // Aplicar filtros
-           aplicarFiltros: function() {
-    this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
-    this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
-    this.estado.filtros.paginacion.paginaActual = 1;
-    this.actualizarDatos();
-    // Si estamos en resumen, recargar también
-    const pestanaResumen = document.getElementById('pestanaResumen');
-    if (pestanaResumen && !pestanaResumen.classList.contains('hidden')) {
-        this.cargarDatosReporte();
-    }
-},
+            aplicarFiltros: function() {
+                this.estado.filtros.fechaInicio = document.getElementById('fechaInicio').value;
+                this.estado.filtros.fechaFin = document.getElementById('fechaFin').value;
+                this.estado.filtros.tipoReporte = document.getElementById('tipoReporte').value;
+                this.estado.filtros.agrupacion = document.getElementById('agrupacion').value;
+                this.estado.filtros.paginacion.paginaActual = 1;
+                
+                this.actualizarDatos();
+            },
             
             // Actualizar la tabla con los datos actuales
-         actualizarTabla: function() {
-    const tbody = document.getElementById('cuerpoTabla');
-    tbody.innerHTML = '';
-
-    if (this.estado.datos.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center py-8 text-gray-500">
-                    <i class="fas fa-inbox text-4xl mb-2 block"></i>
-                    No se encontraron registros para los filtros seleccionados.
-                </td>
-            </tr>`;
-        return;
-    }
-
-    let totalPaquetes = 0, totalIngresos = 0, totalRestaurante = 0, totalProveedor = 0;
-
-    this.estado.datos.forEach(item => {
-        const ingresos       = parseFloat(item.ingresos_totales || item.ingresos || 0);
-        const pctRest        = parseFloat(item.porcentaje_restaurante || 35);
-        const restaurante    = parseFloat(item.ingresos_restaurante || (ingresos * pctRest / 100));
-        const proveedor      = parseFloat(item.ingresos_proveedor   || (ingresos * (100 - pctRest) / 100));
-
-        totalPaquetes   += parseInt(item.cantidad_paquetes || 1);
-        totalIngresos   += ingresos;
-        totalRestaurante += restaurante;
-        totalProveedor   += proveedor;
-
-        const maquinaNombre  = item.maquina_nombre  || '—';
-        const propietario    = item.propietario     || '—';
-
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50';
-        tr.innerHTML = `
-            <td>${this.formatearFecha(item.fecha)}</td>
-            <td class="font-medium">${item.paquete_nombre || 'General'}</td>
-            <td>
-                <span class="inline-flex items-center gap-1 text-sm">
-                    <i class="fas fa-gamepad text-purple-400 text-xs"></i>
-                    ${maquinaNombre}
-                </span>
-            </td>
-            <td>
-                <span class="inline-flex items-center gap-1 text-sm">
-                    <i class="fas fa-user text-blue-400 text-xs"></i>
-                    ${propietario}
-                </span>
-            </td>
-            <td class="text-right font-semibold">${formatearMoneda(ingresos)}</td>
-            <td class="text-right">
-                <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${pctRest.toFixed(0)}%</span>
-            </td>
-            <td class="text-right text-green-600">${formatearMoneda(restaurante)}</td>
-            <td class="text-right text-purple-600">${formatearMoneda(proveedor)}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    // Totales en el pie
-    
-const elPaquetes = document.getElementById('totalPaquetes');
-const elIngresos = document.getElementById('totalIngresosTabla');
-const elRest     = document.getElementById('totalIngresosRestaurante');
-const elProv     = document.getElementById('totalIngresosProveedor');
-const el30       = document.getElementById('total30Porciento');
-const el35       = document.getElementById('total35Porciento');
-
-if (elPaquetes)  elPaquetes.textContent  = totalPaquetes.toLocaleString();
-if (elIngresos)  elIngresos.textContent  = formatearMoneda(totalIngresos);
-if (elRest)      elRest.textContent      = formatearMoneda(totalRestaurante);
-if (elProv)      elProv.textContent      = formatearMoneda(totalProveedor);
-if (el30)        el30.textContent        = '';
-if (el35)        el35.textContent        = '';
-
-    // Resumen tarjetas
-    document.getElementById('totalIngresos').textContent      = formatearMoneda(totalIngresos);
-    document.getElementById('gananciaRestaurante').textContent = formatearMoneda(totalRestaurante);
-    document.getElementById('gananciaProveedor').textContent   = formatearMoneda(totalProveedor);
-    document.getElementById('gananciaTotal').textContent       = formatearMoneda(totalIngresos);
-
-    // Paginación
-    const desde = (this.estado.filtros.paginacion.paginaActual - 1) * this.estado.filtros.paginacion.registrosPorPagina + 1;
-    const hasta = Math.min(desde + this.estado.datos.length - 1, this.estado.filtros.paginacion.totalRegistros);
-    document.getElementById('mostrandoDesde').textContent  = desde;
-    document.getElementById('mostrandoHasta').textContent  = hasta;
-    document.getElementById('totalRegistros').textContent  = this.estado.filtros.paginacion.totalRegistros;
-},
+            actualizarTabla: function() {
+                const tbody = document.getElementById('cuerpoTabla');
+                tbody.innerHTML = '';
+                
+                if (this.estado.datos.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td colspan="8" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-2 block"></i>
+                            No se encontraron registros para los filtros seleccionados.
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    return;
+                }
+                
+                // Agrupar por fecha de liquidación
+                const liquidacionesPorFecha = {};
+                
+                // Procesar todos los datos sin filtrar por tipo de reporte
+                this.estado.datos.forEach(item => {
+                    const fecha = item.fecha;
+                    if (!liquidacionesPorFecha[fecha]) {
+                        liquidacionesPorFecha[fecha] = {
+                            fecha: fecha,
+                            totalPaquetes: 0,
+                            totalIngresos: 0,
+                            total30Porciento: 0,  // 30% para máquinas
+                            total35Porciento: 0,  // 35% para proveedores
+                            totalIngresosRestaurante: 0,
+                            totalIngresosProveedor: 0
+                        };
+                    }
+                    
+                    // Calcular distribución de ingresos
+                    const ingresos = item.ingresos_totales || item.ingresos || 0;
+                    const ingresos30 = item.ingresos_30_porciento || (ingresos * 0.30);
+                    const ingresos35 = item.ingresos_35_porciento || (ingresos * 0.35);
+                    const ingresosRestaurante = item.ingresos_restaurante || item.ganancia_restaurante || (ingresos * 0.35);
+                    const ingresosProveedor = item.ingresos_proveedor || item.ganancia_proveedor || 0;
+                    
+                    // Actualizar totales por fecha
+                    liquidacionesPorFecha[fecha].totalPaquetes += item.cantidad_paquetes || 1;
+                    liquidacionesPorFecha[fecha].totalIngresos += item.ingresos_totales || item.ingresos || 0;
+                    liquidacionesPorFecha[fecha].total30Porciento += ingresos30;
+                    liquidacionesPorFecha[fecha].total35Porciento += ingresos35;
+                    liquidacionesPorFecha[fecha].totalIngresosRestaurante += ingresosRestaurante;
+                    liquidacionesPorFecha[fecha].totalIngresosProveedor += ingresosProveedor;
+                });
+                
+                // Calcular totales generales
+                let totalPaquetes = 0;
+                let totalIngresos = 0;
+                let total30Porciento = 0;
+                let total35Porciento = 0;
+                let totalIngresosRestaurante = 0;
+                let totalIngresosProveedor = 0;
+                
+                // Mostrar una fila por liquidación
+                Object.values(liquidacionesPorFecha).forEach(liquidacion => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    tr.innerHTML = `
+                        <td>${this.formatearFecha(liquidacion.fecha)}</td>
+                        <td class="text-right">${liquidacion.totalPaquetes.toLocaleString()}</td>
+                        <td class="text-right font-semibold">${formatearMoneda(liquidacion.totalIngresos)}</td>
+                        <td class="text-right text-orange-600">${formatearMoneda(liquidacion.total30Porciento)} <span class="text-xs text-gray-500">(30%)</span></td>
+                        <td class="text-right text-blue-600">${formatearMoneda(liquidacion.total35Porciento)} <span class="text-xs text-gray-500">(35%)</span></td>
+                        <td class="text-right text-green-600">${formatearMoneda(liquidacion.totalIngresosRestaurante)} <span class="text-xs text-gray-500">(35%)</span></td>
+                        <td class="text-right text-purple-600">${formatearMoneda(liquidacion.totalIngresosProveedor)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                    
+                    // Sumar a totales generales
+                    totalPaquetes += liquidacion.totalPaquetes;
+                    totalIngresos += liquidacion.totalIngresos;
+                    total30Porciento += liquidacion.total30Porciento;
+                    total35Porciento += liquidacion.total35Porciento;
+                    totalIngresosRestaurante += liquidacion.totalIngresosRestaurante;
+                    totalIngresosProveedor += liquidacion.totalIngresosProveedor;
+                });
+                
+                // Actualizar totales en el pie de la tabla
+                document.getElementById('totalPaquetes').textContent = totalPaquetes.toLocaleString();
+                document.getElementById('totalIngresosTabla').textContent = formatearMoneda(totalIngresos);
+                document.getElementById('total30Porciento').textContent = formatearMoneda(total30Porciento);
+                document.getElementById('total35Porciento').textContent = formatearMoneda(total35Porciento);
+                document.getElementById('totalIngresosRestaurante').textContent = formatearMoneda(totalIngresosRestaurante);
+                document.getElementById('totalIngresosProveedor').textContent = formatearMoneda(totalIngresosProveedor);
+            },
             
             // Actualizar resumen con totales
             actualizarResumen: function(data) {
@@ -2119,356 +1772,97 @@ if (el35)        el35.textContent        = '';
             },
             
             // Actualizar tabla de propietarios
-          actualizarTablaPropietarios: function(data) {
-    const dist       = data.distribucion_propietarios || {};
-    const resumenMaq = data.resumen_maquinas || {};
-    const totalProv  = parseFloat(data.periodo?.total_proveedor || 0);
-    const entries    = Object.entries(dist);
-    const setEl      = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-    // KPIs
-    setEl('prop-total-count',    entries.length);
-    setEl('prop-total-dist',     formatearMoneda(totalProv));
-    setEl('prop-maquinas-count', Object.keys(resumenMaq).length);
-
-    // Tarjetas
-    const contTarjetas = document.getElementById('prop-tarjetas');
-    if (contTarjetas) {
-        if (entries.length === 0) {
-            contTarjetas.innerHTML = `
-                <div class="text-center py-10 text-gray-400 col-span-full">
-                    <i class="fas fa-users text-4xl mb-3 block opacity-20"></i>
-                    <p class="text-sm">Sin datos de propietarios para este período</p>
-                    <p class="text-xs mt-1">Verifica que las máquinas tengan propietarios asignados</p>
-                </div>`;
-        } else {
-            const sorted = entries.sort((a, b) => parseFloat(b[1].total_ingresos) - parseFloat(a[1].total_ingresos));
-            const colores = [
-                'from-purple-500 to-indigo-600',
-                'from-blue-500 to-cyan-600',
-                'from-green-500 to-teal-600',
-                'from-orange-500 to-amber-600',
-                'from-pink-500 to-rose-600'
-            ];
-
-            contTarjetas.innerHTML = sorted.map(([nombre, datos], i) => {
-                const ingresos = parseFloat(datos.total_ingresos || 0);
-                const pct      = totalProv > 0 ? ((ingresos / totalProv) * 100).toFixed(1) : 0;
-                const color    = colores[i % colores.length];
-
-                // Obtener máquinas del propietario cruzando con resumen_maquinas
-                const maqNombres = Array.isArray(datos.detalles_maquinas)
-                    ? datos.detalles_maquinas
-                    : (typeof datos.detalles_maquinas === 'string'
-                        ? datos.detalles_maquinas.split(', ')
-                        : []);
-
-                const maqDetalle = maqNombres.map(nombre_maq => {
-                    const key  = typeof nombre_maq === 'object' ? nombre_maq.maquina_nombre : nombre_maq;
-                    const info = resumenMaq[key] || {};
-                    return {
-                        nombre:    key,
-                        ingresos:  parseFloat(info.ingresos_proveedor || 0)
-                    };
+            actualizarTablaPropietarios: function(data) {
+                const distribucion = data.distribucion_propietarios || {};
+                const container = document.getElementById('tablaPropietarios');
+                
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Propietario</th>
+                                    <th class="text-right">Total Ingresos</th>
+                                    <th class="text-right">% del Total</th>
+                                    <th class="text-right">Máquinas</th>
+                                    <th>Principales Máquinas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                Object.entries(distribucion).forEach(([nombre, datos]) => {
+                    const totalProveedor = data.periodo?.total_proveedor || 1;
+                    const porcentaje = ((datos.total_ingresos / totalProveedor) * 100).toFixed(1);
+                    const numMaquinas = datos.detalles_maquinas?.length || 0;
+                    const principalesMaquinas = datos.detalles_maquinas?.slice(0, 3).map(m => m.maquina_nombre).join(', ') || '';
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="font-medium">${nombre}</td>
+                            <td class="text-right font-semibold text-green-600">${formatearMoneda(datos.total_ingresos)}</td>
+                            <td class="text-right">${porcentaje}%</td>
+                            <td class="text-right">${numMaquinas}</td>
+                            <td class="text-sm text-gray-600">${principalesMaquinas}</td>
+                        </tr>
+                    `;
                 });
-
-                return `
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
-                        <div class="bg-gradient-to-r ${color} p-4 text-white">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="font-bold text-lg leading-tight">${nombre}</div>
-                                    <div class="text-sm opacity-80 mt-0.5">${maqDetalle.length} máquina${maqDetalle.length !== 1 ? 's' : ''}</div>
-                                </div>
-                                <div class="bg-white bg-opacity-20 rounded-xl px-3 py-1 text-sm font-bold">${pct}%</div>
-                            </div>
-                        </div>
-                        <div class="p-4">
-                            <div class="text-2xl font-bold text-gray-800 mb-3">${formatearMoneda(ingresos)}</div>
-                            <div class="bg-gray-100 rounded-full h-2 mb-3">
-                                <div class="h-2 rounded-full bg-gradient-to-r ${color}" style="width:${pct}%"></div>
-                            </div>
-                            <div class="space-y-1.5">
-                                ${maqDetalle.slice(0, 3).map(m => `
-                                    <div class="flex justify-between items-center text-xs text-gray-600">
-                                        <span class="flex items-center gap-1">
-                                            <i class="fas fa-gamepad text-gray-400"></i>${m.nombre}
-                                        </span>
-                                        <span class="font-medium text-green-600">${m.ingresos > 0 ? formatearMoneda(m.ingresos) : '—'}</span>
-                                    </div>`).join('')}
-                                ${maqDetalle.length > 3 ? `<div class="text-xs text-gray-400 mt-1">+${maqDetalle.length - 3} más</div>` : ''}
-                            </div>
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-    }
-
-    // Tabla detallada
-    const tbody    = document.getElementById('prop-tabla-detalle');
-    const footTotal = document.getElementById('prop-foot-total');
-    if (!tbody) return;
-
-    if (entries.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">Sin datos</td></tr>`;
-        return;
-    }
-
-    let filas      = '';
-    let grandTotal = 0;
-    const sortedEntries = entries.sort((a, b) => parseFloat(b[1].total_ingresos) - parseFloat(a[1].total_ingresos));
-
-    sortedEntries.forEach(([nombre, datos]) => {
-        const ingresoProp = parseFloat(datos.total_ingresos || 0);
-        const pctTotal    = totalProv > 0 ? ((ingresoProp / totalProv) * 100).toFixed(1) : 0;
-        grandTotal       += ingresoProp;
-
-        // Obtener lista de máquinas
-        const maqNombres = Array.isArray(datos.detalles_maquinas)
-            ? datos.detalles_maquinas
-            : (typeof datos.detalles_maquinas === 'string'
-                ? datos.detalles_maquinas.split(', ')
-                : []);
-
-        if (maqNombres.length === 0) {
-            filas += `
-                <tr class="border-b border-gray-50 hover:bg-gray-50">
-                    <td class="py-3 px-4 font-semibold text-gray-800">${nombre}</td>
-                    <td class="py-3 px-4 text-gray-400 text-sm">—</td>
-                    <td class="py-3 px-4 text-right text-gray-400">—</td>
-                    <td class="py-3 px-4 text-right text-gray-400">—</td>
-                    <td class="py-3 px-4 text-right font-bold text-green-600">${formatearMoneda(ingresoProp)}</td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>
-                    </td>
-                </tr>`;
-        } else {
-            maqNombres.forEach((maqRaw, idx) => {
-                const nombreMaq  = typeof maqRaw === 'object' ? (maqRaw.maquina_nombre || '—') : maqRaw;
-                // Cruzar con resumen_maquinas para obtener valores reales
-                const infoMaq    = resumenMaq[nombreMaq] || {};
-                const ingresosMaqTotal = parseFloat(infoMaq.ingresos_totales   || 0);
-                const ingresosMaqProv  = parseFloat(infoMaq.ingresos_proveedor || 0);
-                const pctRestMaq       = parseFloat(infoMaq.porcentaje_restaurante || 35);
-
-                filas += `
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 text-sm">
-                        <td class="py-3 px-4 ${idx === 0 ? 'font-semibold text-gray-800' : 'text-gray-300 text-xs pl-6'}">${idx === 0 ? nombre : '↳'}</td>
-                        <td class="py-3 px-4">
-                            <span class="flex items-center gap-1.5 text-gray-700">
-                                <i class="fas fa-gamepad text-purple-400 text-xs"></i>${nombreMaq}
-                            </span>
-                        </td>
-                        <td class="py-3 px-4 text-right text-gray-600">
-                            ${ingresosMaqTotal > 0 ? formatearMoneda(ingresosMaqTotal) : '—'}
-                        </td>
-                        <td class="py-3 px-4 text-right">
-                            <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${(100 - pctRestMaq).toFixed(0)}%</span>
-                        </td>
-                        <td class="py-3 px-4 text-right font-medium text-green-600">
-                            ${ingresosMaqProv > 0 ? formatearMoneda(ingresosMaqProv) : formatearMoneda(ingresoProp)}
-                        </td>
-                        <td class="py-3 px-4 text-center">
-                            ${idx === 0 ? `<span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>` : ''}
-                        </td>
-                    </tr>`;
-            });
-        }
-    });
-
-    tbody.innerHTML = filas;
-    if (footTotal) footTotal.textContent = formatearMoneda(grandTotal);
-},
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            },
             
             // Actualizar tabla de máquinas
             actualizarTablaMaquinas: function(data) {
-    const resumen    = data.resumen_maquinas || {};
-    const totalIngs  = parseFloat(data.periodo?.total_ingresos    || 0);
-    const totalRest  = parseFloat(data.periodo?.total_restaurante || 0);
-    const totalProv  = parseFloat(data.periodo?.total_proveedor   || 0);
-    const setEl      = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-    // Guardar para re-renderizar con filtros/orden
-    this._maquinasData = Object.entries(resumen).map(([nombre, m]) => ({
-        nombre:      m.maquina_nombre || nombre,
-        tipo:        m.tipo_maquina   || '—',
-        ventas:      parseInt(m.ventas_realizadas || 0),
-        ingresos:    parseFloat(m.ingresos_totales    || 0),
-        pct_rest:    parseFloat(m.porcentaje_restaurante || 35),
-        restaurante: parseFloat(m.ingresos_restaurante  || 0),
-        proveedor:   parseFloat(m.ingresos_proveedor    || 0),
-    }));
-
-    this._maquinasTotalIngresos = totalIngs;
-
-    // KPIs
-    const totI = this._maquinasData.reduce((s, m) => s + m.ingresos,    0);
-    const totR = this._maquinasData.reduce((s, m) => s + m.restaurante, 0);
-    const totP = this._maquinasData.reduce((s, m) => s + m.proveedor,   0);
-
-    setEl('maq-total-count',    this._maquinasData.length);
-    setEl('maq-ingresos-total', formatearMoneda(totI || totalIngs));
-    setEl('maq-rest-total',     formatearMoneda(totR || totalRest));
-    setEl('maq-prov-total',     formatearMoneda(totP || totalProv));
-
-    this.renderizarTablaMaquinas();
-},
-
-renderizarTablaDetallePropietarios: function(dist) {
-    const tbody     = document.getElementById('prop-tabla-detalle');
-    const footTotal = document.getElementById('prop-foot-total');
-    if (!tbody) return;
-
-    const resumenMaq = this.estado.datosReporte?.resumen_maquinas || {};
-    const distProp   = this.estado.datosReporte?.distribucion_propietarios || {};
-    const totalProv  = dist.reduce((s, d) => s + d.ingresos_brutos, 0);
-
-    let filas      = '';
-    let grandTotal = 0;
-
-    dist.sort((a, b) => b.ingresos_brutos - a.ingresos_brutos).forEach(d => {
-        const ingresoProp = d.ingresos_brutos;
-        const pctTotal    = totalProv > 0 ? ((ingresoProp / totalProv) * 100).toFixed(1) : 0;
-        grandTotal       += ingresoProp;
-
-        // Obtener máquinas desde distribucion_propietarios
-        const datoProp   = distProp[d.nombre] || {};
-        const maqNombres = Array.isArray(datoProp.detalles_maquinas)
-            ? datoProp.detalles_maquinas
-            : (typeof datoProp.detalles_maquinas === 'string'
-                ? datoProp.detalles_maquinas.split(', ')
-                : []);
-
-        if (maqNombres.length === 0) {
-            filas += `
-                <tr class="border-b border-gray-50 hover:bg-gray-50">
-                    <td class="py-3 px-4 font-semibold text-gray-800">${d.nombre}</td>
-                    <td class="py-3 px-4 text-gray-400 text-sm">—</td>
-                    <td class="py-3 px-4 text-right text-gray-400">—</td>
-                    <td class="py-3 px-4 text-right text-gray-400">—</td>
-                    <td class="py-3 px-4 text-right font-bold text-green-600">${formatearMoneda(ingresoProp)}</td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>
-                    </td>
-                </tr>`;
-        } else {
-            maqNombres.forEach((maqRaw, idx) => {
-                const nombreMaq        = typeof maqRaw === 'object' ? (maqRaw.maquina_nombre || '—') : maqRaw;
-                const infoMaq          = resumenMaq[nombreMaq] || {};
-                const ingresosMaqTotal = parseFloat(infoMaq.ingresos_totales    || 0);
-                const ingresosMaqProv  = parseFloat(infoMaq.ingresos_proveedor  || 0);
-                const pctRestMaq       = parseFloat(infoMaq.porcentaje_restaurante || 35);
-
-                filas += `
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 text-sm">
-                        <td class="py-3 px-4 ${idx === 0 ? 'font-semibold text-gray-800' : 'text-gray-300 text-xs pl-6'}">${idx === 0 ? d.nombre : '↳'}</td>
-                        <td class="py-3 px-4">
-                            <span class="flex items-center gap-1.5 text-gray-700">
-                                <i class="fas fa-gamepad text-purple-400 text-xs"></i>${nombreMaq}
-                            </span>
-                        </td>
-                        <td class="py-3 px-4 text-right text-gray-600">
-                            ${ingresosMaqTotal > 0 ? formatearMoneda(ingresosMaqTotal) : '—'}
-                        </td>
-                        <td class="py-3 px-4 text-right">
-                            <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${(100 - pctRestMaq).toFixed(0)}%</span>
-                        </td>
-                        <td class="py-3 px-4 text-right font-medium text-green-600">
-                            ${ingresosMaqProv > 0 ? formatearMoneda(ingresosMaqProv) : formatearMoneda(ingresoProp)}
-                        </td>
-                        <td class="py-3 px-4 text-center">
-                            ${idx === 0 ? `<span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${pctTotal}%</span>` : ''}
-                        </td>
-                    </tr>`;
-            });
-        }
-    });
-
-    tbody.innerHTML = filas || `<tr><td colspan="6" class="text-center py-6 text-gray-400 text-sm">Sin datos</td></tr>`;
-    if (footTotal) footTotal.textContent = formatearMoneda(grandTotal);
-},
-
-renderizarTablaMaquinas: function() {
-    const maquinas = [...(this._maquinasData || [])];
-    const orden    = document.getElementById('maqOrden')?.value    || 'ingresos';
-    const buscar   = (document.getElementById('maqBusqueda')?.value || '').toLowerCase();
-    const totalIngs = this._maquinasTotalIngresos || 1;
-    const setEl    = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-    // Filtrar
-    const filtradas = buscar
-        ? maquinas.filter(m => m.nombre.toLowerCase().includes(buscar) || m.tipo.toLowerCase().includes(buscar))
-        : maquinas;
-
-    // Ordenar
-    filtradas.sort((a, b) => {
-        if (orden === 'nombre')      return a.nombre.localeCompare(b.nombre);
-        if (orden === 'ventas')      return b.ventas      - a.ventas;
-        if (orden === 'restaurante') return b.restaurante - a.restaurante;
-        if (orden === 'proveedor')   return b.proveedor   - a.proveedor;
-        return b.ingresos - a.ingresos;
-    });
-
-    // Totales filtrados
-    const totI = filtradas.reduce((s, m) => s + m.ingresos,    0);
-    const totR = filtradas.reduce((s, m) => s + m.restaurante, 0);
-    const totP = filtradas.reduce((s, m) => s + m.proveedor,   0);
-    setEl('maq-foot-ingresos', formatearMoneda(totI));
-    setEl('maq-foot-rest',     formatearMoneda(totR));
-    setEl('maq-foot-prov',     formatearMoneda(totP));
-
-    const tbody = document.getElementById('maq-tabla-body');
-    if (!tbody) return;
-
-    if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">
-            <i class="fas fa-gamepad text-3xl mb-2 block opacity-20"></i>Sin máquinas para mostrar
-        </td></tr>`;
-        return;
-    }
-
-    const maxIngresos = Math.max(...filtradas.map(m => m.ingresos), 1);
-
-    tbody.innerHTML = filtradas.map((m, i) => {
-        const pctParticipacion = totalIngs > 0 ? ((m.ingresos / totalIngs) * 100).toFixed(1) : 0;
-        const pctBarra         = ((m.ingresos / maxIngresos) * 100).toFixed(0);
-        const tipoColor        = m.tipo === 'simulador' ? 'bg-blue-100 text-blue-700'
-                               : m.tipo === 'arcade'    ? 'bg-purple-100 text-purple-700'
-                               : m.tipo === 'peluchera' ? 'bg-pink-100 text-pink-700'
-                               : 'bg-gray-100 text-gray-600';
-
-        return `
-            <tr class="border-b border-gray-50 hover:bg-gray-50 transition text-sm">
-                <td class="py-3 px-4 text-gray-400 font-medium">${i + 1}</td>
-                <td class="py-3 px-4">
-                    <div class="font-medium text-gray-800">${m.nombre}</div>
-                    <div class="w-full bg-gray-100 rounded-full h-1 mt-1.5">
-                        <div class="bg-blue-500 h-1 rounded-full" style="width:${pctBarra}%"></div>
+                const maquinas = data.resumen_maquinas || {};
+                const container = document.getElementById('tablaMaquinas');
+                
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Máquina</th>
+                                    <th>Tipo</th>
+                                    <th class="text-right">Ingresos Totales</th>
+                                    <th class="text-right">% Rest.</th>
+                                    <th class="text-right">Restaurante</th>
+                                    <th class="text-right">Proveedor</th>
+                                    <th class="text-right">Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                Object.values(maquinas).forEach(maquina => {
+                    const ventas = maquina.detalles?.length || 0;
+                    
+                    html += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="font-medium">${maquina.maquina_nombre}</td>
+                            <td class="text-gray-600">${maquina.tipo_maquina}</td>
+                            <td class="text-right font-semibold">${formatearMoneda(maquina.ingresos_totales || 0)}</td>
+                            <td class="text-right text-blue-600">${maquina.porcentaje_restaurante || 35}%</td>
+                            <td class="text-right text-green-600">${formatearMoneda(maquina.ingresos_restaurante || 0)}</td>
+                            <td class="text-right text-purple-600">${formatearMoneda(maquina.ingresos_proveedor || 0)}</td>
+                            <td class="text-right text-gray-600">${ventas}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
                     </div>
-                </td>
-                <td class="py-3 px-4">
-                    <span class="text-xs px-2 py-0.5 rounded-full capitalize ${tipoColor}">${m.tipo}</span>
-                </td>
-                <td class="py-3 px-4 text-right">
-                    <span class="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">${m.ventas}</span>
-                </td>
-                <td class="py-3 px-4 text-right font-semibold text-gray-800">${formatearMoneda(m.ingresos)}</td>
-                <td class="py-3 px-4 text-right">
-                    <span class="text-xs text-gray-500">${m.pct_rest.toFixed(0)}%</span>
-                </td>
-                <td class="py-3 px-4 text-right text-teal-600">${formatearMoneda(m.restaurante)}</td>
-                <td class="py-3 px-4 text-right text-purple-600">${formatearMoneda(m.proveedor)}</td>
-                <td class="py-3 px-4 text-center">
-                    <div class="flex items-center justify-center gap-1.5">
-                        <div class="w-16 bg-gray-100 rounded-full h-1.5">
-                            <div class="bg-green-500 h-1.5 rounded-full" style="width:${pctParticipacion}%"></div>
-                        </div>
-                        <span class="text-xs text-gray-500">${pctParticipacion}%</span>
-                    </div>
-                </td>
-            </tr>`;
-    }).join('');
-},
+                `;
+                
+                container.innerHTML = html;
+            },
             
             // Resto de funciones de paginación, ordenación, etc.
             actualizarPaginacion: function() {
@@ -2725,394 +2119,22 @@ renderizarTablaMaquinas: function() {
                 this.mostrarAlerta('Reporte exportado a PDF correctamente', 'success');
             },
             
-           mostrarCarga: function(mostrar) {
-    const btnActualizar = document.querySelector('button[onclick*="actualizarDatos"]');
-    if (!btnActualizar) return;
-    
-    if (mostrar) {
-        btnActualizar.disabled = true;
-        btnActualizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
-    } else {
-        btnActualizar.disabled = false;
-        btnActualizar.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
-    }
-},
-
-            // Estado interno del detalle
-_detalleRaw: [],
-_detalleFiltrado: [],
-_detallePagina: 1,
-_detallePorPagina: 25,
-
-cargarDetalle: async function() {
-    const fechaInicio = this.estado.filtros.fechaInicio;
-    const fechaFin    = this.estado.filtros.fechaFin;
-
-    const tbody = document.getElementById('cuerpoTablaDetalle');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8">
-        <div class="loading mx-auto mb-2"></div><p class="text-gray-500 text-sm">Cargando detalle...</p>
-    </td></tr>`;
-
-    try {
-        const response = await fetch('/api/liquidaciones/calcular', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
-        });
-        if (!response.ok) throw new Error('Error cargando detalle');
-        const data = await response.json();
-
-        this._detalleRaw = data.datos_tabla || [];
-        this._detallePagina = 1;
-        this.agruparYRenderizarDetalle();
-
-    } catch (e) {
-        console.error('Error cargando detalle:', e);
-        this.mostrarAlerta('Error cargando detalle de ingresos', 'error');
-    }
-},
-
-agruparYRenderizarDetalle: function() {
-    const agrup  = document.getElementById('filtroDetalleAgrup')?.value || 'dia_maquina';
-    const buscar = (document.getElementById('busquedaDetalle')?.value || '').toLowerCase();
-    const raw    = this._detalleRaw;
-
-    // Agrupar
-    const grupos = {};
-    raw.forEach(item => {
-        let key;
-        if      (agrup === 'dia')        key = item.fecha;
-        else if (agrup === 'maquina')    key = item.maquina_nombre || 'Sin máquina';
-        else if (agrup === 'paquete')    key = item.paquete_nombre || 'Sin paquete';
-        else                             key = `${item.fecha}__${item.maquina_nombre || ''}__${item.paquete_nombre || ''}`;
-
-        if (!grupos[key]) {
-            grupos[key] = {
-                fecha:       item.fecha,
-                maquina:     item.maquina_nombre  || '—',
-                paquete:     item.paquete_nombre  || '—',
-                propietario: item.propietario     || '—',
-                pct_rest:    parseFloat(item.porcentaje_restaurante || 35),
-                ventas:      0,
-                ingresos:    0,
-                restaurante: 0,
-                proveedor:   0,
-            };
-            if (agrup === 'dia')     { grupos[key].maquina = 'Todas'; grupos[key].paquete = 'Todos'; }
-            if (agrup === 'maquina') { grupos[key].fecha = '—'; grupos[key].paquete = 'Todos'; }
-            if (agrup === 'paquete') { grupos[key].fecha = '—'; grupos[key].maquina = 'Todas'; }
-        }
-        grupos[key].ventas      += 1;
-        grupos[key].ingresos    += parseFloat(item.ingresos_totales   || 0);
-        grupos[key].restaurante += parseFloat(item.ingresos_restaurante || 0);
-        grupos[key].proveedor   += parseFloat(item.ingresos_proveedor  || 0);
-    });
-
-    let filas = Object.values(grupos).sort((a, b) => {
-        if (a.fecha && b.fecha) return b.fecha.localeCompare(a.fecha);
-        return b.ingresos - a.ingresos;
-    });
-
-    // Filtrar por búsqueda
-    if (buscar) {
-        filas = filas.filter(f =>
-            f.maquina.toLowerCase().includes(buscar)    ||
-            f.paquete.toLowerCase().includes(buscar)    ||
-            f.propietario.toLowerCase().includes(buscar)||
-            (f.fecha && f.fecha.includes(buscar))
-        );
-    }
-
-    this._detalleFiltrado = filas;
-    this.renderizarDetalle();
-},
-
-renderizarDetalle: function() {
-    const filas      = this._detalleFiltrado;
-    const porPagina  = this._detallePorPagina;
-    const pagina     = this._detallePagina;
-    const inicio     = (pagina - 1) * porPagina;
-    const fin        = Math.min(inicio + porPagina, filas.length);
-    const paginadas  = filas.slice(inicio, fin);
-
-    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-    // KPIs
-    const totI = filas.reduce((s, f) => s + f.ingresos,    0);
-    const totR = filas.reduce((s, f) => s + f.restaurante, 0);
-    const totP = filas.reduce((s, f) => s + f.proveedor,   0);
-    setEl('det-total-filas',    filas.length.toLocaleString());
-    setEl('det-total-ingresos', formatearMoneda(totI));
-    setEl('det-total-rest',     formatearMoneda(totR));
-    setEl('det-total-prov',     formatearMoneda(totP));
-    setEl('det-foot-ingresos',  formatearMoneda(totI));
-    setEl('det-foot-rest',      formatearMoneda(totR));
-    setEl('det-foot-prov',      formatearMoneda(totP));
-    setEl('mostrandoDesdeDetalle', filas.length ? inicio + 1 : 0);
-    setEl('mostrandoHastaDetalle', fin);
-    setEl('totalRegistrosDetalle', filas.length);
-
-    // Tabla
-    const tbody = document.getElementById('cuerpoTablaDetalle');
-    if (!tbody) return;
-
-    if (paginadas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-400 text-sm">
-            <i class="fas fa-inbox text-2xl mb-2 block opacity-30"></i>Sin registros
-        </td></tr>`;
-    } else {
-        tbody.innerHTML = paginadas.map(f => `
-            <tr class="border-b border-gray-50 hover:bg-gray-50 transition text-sm">
-                <td class="py-3 px-4 text-gray-600">${f.fecha && f.fecha !== '—' ? this.formatearFecha(f.fecha) : '—'}</td>
-                <td class="py-3 px-4">
-                    <span class="flex items-center gap-1.5">
-                        <i class="fas fa-gamepad text-purple-400 text-xs"></i>
-                        ${f.maquina}
-                    </span>
-                </td>
-                <td class="py-3 px-4">
-                    <span class="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">${f.paquete}</span>
-                </td>
-                <td class="py-3 px-4 text-gray-600 text-xs">${f.propietario}</td>
-                <td class="py-3 px-4 text-center">
-                    <span class="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">${f.ventas}</span>
-                </td>
-                <td class="py-3 px-4 text-right font-semibold">${formatearMoneda(f.ingresos)}</td>
-                <td class="py-3 px-4 text-right">
-                    <span class="text-xs text-gray-500">${f.pct_rest.toFixed(0)}%</span>
-                </td>
-                <td class="py-3 px-4 text-right text-teal-600">${formatearMoneda(f.restaurante)}</td>
-                <td class="py-3 px-4 text-right text-purple-600">${formatearMoneda(f.proveedor)}</td>
-            </tr>`).join('');
-    }
-
-    // Paginación
-    const totalPags = Math.ceil(filas.length / porPagina);
-    const contPag = document.getElementById('paginacionDetalle');
-    if (contPag) {
-        let btns = '';
-        btns += `<button onclick="LiquidacionesApp._detallePagina=1;LiquidacionesApp.renderizarDetalle()" ${pagina===1?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-angle-double-left"></i></button>`;
-        btns += `<button onclick="LiquidacionesApp._detallePagina--;LiquidacionesApp.renderizarDetalle()" ${pagina===1?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-chevron-left"></i></button>`;
-        for (let p = Math.max(1, pagina-2); p <= Math.min(totalPags, pagina+2); p++) {
-            btns += `<button onclick="LiquidacionesApp._detallePagina=${p};LiquidacionesApp.renderizarDetalle()" class="px-3 py-1 border rounded text-sm ${p===pagina?'bg-blue-600 text-white border-blue-600':''}">${p}</button>`;
-        }
-        btns += `<button onclick="LiquidacionesApp._detallePagina++;LiquidacionesApp.renderizarDetalle()" ${pagina>=totalPags?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-chevron-right"></i></button>`;
-        btns += `<button onclick="LiquidacionesApp._detallePagina=${totalPags};LiquidacionesApp.renderizarDetalle()" ${pagina>=totalPags?'disabled':''} class="px-2 py-1 border rounded text-sm disabled:opacity-40"><i class="fas fa-angle-double-right"></i></button>`;
-        contPag.innerHTML = btns;
-    }
-},
-
-cambiarAgrupacionDetalle: function() {
-    this._detallePagina = 1;
-    this.agruparYRenderizarDetalle();
-},
-
-filtrarDetalle: function() {
-    this._detallePagina = 1;
-    this.agruparYRenderizarDetalle();
-},
-
-calcularDistribucionSocios: async function() {
-    // Tomar fechas del estado o directamente de los inputs
-    const fechaInicio = this.estado.filtros.fechaInicio 
-        || document.getElementById('fechaInicio')?.value;
-    const fechaFin    = this.estado.filtros.fechaFin 
-        || document.getElementById('fechaFin')?.value;
-
-    if (!fechaInicio || !fechaFin) {
-        this.mostrarAlerta('Selecciona un rango de fechas primero', 'warning');
-        return;
-    }
-
-    const cont = document.getElementById('dist-socios-tarjetas');
-    if (cont) cont.innerHTML = `<div class="col-span-full text-center py-6">
-        <div class="loading mx-auto mb-2"></div>
-        <p class="text-gray-500 text-sm">Calculando...</p>
-    </div>`;
-
-    try {
-        const r = await fetch('/api/liquidaciones/distribucion-socios', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
-        });
-        const data = await r.json();
-        if (!data.success) throw new Error('Error en cálculo');
-
-        const dist = data.distribucion || [];
-        if (dist.length === 0) {
-            cont.innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 text-sm">Sin datos de propietarios en este período</div>`;
-            return;
-        }
-
-        const colores = ['from-blue-500 to-indigo-600','from-purple-500 to-pink-600','from-green-500 to-teal-600','from-orange-500 to-amber-600'];
-        const totalNeto = dist.reduce((s, d) => s + d.neto, 0);
-
-        cont.innerHTML = dist.map((d, i) => {
-            const color = colores[i % colores.length];
-            const pct   = totalNeto > 0 ? ((d.neto / totalNeto) * 100).toFixed(1) : 0;
-            const esNeg = d.neto < 0;
-
-            return `
-                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition">
-                    <div class="bg-gradient-to-r ${color} p-4 text-white">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="font-bold text-lg">${d.nombre}</div>
-                                <div class="text-xs opacity-80 mt-0.5">Socio · ${pct}% del neto total</div>
-                            </div>
-                            <div class="bg-white bg-opacity-20 rounded-xl px-3 py-1.5 text-center">
-                                <div class="text-xs opacity-80">Neto</div>
-                                <div class="font-bold text-sm ${esNeg ? 'text-red-200' : ''}">${formatearMoneda(d.neto)}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-4">
-                        <div class="flex justify-between text-sm mb-3">
-                            <span class="text-gray-500">Ingresos brutos</span>
-                            <span class="font-semibold text-green-600">${formatearMoneda(d.ingresos_brutos)}</span>
-                        </div>
-                        ${d.gastos.length > 0 ? `
-                        <div class="space-y-1.5 mb-3 border-t border-gray-100 pt-3">
-                            ${d.gastos.map(g => `
-                                <div class="flex justify-between items-center text-xs text-gray-600">
-                                    <span class="flex items-center gap-1">
-                                        <i class="fas fa-minus-circle text-red-400"></i>${g.concepto}
-                                        ${g.tipo === 'porcentaje' ? `<span class="bg-orange-50 text-orange-600 px-1.5 rounded">%</span>` : ''}
-                                    </span>
-                                    <span class="font-medium text-red-500">-${formatearMoneda(g.monto)}</span>
-                                </div>`).join('')}
-                        </div>` : '<div class="text-xs text-gray-400 mb-3 border-t border-gray-100 pt-3">Sin gastos registrados</div>'}
-                        <div class="flex justify-between items-center border-t border-gray-100 pt-3">
-                            <span class="text-sm font-semibold text-gray-700">Total gastos</span>
-                            <span class="text-sm font-bold text-red-500">-${formatearMoneda(d.total_gastos)}</span>
-                        </div>
-                        <div class="flex justify-between items-center mt-1.5 bg-gray-50 rounded-lg px-3 py-2">
-                            <span class="text-sm font-bold text-gray-800">NETO A RECIBIR</span>
-                            <span class="text-base font-bold ${esNeg ? 'text-red-600' : 'text-green-700'}">${formatearMoneda(d.neto)}</span>
-                        </div>
-                    </div>
-                </div>`;
-        }).join('');
-
-        // Cargar lista de gastos y poblar selector
-        this.cargarListaGastos();
-        this.renderizarTablaDetallePropietarios(dist);
-        fetch('/api/propietarios').then(r => r.json()).then(props => {
-            const select = document.getElementById('gastoSocioId');
-            if (select) {
-                select.innerHTML = '<option value="">Seleccionar...</option>' +
-                    props.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
-            }
-        });
-
-    } catch (e) {
-        console.error('Error calculando distribución:', e);
-        this.mostrarAlerta('Error calculando distribución', 'error');
-    }
-},
-
-
-cargarListaGastos: async function() {
-    const fechaInicio = this.estado.filtros.fechaInicio;
-    const fechaFin    = this.estado.filtros.fechaFin;
-    const cont        = document.getElementById('dist-gastos-lista');
-    if (!cont) return;
-
-    try {
-        const r = await fetch(`/api/gastos-liquidacion?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
-        const gastos = await r.json();
-
-        if (!gastos.length) {
-            cont.innerHTML = `<p class="text-xs text-gray-400 text-center py-2">Sin gastos registrados para este período</p>`;
-            return;
-        }
-
-        cont.innerHTML = `
-            <h4 class="text-xs font-semibold text-gray-600 mb-2 mt-2">
-                <i class="fas fa-list mr-1"></i>Gastos registrados en el período
-            </h4>
-            <div class="space-y-1.5">
-                ${gastos.map(g => `
-                    <div class="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">${g.propietario_nombre}</span>
-                            <span class="text-gray-700">${g.concepto}</span>
-                            <span class="text-xs text-gray-400">${g.tipo === 'porcentaje' ? g.porcentaje + '%' : 'fijo'}</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="font-medium text-red-500">-${formatearMoneda(parseFloat(g.monto))}</span>
-                            <button onclick="LiquidacionesApp.eliminarGasto(${g.id})"
-                                    class="text-gray-300 hover:text-red-500 transition">
-                                <i class="fas fa-times text-xs"></i>
-                            </button>
-                        </div>
-                    </div>`).join('')}
-            </div>`;
-    } catch (e) {
-        console.error('Error cargando gastos:', e);
-    }
-},
-
-guardarGasto: async function() {
-    const propietario_id = document.getElementById('gastoSocioId')?.value;
-    const concepto       = document.getElementById('gastoConcepto')?.value?.trim();
-    const monto          = parseFloat(document.getElementById('gastoMonto')?.value || 0);
-    const tipo           = document.getElementById('gastoTipo')?.value;
-    const porcentaje     = document.getElementById('gastoPorcentaje')?.value || null;
-
-    if (!propietario_id || !concepto || monto <= 0) {
-        this.mostrarAlerta('Completa todos los campos requeridos', 'warning');
-        return;
-    }
-
-    try {
-        const r = await fetch('/api/gastos-liquidacion', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                propietario_id,
-                fecha_inicio: this.estado.filtros.fechaInicio,
-                fecha_fin:    this.estado.filtros.fechaFin,
-                concepto,
-                monto,
-                tipo,
-                porcentaje: tipo === 'porcentaje' ? porcentaje : null
-            })
-        });
-        const data = await r.json();
-        if (data.success) {
-            this.mostrarAlerta('Gasto registrado', 'success');
-            document.getElementById('gastoConcepto').value = '';
-            document.getElementById('gastoMonto').value    = '';
-            this.calcularDistribucionSocios();
-        } else {
-            this.mostrarAlerta('Error guardando gasto', 'error');
-        }
-    } catch (e) {
-        this.mostrarAlerta('Error de conexión', 'error');
-    }
-},
-
-eliminarGasto: async function(gastoId) {
-    if (!confirm('¿Eliminar este gasto?')) return;
-    try {
-        const r = await fetch(`/api/gastos-liquidacion/${gastoId}`, { method: 'DELETE' });
-        const data = await r.json();
-        if (data.success) {
-            this.mostrarAlerta('Gasto eliminado', 'success');
-            this.calcularDistribucionSocios();
-        }
-    } catch (e) {
-        this.mostrarAlerta('Error eliminando gasto', 'error');
-    }
-},
-
-cambiarTipoGasto: function() {
-    const tipo = document.getElementById('gastoTipo')?.value;
-    const wrap = document.getElementById('gastoPctWrapper');
-    if (wrap) wrap.classList.toggle('hidden', tipo !== 'porcentaje');
-},
+            mostrarCarga: function(mostrar) {
+                const botones = document.querySelectorAll('button');
+                botones.forEach(boton => {
+                    if (mostrar) {
+                        boton.disabled = true;
+                        if (boton.querySelector('.fa-sync-alt')) {
+                            boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+                        }
+                    } else {
+                        boton.disabled = false;
+                        if (boton.querySelector('.fa-spinner')) {
+                            boton.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
+                        }
+                    }
+                });
+            },
             
             mostrarAlerta: function(mensaje, tipo = 'info') {
                 let alerta = document.getElementById('alertaGlobal');
@@ -3260,39 +2282,41 @@ cambiarTipoGasto: function() {
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof particlesJS !== 'undefined') {
                 particlesJS('particles-js', {
-                    particles: {
-                        number: { value: 80, density: { enable: true, value_area: 800 } },
-                        color: { value: "#3b82f6" },
-                        shape: { type: "circle" },
-                        opacity: { value: 0.1, random: true },
-                        size: { value: 3, random: true },
-                        line_linked: {
-                            enable: true,
-                            distance: 150,
-                            color: "#3b82f6",
-                            opacity: 0.1,
-                            width: 1
-                        },
-                        move: {
-                            enable: true,
-                            speed: 2,
-                            direction: "none",
-                            random: true,
-                            straight: false,
-                            out_mode: "out",
-                            bounce: false
-                        }
-                    },
-                    interactivity: {
-                        detect_on: "canvas",
-                        events: {
-                            onhover: { enable: true, mode: "repulse" },
-                            onclick: { enable: true, mode: "push" },
-                            resize: true
-                        }
-                    },
-                    retina_detect: true
-                });
+            particles: {
+              number: { value: 80, density: { enable: true, value_area: 800 } },
+              color: { value: '#3b82f6' },
+              shape: { type: 'circle' },
+              opacity: {
+                value: 0.6, random: true,
+                anim: { enable: true, speed: 0.8, opacity_min: 0.2, sync: false }
+              },
+              size: {
+                value: 3, random: true,
+                anim: { enable: true, speed: 1.5, size_min: 0.5, sync: false }
+              },
+              line_linked: {
+                enable: true, distance: 140, color: '#3b82f6',
+                opacity: 0.4, width: 1.2
+              },
+              move: {
+                enable: true, speed: 1.4, direction: 'none',
+                random: true, straight: false, out_mode: 'out', bounce: false
+              }
+            },
+            interactivity: {
+              detect_on: 'canvas',
+              events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: true, mode: 'push' },
+                resize: true
+              },
+              modes: {
+                grab: { distance: 160, line_linked: { opacity: 0.9 } },
+                push: { particles_nb: 4 }
+              }
+            },
+            retina_detect: true
+          });
             }
             
             // Inicializar la aplicación

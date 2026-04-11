@@ -187,22 +187,6 @@
                 border: 2px solid white;
             }
         }
-
-        /* ===== Sidebar nav override ===== */
-        aside .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-            color: #d1d5db;
-            border-radius: 8px;
-            transition: all 0.15s;
-            text-decoration: none;
-            min-height: 36px;
-            white-space: nowrap;
-        }
-        aside .nav-link:hover { background: rgba(255,255,255,0.12); color: white; }
-        aside .nav-link.active { background: rgba(59,130,246,0.22); color: white; font-weight: 600; border-left: 3px solid #3b82f6; padding-left: calc(0.75rem - 3px); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -213,36 +197,59 @@
     <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
         <!-- Barra lateral - MODIFICADA CON INDICADOR ACTIVO -->
-        <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh">
-            <div class="p-4 border-b border-gray-700">
-                <div class="flex items-center gap-3">
-                    <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">
-                    <div>
-                        <div class="font-bold text-sm">Inversiones Arcade</div>
-                        <div class="text-xs text-gray-400">Panel Admin</div>
-                    </div>
+        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
+            <div>
+                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
+                    <i class="fas fa-user-cog mr-2"></i>Admin
                 </div>
+                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
+                    <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-local">
+                        <i class="fas fa-store mr-2"></i>Ir al Local
+                    </a>
+                    <a href="/admin" class="nav-link btn-touch rounded-lg transition" id="nav-admin">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                    </a>
+                    <a href="/admin/usuarios/lista" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-usuarios">
+                        <i class="fas fa-users mr-2"></i>Usuarios
+                    </a>
+                    <a href="/admin/maquinas/inventario" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-maquinas">
+                        <i class="fas fa-gamepad mr-2"></i>Máquinas
+                    </a>
+                    <a href="/admin/paquetes/lista" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-paquetes">
+                        <i class="fas fa-cube mr-2"></i>Paquetes
+                    </a>
+                    <a href="/admin/locales/listalocales" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-locales">
+                        <i class="fas fa-store mr-2"></i>Locales
+                    </a>
+                    <a href="/admin/mensajes/gestionmensajes" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-mensajes">
+                        <i class="fas fa-comment mr-2"></i>Mensajes
+                    </a>
+                    <a href="/admin/ventas/liquidaciones" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-liquidaciones">
+                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
+                    </a>
+                    <a href="/admin/inversores/gestionsocios" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-socios">
+                        <i class="fas fa-handshake mr-2"></i>Socios
+                    </a>
+                    <a href="/admin/logs/consola-completa" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-consola">
+                        <i class="fas fa-terminal mr-2"></i>Consola de Logs
+                    </a>
+                    <a href="/admin/logs/gestionlogs" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-gestion-logs">
+                        <i class="fas fa-chart-line mr-2"></i>Gestión de Logs
+                    </a>
+                </nav>
             </div>
-            <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
-                <a href="/admin" class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
-                <a href="/local" class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
-                <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
-                <a href="/admin/usuarios/gestionusuarios" class="nav-link" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
-                <a href="/admin/maquinas/gestionmaquinas" class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
-                <a href="/admin/paquetes/gestionpaquetes" class="nav-link" id="nav-paquetes"><i class="fas fa-box mr-2"></i>Paquetes</a>
-                <a href="/admin/locales/listalocales" class="nav-link" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
-                <a href="/admin/mensajes/gestionmensajes" class="nav-link" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
-                <a href="/admin/ventas/liquidaciones" class="nav-link" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
-                <a href="/admin/inversores/gestionsocios" class="nav-link" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
-                <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
-                <a href="/admin/logs/transaccionales" class="nav-link" id="nav-logs-transaccionales"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
-                <a href="/admin/logs/consola-completa" class="nav-link" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
-                <a href="/admin/logs/gestionlogs" class="nav-link" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
-            </nav>
-            <div class="p-4 border-t border-gray-700 text-sm">
-                <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
-                <div class="text-gray-400 text-xs mb-2"><span id="horaActualSidebar">{{ hora_actual }}</span></div>
-                <a href="/logout" class="text-red-400 hover:underline text-xs"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
+            
+            <!-- Información de usuario - VERSIÓN DESKTOP -->
+            <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
+                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
+                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
+                <div class="mb-2 text-xs text-gray-400">
+                    <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
+                    <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
+                </div>
+                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
+                </a>
             </div>
         </aside>
 
@@ -515,23 +522,40 @@
         // Configurar partículas
         particlesJS('particles-js', {
             particles: {
-                number: { value: 40, density: { enable: true, value_area: 600 } },
-                color: { value: '#3b82f6' },
-                shape: { type: 'circle' },
-                opacity: { value: 0.2, random: true },
-                size: { value: 2, random: true },
-                line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
-                move: { enable: true, speed: 0.5, direction: 'none', random: true }
+              number: { value: 80, density: { enable: true, value_area: 800 } },
+              color: { value: '#3b82f6' },
+              shape: { type: 'circle' },
+              opacity: {
+                value: 0.6, random: true,
+                anim: { enable: true, speed: 0.8, opacity_min: 0.2, sync: false }
+              },
+              size: {
+                value: 3, random: true,
+                anim: { enable: true, speed: 1.5, size_min: 0.5, sync: false }
+              },
+              line_linked: {
+                enable: true, distance: 140, color: '#3b82f6',
+                opacity: 0.4, width: 1.2
+              },
+              move: {
+                enable: true, speed: 1.4, direction: 'none',
+                random: true, straight: false, out_mode: 'out', bounce: false
+              }
             },
             interactivity: {
-                detect_on: 'canvas',
-                events: {
-                    onhover: { enable: true, mode: 'grab' },
-                    onclick: { enable: true, mode: 'push' },
-                    resize: true
-                }
-            }
-        });
+              detect_on: 'canvas',
+              events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: true, mode: 'push' },
+                resize: true
+              },
+              modes: {
+                grab: { distance: 160, line_linked: { opacity: 0.9 } },
+                push: { particles_nb: 4 }
+              }
+            },
+            retina_detect: true
+          });
 
         // Inicializar hora en tiempo real
         this.actualizarHora();
@@ -1214,30 +1238,6 @@ actualizarGraficaVentas: async function() {
 document.addEventListener('DOMContentLoaded', function() {
     AdminDashboard.init();
 });
-    </script>
-    <script>
-    (function() {
-        var path = window.location.pathname;
-        var map = {
-            "/admin": "nav-dashboard",
-            "/admin/usuarios/gestionusuarios": "nav-usuarios",
-            "/admin/maquinas/gestionmaquinas": "nav-maquinas",
-            "/admin/paquetes/gestionpaquetes": "nav-paquetes",
-            "/admin/locales/listalocales": "nav-locales",
-            "/admin/mensajes/gestionmensajes": "nav-mensajes",
-            "/admin/ventas/liquidaciones": "nav-liquidaciones",
-            "/admin/inversores/gestionsocios": "nav-socios",
-            "/admin/logs/transaccionales": "nav-logs-transaccionales",
-            "/admin/logs/consola-completa": "nav-consola",
-            "/admin/logs/gestionlogs": "nav-gestion-logs"
-        };
-        var id = map[path];
-        if (id) { var el = document.getElementById(id); if (el) el.classList.add("active"); }
-        setInterval(function() {
-            var s = document.getElementById("horaActualSidebar");
-            if (s) s.textContent = new Date().toLocaleTimeString("es-CO", {hour12:false});
-        }, 1000);
-    })();
     </script>
 </body>
 </html>

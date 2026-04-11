@@ -277,10 +277,9 @@
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       max-width: 500px;
       width: 90%;
-      max-height: 85vh;
-      overflow-y: auto;
       transform: scale(0.9);
       transition: transform 0.3s ease;
+      overflow: hidden;
     }
     
     .modal-overlay.active .modal-content {
@@ -808,13 +807,12 @@
           </div>
 
           <!-- SELECTOR DE ESTACIÓN (solo visible en máquinas multi-estación) -->
-<div id="selectorEstaciones" class="hidden mb-4 rounded-xl border-2 border-red-300 bg-red-50 overflow-hidden">
-  <div class="bg-red-600 px-4 py-2 flex items-center gap-2">
-    <i class="fas fa-exclamation-triangle text-white text-sm"></i>
-    <p class="text-white font-bold text-sm tracking-wide">SELECCIONA LA ESTACIÓN CON FALLA</p>
-    <span class="ml-auto text-red-200 text-xs font-semibold">OBLIGATORIO</span>
-  </div>
-  <div id="botonesEstaciones" class="grid grid-cols-2 gap-2 p-3">
+<div id="selectorEstaciones" class="hidden mb-4 mx-0 -mx-6 px-6 py-4 bg-red-50 border-y-2 border-red-300">
+  <p class="text-red-700 font-bold text-sm mb-3 flex items-center">
+    <i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>
+    SELECCIONA LA ESTACIÓN CON FALLA — OBLIGATORIO
+  </p>
+  <div id="botonesEstaciones" class="grid grid-cols-2 gap-3">
     <!-- Se llena dinámicamente -->
   </div>
 </div>
@@ -861,6 +859,7 @@
               </label>
               <select id="tipoProblema" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="mantenimiento">Requiere mantenimiento</option>
+                <option value="fuera_servicio">Fuera de servicio</option>
               </select>
             </div>
 
@@ -966,29 +965,41 @@
     // Configuración de partículas optimizada
     document.addEventListener('DOMContentLoaded', function() {
       particlesJS('particles-js', {
-        particles: {
-          number: { value: 60, density: { enable: true, value_area: 600 } },
-          color: { value: '#3b82f6' },
-          shape: { type: 'circle' },
-          opacity: { value: 0.3, random: true },
-          size: { value: 2, random: true },
-          line_linked: { enable: true, distance: 100, color: '#3b82f6', opacity: 0.2, width: 1 },
-          move: { enable: true, speed: 0.6, direction: 'none', random: true }
-        },
-        interactivity: {
-          detect_on: 'canvas',
-          events: {
-            onhover: { enable: true, mode: 'grab' },
-            onclick: { enable: true, mode: 'push' },
-            resize: true
-          },
-          modes: {
-            grab: { distance: 100, line_linked: { opacity: 0.6 } },
-            push: { particles_nb: 2 }
-          }
-        },
-        retina_detect: true
-      });
+            particles: {
+              number: { value: 80, density: { enable: true, value_area: 800 } },
+              color: { value: '#3b82f6' },
+              shape: { type: 'circle' },
+              opacity: {
+                value: 0.6, random: true,
+                anim: { enable: true, speed: 0.8, opacity_min: 0.2, sync: false }
+              },
+              size: {
+                value: 3, random: true,
+                anim: { enable: true, speed: 1.5, size_min: 0.5, sync: false }
+              },
+              line_linked: {
+                enable: true, distance: 140, color: '#3b82f6',
+                opacity: 0.4, width: 1.2
+              },
+              move: {
+                enable: true, speed: 1.4, direction: 'none',
+                random: true, straight: false, out_mode: 'out', bounce: false
+              }
+            },
+            interactivity: {
+              detect_on: 'canvas',
+              events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: true, mode: 'push' },
+                resize: true
+              },
+              modes: {
+                grab: { distance: 160, line_linked: { opacity: 0.9 } },
+                push: { particles_nb: 4 }
+              }
+            },
+            retina_detect: true
+          });
       
       // Inicializar hora
       actualizarHora();
@@ -999,9 +1010,7 @@
 
        // Cargar máquinas desde el backend
        cargarMaquinasDesdeAPI();
-       // Polling en tiempo real: refresca estado ESP32 cada 20s
-       setInterval(cargarMaquinasDesdeAPI, 20000);
-
+      
       console.log("Machine Report App inicializada correctamente");
     });
 
@@ -1092,12 +1101,6 @@ function generateCategoryHTML(tipo, machines) {
                     <img src="/static/img/${maquina.imagen || 'default.jpg'}" alt="${maquina.name}" class="w-full h-full object-cover">
                 </div>
                 <p class="font-semibold text-center text-sm">${maquina.name}</p>
-                <div class="flex items-center justify-center gap-1 mt-1">
-                    <span title="${maquina.esp32_online && maquina.esp32_wifi ? 'WiFi: conectado' : 'WiFi: sin señal'}"
-                          style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${maquina.esp32_online && maquina.esp32_wifi ? '#22c55e' : '#d1d5db'};border:1px solid #9ca3af"></span>
-                    <span title="${maquina.esp32_online && maquina.esp32_server ? 'Servidor: online' : 'Servidor: offline'}"
-                          style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${maquina.esp32_online && maquina.esp32_server ? '#22c55e' : '#d1d5db'};border:1px solid #9ca3af"></span>
-                </div>
             </div>
         `;
     });
@@ -1414,35 +1417,15 @@ function getGradientColor(tipo) {
 
   estacionesDisponibles = nombres;
 
-  // Mapa de station_index → cantidad de fallas activas
-  const fallasPorEstacion = {};
-  (infoMaquina.active_failure_stations || []).forEach(f => {
-    fallasPorEstacion[f.station_index] = f.count;
-  });
-
   const contenedor = document.getElementById('botonesEstaciones');
   contenedor.innerHTML = '';
 
   nombres.forEach((nombre, index) => {
-    const fallasCnt = fallasPorEstacion[index] || 0;
-    const tienesFalla = fallasCnt > 0;
-
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.id = `btn-estacion-${index}`;
-
-    if (tienesFalla) {
-      btn.dataset.fallasCnt = fallasCnt;
-      btn.className = 'relative py-3 px-4 rounded-lg border-2 border-red-400 bg-red-50 text-red-800 font-semibold text-sm transition-all hover:border-red-600 hover:bg-red-100 btn-touch flex flex-col items-center gap-1';
-      btn.innerHTML = `
-        <span class="flex items-center gap-1"><i class="fas fa-exclamation-triangle text-red-500"></i>${nombre}</span>
-        <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">${fallasCnt} falla${fallasCnt > 1 ? 's' : ''} activa${fallasCnt > 1 ? 's' : ''}</span>
-      `;
-    } else {
-      btn.className = 'py-3 px-4 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-700 font-semibold text-sm transition-all hover:border-blue-400 hover:bg-blue-50 btn-touch flex items-center justify-center gap-2';
-      btn.innerHTML = `<i class="fas fa-desktop text-gray-400"></i>${nombre}`;
-    }
-
+    btn.className = 'py-3 px-4 rounded-lg border-2 border-orange-300 bg-orange-50 text-orange-800 font-semibold text-sm transition-all hover:border-red-500 hover:bg-red-50 hover:text-red-800 btn-touch';
+    btn.innerHTML = `<i class="fas fa-desktop mr-2"></i>${nombre}`;
     btn.onclick = () => seleccionarEstacion(index, nombre);
     contenedor.appendChild(btn);
   });
@@ -1453,26 +1436,16 @@ function getGradientColor(tipo) {
 function seleccionarEstacion(index, nombre) {
   estacionSeleccionada = { index, nombre };
 
-  // Resaltar botón seleccionado, preservar badge de fallas en los demás
-  estacionesDisponibles.forEach((n, i) => {
+  // Resaltar botón seleccionado
+  estacionesDisponibles.forEach((_, i) => {
     const btn = document.getElementById(`btn-estacion-${i}`);
     if (!btn) return;
-    // Detectar si tenía fallas (el badge estaba presente)
-    const tieneFalla = btn.querySelector('span.bg-red-500') !== null || (i === index && btn.classList.contains('border-red-400'));
     if (i === index) {
-      btn.className = 'py-3 px-4 rounded-lg border-2 border-blue-600 bg-blue-600 text-white font-bold text-sm transition-all btn-touch flex items-center justify-center gap-2';
-      btn.innerHTML = `<i class="fas fa-check-circle"></i>${n || 'Estación ' + (i + 1)}`;
-    } else if (tieneFalla) {
-      // Reconstruir con badge de fallas
-      const cnt = btn.dataset.fallasCnt || 1;
-      btn.className = 'relative py-3 px-4 rounded-lg border-2 border-red-400 bg-red-50 text-red-800 font-semibold text-sm transition-all hover:border-red-600 hover:bg-red-100 btn-touch flex flex-col items-center gap-1';
-      btn.innerHTML = `
-        <span class="flex items-center gap-1"><i class="fas fa-exclamation-triangle text-red-500"></i>${n || 'Estación ' + (i + 1)}</span>
-        <span class="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">${cnt} falla${cnt > 1 ? 's' : ''} activa${cnt > 1 ? 's' : ''}</span>
-      `;
+      btn.className = 'py-3 px-4 rounded-lg border-2 border-blue-600 bg-blue-600 text-white font-medium text-sm transition-all btn-touch';
+      btn.innerHTML = `<i class="fas fa-check-circle mr-2"></i>${nombre || 'Estación ' + (i + 1)}`;
     } else {
-      btn.className = 'py-3 px-4 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-700 font-medium text-sm transition-all hover:border-blue-400 hover:bg-blue-50 btn-touch flex items-center justify-center gap-2';
-      btn.innerHTML = `<i class="fas fa-desktop text-gray-400"></i>${n || 'Estación ' + (i + 1)}`;
+      btn.className = 'py-3 px-4 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-700 font-medium text-sm transition-all hover:border-blue-400 hover:bg-blue-50 btn-touch';
+      btn.innerHTML = `<i class="fas fa-desktop mr-2"></i>${estacionesDisponibles[i] || 'Estación ' + (i + 1)}`;
     }
   });
 }
