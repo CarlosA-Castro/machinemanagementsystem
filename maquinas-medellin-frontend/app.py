@@ -53,8 +53,11 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, 'static'),
     template_folder=os.path.join(BASE_DIR, 'templates')
 )
-app.secret_key = 'maquinasmedellin_secret_key_2025'
+app.secret_key = 'maquinasmedellin_sk_v2_8h_timeout_2026'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 CORS(app)
+
+SESSION_TIMEOUT = timedelta(hours=8)
 
 # Configurar logging mejorado
 if not os.path.exists('logs'):
@@ -164,6 +167,32 @@ def _log_transaccion(tipo, descripcion, categoria='operacional', usuario=None, u
         connection.close()
     except Exception as e:
         app.logger.warning(f"[TXN] No se pudo guardar en transaction_logs: {e}")
+
+
+_SESSION_SKIP = {'mostrar_login', 'procesar_login', 'static', None}
+
+@app.before_request
+def check_session_timeout():
+    """Cierra sesión automáticamente tras 8 horas de inactividad."""
+    if request.endpoint in _SESSION_SKIP:
+        return
+    if not session.get('logged_in'):
+        return
+
+    last = session.get('last_activity')
+    if last:
+        try:
+            idle = datetime.utcnow() - datetime.fromisoformat(last)
+            if idle > SESSION_TIMEOUT:
+                session.clear()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': 'session_expired', 'redirect': '/login'}), 401
+                return redirect(url_for('mostrar_login'))
+        except Exception:
+            pass
+
+    session['last_activity'] = datetime.utcnow().isoformat()
+    session.modified = True
 
 
 @app.before_request
@@ -674,6 +703,8 @@ def procesar_login():
             session['user_role'] = usuario['role']
             session['user_local'] = usuario.get('local', 'El Mekatiadero')
             session['logged_in'] = True
+            session['last_activity'] = datetime.utcnow().isoformat()
+            session.permanent = True
             session.modified = True
             
             app.logger.info(f" Usuario {usuario['name']} inició sesión")
