@@ -103,13 +103,8 @@ _SKIP_ACCESS_LOG = (
     '/api/logs',           # auto-refresh de la consola cada 5s
     '/api/esp32/check-commands',  # polling del ESP32 cada pocos segundos
     '/api/esp32/status',
-    '/api/esp32/heartbeat',
     '/api/tft/',
 )
-
-# Cache en memoria para estatus WiFi/servidor de cada ESP32 por machine_id
-# { machine_id: {'wifi': bool, 'server': bool, 'last_seen': datetime} }
-esp32_heartbeat_cache = {}
 
 def _log_transaccion(tipo, descripcion, categoria='operacional', usuario=None, usuario_id=None,
                      maquina_id=None, maquina_nombre=None, entidad=None, entidad_id=None,
@@ -638,6 +633,10 @@ def get_db_cursor(connection):
 # RUTAS PRINCIPALES 
 
 @app.route('/')
+def landing():
+    return render_template('landing.html')
+
+@app.route('/login', methods=['GET'])
 def mostrar_login():
     session.clear()
     return render_template('login.html')
@@ -776,7 +775,7 @@ def logout():
 
 @app.route('/Login.html')
 def redirect_login():
-    return redirect('/')
+    return redirect('/login')
 
 # APIS PARA QR Y PAQUETES 
 
@@ -1080,9 +1079,16 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         else:
             contador_bd = resultado['counter_value']
 
-        # Confiar solo en el contador global (FOR UPDATE evita race conditions)
-        numero_inicial = contador_bd + 1
-        numero_final = contador_bd + cantidad_qr
+        cursor.execute("""
+            SELECT MAX(CAST(SUBSTRING(code, 3) AS UNSIGNED)) AS max_real
+            FROM qrcode
+        """)
+        max_real = cursor.fetchone()['max_real'] or 0
+
+        contador_actual = max(contador_bd, max_real)
+
+        numero_inicial = contador_actual + 1
+        numero_final = contador_actual + cantidad_qr
 
         cursor.execute("""
             UPDATE globalcounter
@@ -1628,11 +1634,7 @@ def registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
         
-        turns_after_basic = turnos_data['turns_remaining'] - 1
-        try:
-            cursor.execute("INSERT INTO turnusage (qrCodeId, machineId, turns_remaining_after) VALUES (%s, %s, %s)", (qr_id, machine_id, turns_after_basic))
-        except Exception:
-            cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
         connection.commit()
         
@@ -2766,56 +2768,30 @@ def reportar_falla_maquina():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
-            SELECT m.id, m.name,
-                   COALESCE(mt.machine_subtype, 'simple') AS machine_subtype
-            FROM machine m
-            LEFT JOIN machinetechnical mt ON mt.machine_id = m.id
-            WHERE m.id = %s
-        """, (machine_id,))
+        cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
         maquina = cursor.fetchone()
 
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
 
-        es_multi = maquina.get('machine_subtype') == 'multi_station'
         nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
 
-        # Insertar reporte con station_index y problem_type
-        # (fallback al INSERT básico si las columnas V32 no existen aún)
-        try:
-            cursor.execute("""
-                INSERT INTO errorreport
-                (machineId, userId, description, problem_type, reportedAt, isResolved, station_index)
-                VALUES (%s, %s, %s, %s, NOW(), FALSE, %s)
-            """, (machine_id, user_id, description, problem_type, station_index))
-        except Exception:
-            cursor.execute("""
-                INSERT INTO errorreport
-                (machineId, userId, description, reportedAt, isResolved)
-                VALUES (%s, %s, %s, NOW(), FALSE)
-            """, (machine_id, user_id, description))
+        # Insertar reporte con station_index
+        cursor.execute("""
+            INSERT INTO errorreport
+            (machineId, userId, description, problem_type, reportedAt, isResolved, station_index)
+            VALUES (%s, %s, %s, %s, NOW(), FALSE, %s)
+        """, (machine_id, user_id, description, problem_type, station_index))
 
         error_report_id = cursor.lastrowid
 
-        # Para máquinas multi-estación con falla en estación específica:
-        # no cambiar el status global (la estación se gestiona vía esp32_commands).
-        # Para máquinas simples o fallas globales: cambiar status normalmente.
-        if es_multi and station_index is not None:
-            cursor.execute("""
-                UPDATE machine
-                SET errorNote = %s,
-                    dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                WHERE id = %s
-            """, (description, machine_id))
-        else:
-            cursor.execute("""
-                UPDATE machine
-                SET status = %s,
-                    errorNote = %s,
-                    dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                WHERE id = %s
-            """, (nuevo_estado, description, machine_id))
+        cursor.execute("""
+            UPDATE machine
+            SET status = %s,
+                errorNote = %s,
+                dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
+            WHERE id = %s
+        """, (nuevo_estado, description, machine_id))
 
         # Contar fallas activas para esta máquina/estación
         if station_index is not None:
@@ -2830,8 +2806,8 @@ def reportar_falla_maquina():
             """, (machine_id,))
         fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
 
-        # Cualquier falla reportada por cajero → encolar MAINTENANCE al ESP32
-        if fallas_activas >= 1:
+        # Si hay 3 o más fallas sin resolver → encolar MAINTENANCE al ESP32
+        if fallas_activas >= 3:
             try:
                 cursor.execute("""
                     INSERT INTO esp32_commands
@@ -3287,20 +3263,6 @@ def mostrar_gestion_mensajes():
                          local_usuario=session.get('user_local', 'Sistema'),
                          hora_actual=hora_colombia.strftime('%H:%M:%S'),
                          fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
-
-@app.route('/admin/logs/transaccionales')
-def mostrar_logs_transaccionales():
-    if not session.get('logged_in'):
-        return redirect(url_for('mostrar_login'))
-    permisos = get_user_permissions()
-    if 'admin_panel' not in permisos or 'ver_logs' not in permisos:
-        return redirect(url_for('mostrar_local'))
-    hora_colombia = get_colombia_time()
-    return render_template('admin/logs/logtransaccional.html',
-                           nombre_usuario=session.get('user_name', 'Administrador'),
-                           local_usuario=session.get('user_local', 'Sistema'),
-                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
-                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
 @app.route('/admin/logs/gestionlogs')
 def mostrar_gestion_logs():
@@ -4144,48 +4106,11 @@ def obtener_maquinas():
         """)
         
         maquinas = cursor.fetchall()
-
-        # Obtener fallas activas por máquina y estación (una sola query para todas)
-        failures_by_machine = {}  # {machine_id: [{station_index, count, esp32_count}]}
-        try:
-            cursor.execute("""
-                SELECT machine_id, station_index, COUNT(*) as cnt
-                FROM machinefailures
-                WHERE resolved = 0
-                GROUP BY machine_id, station_index
-            """)
-            for row in cursor.fetchall():
-                mid = row['machine_id']
-                if mid not in failures_by_machine:
-                    failures_by_machine[mid] = []
-                failures_by_machine[mid].append({
-                    'station_index': row['station_index'],
-                    'count': row['cnt'],
-                    'esp32_count': row['cnt'],
-                    'cajero_count': 0
-                })
-        except Exception:
-            pass  # pre-V32: no station_index column
-
-        # Obtener config técnica (subtype + station_names) para todas las máquinas
-        technical_by_machine = {}
-        try:
-            cursor.execute("""
-                SELECT machine_id, machine_subtype, station_names
-                FROM machinetechnical
-            """)
-            for row in cursor.fetchall():
-                technical_by_machine[row['machine_id']] = {
-                    'machine_subtype': row['machine_subtype'],
-                    'station_names': json.loads(row['station_names']) if row.get('station_names') else []
-                }
-        except Exception:
-            pass
-
+        
         maquinas_formateadas = []
         for maquina in maquinas:
             cursor.execute("""
-                SELECT
+                SELECT 
                     p.id,
                     p.nombre,
                     mp.porcentaje_propiedad
@@ -4193,24 +4118,13 @@ def obtener_maquinas():
                 JOIN propietarios p ON mp.propietario_id = p.id
                 WHERE mp.maquina_id = %s
             """, (maquina['id'],))
-
+            
             propietarios = cursor.fetchall()
-
+            
             info_propietarios = ", ".join([
                 f"{p['nombre']} ({p['porcentaje_propiedad']}%)" for p in propietarios
             ]) if propietarios else "Sin propietarios"
-
-            hb = esp32_heartbeat_cache.get(maquina['id'])
-            if hb:
-                ahora = get_colombia_time()
-                segundos = (ahora - hb['last_seen']).total_seconds()
-                esp32_online = segundos < 90
-            else:
-                esp32_online = False
-
-            tech = technical_by_machine.get(maquina['id'], {})
-            active_failure_stations = failures_by_machine.get(maquina['id'], [])
-
+            
             maquinas_formateadas.append({
                 'id': maquina['id'],
                 'name': maquina['name'],
@@ -4223,14 +4137,9 @@ def obtener_maquinas():
                 'errorNote': maquina['errorNote'],
                 'porcentaje_restaurante': float(maquina['porcentaje_restaurante']),
                 'propietarios': propietarios,
-                'info_propietarios': info_propietarios,
-                'esp32_wifi': hb['wifi'] if (hb and esp32_online) else False,
-                'esp32_server': hb['server'] if (hb and esp32_online) else False,
-                'esp32_online': esp32_online,
-                'technical': tech,
-                'active_failure_stations': active_failure_stations,
+                'info_propietarios': info_propietarios
             })
-
+        
         return jsonify(maquinas_formateadas)
         
     except Exception as e:
@@ -4279,9 +4188,7 @@ def obtener_turnusage_recientes():
                 COALESCE(qr.code, '') as qr_code,
                 COALESCE(qr.qr_name, '') as qr_name,
                 COALESCE(tp.name, 'Sin paquete') as package_name,
-                -- turns_remaining_after: valor guardado al momento del uso (histórico correcto).
-                -- Para registros anteriores a V33 (NULL), cae en ut.turns_remaining (valor actual).
-                COALESCE(tu.turns_remaining_after, ut.turns_remaining, 0) as turns_remaining
+                COALESCE(ut.turns_remaining, 0) as turns_remaining
             FROM turnusage tu
             LEFT JOIN machine m ON tu.machineId = m.id
             LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
@@ -4481,58 +4388,6 @@ def obtener_maquina(maquina_id):
             except:
                 ultimo_uso_texto = maquina['dateLastQRUsed'].strftime('%Y-%m-%d %H:%M')
         
-        # Fallas activas por estación: cajero (errorreport) + ESP32 (machinefailures)
-        active_failure_stations = []
-        machine_level_failures = 0
-
-        cajero_by_station = {}
-        try:
-            cursor.execute("""
-                SELECT station_index, COUNT(*) as cnt
-                FROM errorreport
-                WHERE machineId = %s AND isResolved = 0
-                GROUP BY station_index
-            """, (maquina_id,))
-            for row in cursor.fetchall():
-                if row['station_index'] is not None:
-                    cajero_by_station[row['station_index']] = row['cnt']
-                else:
-                    machine_level_failures += row['cnt']
-        except Exception:
-            try:
-                cursor.execute("SELECT COUNT(*) as cnt FROM errorreport WHERE machineId = %s AND isResolved = 0", (maquina_id,))
-                r = cursor.fetchone()
-                machine_level_failures = (r or {}).get('cnt', 0)
-            except Exception:
-                pass
-
-        esp32_by_station = {}
-        try:
-            cursor.execute("""
-                SELECT station_index, COUNT(*) as cnt
-                FROM machinefailures
-                WHERE machine_id = %s AND resolved = 0
-                GROUP BY station_index
-            """, (maquina_id,))
-            for row in cursor.fetchall():
-                if row['station_index'] is not None:
-                    esp32_by_station[row['station_index']] = row['cnt']
-                else:
-                    machine_level_failures += row['cnt']
-        except Exception:
-            pass  # resolved/station_index pre-V32 — ignorar
-
-        all_stations = set(list(cajero_by_station.keys()) + list(esp32_by_station.keys()))
-        for idx in all_stations:
-            c = cajero_by_station.get(idx, 0)
-            e = esp32_by_station.get(idx, 0)
-            active_failure_stations.append({
-                'station_index': idx,
-                'count': c + e,
-                'cajero_count': c,
-                'esp32_count': e
-            })
-
         return jsonify({
             'id': maquina['id'],
             'name': maquina['name'],
@@ -4553,8 +4408,6 @@ def obtener_maquina(maquina_id):
             'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
             'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
             'show_station_selection': bool(maquina.get('show_station_selection', False)),
-            'active_failure_stations': active_failure_stations,
-            'machine_level_failures': machine_level_failures,
         })
         
     except Exception as e:
@@ -4926,13 +4779,6 @@ def obtener_maquinas_por_tipo():
         }
         
         for maquina in maquinas:
-            hb = esp32_heartbeat_cache.get(maquina['id'])
-            if hb:
-                ahora = get_colombia_time()
-                segundos = (ahora - hb['last_seen']).total_seconds()
-                esp32_online = segundos < 90
-            else:
-                esp32_online = False
             maquina_info = {
                 'id': maquina['id'],
                 'name': maquina['name'],
@@ -4943,12 +4789,9 @@ def obtener_maquinas_por_tipo():
                 'dailyFailedTurns': maquina['dailyFailedTurns'],
                 'dateLastQRUsed': maquina['dateLastQRUsed'].isoformat() if maquina['dateLastQRUsed'] else None,
                 'valor_por_turno': float(maquina['valor_por_turno']),
-                'imagen': obtener_nombre_imagen(maquina['name']),
-                'esp32_wifi': hb['wifi'] if (hb and esp32_online) else False,
-                'esp32_server': hb['server'] if (hb and esp32_online) else False,
-                'esp32_online': esp32_online
+                'imagen': obtener_nombre_imagen(maquina['name'])  # Función para mapear nombre a imagen
             }
-
+            
             tipo = maquina['type'].lower() if maquina['type'] else 'otros'
             if tipo in resultado:
                 resultado[tipo].append(maquina_info)
@@ -5194,6 +5037,18 @@ def ingresar_turno_manual():
         
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
+        
+        # Verificar estado de la máquina
+        if maquina['status'] != 'activa':
+            return api_response(
+                'M003',
+                http_status=400,
+                data={
+                    'machine_id': machine_id,
+                    'current_status': maquina['status'],
+                    'message': f'La máquina está en estado "{maquina["status"]}". Solo se pueden ingresar turnos en máquinas activas.'
+                }
+            )
 
         # Obtener estación (para máquinas multi-estación)
         station_index = data.get('estacion', 0)
@@ -5211,8 +5066,8 @@ def ingresar_turno_manual():
             json.dumps({
                 'duration_ms': 500,
                 'machine_name': machine_name,
-                'station': station_index,
-                'station_index': station_index,
+                'station': station_index,        # ESP32 lee 'station'
+                'station_index': station_index,  # alias compat
                 'estacion_nombre': estacion_nombre,
                 'origen': 'admin_manual'
             }),
@@ -5223,9 +5078,6 @@ def ingresar_turno_manual():
 
         command_id = cursor.lastrowid
         app.logger.info(f"✅ Comando ACTIVATE_RELAY encolado con ID: {command_id} (estación {station_index})")
-
-        # Registrar en historial de actividad de la máquina
-        cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
 
         connection.commit()
 
@@ -5372,8 +5224,7 @@ def reiniciar_maquina_manual():
                     'machine_name': machine_name,
                     'station_index': station_index,
                     'estacion_nombre': estacion_nombre,
-                    'restart_tft': True,
-                    'origen': 'admin_web'
+                    'restart_tft': True
                 }),
                 user_name,
                 'queued',
@@ -6179,73 +6030,33 @@ def resolver_falla_maquina(maquina_id):
         if not maquina:
             return api_response('E005', http_status=404, data={'message': 'Máquina no encontrada'})
 
-        # Resolver fallas en machinefailures (resiliente a columnas pre-V32)
-        try:
-            cur2 = get_db_cursor(connection)
-            if estacion_index is not None:
-                cur2.execute("""
-                    UPDATE machinefailures
-                    SET resolved = 1, resolved_at = NOW()
-                    WHERE machine_id = %s AND station_index = %s AND resolved = 0
-                """, (maquina_id, estacion_index))
-            else:
-                cur2.execute("""
-                    UPDATE machinefailures
-                    SET resolved = 1, resolved_at = NOW()
-                    WHERE machine_id = %s AND resolved = 0
-                """, (maquina_id,))
-            cur2.close()
-        except Exception as mf_err:
-            app.logger.warning(f"machinefailures update omitido (columnas pre-V32?): {mf_err}")
+        # Limpiar errorNote y reactivar máquina
+        cursor.execute("""
+            UPDATE machine 
+            SET errorNote = NULL, status = 'activa', updatedAt = NOW()
+            WHERE id = %s
+        """, (maquina_id,))
 
-        # Determinar si hay otras estaciones aún con fallas sin resolver (multi-estación)
-        # Si se resolvió una estación específica, verificar si quedan otras con 3+ fallas
-        otras_fallas_activas = False
+        # Resolver fallas en machinefailures
         if estacion_index is not None:
-            try:
-                cur3 = get_db_cursor(connection)
-                cur3.execute("""
-                    SELECT station_index, COUNT(*) as cnt
-                    FROM machinefailures
-                    WHERE machine_id = %s AND resolved = 0
-                    GROUP BY station_index
-                    HAVING cnt >= 3
-                """, (maquina_id,))
-                otras_fallas_activas = cur3.fetchone() is not None
-                cur3.close()
-            except Exception:
-                pass  # Si falla la consulta, asumimos safe default (reactivar)
-
-        # Limpiar errorNote y reactivar máquina solo si no quedan otras estaciones bloqueadas
-        if otras_fallas_activas:
-            # Otras estaciones siguen en mantenimiento — no reactivar globalmente
             cursor.execute("""
-                UPDATE machine
-                SET errorNote = CONCAT(COALESCE(errorNote, ''), ' [Estacion resuelta]')
-                WHERE id = %s
-            """, (maquina_id,))
-            app.logger.info(f"Máquina {maquina_id}: estación {estacion_index} resuelta, otras estaciones aún en falla — status sin cambiar")
+                UPDATE machinefailures 
+                SET resolved = 1, resolved_at = NOW()
+                WHERE machine_id = %s AND station_index = %s AND resolved = 0
+            """, (maquina_id, estacion_index))
         else:
             cursor.execute("""
-                UPDATE machine
-                SET errorNote = NULL, status = 'activa'
-                WHERE id = %s
+                UPDATE machinefailures 
+                SET resolved = 1, resolved_at = NOW()
+                WHERE machine_id = %s AND resolved = 0
             """, (maquina_id,))
 
         # Resolver reportes manuales en errorreport
-        try:
-            cursor.execute("""
-                UPDATE errorreport
-                SET isResolved = 1, resolved_at = NOW()
-                WHERE machineId = %s AND isResolved = 0
-            """, (maquina_id,))
-        except Exception as er_err:
-            app.logger.warning(f"errorreport update con resolved_at falló, reintentando sin resolved_at: {er_err}")
-            cursor.execute("""
-                UPDATE errorreport
-                SET isResolved = 1
-                WHERE machineId = %s AND isResolved = 0
-            """, (maquina_id,))
+        cursor.execute("""
+            UPDATE errorreport 
+            SET isResolved = 1, resolved_at = NOW()
+            WHERE machineId = %s AND isResolved = 0
+        """, (maquina_id,))
 
         # Enviar comando RESUME al ESP32 para reanudar operación normal
         try:
@@ -6284,7 +6095,7 @@ def resolver_falla_maquina(maquina_id):
         })
 
     except Exception as e:
-        app.logger.error(f"Error resolviendo falla maquina {maquina_id}: {e}\n{traceback.format_exc()}")
+        app.logger.error(f"Error resolviendo falla: {e}")
         if connection: connection.rollback()
         return api_response('E001', http_status=500)
     finally:
@@ -6573,22 +6384,6 @@ def esp32_status():
         'timestamp': get_colombia_time().isoformat()
     })
 
-@app.route('/api/esp32/heartbeat', methods=['POST'])
-def esp32_heartbeat():
-    """Recibe latido periódico del ESP32 con su estado WiFi/servidor"""
-    try:
-        data = request.get_json(silent=True) or {}
-        machine_id = data.get('machine_id')
-        if machine_id:
-            esp32_heartbeat_cache[int(machine_id)] = {
-                'wifi': bool(data.get('wifi_connected', True)),
-                'server': bool(data.get('server_online', True)),
-                'last_seen': get_colombia_time()
-            }
-        return jsonify({'status': 'ok'})
-    except Exception:
-        return jsonify({'status': 'ok'})
-
 @app.route('/api/esp32/registrar-uso', methods=['POST'])
 @handle_api_errors
 @validate_required_fields(['qr_code', 'machine_id'])
@@ -6618,36 +6413,22 @@ def esp32_registrar_uso():
         qr_id = qr_data['id']
         qr_name = qr_data['qr_name']
         
-        # Decremento atómico: protege contra race condition si dos ESP32
-        # usan el mismo QR simultáneamente. Solo decrementa si aún hay turnos.
-        cursor.execute("""
-            UPDATE userturns
-            SET turns_remaining = turns_remaining - 1
-            WHERE qr_code_id = %s AND turns_remaining > 0
-        """, (qr_id,))
-        if cursor.rowcount == 0:
-            return api_response('Q003', http_status=400)
-
-        # Leer el valor actualizado para el histórico
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
-        turns_after = turnos_data['turns_remaining'] if turnos_data else 0
+        
+        if not turnos_data or turnos_data['turns_remaining'] <= 0:
+            return api_response('Q003', http_status=400)
 
-        # Insertar con station_index y turns_remaining_after (histórico por fila)
-        try:
-            cursor.execute("""
-                INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt, turns_remaining_after)
-                VALUES (%s, %s, %s, NOW(), %s)
-            """, (qr_id, machine_id, station_index, turns_after))
-        except Exception:
-            # Fallback si la columna V33 aún no existe
-            cursor.execute("""
-                INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt)
-                VALUES (%s, %s, %s, NOW())
-            """, (qr_id, machine_id, station_index))
+        # Insertar con station_index
+        cursor.execute("""
+            INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt) 
+            VALUES (%s, %s, %s, NOW())
+        """, (qr_id, machine_id, station_index))
 
         usage_id = cursor.lastrowid
-        app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}, Turnos tras uso: {turns_after}")
+        app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}")
+        
+        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
 
         cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
         
@@ -6769,20 +6550,10 @@ def esp32_check_commands(machine_id):
         """, (machine_id,))
         
         commands = cursor.fetchall()
-
-        # Parsear parameters de JSON string a objeto para que el ESP32 lo reciba correctamente
-        parsed = []
-        for cmd in commands:
-            row = dict(cmd)
-            try:
-                row['parameters'] = json.loads(row['parameters']) if isinstance(row['parameters'], str) else (row['parameters'] or {})
-            except Exception:
-                row['parameters'] = {}
-            parsed.append(row)
-
+        
         return jsonify({
-            'has_commands': len(parsed) > 0,
-            'commands': parsed
+            'has_commands': len(commands) > 0,
+            'commands': commands
         })
         
     except Exception as e:
@@ -6816,12 +6587,13 @@ def esp32_command_executed(command_id):
         cursor = get_db_cursor(connection)
         
         cursor.execute("""
-            UPDATE esp32_commands
-            SET status = 'executed',
-                executed_at = NOW(),
-                response = %s
+            UPDATE esp32_commands 
+            SET status = 'executed', 
+                executed_at = NOW(), 
+                response = %s,
+                result = %s
             WHERE id = %s
-        """, (json.dumps(data), command_id))
+        """, (json.dumps(data), result, command_id))
         
         connection.commit()
         
@@ -6883,22 +6655,6 @@ def esp32_machine_config(machine_id):
             else:
                 station_names = [config['name']]
         
-        # Fallas activas por estación (para pre-cargar stationInMaintenance en el ESP32 al arrancar)
-        active_failure_stations = []
-        try:
-            cursor.execute("""
-                SELECT station_index, COUNT(*) as cnt
-                FROM machinefailures
-                WHERE machine_id = %s AND resolved = 0
-                GROUP BY station_index
-            """, (machine_id,))
-            active_failure_stations = [
-                {'station_index': r['station_index'], 'count': r['cnt']}
-                for r in cursor.fetchall()
-            ]
-        except Exception:
-            pass  # Tabla pre-V32 sin columna resolved: ignorar
-
         response_data = {
             'id': config['id'],
             'name': config['name'],
@@ -6913,10 +6669,9 @@ def esp32_machine_config(machine_id):
             'game_type': config['game_type'] or 'time_based',
             'has_failure_report': bool(config['has_failure_report']),
             'show_station_selection': bool(config['show_station_selection']),
-            'last_play_time': config['last_play_time'],
-            'active_failure_stations': active_failure_stations
+            'last_play_time': config['last_play_time']
         }
-
+        
         return jsonify({'status': 'success', 'data': response_data})
         
     except Exception as e:
@@ -6948,9 +6703,8 @@ def esp32_reportar_falla():
         turnos_devueltos = data.get('turnos_devueltos', 1)
         is_forced = data.get('is_forced', False)
         notes = data.get('notes', 'Reporte desde TFT - Botón REPORTAR')
-        station_index = data.get('selected_station', None)  # None = máquina simple
-
-        app.logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}, estación: {station_index}")
+        
+        app.logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}")
         
         if not machine_id or not qr_code:
             return api_response('E005', http_status=400, data={
@@ -7015,20 +6769,49 @@ def esp32_reportar_falla():
             app.logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
         
         # ==========================================
-        # 7. REGISTRAR LA FALLA EN MACHINEFAILURES (con station_index si V32 existe)
+        # 6. VERIFICAR SI YA SE REPORTÓ ESTA FALLA
         # ==========================================
-        try:
-            cursor.execute("""
-                INSERT INTO machinefailures
-                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by, station_index)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (qr_id, machine_id, machine_name, turnos_devueltos, notes, 0, None, station_index))
-        except Exception:
-            cursor.execute("""
-                INSERT INTO machinefailures
-                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (qr_id, machine_id, machine_name, turnos_devueltos, notes, 0, None))
+        cursor.execute("""
+            SELECT id, reported_at
+            FROM machinefailures
+            WHERE qr_code_id = %s 
+            AND machine_id = %s
+            AND ABS(TIMESTAMPDIFF(MINUTE, reported_at, NOW())) < 5
+            ORDER BY reported_at DESC
+            LIMIT 1
+        """, (qr_id, machine_id))
+        
+        falla_reciente = cursor.fetchone()
+        
+        if falla_reciente:
+            app.logger.info(f"⚠️ [TFT] Falla ya reportada hace menos de 5 minutos (ID: {falla_reciente['id']})")
+            return api_response(
+                'W007',
+                status='warning',
+                http_status=200,  # 200 para no generar error en ESP32
+                data={
+                    'message': 'Falla ya reportada recientemente',
+                    'failure_id': falla_reciente['id'],
+                    'already_reported': True
+                }
+            )
+        
+        # ==========================================
+        # 7. REGISTRAR LA FALLA EN MACHINEFAILURES
+        # ==========================================
+        cursor.execute("""
+            INSERT INTO machinefailures 
+            (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            qr_id,
+            machine_id,
+            machine_name,
+            turnos_devueltos,
+            notes,
+            0,  # is_forced = FALSE (reporte genuino desde TFT)
+            None  # forced_by = NULL
+        ))
         
         failure_id = cursor.lastrowid
         
@@ -7052,127 +6835,7 @@ def esp32_reportar_falla():
         # ==========================================
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         nuevos_turnos = cursor.fetchone()['turns_remaining']
-
-        # ==========================================
-        # 9b. CONTAR FALLAS ACTIVAS (sin resolver) EN ESTA MÁQUINA/ESTACIÓN
-        # ==========================================
-        fallas_activas = 0
-        try:
-            if station_index is not None:
-                cursor.execute("""
-                    SELECT COUNT(*) as cnt FROM machinefailures
-                    WHERE machine_id = %s AND station_index = %s AND resolved = 0
-                """, (machine_id, station_index))
-            else:
-                cursor.execute("""
-                    SELECT COUNT(*) as cnt FROM machinefailures
-                    WHERE machine_id = %s AND resolved = 0
-                """, (machine_id,))
-            fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
-        except Exception:
-            # resolved columna no existe (pre-V32): contar todas
-            cursor.execute("SELECT COUNT(*) as cnt FROM machinefailures WHERE machine_id = %s", (machine_id,))
-            fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
-
-        # ==========================================
-        # 9c. SI ≥3 FALLAS: CAMBIAR ESTADO Y ENCOLAR MAINTENANCE
-        # ==========================================
-        if fallas_activas >= 3:
-            estacion_str = f" (estación {station_index + 1})" if station_index is not None else ""
-            error_note = f"{fallas_activas} fallas ESP32{estacion_str} sin resolver"
-
-            # Verificar si es multi-estación para no bloquear la máquina globalmente
-            try:
-                cursor.execute("""
-                    SELECT COALESCE(mt.machine_subtype, 'simple') AS machine_subtype
-                    FROM machinetechnical mt WHERE mt.machine_id = %s
-                """, (machine_id,))
-                row = cursor.fetchone()
-                es_multi_esp32 = (row and row.get('machine_subtype') == 'multi_station')
-            except Exception:
-                es_multi_esp32 = False
-
-            if es_multi_esp32 and station_index is not None:
-                # Multi-estación: verificar si TODAS las estaciones están en mantenimiento.
-                # Si todas están bloqueadas, cambiar el estado global a 'mantenimiento'.
-                todas_bloqueadas = False
-                try:
-                    # Contar estaciones configuradas en la máquina
-                    cursor.execute("""
-                        SELECT station_names FROM machinetechnical WHERE machine_id = %s
-                    """, (machine_id,))
-                    mt_row = cursor.fetchone()
-                    total_estaciones = 2  # default
-                    if mt_row and mt_row.get('station_names'):
-                        try:
-                            sn = json.loads(mt_row['station_names']) if isinstance(mt_row['station_names'], str) else mt_row['station_names']
-                            total_estaciones = len(sn)
-                        except Exception:
-                            pass
-                    # Estaciones con >=3 fallas sin resolver
-                    cursor.execute("""
-                        SELECT COUNT(DISTINCT station_index) as bloqueadas
-                        FROM machinefailures
-                        WHERE machine_id = %s AND resolved = 0
-                        GROUP BY station_index
-                        HAVING COUNT(*) >= 3
-                    """, (machine_id,))
-                    bloqueadas = len(cursor.fetchall())
-                    todas_bloqueadas = (bloqueadas >= total_estaciones)
-                except Exception:
-                    pass
-
-                if todas_bloqueadas:
-                    cursor.execute("""
-                        UPDATE machine
-                        SET status = 'mantenimiento', errorNote = %s,
-                            dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                        WHERE id = %s
-                    """, (error_note, machine_id))
-                    app.logger.warning(
-                        f"⚠ [TFT] TODAS las estaciones bloqueadas — maquina {machine_id} → 'mantenimiento'"
-                    )
-                else:
-                    cursor.execute("""
-                        UPDATE machine
-                        SET errorNote = %s,
-                            dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                        WHERE id = %s
-                    """, (error_note, machine_id))
-                    app.logger.warning(
-                        f"⚠ [TFT] Estacion {station_index} bloqueada (multi) — maquina {machine_id} sigue activa"
-                    )
-            else:
-                # Máquina simple: cambiar estado global a mantenimiento
-                cursor.execute("""
-                    UPDATE machine
-                    SET status = 'mantenimiento', errorNote = %s,
-                        dailyFailedTurns = COALESCE(dailyFailedTurns, 0) + 1
-                    WHERE id = %s
-                """, (error_note, machine_id))
-                app.logger.warning(
-                    f"⚠ [TFT] Maquina {machine_id} → status='mantenimiento'"
-                )
-
-            try:
-                cursor.execute("""
-                    INSERT INTO esp32_commands
-                    (machine_id, command, parameters, triggered_by, status, triggered_at)
-                    VALUES (%s, 'MAINTENANCE', %s, 'sistema_auto', 'queued', NOW())
-                """, (machine_id, json.dumps({
-                    'machine_name': machine_name,
-                    'station_index': station_index,
-                    'failure_count': fallas_activas,
-                    'reason': f'{fallas_activas} fallas ESP32 sin resolver'
-                })))
-            except Exception as cmd_err:
-                app.logger.error(f"No se pudo encolar MAINTENANCE desde ESP32: {cmd_err}")
-
-            app.logger.warning(
-                f"⚠ [TFT] MAINTENANCE encolado — {machine_name} "
-                f"estación={station_index} fallas_activas={fallas_activas}"
-            )
-
+        
         connection.commit()
         
         app.logger.info(f"✅ [TFT] Falla reportada — ID: {failure_id} | Máquina: {machine_name} ({machine_id}) | QR: {qr_code} | Turnos devueltos: {turnos_devueltos} | Turnos restantes: {nuevos_turnos}")
@@ -7210,8 +6873,6 @@ def esp32_reportar_falla():
                 'usage_id': usage_id,
                 'turnos_devueltos': turnos_devueltos,
                 'turnos_restantes': nuevos_turnos,
-                'fallas_activas': fallas_activas,
-                'mantenimiento_activado': fallas_activas >= 3,
                 'message': 'Falla reportada y turno devuelto automáticamente'
             }
         )
@@ -8327,15 +7988,13 @@ def obtener_reportes_maquina(maquina_id):
         
         # Obtener reportes de la máquina
         cursor.execute("""
-            SELECT
+            SELECT 
                 er.id,
                 er.machineId,
                 er.userId,
                 er.description,
                 er.reportedAt,
                 er.isResolved,
-                COALESCE(er.station_index, NULL) as station_index,
-                COALESCE(er.problem_type, 'mantenimiento') as problem_type,
                 u.name as user_name
             FROM errorreport er
             JOIN users u ON er.userId = u.id
@@ -10922,310 +10581,6 @@ def check_alerts(level, message, module):
         app.logger.debug(f"Error en check_alerts: {e}")
 
 # ==================== APIS PARA LOGS ====================
-
-@app.route('/api/logs/transaccional-consolidado', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_logs_transaccional_consolidado():
-    """
-    Endpoint consolidado para la página de Logs Transaccionales.
-    Retorna en una sola llamada: KPIs, ventas, fallas ESP32, por máquina, gráfica, feed de actividad.
-    """
-    connection = None
-    cursor = None
-    try:
-        hoy = get_colombia_time().strftime('%Y-%m-%d')
-        fecha_inicio = request.args.get('fecha_inicio', hoy)
-        fecha_fin = request.args.get('fecha_fin', hoy)
-        limit_feed = int(request.args.get('limit', 100))
-
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-        cursor = get_db_cursor(connection)
-
-        # ── KPI 1-2: Ventas ──────────────────────────────────────────────
-        cursor.execute("""
-            SELECT
-                COUNT(DISTINCT qh.qr_code)          AS paquetes_vendidos,
-                COALESCE(SUM(tp.price), 0)           AS ingresos_ventas
-            FROM qrhistory qh
-            JOIN qrcode qr   ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-              AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
-        """, (fecha_inicio, fecha_fin))
-        kpi_ventas = cursor.fetchone()
-
-        # ── KPI 3: Turnos jugados (ESP32) ─────────────────────────────────
-        cursor.execute("""
-            SELECT COUNT(*) AS turnos_jugados
-            FROM turnusage
-            WHERE DATE(usedAt) BETWEEN %s AND %s
-        """, (fecha_inicio, fecha_fin))
-        kpi_turnos = cursor.fetchone()
-
-        # ── KPI 4-5: Fallas ESP32 ─────────────────────────────────────────
-        cursor.execute("""
-            SELECT
-                COUNT(*)                          AS fallas_total,
-                COALESCE(SUM(turnos_devueltos), 0) AS turnos_devueltos
-            FROM machinefailures
-            WHERE DATE(reported_at) BETWEEN %s AND %s
-        """, (fecha_inicio, fecha_fin))
-        kpi_fallas = cursor.fetchone()
-
-        # ── Ventas detalladas ─────────────────────────────────────────────
-        cursor.execute("""
-            SELECT
-                qh.fecha_hora,
-                qh.qr_code,
-                COALESCE(qr.qr_name, qh.qr_code) AS qr_name,
-                tp.name  AS paquete,
-                tp.price AS precio,
-                tp.turns AS turnos_paquete,
-                qh.user_name AS cajero
-            FROM qrhistory qh
-            JOIN qrcode qr   ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-              AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
-            ORDER BY qh.fecha_hora DESC
-            LIMIT 200
-        """, (fecha_inicio, fecha_fin))
-        ventas = []
-        for v in cursor.fetchall():
-            row = dict(v)
-            row['precio'] = float(row['precio']) if row['precio'] else 0
-            if row.get('fecha_hora') and hasattr(row['fecha_hora'], 'isoformat'):
-                row['fecha_hora'] = row['fecha_hora'].isoformat()
-            ventas.append(row)
-
-        # ── Top paquetes ──────────────────────────────────────────────────
-        cursor.execute("""
-            SELECT
-                tp.name AS paquete,
-                COUNT(DISTINCT qh.qr_code) AS cantidad,
-                COALESCE(SUM(tp.price), 0) AS total
-            FROM qrhistory qh
-            JOIN qrcode qr   ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-              AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
-            GROUP BY tp.id, tp.name
-            ORDER BY cantidad DESC
-            LIMIT 5
-        """, (fecha_inicio, fecha_fin))
-        top_paquetes = []
-        for p in cursor.fetchall():
-            row = dict(p)
-            row['total'] = float(row['total']) if row['total'] else 0
-            top_paquetes.append(row)
-
-        # ── Fallas ESP32 detalladas ───────────────────────────────────────
-        cursor.execute("""
-            SELECT
-                mf.id,
-                mf.reported_at,
-                mf.machine_id,
-                COALESCE(mf.machine_name, 'Desconocida') AS machine_name,
-                mf.station_index,
-                COALESCE(qr.code, '')                    AS qr_code,
-                COALESCE(qr.qr_name, '')                 AS qr_name,
-                mf.turnos_devueltos,
-                COALESCE(mf.notes, '')                   AS notes,
-                COALESCE(mf.is_forced, 0)                AS is_forced,
-                COALESCE(mf.forced_by, '')               AS forced_by
-            FROM machinefailures mf
-            LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
-            WHERE DATE(mf.reported_at) BETWEEN %s AND %s
-            ORDER BY mf.reported_at DESC
-            LIMIT 300
-        """, (fecha_inicio, fecha_fin))
-        fallas_esp32 = []
-        for f in cursor.fetchall():
-            row = dict(f)
-            if row.get('reported_at') and hasattr(row['reported_at'], 'isoformat'):
-                row['reported_at'] = row['reported_at'].isoformat()
-            fallas_esp32.append(row)
-
-        # ── Por máquina ───────────────────────────────────────────────────
-        cursor.execute("""
-            SELECT
-                m.id,
-                m.name                                          AS nombre,
-                m.status                                        AS estado,
-                COUNT(DISTINCT tu.id)                           AS turnos_periodo,
-                COUNT(DISTINCT mf.id)                           AS fallas_periodo,
-                COALESCE(SUM(mf.turnos_devueltos), 0)           AS turnos_devueltos_periodo,
-                MAX(tu.usedAt)                                  AS ultimo_uso
-            FROM machine m
-            LEFT JOIN turnusage tu
-                   ON tu.machineId = m.id
-                  AND DATE(tu.usedAt) BETWEEN %s AND %s
-            LEFT JOIN machinefailures mf
-                   ON mf.machine_id = m.id
-                  AND DATE(mf.reported_at) BETWEEN %s AND %s
-            GROUP BY m.id, m.name, m.status
-            ORDER BY turnos_periodo DESC
-        """, (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
-        por_maquina = []
-        for m in cursor.fetchall():
-            row = dict(m)
-            row['turnos_devueltos_periodo'] = float(row['turnos_devueltos_periodo']) if row['turnos_devueltos_periodo'] else 0
-            if row.get('ultimo_uso') and hasattr(row['ultimo_uso'], 'isoformat'):
-                row['ultimo_uso'] = row['ultimo_uso'].isoformat()
-            por_maquina.append(row)
-
-        # ── Gráfica: evolución por hora o por día ─────────────────────────
-        es_mismo_dia = (fecha_inicio == fecha_fin)
-        if es_mismo_dia:
-            cursor.execute("""
-                SELECT
-                    HOUR(qh.fecha_hora)                              AS periodo,
-                    COUNT(DISTINCT qh.qr_code)                       AS ventas_count,
-                    COALESCE(SUM(tp.price), 0)                       AS ventas_monto
-                FROM qrhistory qh
-                JOIN qrcode qr   ON qr.code = qh.qr_code
-                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE DATE(qh.fecha_hora) = %s
-                  AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
-                GROUP BY HOUR(qh.fecha_hora)
-                ORDER BY periodo
-            """, (fecha_inicio,))
-            grafica_ventas = cursor.fetchall()
-
-            cursor.execute("""
-                SELECT HOUR(usedAt) AS periodo, COUNT(*) AS turnos
-                FROM turnusage
-                WHERE DATE(usedAt) = %s
-                GROUP BY HOUR(usedAt)
-                ORDER BY periodo
-            """, (fecha_inicio,))
-            grafica_turnos = cursor.fetchall()
-            tipo_grafica = 'horas'
-        else:
-            cursor.execute("""
-                SELECT
-                    DATE(qh.fecha_hora)                              AS periodo,
-                    COUNT(DISTINCT qh.qr_code)                       AS ventas_count,
-                    COALESCE(SUM(tp.price), 0)                       AS ventas_monto
-                FROM qrhistory qh
-                JOIN qrcode qr   ON qr.code = qh.qr_code
-                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                  AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
-                GROUP BY DATE(qh.fecha_hora)
-                ORDER BY periodo
-            """, (fecha_inicio, fecha_fin))
-            grafica_ventas = cursor.fetchall()
-
-            cursor.execute("""
-                SELECT DATE(usedAt) AS periodo, COUNT(*) AS turnos
-                FROM turnusage
-                WHERE DATE(usedAt) BETWEEN %s AND %s
-                GROUP BY DATE(usedAt)
-                ORDER BY periodo
-            """, (fecha_inicio, fecha_fin))
-            grafica_turnos = cursor.fetchall()
-            tipo_grafica = 'dias'
-
-        grafica_ventas_fmt = []
-        for g in grafica_ventas:
-            row = dict(g)
-            row['ventas_monto'] = float(row['ventas_monto']) if row['ventas_monto'] else 0
-            if hasattr(row.get('periodo'), 'isoformat'):
-                row['periodo'] = row['periodo'].isoformat()
-            grafica_ventas_fmt.append(row)
-
-        grafica_turnos_fmt = []
-        for g in grafica_turnos:
-            row = dict(g)
-            if hasattr(row.get('periodo'), 'isoformat'):
-                row['periodo'] = row['periodo'].isoformat()
-            grafica_turnos_fmt.append(row)
-
-        # ── Feed de actividad (transaction_logs) ──────────────────────────
-        cursor.execute("""
-            SELECT
-                tl.id,
-                tl.tipo,
-                tl.categoria,
-                tl.descripcion,
-                tl.usuario,
-                tl.maquina_nombre,
-                tl.maquina_id,
-                tl.entidad,
-                tl.entidad_id,
-                tl.monto,
-                tl.datos_extra,
-                tl.ip_address,
-                tl.estado,
-                tl.created_at
-            FROM transaction_logs tl
-            WHERE DATE(tl.created_at) BETWEEN %s AND %s
-            ORDER BY tl.created_at DESC
-            LIMIT %s
-        """, (fecha_inicio, fecha_fin, limit_feed))
-        feed = []
-        for row in cursor.fetchall():
-            r = dict(row)
-            if r.get('monto') is not None:
-                r['monto'] = float(r['monto'])
-            if r.get('created_at') and hasattr(r['created_at'], 'isoformat'):
-                r['created_at'] = r['created_at'].isoformat()
-            if isinstance(r.get('datos_extra'), str):
-                try:
-                    r['datos_extra'] = json.loads(r['datos_extra'])
-                except Exception:
-                    r['datos_extra'] = {}
-            feed.append(r)
-
-        cursor.close()
-        connection.close()
-
-        return jsonify({
-            'periodo': {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin, 'tipo': tipo_grafica},
-            'kpis': {
-                'ingresos_ventas':   float(kpi_ventas['ingresos_ventas'] or 0),
-                'paquetes_vendidos': int(kpi_ventas['paquetes_vendidos'] or 0),
-                'turnos_jugados':    int(kpi_turnos['turnos_jugados'] or 0),
-                'fallas_total':      int(kpi_fallas['fallas_total'] or 0),
-                'turnos_devueltos':  int(kpi_fallas['turnos_devueltos'] or 0),
-            },
-            'ventas':        ventas,
-            'top_paquetes':  top_paquetes,
-            'fallas_esp32':  fallas_esp32,
-            'por_maquina':   por_maquina,
-            'grafica': {
-                'tipo':   tipo_grafica,
-                'ventas': grafica_ventas_fmt,
-                'turnos': grafica_turnos_fmt,
-            },
-            'feed':      feed,
-            'timestamp': get_colombia_time().isoformat(),
-        })
-
-    except Exception as e:
-        app.logger.error(f"Error en transaccional-consolidado: {e}", exc_info=True)
-        if cursor:
-            try: cursor.close()
-            except Exception: pass
-        if connection:
-            try: connection.close()
-            except Exception: pass
-        return api_response('E001', http_status=500)
-
 
 @app.route('/api/logs/consola-completa', methods=['GET'])
 @handle_api_errors

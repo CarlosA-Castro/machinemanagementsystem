@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Inversiones Arcade — Medellín</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* ===== BRAND COLORS (from logo) ===== */
+    :root {
+      --navy:    #1c2b4a;   /* logo dark navy */
+      --navy-d:  #0f1a2e;   /* darker navy for bg */
+      --navy-m:  #243555;   /* medium navy */
+      --red:     #c8252a;   /* logo red (joystick/buttons) */
+      --red-h:   #a81f23;   /* red hover */
+      --blueg:   #445d75;   /* logo blue-gray */
+      --cream:   #f4f1eb;   /* logo background / existing app bg */
+      --cream-d: #ede9e0;   /* slightly darker cream */
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; padding: 0;
+      background: var(--navy-d);
+      color: #fff;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ===== PARTICLES ===== */
+    #particles-js {
+      position: fixed; inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ===== NAVBAR ===== */
+    #navbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 200;
+      padding: 0.85rem 1.5rem;
+      transition: background 0.3s, box-shadow 0.3s, border-color 0.3s;
+    }
+    #navbar.scrolled {
+      background: rgba(15, 26, 46, 0.97);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .nav-a {
+      font-size: 0.82rem; font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-a:hover { color: #fff; }
+
+    /* ===== INGRESAR BUTTON ===== */
+    .btn-nav {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: var(--red);
+      color: #fff; font-weight: 700; font-size: 0.82rem;
+      padding: 0.5rem 1.25rem; border-radius: 8px;
+      border: none; cursor: pointer; text-decoration: none;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+      min-height: 38px; white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(200,37,42,0.35);
+    }
+    .btn-nav:hover {
+      background: var(--red-h);
+      box-shadow: 0 4px 18px rgba(200,37,42,0.5);
+      transform: translateY(-1px);
+    }
+
+    /* ===== HERO ===== */
+    #hero {
+      position: relative; min-height: 100vh;
+      display: flex; align-items: center;
+      padding: 100px 1.5rem 80px;
+    }
+    /* Radial light glow behind hero content */
+    #hero::before {
+      content: '';
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%,
+        rgba(28,43,74,0.55) 0%, transparent 70%);
+    }
+
+    /* ===== HERO BADGE ===== */
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      background: rgba(244,241,235,0.08);
+      border: 1px solid rgba(244,241,235,0.2);
+      border-radius: 100px; padding: 0.3rem 0.9rem;
+      font-size: 0.7rem; font-weight: 600;
+      color: rgba(244,241,235,0.75); letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 1.25rem;
+    }
+
+    /* ===== HEADING ACCENT ===== */
+    .text-red { color: var(--red); }
+    .text-cream { color: var(--cream); }
+
+    /* ===== PRIMARY CTA BUTTONS ===== */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: var(--red); color: #fff;
+      font-weight: 700; font-size: 0.95rem;
+      padding: 0.8rem 1.9rem; border-radius: 10px;
+      border: none; cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(200,37,42,0.4);
+      min-height: 44px;
+    }
+    .btn-primary:hover {
+      background: var(--red-h); transform: translateY(-2px);
+      box-shadow: 0 8px 26px rgba(200,37,42,0.52);
+    }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(244,241,235,0.07);
+      border: 1px solid rgba(244,241,235,0.22);
+      color: rgba(244,241,235,0.65);
+      font-weight: 500; font-size: 0.95rem;
+      padding: 0.8rem 1.9rem; border-radius: 10px;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+      min-height: 44px;
+    }
+    .btn-secondary:hover {
+      background: rgba(244,241,235,0.12);
+      border-color: rgba(244,241,235,0.4);
+      color: var(--cream);
+    }
+
+    /* ===== HERO FLOAT CARD (cream, matching existing glass-card) ===== */
+    .hero-card {
+      background: var(--cream);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.5);
+      color: var(--navy);
+      animation: floatCard 4s ease-in-out infinite;
+    }
+    @keyframes floatCard {
+      0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)}
+    }
+
+    /* Mini stat inside hero card */
+    .mini-stat {
+      background: #fff;
+      border: 1px solid var(--cream-d);
+      border-radius: 10px;
+      padding: 0.8rem 0.6rem;
+      text-align: center;
+    }
+    .mini-stat-val {
+      font-size: 1.45rem; font-weight: 900; line-height: 1;
+    }
+    .mini-stat-lbl {
+      font-size: 0.62rem; font-weight: 500; color: #6b7280;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-top: 0.2rem;
+    }
+
+    /* ===== SECTION LABELS ===== */
+    .s-label {
+      font-size: 0.7rem; font-weight: 700;
+      color: var(--red); text-transform: uppercase;
+      letter-spacing: 0.2em; display: block; margin-bottom: 0.5rem;
+    }
+    .s-title {
+      font-size: clamp(1.6rem, 4vw, 2.25rem);
+      font-weight: 800; letter-spacing: -0.02em; line-height: 1.2;
+    }
+    .s-underline {
+      width: 48px; height: 3px; border-radius: 2px;
+      background: var(--red);
+      margin-top: 0.9rem;
+    }
+
+    /* ===== DIVIDER ===== */
+    .divider {
+      height: 1px; margin: 0 1.5rem;
+      background: linear-gradient(90deg, transparent, rgba(244,241,235,0.1), transparent);
+    }
+
+    /* ===== FEATURE CARDS ===== */
+    .feat-card {
+      background: rgba(244,241,235,0.04);
+      border: 1px solid rgba(244,241,235,0.1);
+      border-radius: 16px; padding: 1.75rem;
+      transition: transform 0.3s, background 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+    .feat-card:hover {
+      transform: translateY(-6px);
+      background: rgba(244,241,235,0.07);
+      border-color: rgba(200,37,42,0.35);
+      box-shadow: 0 20px 44px rgba(0,0,0,0.35), 0 0 0 1px rgba(200,37,42,0.12);
+    }
+    .feat-icon {
+      width: 52px; height: 52px; border-radius: 12px;
+      background: rgba(200,37,42,0.12);
+      border: 1px solid rgba(200,37,42,0.28);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; color: #e87070;
+      margin-bottom: 1.1rem;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .feat-card:hover .feat-icon {
+      background: rgba(200,37,42,0.2);
+      box-shadow: 0 0 16px rgba(200,37,42,0.3);
+    }
+    .feat-tag {
+      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 0.14rem 0.55rem;
+      border-radius: 100px; color: #f9a8a9;
+      background: rgba(200,37,42,0.12);
+      border: 1px solid rgba(200,37,42,0.25);
+    }
+
+    /* ===== MACHINE CARDS ===== */
+    .machine-card {
+      position: relative; border-radius: 14px; overflow: hidden;
+      border: 1px solid rgba(244,241,235,0.08);
+      aspect-ratio: 4/3;
+      transition: transform 0.35s, border-color 0.35s, box-shadow 0.35s;
+    }
+    .machine-card img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block; transition: transform 0.45s;
+    }
+    .machine-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top,
+        rgba(15,26,46,0.95) 0%,
+        rgba(15,26,46,0.2) 55%, transparent 100%);
+      display: flex; align-items: flex-end; padding: 1rem;
+    }
+    .machine-name {
+      font-size: 0.82rem; font-weight: 700;
+      letter-spacing: 0.03em; color: #fff;
+    }
+    .machine-tag {
+      display: inline-block; font-size: 0.58rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      background: rgba(200,37,42,0.25);
+      border: 1px solid rgba(200,37,42,0.45);
+      color: #f9a8a9; padding: 0.1rem 0.5rem;
+      border-radius: 100px; margin-top: 0.25rem;
+    }
+    .machine-card:hover {
+      transform: scale(1.03);
+      border-color: rgba(200,37,42,0.4);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+    }
+    .machine-card:hover img { transform: scale(1.08); }
+
+    /* ===== STATS ===== */
+    .stat-box {
+      background: rgba(244,241,235,0.04);
+      border: 1px solid rgba(244,241,235,0.1);
+      border-radius: 16px; padding: 1.75rem 1.25rem; text-align: center;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+    .stat-box:hover {
+      transform: translateY(-5px);
+      border-color: rgba(200,37,42,0.35);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.3);
+    }
+    .stat-val {
+      font-size: clamp(2rem,5vw,2.8rem); font-weight: 900; line-height: 1;
+      color: var(--cream);
+    }
+    .stat-accent { color: var(--red); }
+
+    /* ===== CTA SECTION ===== */
+    .cta-section {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-m) 50%, #1a3050 100%);
+      border-radius: 20px;
+      border: 1px solid rgba(244,241,235,0.1);
+      padding: 3.5rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 60% 80% at 50% 100%,
+        rgba(200,37,42,0.12) 0%, transparent 70%);
+    }
+
+    /* ===== SCROLL REVEAL ===== */
+    .reveal {
+      opacity: 0; transform: translateY(22px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .d1{transition-delay:.07s} .d2{transition-delay:.15s}
+    .d3{transition-delay:.23s} .d4{transition-delay:.31s}
+
+    /* ===== SCROLL ARROW ===== */
+    .scroll-arrow { animation: scrollBounce 2s ease-in-out infinite; }
+    @keyframes scrollBounce {
+      0%,100%{transform:translateY(0);opacity:.6} 50%{transform:translateY(7px);opacity:.25}
+    }
+
+    /* ===== MOBILE ===== */
+    #mobile-menu { display:none; }
+    #mobile-menu.open { display:block; }
+    @media(max-width:767px){ .hide-mob{display:none!important;} }
+    @media(min-width:768px){ #hamburger{display:none!important;} }
+  </style>
+</head>
+<body>
+
+<div id="particles-js"></div>
+
+<!-- ===================== NAVBAR ===================== -->
+<nav id="navbar" class="w-full">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <a href="/" style="display:flex;align-items:center;gap:0.65rem;text-decoration:none;">
+      <img src="{{ url_for('static', filename='img/logo.jpg') }}"
+           alt="Inversiones Arcade"
+           style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:1px solid rgba(244,241,235,0.2);">
+      <span style="font-weight:800;font-size:0.95rem;color:#fff;">
+        Inversiones <span class="text-red">Arcade</span>
+      </span>
+    </a>
+
+    <div class="hide-mob" style="display:flex;align-items:center;gap:1.75rem;">
+      <a href="#plataforma" class="nav-a">Plataforma</a>
+      <a href="#maquinas"   class="nav-a">Máquinas</a>
+      <a href="#cifras"     class="nav-a">Cifras</a>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <a href="/login" class="btn-nav">
+        <i class="fas fa-sign-in-alt" style="font-size:0.72rem;"></i> Ingresar
+      </a>
+      <button id="hamburger"
+              style="padding:0.4rem 0.5rem;border-radius:8px;background:rgba(244,241,235,0.07);border:1px solid rgba(244,241,235,0.12);color:rgba(255,255,255,0.6);cursor:pointer;transition:background .2s;"
+              onclick="document.getElementById('mobile-menu').classList.toggle('open')"
+              aria-label="Menú">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="max-w-6xl mx-auto"
+       style="background:rgba(15,26,46,0.98);border-radius:12px;margin-top:0.5rem;border:1px solid rgba(244,241,235,0.08);">
+    <div style="display:flex;flex-direction:column;padding:0.5rem;">
+      <a href="#plataforma" class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Plataforma</a>
+      <a href="#maquinas"   class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Máquinas</a>
+      <a href="#cifras"     class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Cifras</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<section id="hero">
+  <div class="max-w-6xl mx-auto w-full relative z-10"
+       style="display:flex;flex-direction:column;align-items:center;gap:3rem;">
+
+    <!-- Two-column on desktop -->
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:3rem;width:100%;">
+
+      <!-- LEFT: text -->
+      <div style="flex:1;min-width:280px;text-align:left;">
+
+        <div class="hero-badge reveal">
+          <i class="fas fa-map-marker-alt" style="font-size:0.6rem;color:var(--red);"></i>
+          Medellín, Colombia
+        </div>
+
+        <h1 class="reveal d1"
+            style="font-size:clamp(2.4rem,6vw,4rem);font-weight:900;line-height:1.08;letter-spacing:-0.025em;margin-bottom:1.25rem;">
+          Gestión integral<br>
+          <span class="text-red">Inversiones Arcade</span>
+        </h1>
+
+        <p class="reveal d2"
+           style="font-size:1rem;color:rgba(244,241,235,0.55);line-height:1.78;max-width:460px;margin-bottom:2rem;">
+          Control total de máquinas arcade, ventas con código QR, gestión de socios inversores y reportes en tiempo real. Todo en una sola plataforma.
+        </p>
+
+        <div class="reveal d3" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.75rem;">
+          <a href="/login" class="btn-primary">
+            <i class="fas fa-gamepad"></i> Acceder al Sistema
+          </a>
+          <a href="#plataforma" class="btn-secondary">
+            <i class="fas fa-info-circle"></i> Ver más
+          </a>
+        </div>
+
+        <div class="reveal d4">
+          <a href="https://wa.me/573218001092" target="_blank"
+             style="font-size:0.78rem;color:rgba(244,241,235,0.28);text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;transition:color .2s;"
+             onmouseover="this.style.color='rgba(134,239,172,0.7)'"
+             onmouseout="this.style.color='rgba(244,241,235,0.28)'">
+            <i class="fab fa-whatsapp"></i> Soporte técnico
+          </a>
+        </div>
+      </div>
+
+      <!-- RIGHT: hero card -->
+      <div class="reveal d2" style="flex-shrink:0;width:100%;max-width:300px;margin:0 auto;">
+        <div class="hero-card" style="padding:1.75rem;">
+
+          <!-- Card header -->
+          <div style="display:flex;align-items:center;gap:0.85rem;margin-bottom:1.25rem;padding-bottom:1.1rem;border-bottom:1px solid var(--cream-d);">
+            <img src="{{ url_for('static', filename='img/logo.jpg') }}"
+                 alt="Logo"
+                 style="width:44px;height:44px;border-radius:12px;object-fit:cover;border:1px solid var(--cream-d);">
+            <div>
+              <div style="font-weight:800;font-size:0.92rem;color:var(--navy);">Inversiones Arcade</div>
+              <div style="font-size:0.7rem;color:#6b7280;">Panel de gestión</div>
+            </div>
+          </div>
+
+          <!-- Mini stats grid -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+            <div class="mini-stat">
+              <div class="mini-stat-val" style="color:var(--navy);">15+</div>
+              <div class="mini-stat-lbl">Máquinas</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-val" style="color:var(--red);">6</div>
+              <div class="mini-stat-lbl">Locales</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-val" style="color:#059669;">500+</div>
+              <div class="mini-stat-lbl">Ventas QR</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-val" style="color:var(--blueg);">10+</div>
+              <div class="mini-stat-lbl">Socios</div>
+            </div>
+          </div>
+
+          <a href="/login" class="btn-primary" style="width:100%;justify-content:center;margin-top:1.1rem;font-size:0.9rem;">
+            <i class="fas fa-sign-in-alt"></i> Ingresar
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div style="position:absolute;bottom:1.75rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:0.3rem;z-index:10;opacity:.4;">
+    <span style="font-size:0.58rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--cream);">Scroll</span>
+    <i class="fas fa-chevron-down scroll-arrow" style="color:var(--cream);font-size:0.7rem;"></i>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== FEATURES ===================== -->
+<section id="plataforma" style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-6xl mx-auto">
+
+    <div style="text-align:center;margin-bottom:3.5rem;">
+      <span class="s-label reveal">Plataforma completa</span>
+      <h2 class="s-title reveal d1">Todo en un solo lugar</h2>
+      <div class="s-underline reveal d2" style="margin:0.9rem auto 0;"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;">
+
+      <div class="feat-card reveal d1">
+        <div class="feat-icon"><i class="fas fa-gamepad"></i></div>
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.6rem;">Gestión de Máquinas</h3>
+        <p style="font-size:0.85rem;color:rgba(244,241,235,0.48);line-height:1.72;">
+          Inventario completo, estado operativo por estación, reportes de falla y coordinación en tiempo real con hardware ESP32.
+        </p>
+        <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.4rem;">
+          <span class="feat-tag">Inventario</span>
+          <span class="feat-tag">ESP32</span>
+          <span class="feat-tag">Fallas</span>
+        </div>
+      </div>
+
+      <div class="feat-card reveal d2">
+        <div class="feat-icon"><i class="fas fa-qrcode"></i></div>
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.6rem;">Ventas y Códigos QR</h3>
+        <p style="font-size:0.85rem;color:rgba(244,241,235,0.48);line-height:1.72;">
+          Genera paquetes de turnos con QR. El cliente escanea en la máquina y el sistema valida y descuenta automáticamente.
+        </p>
+        <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.4rem;">
+          <span class="feat-tag">QR Scanner</span>
+          <span class="feat-tag">Paquetes</span>
+          <span class="feat-tag">Turnos</span>
+        </div>
+      </div>
+
+      <div class="feat-card reveal d3">
+        <div class="feat-icon"><i class="fas fa-chart-line"></i></div>
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.6rem;">Reportes y Liquidaciones</h3>
+        <p style="font-size:0.85rem;color:rgba(244,241,235,0.48);line-height:1.72;">
+          Estadísticas en tiempo real, liquidaciones automáticas para socios inversores y exportación de reportes en PDF.
+        </p>
+        <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.4rem;">
+          <span class="feat-tag">Analytics</span>
+          <span class="feat-tag">PDF</span>
+          <span class="feat-tag">Socios</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== MACHINES ===================== -->
+<section id="maquinas" style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-6xl mx-auto">
+
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:3rem;">
+      <div>
+        <span class="s-label reveal">Catálogo</span>
+        <h2 class="s-title reveal d1">Nuestras Máquinas</h2>
+        <div class="s-underline reveal d2"></div>
+      </div>
+      <a href="/login" class="btn-secondary reveal d1" style="font-size:0.82rem;padding:.55rem 1.1rem;">
+        <i class="fas fa-sign-in-alt"></i> Ver sistema completo
+      </a>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.9rem;">
+
+      <!-- Row 1: 4 machines with larger first -->
+      <div class="machine-card reveal d1" style="grid-column:span 1;">
+        <img src="{{ url_for('static', filename='img/basketball.jpg') }}" alt="Basketball" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Basketball</div>
+          <div class="machine-tag">Deporte</div>
+        </div></div>
+      </div>
+
+      <div class="machine-card reveal d2">
+        <img src="{{ url_for('static', filename='img/simulador1.jpg') }}" alt="Simulador Racing" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Simulador Racing</div>
+          <div class="machine-tag">Velocidad</div>
+        </div></div>
+      </div>
+
+      <div class="machine-card reveal d3">
+        <img src="{{ url_for('static', filename='img/mcqueen.jpg') }}" alt="McQueen Racing" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">McQueen Racing</div>
+          <div class="machine-tag">Infantil</div>
+        </div></div>
+      </div>
+
+      <div class="machine-card reveal d4">
+        <img src="{{ url_for('static', filename='img/disco air hockey.jpg') }}" alt="Air Hockey" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Air Hockey</div>
+          <div class="machine-tag">Clásico</div>
+        </div></div>
+      </div>
+
+    </div>
+
+    <!-- Second row: 4 more -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.9rem;margin-top:0.9rem;">
+
+      <div class="machine-card reveal d1">
+        <img src="{{ url_for('static', filename='img/peluches1.jpg') }}" alt="Grúa Peluches" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Grúa Peluches</div>
+          <div class="machine-tag">Destreza</div>
+        </div></div>
+      </div>
+
+      <div class="machine-card reveal d2">
+        <img src="{{ url_for('static', filename='img/tren.jpg') }}" alt="Tren de Paseo" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Tren de Paseo</div>
+          <div class="machine-tag">Infantil</div>
+        </div></div>
+      </div>
+
+      <div class="machine-card reveal d3">
+        <img src="{{ url_for('static', filename='img/pelea.jpg') }}" alt="Lucha Arcade" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Lucha Arcade</div>
+          <div class="machine-tag">Combate</div>
+        </div></div>
+      </div>
+
+      <div class="machine-card reveal d4">
+        <img src="{{ url_for('static', filename='img/caballo.jpg') }}" alt="Caballo Mecánico" loading="lazy">
+        <div class="machine-overlay"><div>
+          <div class="machine-name">Caballo Mecánico</div>
+          <div class="machine-tag">Infantil</div>
+        </div></div>
+      </div>
+
+    </div>
+
+    <!-- Responsive: on mobile second row becomes 2 columns -->
+    <style>
+      @media(max-width:639px){
+        #maquinas [style*="grid-template-columns:repeat(4"]{
+          grid-template-columns:repeat(2,1fr)!important;
+        }
+      }
+    </style>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== STATS ===================== -->
+<section id="cifras" style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-5xl mx-auto">
+
+    <div style="text-align:center;margin-bottom:3.5rem;">
+      <span class="s-label reveal">Operación</span>
+      <h2 class="s-title reveal d1">En números</h2>
+      <div class="s-underline reveal d2" style="margin:0.9rem auto 0;"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;">
+
+      <div class="stat-box reveal d1" data-target="15" data-suffix="+">
+        <div class="stat-val" data-counter>0</div>
+        <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);font-weight:600;margin-top:0.5rem;text-transform:uppercase;letter-spacing:0.1em;">Máquinas Activas</div>
+      </div>
+
+      <div class="stat-box reveal d2" data-target="6" data-suffix="">
+        <div class="stat-val" data-counter>0</div>
+        <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);font-weight:600;margin-top:0.5rem;text-transform:uppercase;letter-spacing:0.1em;">Locales</div>
+      </div>
+
+      <div class="stat-box reveal d3" data-target="500" data-suffix="+">
+        <div class="stat-val" data-counter>0</div>
+        <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);font-weight:600;margin-top:0.5rem;text-transform:uppercase;letter-spacing:0.1em;">Ventas QR</div>
+      </div>
+
+      <div class="stat-box reveal d4" data-target="10" data-suffix="+">
+        <div class="stat-val" data-counter>0</div>
+        <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);font-weight:600;margin-top:0.5rem;text-transform:uppercase;letter-spacing:0.1em;">Socios Inversores</div>
+      </div>
+
+    </div>
+
+    <!-- on lg: 4 columns -->
+    <style>
+      @media(min-width:768px){
+        #cifras [style*="grid-template-columns:repeat(2"]{
+          grid-template-columns:repeat(4,1fr)!important;
+        }
+      }
+    </style>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== CTA FINAL ===================== -->
+<section style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-2xl mx-auto">
+    <div class="cta-section">
+      <p style="font-size:0.7rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.2em;margin-bottom:0.6rem;" class="reveal">
+        ¿Listo para empezar?
+      </p>
+      <h2 class="reveal d1"
+          style="font-size:clamp(1.5rem,4vw,2rem);font-weight:800;margin-bottom:0.9rem;letter-spacing:-0.02em;">
+        Accede a tu operación arcade
+      </h2>
+      <p class="reveal d2"
+         style="font-size:0.9rem;color:rgba(244,241,235,0.48);line-height:1.75;margin-bottom:2rem;max-width:380px;margin-left:auto;margin-right:auto;">
+        Ingresa con tu código de empleado y gestiona toda la operación desde cualquier dispositivo.
+      </p>
+      <div class="reveal d3" style="display:flex;flex-wrap:wrap;gap:0.75rem;justify-content:center;">
+        <a href="/login" class="btn-primary" style="font-size:1rem;padding:.9rem 2.25rem;">
+          <i class="fas fa-sign-in-alt"></i> Ingresar al Sistema
+        </a>
+      </div>
+      <div class="reveal d4" style="margin-top:1.25rem;">
+        <a href="https://wa.me/573218001092" target="_blank"
+           style="font-size:0.76rem;color:rgba(244,241,235,0.28);text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem;transition:color .2s;"
+           onmouseover="this.style.color='rgba(134,239,172,0.7)'"
+           onmouseout="this.style.color='rgba(244,241,235,0.28)'">
+          <i class="fab fa-whatsapp"></i> Soporte técnico
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer style="position:relative;z-index:10;padding:2rem 1.5rem;border-top:1px solid rgba(244,241,235,0.07);">
+  <div class="max-w-6xl mx-auto"
+       style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;">
+
+    <div style="display:flex;align-items:center;gap:0.65rem;">
+      <img src="{{ url_for('static', filename='img/logo.jpg') }}"
+           alt="Logo" style="width:28px;height:28px;border-radius:8px;object-fit:cover;border:1px solid rgba(244,241,235,0.15);">
+      <span style="font-weight:700;font-size:0.8rem;color:rgba(244,241,235,0.35);">Inversiones Arcade</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:1.5rem;">
+      <a href="#plataforma" style="font-size:0.72rem;color:rgba(244,241,235,0.28);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='rgba(244,241,235,0.8)'" onmouseout="this.style.color='rgba(244,241,235,0.28)'">Plataforma</a>
+      <a href="#maquinas"   style="font-size:0.72rem;color:rgba(244,241,235,0.28);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='rgba(244,241,235,0.8)'" onmouseout="this.style.color='rgba(244,241,235,0.28)'">Máquinas</a>
+      <a href="/login"      style="font-size:0.72rem;color:var(--red);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='#e87070'" onmouseout="this.style.color='var(--red)'">Ingresar</a>
+    </div>
+
+    <div style="font-size:0.68rem;color:rgba(244,241,235,0.18);">© 2025 Inversiones Arcade · Medellín</div>
+  </div>
+</footer>
+
+
+<!-- ===================== SCRIPTS ===================== -->
+
+<!-- Particles: navy/cream tones matching brand -->
+<script>
+  particlesJS('particles-js', {
+    particles: {
+      number: { value: 55, density: { enable: true, value_area: 700 } },
+      color: { value: '#445d75' },
+      shape: { type: 'circle' },
+      opacity: { value: 0.35, random: true },
+      size: { value: 2.2, random: true },
+      line_linked: { enable: true, distance: 130, color: '#1c2b4a', opacity: 0.3, width: 1 },
+      move: { enable: true, speed: 0.7, direction: 'none', random: true }
+    },
+    interactivity: {
+      detect_on: 'canvas',
+      events: {
+        onhover: { enable: true, mode: 'grab' },
+        onclick: { enable: true, mode: 'push' },
+        resize: true
+      },
+      modes: {
+        grab: { distance: 130, line_linked: { opacity: 0.7 } },
+        push: { particles_nb: 3 }
+      }
+    },
+    retina_detect: true
+  });
+</script>
+
+<!-- Navbar scroll -->
+<script>
+  window.addEventListener('scroll', function() {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40);
+  });
+</script>
+
+<!-- Scroll Reveal -->
+<script>
+  (function() {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(function(el) { obs.observe(el); });
+  })();
+</script>
+
+<!-- Animated Counters -->
+<script>
+  (function() {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (!e.isIntersecting) return;
+        var box = e.target;
+        var target = parseInt(box.dataset.target, 10);
+        var suffix = box.dataset.suffix || '';
+        var el = box.querySelector('[data-counter]');
+        if (el && !box.dataset.counted) {
+          box.dataset.counted = '1';
+          var start = performance.now(), dur = 1600;
+          (function step(now) {
+            var p = Math.min((now - start) / dur, 1);
+            var ease = 1 - Math.pow(1 - p, 3);
+            el.textContent = Math.floor(ease * target) + (p >= 1 ? suffix : '');
+            if (p < 1) requestAnimationFrame(step);
+          })(start);
+        }
+      });
+    }, { threshold: 0.4 });
+    document.querySelectorAll('.stat-box').forEach(function(b) { obs.observe(b); });
+  })();
+</script>
+
+</body>
+</html>
