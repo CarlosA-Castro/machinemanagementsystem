@@ -983,7 +983,18 @@ fetch('/api/mis-permisos')
             new QRCode(tempDiv, { text: primerCodigo, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
             setTimeout(() => {
               const canvas = tempDiv.querySelector('canvas');
-              if (canvas) this.mostrarModalNumeroWhatsApp(canvas.toDataURL('image/png'), nombre, primerCodigo, paquete);
+              if (canvas) {
+                // Agregar quiet zone blanca (mínimo 4 módulos ≈ 40px) para que GM67 pueda leer el QR
+                const margen = 48;
+                const qrConBorde = document.createElement('canvas');
+                qrConBorde.width  = canvas.width  + margen * 2;
+                qrConBorde.height = canvas.height + margen * 2;
+                const ctx = qrConBorde.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, qrConBorde.width, qrConBorde.height);
+                ctx.drawImage(canvas, margen, margen);
+                this.mostrarModalNumeroWhatsApp(qrConBorde.toDataURL('image/png'), nombre, primerCodigo, paquete);
+              }
             }, 500);
           }
         } catch (error) { this.mostrarAlerta("❌ Error al preparar para WhatsApp", "error"); }
@@ -1031,8 +1042,10 @@ fetch('/api/mis-permisos')
         document.getElementById('btnEnviarWpp').addEventListener('click', () => this.enviarWhatsAppConNumero());
         document.getElementById('btnSoloDescargar').addEventListener('click', () => {
           const d = this._wppData;
+          document.getElementById('modalWhatsAppNumero')?.remove();
+          this._wppData = null;
           this.descargarQR(d.qrDataUrl, d.nombre, d.codigo);
-          this.mostrarAlerta("✅ QR descargado", "success");
+          this.mostrarVentaExito(d.nombre, d.codigo, d.paquete);
         });
         document.getElementById('btnCancelarWpp').addEventListener('click', () => {
           document.getElementById('modalWhatsAppNumero')?.remove();
@@ -1065,20 +1078,26 @@ fetch('/api/mis-permisos')
         const selector = document.createElement('div');
         selector.innerHTML = `
           <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-              <div class="text-4xl mb-3">💬</div>
-              <h3 class="text-lg font-bold mb-2 text-gray-800">¿Dónde abrir WhatsApp?</h3>
-              <p class="text-sm text-gray-500 mb-5">El QR ya fue descargado. Elige cómo enviar el mensaje:</p>
-              <div class="space-y-3">
-                <button id="btnWppDesktop" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
-                  <i class="fab fa-whatsapp text-xl"></i>WhatsApp Desktop (app)
-                </button>
-                <button id="btnWppWeb" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
-                  <i class="fas fa-globe text-xl"></i>WhatsApp Web (navegador)
-                </button>
-                <button id="btnWppCancelarSelector" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Cancelar</button>
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+              <div class="bg-green-500 text-white px-6 py-4 text-center">
+                <div class="text-3xl mb-1">✅</div>
+                <div class="text-xl font-bold tracking-wide">¡VENTA GENERADA CON ÉXITO!</div>
+                <div class="text-sm opacity-90 mt-1">${d.nombre} · ${d.codigo} · $${d.paquete.price.toLocaleString('es-CO')}</div>
               </div>
-              <p class="text-xs text-gray-400 mt-4"><i class="fas fa-download mr-1"></i>El QR ya fue descargado como imagen</p>
+              <div class="p-6 text-center">
+                <div class="text-3xl mb-2">💬</div>
+                <h3 class="text-lg font-bold mb-1 text-gray-800">¿Dónde abrir WhatsApp?</h3>
+                <p class="text-sm text-gray-500 mb-5">El QR ya fue descargado. Elige cómo enviar el mensaje:</p>
+                <div class="space-y-3">
+                  <button id="btnWppDesktop" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+                    <i class="fab fa-whatsapp text-xl"></i>WhatsApp Desktop (app)
+                  </button>
+                  <button id="btnWppWeb" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+                    <i class="fas fa-globe text-xl"></i>WhatsApp Web (navegador)
+                  </button>
+                  <button id="btnWppCancelarSelector" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold">Cerrar</button>
+                </div>
+              </div>
             </div>
           </div>`;
         document.body.appendChild(selector);
@@ -1098,6 +1117,35 @@ fetch('/api/mis-permisos')
           document.body.removeChild(link);
           return true;
         } catch (error) { return false; }
+      },
+
+      mostrarVentaExito: function(nombre, codigo, paquete) {
+        const overlay = document.createElement('div');
+        overlay.innerHTML = `
+          <div class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-center">
+              <div class="bg-green-500 text-white px-6 py-6">
+                <div class="text-5xl mb-2">✅</div>
+                <div class="text-2xl font-bold tracking-wide">¡VENTA GENERADA</div>
+                <div class="text-2xl font-bold tracking-wide">CON ÉXITO!</div>
+              </div>
+              <div class="p-5 space-y-1 text-sm text-gray-700">
+                <p><span class="font-semibold">Cliente:</span> ${nombre}</p>
+                <p><span class="font-semibold">Código:</span> ${codigo}</p>
+                <p><span class="font-semibold">Paquete:</span> P${paquete.id} — ${paquete.name}</p>
+                <p><span class="font-semibold">Turnos:</span> ${paquete.turns} &nbsp;|&nbsp; <span class="font-semibold">Precio:</span> $${paquete.price.toLocaleString('es-CO')}</p>
+              </div>
+              <div class="px-5 pb-5">
+                <button onclick="this.closest('.fixed').parentElement.remove()"
+                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold text-base transition">
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        // Auto-cerrar después de 8 segundos si el cajero no lo cierra
+        setTimeout(() => overlay.remove(), 8000);
       },
       
       _misPermisos: [],

@@ -1115,10 +1115,11 @@
                 this.maquinasFiltradas.forEach(maquina => {
                     const estadoClass = `status-badge status-${maquina.status}`;
                     const estadoText = maquina.status === 'activa' ? 'Activa' : maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
-                    const subtipo = maquina.technical?.machine_subtype || 'simple';
+                    const subtipo = maquina.machine_subtype || maquina.technical?.machine_subtype || 'simple';
                     const esMulti = subtipo === 'multi_station';
-                    const rawStations = maquina.technical?.station_names || [];
+                    const rawStations = maquina.station_names?.length ? maquina.station_names : (maquina.technical?.station_names || []);
                     const estaciones = rawStations.length || 1;
+                    const stationsInMaint = maquina.stations_in_maintenance || [];
 
                     // Extraer nombres de estaciones (pueden ser objetos {name, relayPin} o strings)
                     const stationNames = rawStations.map((s, i) =>
@@ -1126,7 +1127,12 @@
                     );
 
                     const stationsHtml = esMulti
-                        ? stationNames.map(n => `<span class="station-pill">${n}</span>`).join('')
+                        ? stationNames.map((n, i) => {
+                            const enMant = stationsInMaint.includes(i) || stationsInMaint.includes(String(i));
+                            return enMant
+                                ? `<span class="station-pill" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5;" title="En mantenimiento"><i class="fas fa-wrench" style="font-size:9px;margin-right:3px;"></i>${n}</span>`
+                                : `<span class="station-pill">${n}</span>`;
+                          }).join('')
                         : `<span class="text-xs text-gray-500">—</span>`;
 
                     const rowClass = esMulti ? 'border-b border-gray-100 machine-card multi-station-row' : 'border-b border-gray-100 hover:bg-gray-50 machine-card';
@@ -1155,7 +1161,8 @@
                                     const online = maquina.esp32_online === true;
                                     const wColor = online && wOk ? '#22c55e' : '#d1d5db';
                                     const sColor = online && sOk ? '#22c55e' : '#d1d5db';
-                                    const wTip  = online && wOk ? 'WiFi: conectado' : 'WiFi: sin señal';
+                                    const rssi  = maquina.esp32_rssi || 0;
+                                    const wTip  = !online ? 'ESP32: sin heartbeat (>90s)' : wOk ? `WiFi: conectado (${rssi} dBm)` : 'WiFi: sin señal';
                                     const sTip  = online && sOk ? 'Servidor: online' : 'Servidor: offline';
                                     return `<span class="inline-flex items-center gap-1">
                                         <span title="${wTip}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${wColor};border:1px solid #9ca3af;flex-shrink:0"></span>
@@ -1231,7 +1238,7 @@
                                              maquina.id.toString().includes(busqueda);
                     const coincideEstado = estado === 'todos' || maquina.status === estado;
                     const coincideTipo = tipo === 'todos' || maquina.type === tipo;
-                    const maquinaSubtipo = maquina.technical?.machine_subtype || 'simple';
+                    const maquinaSubtipo = maquina.machine_subtype || maquina.technical?.machine_subtype || 'simple';
                     const coincideSubtipo = subtipo === 'todos' || maquinaSubtipo === subtipo;
                     
                     return coincideBusqueda && coincideEstado && coincideTipo && coincideSubtipo;
@@ -2295,8 +2302,8 @@
 
                 try {
                     const maquina = this.maquinas.find(m => m.id === maquinaId);
-                    const esMulti = maquina?.technical?.machine_subtype === 'multi_station';
-                    const rawStations = maquina?.technical?.station_names || [];
+                    const esMulti = (maquina?.machine_subtype || maquina?.technical?.machine_subtype) === 'multi_station';
+                    const rawStations = maquina?.station_names?.length ? maquina.station_names : (maquina?.technical?.station_names || []);
                     const stationNames = rawStations.map((s, i) =>
                         (s && typeof s === 'object') ? (s.name || `Estación ${i+1}`) : String(s || `Estación ${i+1}`)
                     );

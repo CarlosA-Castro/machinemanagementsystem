@@ -96,6 +96,28 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 
 # ============================================================
+# ESTADO EN MEMORIA — HEARTBEATS ESP32
+# Clave: machine_id (int)  Valor: {wifi, server, rssi, ts}
+# No persiste entre reinicios del servidor (comportamiento correcto:
+# si el servidor reinicia, los ESP32 vuelven a enviar heartbeat en segundos)
+# ============================================================
+import time as _time
+_esp32_heartbeats: dict = {}   # { machine_id: {wifi, server, rssi, ts} }
+_ESP32_ONLINE_TIMEOUT = 90    # segundos sin heartbeat → considerado offline
+
+def _esp32_heartbeat_fields(machine_id: int) -> dict:
+    """Devuelve los campos esp32_* para incluir en la respuesta de /api/maquinas."""
+    hb = _esp32_heartbeats.get(int(machine_id))
+    if hb and (_time.time() - hb['ts']) < _ESP32_ONLINE_TIMEOUT:
+        return {
+            'esp32_online': True,
+            'esp32_wifi':   hb['wifi'],
+            'esp32_server': hb['server'],
+            'esp32_rssi':   hb['rssi'],
+        }
+    return {'esp32_online': False, 'esp32_wifi': False, 'esp32_server': False, 'esp32_rssi': 0}
+
+# ============================================================
 # LOGGING TRANSACCIONAL Y HOOKS DE REQUEST
 # ============================================================
 
@@ -105,6 +127,7 @@ _SKIP_ACCESS_LOG = (
     '/favicon',
     '/api/logs',           # auto-refresh de la consola cada 5s
     '/api/esp32/check-commands',  # polling del ESP32 cada pocos segundos
+    '/api/esp32/heartbeat',       # heartbeat del ESP32 cada 30s
     '/api/esp32/status',
     '/api/tft/',
 )
@@ -1665,11 +1688,38 @@ def registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
         
-        cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+        station_index = data.get('station_index', None)
+
+        # Insertar turno usado con station_index si la columna existe
+        try:
+            cursor.execute(
+                "INSERT INTO turnusage (qrCodeId, machineId, station_index) VALUES (%s, %s, %s)",
+                (qr_id, machine_id, station_index)
+            )
+        except Exception:
+            cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
+
+        # Resetear contador de fallas consecutivas para esta estación (juego exitoso = contador a 0)
+        station_key = str(station_index) if station_index is not None else 'all'
+        try:
+            cursor.execute("SELECT consecutive_failures FROM machine WHERE id = %s", (machine_id,))
+            maq = cursor.fetchone()
+            if maq:
+                contadores = json.loads(maq['consecutive_failures'] or '{}')
+                if contadores.get(station_key, 0) > 0:
+                    contadores[station_key] = 0
+                    cursor.execute(
+                        "UPDATE machine SET consecutive_failures = %s WHERE id = %s",
+                        (json.dumps(contadores), machine_id)
+                    )
+        except Exception as e:
+            app.logger.warning(f"No se pudo resetear consecutive_failures: {e}")
+
         connection.commit()
-        
-        app.logger.info(f"Turno usado - QR: {qr_code}, Máquina: {machine_id}")
+
+        app.logger.info(f"Turno usado - QR: {qr_code}, Máquina: {machine_id}, Estación: {station_index}")
         
         return api_response(
             'S010',
@@ -1693,99 +1743,165 @@ def registrar_uso():
 @handle_api_errors
 @validate_required_fields(['qr_code', 'turnos_devueltos'])
 def reportar_falla():
-    """Reportar falla en una máquina - VERSIÓN FINAL CORREGIDA"""
+    """Reportar falla desde ESP32: devuelve turnos, cuenta fallas consecutivas y actualiza estado."""
     connection = None
     cursor = None
     try:
         data = request.get_json()
-        qr_code = data['qr_code']
-        machine_id = data.get('machine_id', 0)
-        machine_name = data.get('machine_name', 'Sistema')
+        qr_code          = data['qr_code']
+        machine_id       = data.get('machine_id', 0)
+        machine_name     = data.get('machine_name', 'Sistema')
         turnos_devueltos = data['turnos_devueltos']
-        is_forced = data.get('is_forced', False)
-        forced_by = data.get('forced_by', '')
-        notes = data.get('notes', '')
-        
+        is_forced        = data.get('is_forced', False)
+        forced_by        = data.get('forced_by', '')
+        notes            = data.get('notes', '')
+        station_index    = data.get('station_index', None)   # nuevo: índice de estación
+
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
-            
         cursor = get_db_cursor(connection)
-        
+
+        # ── Verificar QR ──────────────────────────────────────────────────────
         cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
-        
         qr_id = qr_data['id']
-        
+
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
         if not turnos_data:
             return api_response('Q003', http_status=400)
-        
+
         turnos_originales = turnos_data['turns_remaining']
-        nuevos_turnos = turnos_originales + turnos_devueltos
-        
-        actual_machine_id = None if machine_id == 0 else machine_id
+        nuevos_turnos     = turnos_originales + turnos_devueltos
+        actual_machine_id   = None if machine_id == 0 else machine_id
         actual_machine_name = 'Devolución Manual' if machine_id == 0 else machine_name
-        
+
+        # ── Insertar en machinefailures ───────────────────────────────────────
         cursor.execute("DESCRIBE machinefailures")
-        columnas = cursor.fetchall()
-        columnas_existentes = [col['Field'] for col in columnas]
-        
-        app.logger.info(f"Columnas en machinefailures: {columnas_existentes}")
-        
+        columnas_existentes = [col['Field'] for col in cursor.fetchall()]
+
         campos = ['qr_code_id', 'machine_name', 'turnos_devueltos']
         valores = [qr_id, actual_machine_name, turnos_devueltos]
-        
-        if 'machine_id' in columnas_existentes:
-            campos.append('machine_id')
-            valores.append(actual_machine_id)
-        
-        if 'notes' in columnas_existentes:
-            campos.append('notes')
-            valores.append(notes if notes else None)
-        
-        if 'is_forced' in columnas_existentes:
-            campos.append('is_forced')
-            valores.append(1 if is_forced else 0)
-        
-        if 'forced_by' in columnas_existentes:
-            campos.append('forced_by')
-            valores.append(forced_by if forced_by else None)
-        
+        if 'machine_id'    in columnas_existentes: campos.append('machine_id');    valores.append(actual_machine_id)
+        if 'notes'         in columnas_existentes: campos.append('notes');         valores.append(notes or None)
+        if 'is_forced'     in columnas_existentes: campos.append('is_forced');     valores.append(1 if is_forced else 0)
+        if 'forced_by'     in columnas_existentes: campos.append('forced_by');     valores.append(forced_by or None)
+        if 'station_index' in columnas_existentes: campos.append('station_index'); valores.append(station_index)
+
         placeholders = ', '.join(['%s'] * len(campos))
-        query = f"INSERT INTO machinefailures ({', '.join(campos)}) VALUES ({placeholders})"
-        
-        app.logger.info(f"Query: {query}")
-        app.logger.info(f"Valores: {valores}")
-        
-        cursor.execute(query, valores)
-        
+        cursor.execute(f"INSERT INTO machinefailures ({', '.join(campos)}) VALUES ({placeholders})", valores)
+
+        # ── Devolver turnos (SIEMPRE, incluyendo la 3ª falla) ────────────────
         cursor.execute("UPDATE userturns SET turns_remaining = %s WHERE qr_code_id = %s",
                        (nuevos_turnos, qr_id))
-        
+
+        # ── Contar fallas consecutivas y actualizar estado de máquina ─────────
+        fallas_consecutivas = 0
+        station_en_mantenimiento = False
+        if actual_machine_id:
+            # Clave de estación en el JSON de la máquina
+            station_key = str(station_index) if station_index is not None else 'all'
+
+            # Leer contadores actuales
+            cursor.execute(
+                "SELECT consecutive_failures, stations_in_maintenance, machine_subtype "
+                "FROM machine WHERE id = %s",
+                (actual_machine_id,)
+            )
+            maq = cursor.fetchone()
+            if maq:
+                try:
+                    contadores = json.loads(maq['consecutive_failures'] or '{}')
+                except Exception:
+                    contadores = {}
+                try:
+                    en_mant = json.loads(maq['stations_in_maintenance'] or '[]')
+                except Exception:
+                    en_mant = []
+                machine_subtype = maq.get('machine_subtype', 'simple') or 'simple'
+
+                # Incrementar contador de esta estación
+                contadores[station_key] = contadores.get(station_key, 0) + 1
+                fallas_consecutivas = contadores[station_key]
+
+                updates = {"consecutive_failures": json.dumps(contadores)}
+
+                if fallas_consecutivas >= 3:
+                    # Marcar estación como en mantenimiento
+                    station_en_mantenimiento = True
+                    if station_key not in [str(s) for s in en_mant]:
+                        en_mant.append(station_index if station_index is not None else 'all')
+                    updates["stations_in_maintenance"] = json.dumps(en_mant)
+                    updates["errorNote"] = f"Falla estación {station_key} — 3 fallos consecutivos"
+
+                    # Determinar si toda la máquina queda en mantenimiento
+                    if machine_subtype == 'multi_station':
+                        # Obtener cuántas estaciones tiene la máquina
+                        cursor.execute(
+                            "SELECT JSON_LENGTH(station_names) as n_stations FROM machine WHERE id = %s",
+                            (actual_machine_id,)
+                        )
+                        row = cursor.fetchone()
+                        n_stations = row['n_stations'] if row and row['n_stations'] else 2
+                        # Verificar cuántas estaciones distintas están en mantenimiento
+                        stations_bloqueadas = set()
+                        for s in en_mant:
+                            stations_bloqueadas.add(str(s))
+                        if len(stations_bloqueadas) >= n_stations:
+                            updates["status"] = "mantenimiento"
+                        # Si solo una está en mantenimiento, la máquina sigue activa
+                        # pero la estación individual ya está marcada
+                    else:
+                        # Máquina simple → toda la máquina pasa a mantenimiento
+                        updates["status"] = "mantenimiento"
+
+                    # Encolar MAINTENANCE al ESP32
+                    try:
+                        cursor.execute("""
+                            INSERT INTO esp32_commands
+                            (machine_id, command, parameters, triggered_by, status, triggered_at)
+                            VALUES (%s, 'MAINTENANCE', %s, 'auto_falla_esp32', 'queued', NOW())
+                        """, (actual_machine_id, json.dumps({
+                            'station_index': station_index,
+                            'station_key': station_key,
+                            'fallas_consecutivas': fallas_consecutivas
+                        })))
+                    except Exception as cmd_err:
+                        app.logger.error(f"No se pudo encolar MAINTENANCE: {cmd_err}")
+
+                # Aplicar updates a machine
+                set_parts  = [f"{k} = %s" for k in updates]
+                set_values = list(updates.values()) + [actual_machine_id]
+                cursor.execute(
+                    f"UPDATE machine SET {', '.join(set_parts)} WHERE id = %s",
+                    set_values
+                )
+
         if is_forced:
             try:
                 cursor.execute("""
-                    INSERT INTO error_logs 
+                    INSERT INTO error_logs
                     (error_type, error_message, module, user_id, request_path)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (
                     'REFUND_FORCED',
                     f'Devolución forzada: QR={qr_code}, Turnos={turnos_devueltos}, Por={forced_by}',
-                    'packfailure',
-                    session.get('user_id'),
-                    '/api/reportar-falla'
+                    'packfailure', session.get('user_id'), '/api/reportar-falla'
                 ))
             except Exception as e:
                 app.logger.error(f"Error registrando en error_logs: {e}")
-        
+
         connection.commit()
-        
-        app.logger.info(f"✅ Devolución exitosa - QR: {qr_code}, Turnos: {turnos_devueltos}, Forzado: {is_forced}")
-        
+
+        app.logger.info(
+            f"✅ Falla reportada — QR={qr_code} maquina={actual_machine_id} "
+            f"estacion={station_index} consecutivas={fallas_consecutivas} "
+            f"turnos_devueltos={turnos_devueltos}"
+        )
+
         return api_response(
             'S003',
             status='success',
@@ -1795,7 +1911,9 @@ def reportar_falla():
                 'machine_id': actual_machine_id,
                 'qr_code': qr_code,
                 'turnos_originales': turnos_originales,
-                'turnos_devueltos': turnos_devueltos
+                'turnos_devueltos': turnos_devueltos,
+                'fallas_consecutivas': fallas_consecutivas,
+                'station_en_mantenimiento': station_en_mantenimiento,
             }
         )
         
@@ -2805,8 +2923,6 @@ def reportar_falla_maquina():
         if not maquina:
             return api_response('M001', http_status=404, data={'machine_id': machine_id})
 
-        nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
-
         # Insertar reporte con station_index
         cursor.execute("""
             INSERT INTO errorreport
@@ -2815,6 +2931,44 @@ def reportar_falla_maquina():
         """, (machine_id, user_id, description, problem_type, station_index))
 
         error_report_id = cursor.lastrowid
+
+        # Determinar el nuevo estado global de la máquina
+        # Para máquinas multi-estación: solo ir a 'mantenimiento' si TODAS las estaciones
+        # tienen al menos un errorreport activo (no resuelto)
+        cursor.execute(
+            "SELECT machine_subtype, JSON_LENGTH(station_names) as n_stations "
+            "FROM machine WHERE id = %s", (machine_id,)
+        )
+        maq_info = cursor.fetchone() or {}
+        machine_subtype = maq_info.get('machine_subtype', 'simple') or 'simple'
+        n_stations      = maq_info.get('n_stations') or 1
+
+        if machine_subtype == 'multi_station' and n_stations > 1:
+            # Contar cuántas estaciones distintas tienen fallas activas
+            cursor.execute("""
+                SELECT COUNT(DISTINCT station_index) as estaciones_con_falla
+                FROM errorreport
+                WHERE machineId = %s AND isResolved = 0 AND station_index IS NOT NULL
+            """, (machine_id,))
+            row = cursor.fetchone() or {}
+            estaciones_con_falla = row.get('estaciones_con_falla', 0)
+            nuevo_estado = 'mantenimiento' if estaciones_con_falla >= n_stations else 'activa'
+        else:
+            nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
+
+        # Actualizar stations_in_maintenance
+        try:
+            cursor.execute("SELECT stations_in_maintenance FROM machine WHERE id = %s", (machine_id,))
+            maq_row = cursor.fetchone() or {}
+            en_mant = json.loads(maq_row.get('stations_in_maintenance') or '[]')
+            if station_index is not None and station_index not in en_mant:
+                en_mant.append(station_index)
+            cursor.execute(
+                "UPDATE machine SET stations_in_maintenance = %s WHERE id = %s",
+                (json.dumps(en_mant), machine_id)
+            )
+        except Exception as e:
+            app.logger.warning(f"No se pudo actualizar stations_in_maintenance: {e}")
 
         cursor.execute("""
             UPDATE machine
@@ -4133,7 +4287,7 @@ def obtener_maquinas():
         cursor = get_db_cursor(connection)
         
         cursor.execute("""
-            SELECT 
+            SELECT
                 m.id,
                 m.name,
                 m.type,
@@ -4142,11 +4296,16 @@ def obtener_maquinas():
                 m.dailyFailedTurns,
                 m.dateLastQRUsed,
                 m.errorNote,
+                m.stations_in_maintenance,
+                m.consecutive_failures,
                 l.name as location_name,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante
+                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+                mt.machine_subtype,
+                mt.station_names
             FROM machine m
             LEFT JOIN location l ON m.location_id = l.id
             LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
             ORDER BY m.name
         """)
         
@@ -4182,7 +4341,12 @@ def obtener_maquinas():
                 'errorNote': maquina['errorNote'],
                 'porcentaje_restaurante': float(maquina['porcentaje_restaurante']),
                 'propietarios': propietarios,
-                'info_propietarios': info_propietarios
+                'info_propietarios': info_propietarios,
+                'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
+                'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
+                'stations_in_maintenance': json.loads(maquina['stations_in_maintenance']) if maquina.get('stations_in_maintenance') else [],
+                'consecutive_failures': json.loads(maquina['consecutive_failures']) if maquina.get('consecutive_failures') else {},
+                **_esp32_heartbeat_fields(maquina['id']),
             })
         
         return jsonify(maquinas_formateadas)
@@ -6429,6 +6593,70 @@ def esp32_status():
         'timestamp': get_colombia_time().isoformat()
     })
 
+@app.route('/api/esp32/heartbeat', methods=['POST'])
+def esp32_heartbeat():
+    """
+    ESP32 llama a este endpoint cada STATUS_UPDATE_MS (~30s) para reportar
+    que sigue activo y cuál es su estado de conectividad.
+    Body JSON: { machine_id, wifi_connected, server_online, rssi (opcional) }
+    """
+    data = request.get_json(silent=True) or {}
+    machine_id = data.get('machine_id')
+    if not machine_id:
+        return jsonify({'status': 'error', 'message': 'machine_id requerido'}), 400
+    _esp32_heartbeats[int(machine_id)] = {
+        'wifi':   bool(data.get('wifi_connected', True)),
+        'server': bool(data.get('server_online', True)),
+        'rssi':   int(data.get('rssi', 0)),
+        'ts':     _time.time()
+    }
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/api/esp32/estado-fallas/<int:machine_id>', methods=['GET'])
+@handle_api_errors
+def esp32_estado_fallas(machine_id):
+    """
+    El ESP32 consulta este endpoint al arrancar para precargar los contadores de
+    fallas consecutivas y saber qué estaciones están en mantenimiento.
+    Respuesta: { consecutive_failures: {"0":2,"1":0}, stations_in_maintenance: [0] }
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'error': 'db'}), 500
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            SELECT consecutive_failures, stations_in_maintenance, status
+            FROM machine WHERE id = %s
+        """, (machine_id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'error': 'machine_not_found'}), 404
+
+        try:
+            consec = json.loads(row['consecutive_failures'] or '{}')
+        except Exception:
+            consec = {}
+        try:
+            en_mant = json.loads(row['stations_in_maintenance'] or '[]')
+        except Exception:
+            en_mant = []
+
+        return jsonify({
+            'machine_id': machine_id,
+            'status': row['status'],
+            'consecutive_failures': consec,
+            'stations_in_maintenance': en_mant,
+        })
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 @app.route('/api/esp32/registrar-uso', methods=['POST'])
 @handle_api_errors
 @validate_required_fields(['qr_code', 'machine_id'])
@@ -6663,8 +6891,9 @@ def esp32_machine_config(machine_id):
         
         # IMPORTANTE: NO incluir station_count (no existe)
         cursor.execute("""
-            SELECT 
+            SELECT
                 m.id, m.name, m.type, m.status,
+                m.consecutive_failures, m.stations_in_maintenance,
                 mt.credits_virtual, mt.credits_machine,
                 mt.game_duration_seconds, mt.reset_time_seconds,
                 mt.machine_subtype, mt.station_names,
@@ -6700,6 +6929,22 @@ def esp32_machine_config(machine_id):
             else:
                 station_names = [config['name']]
         
+        # Construir active_failure_stations desde consecutive_failures
+        active_failure_stations = []
+        try:
+            cf = json.loads(config['consecutive_failures'] or '{}')
+            sim = json.loads(config['stations_in_maintenance'] or '[]')
+            for key, count in cf.items():
+                if count > 0:
+                    idx = int(key) if key != 'all' else 0
+                    active_failure_stations.append({
+                        'station_index': idx,
+                        'count': int(count),
+                        'in_maintenance': idx in sim or str(idx) in [str(x) for x in sim]
+                    })
+        except Exception:
+            pass
+
         response_data = {
             'id': config['id'],
             'name': config['name'],
@@ -6714,7 +6959,8 @@ def esp32_machine_config(machine_id):
             'game_type': config['game_type'] or 'time_based',
             'has_failure_report': bool(config['has_failure_report']),
             'show_station_selection': bool(config['show_station_selection']),
-            'last_play_time': config['last_play_time']
+            'last_play_time': config['last_play_time'],
+            'active_failure_stations': active_failure_stations
         }
         
         return jsonify({'status': 'success', 'data': response_data})
