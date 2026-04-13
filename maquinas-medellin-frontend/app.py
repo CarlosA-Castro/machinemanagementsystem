@@ -6928,20 +6928,37 @@ def esp32_machine_config(machine_id):
         cursor = get_db_cursor(connection)
         
         # IMPORTANTE: NO incluir station_count (no existe)
-        cursor.execute("""
-            SELECT
-                m.id, m.name, m.type, m.status,
-                m.consecutive_failures, m.stations_in_maintenance,
-                mt.credits_virtual, mt.credits_machine,
-                mt.game_duration_seconds, mt.reset_time_seconds,
-                mt.machine_subtype, mt.station_names,
-                mt.game_type, mt.has_failure_report,
-                mt.show_station_selection,
-                (SELECT MAX(usedAt) FROM turnusage WHERE machineId = m.id) as last_play_time
-            FROM machine m
-            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
-            WHERE m.id = %s
-        """, (machine_id,))
+        try:
+            cursor.execute("""
+                SELECT
+                    m.id, m.name, m.type, m.status,
+                    m.consecutive_failures, m.stations_in_maintenance,
+                    mt.credits_virtual, mt.credits_machine,
+                    mt.game_duration_seconds, mt.reset_time_seconds,
+                    mt.machine_subtype, mt.station_names,
+                    mt.game_type, mt.has_failure_report,
+                    mt.show_station_selection,
+                    (SELECT MAX(usedAt) FROM turnusage WHERE machineId = m.id) as last_play_time
+                FROM machine m
+                LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                WHERE m.id = %s
+            """, (machine_id,))
+        except Exception:
+            # Migración V32 pendiente: columnas de fallas por estación aún no existen
+            cursor.execute("""
+                SELECT
+                    m.id, m.name, m.type, m.status,
+                    NULL AS consecutive_failures, NULL AS stations_in_maintenance,
+                    mt.credits_virtual, mt.credits_machine,
+                    mt.game_duration_seconds, mt.reset_time_seconds,
+                    mt.machine_subtype, mt.station_names,
+                    mt.game_type, mt.has_failure_report,
+                    mt.show_station_selection,
+                    (SELECT MAX(usedAt) FROM turnusage WHERE machineId = m.id) as last_play_time
+                FROM machine m
+                LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                WHERE m.id = %s
+            """, (machine_id,))
         
         config = cursor.fetchone()
         
