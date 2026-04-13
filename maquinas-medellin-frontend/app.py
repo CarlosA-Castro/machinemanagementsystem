@@ -4297,28 +4297,55 @@ def obtener_maquinas():
             
         cursor = get_db_cursor(connection)
         
-        cursor.execute("""
-            SELECT
-                m.id,
-                m.name,
-                m.type,
-                m.status,
-                m.location_id,
-                m.dailyFailedTurns,
-                m.dateLastQRUsed,
-                m.errorNote,
-                m.stations_in_maintenance,
-                m.consecutive_failures,
-                l.name as location_name,
-                COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                mt.machine_subtype,
-                mt.station_names
-            FROM machine m
-            LEFT JOIN location l ON m.location_id = l.id
-            LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
-            ORDER BY m.name
-        """)
+        # Intentar query completo (requiere migración V32).
+        # Si las columnas aún no existen, caer al query básico.
+        try:
+            cursor.execute("""
+                SELECT
+                    m.id,
+                    m.name,
+                    m.type,
+                    m.status,
+                    m.location_id,
+                    m.dailyFailedTurns,
+                    m.dateLastQRUsed,
+                    m.errorNote,
+                    m.stations_in_maintenance,
+                    m.consecutive_failures,
+                    l.name as location_name,
+                    COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+                    mt.machine_subtype,
+                    mt.station_names
+                FROM machine m
+                LEFT JOIN location l ON m.location_id = l.id
+                LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+                LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                ORDER BY m.name
+            """)
+        except Exception:
+            # Migración V32 pendiente: columnas de fallas por estación aún no existen
+            cursor.execute("""
+                SELECT
+                    m.id,
+                    m.name,
+                    m.type,
+                    m.status,
+                    m.location_id,
+                    m.dailyFailedTurns,
+                    m.dateLastQRUsed,
+                    m.errorNote,
+                    NULL AS stations_in_maintenance,
+                    NULL AS consecutive_failures,
+                    l.name as location_name,
+                    COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
+                    mt.machine_subtype,
+                    mt.station_names
+                FROM machine m
+                LEFT JOIN location l ON m.location_id = l.id
+                LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+                LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                ORDER BY m.name
+            """)
         
         maquinas = cursor.fetchall()
         
