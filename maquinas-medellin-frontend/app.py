@@ -1701,14 +1701,22 @@ def registrar_uso():
         
         station_index = data.get('station_index', None)
 
-        # Insertar turno usado con station_index si la columna existe
+        turns_after = turnos_data['turns_remaining'] - 1
+
+        # Insertar turno usado (con station_index y turns_remaining_after si las columnas existen)
         try:
             cursor.execute(
-                "INSERT INTO turnusage (qrCodeId, machineId, station_index) VALUES (%s, %s, %s)",
-                (qr_id, machine_id, station_index)
+                "INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after) VALUES (%s, %s, %s, %s)",
+                (qr_id, machine_id, station_index, turns_after)
             )
         except Exception:
-            cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+            try:
+                cursor.execute(
+                    "INSERT INTO turnusage (qrCodeId, machineId, station_index) VALUES (%s, %s, %s)",
+                    (qr_id, machine_id, station_index)
+                )
+            except Exception:
+                cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
 
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
 
@@ -2946,10 +2954,11 @@ def reportar_falla_maquina():
         # Determinar el nuevo estado global de la máquina
         # Para máquinas multi-estación: solo ir a 'mantenimiento' si TODAS las estaciones
         # tienen al menos un errorreport activo (no resuelto)
-        cursor.execute(
-            "SELECT machine_subtype, JSON_LENGTH(station_names) as n_stations "
-            "FROM machine WHERE id = %s", (machine_id,)
-        )
+        cursor.execute("""
+            SELECT mt.machine_subtype, JSON_LENGTH(mt.station_names) as n_stations
+            FROM machinetechnical mt
+            WHERE mt.machine_id = %s
+        """, (machine_id,))
         maq_info = cursor.fetchone() or {}
         machine_subtype = maq_info.get('machine_subtype', 'simple') or 'simple'
         n_stations      = maq_info.get('n_stations') or 1
@@ -2971,7 +2980,7 @@ def reportar_falla_maquina():
         try:
             cursor.execute("SELECT stations_in_maintenance FROM machine WHERE id = %s", (machine_id,))
             maq_row = cursor.fetchone() or {}
-            en_mant = json.loads(maq_row.get('stations_in_maintenance') or '[]')
+            en_mant = _parse_json_col(maq_row.get('stations_in_maintenance'), [])
             if station_index is not None and station_index not in en_mant:
                 en_mant.append(station_index)
             cursor.execute(
@@ -4435,11 +4444,10 @@ def obtener_turnusage_recientes():
                 COALESCE(qr.code, '') as qr_code,
                 COALESCE(qr.qr_name, '') as qr_name,
                 COALESCE(tp.name, 'Sin paquete') as package_name,
-                COALESCE(ut.turns_remaining, 0) as turns_remaining
+                tu.turns_remaining_after as turns_remaining
             FROM turnusage tu
             LEFT JOIN machine m ON tu.machineId = m.id
             LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
-            LEFT JOIN userturns ut ON qr.id = ut.qr_code_id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE 1=1
         """
@@ -6730,15 +6738,23 @@ def esp32_registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
 
-        # Insertar con station_index
-        cursor.execute("""
-            INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt) 
-            VALUES (%s, %s, %s, NOW())
-        """, (qr_id, machine_id, station_index))
+        turns_after = turnos_data['turns_remaining'] - 1
+
+        # Insertar con station_index y turns_remaining_after (V36); fallback si columna no existe
+        try:
+            cursor.execute("""
+                INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, usedAt)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (qr_id, machine_id, station_index, turns_after))
+        except Exception:
+            cursor.execute("""
+                INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt)
+                VALUES (%s, %s, %s, NOW())
+            """, (qr_id, machine_id, station_index))
 
         usage_id = cursor.lastrowid
         app.logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}")
-        
+
         cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
 
         cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))

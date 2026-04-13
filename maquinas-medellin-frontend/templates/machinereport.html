@@ -851,6 +851,10 @@
                 <span class="font-medium text-gray-700">Turnos fallados:</span>
                 <span id="turnosFallados" class="font-semibold text-gray-600">Cargando...</span>
               </div>
+              <div class="flex justify-between items-center">
+                <span class="font-medium text-gray-700">ESP32:</span>
+                <span id="esp32Status" class="flex items-center gap-1 text-xs text-gray-500">—</span>
+              </div>
             </div>
 
             <div class="mb-4">
@@ -1277,6 +1281,22 @@ function getGradientColor(tipo) {
   // Turnos fallados
   const turnosFalladosEl = document.getElementById('turnosFallados');
   turnosFalladosEl.textContent = info.dailyFailedTurns != null ? info.dailyFailedTurns : 0;
+
+  // ESP32 WiFi + servidor
+  const esp32El = document.getElementById('esp32Status');
+  if (esp32El) {
+    const online = info.esp32_online === true;
+    const wifi   = info.esp32_wifi   === true;
+    const srv    = info.esp32_server  === true;
+    const rssi   = info.esp32_rssi   || 0;
+    const dot = (ok, tip) =>
+      `<span title="${tip}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${ok?'#22c55e':'#d1d5db'};border:1px solid #9ca3af"></span>`;
+    if (!online) {
+      esp32El.innerHTML = `${dot(false,'Sin heartbeat')} ${dot(false,'Sin heartbeat')} <span class="text-gray-400">sin señal</span>`;
+    } else {
+      esp32El.innerHTML = `${dot(wifi, wifi ? `WiFi (${rssi} dBm)` : 'WiFi: sin señal')} ${dot(srv, srv ? 'Servidor online' : 'Servidor offline')} <span class="${wifi&&srv?'text-green-600':'text-yellow-600'}">${wifi&&srv?'online':'parcial'}</span>`;
+    }
+  }
 }
 
     async function abrirModal(nombre, id, tipo) {
