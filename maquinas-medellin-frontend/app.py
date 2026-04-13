@@ -105,6 +105,17 @@ import time as _time
 _esp32_heartbeats: dict = {}   # { machine_id: {wifi, server, rssi, ts} }
 _ESP32_ONLINE_TIMEOUT = 90    # segundos sin heartbeat → considerado offline
 
+def _parse_json_col(value, default):
+    """Parsea una columna JSON que puede llegar como string o ya como objeto Python."""
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(value)
+    except Exception:
+        return default
+
 def _esp32_heartbeat_fields(machine_id: int) -> dict:
     """Devuelve los campos esp32_* para incluir en la respuesta de /api/maquinas."""
     hb = _esp32_heartbeats.get(int(machine_id))
@@ -4343,9 +4354,9 @@ def obtener_maquinas():
                 'propietarios': propietarios,
                 'info_propietarios': info_propietarios,
                 'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
-                'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
-                'stations_in_maintenance': json.loads(maquina['stations_in_maintenance']) if maquina.get('stations_in_maintenance') else [],
-                'consecutive_failures': json.loads(maquina['consecutive_failures']) if maquina.get('consecutive_failures') else {},
+                'station_names': _parse_json_col(maquina.get('station_names'), []),
+                'stations_in_maintenance': _parse_json_col(maquina.get('stations_in_maintenance'), []),
+                'consecutive_failures': _parse_json_col(maquina.get('consecutive_failures'), {}),
                 **_esp32_heartbeat_fields(maquina['id']),
             })
         
@@ -4615,7 +4626,7 @@ def obtener_maquina(maquina_id):
             ]) if propietarios else "Sin propietarios",
             'valor_por_turno': float(maquina['valor_por_turno'] or 3000.00),
             'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
-            'station_names': json.loads(maquina['station_names']) if maquina.get('station_names') else [],
+            'station_names': _parse_json_col(maquina.get('station_names'), []),
             'show_station_selection': bool(maquina.get('show_station_selection', False)),
         })
         
@@ -6932,8 +6943,8 @@ def esp32_machine_config(machine_id):
         # Construir active_failure_stations desde consecutive_failures
         active_failure_stations = []
         try:
-            cf = json.loads(config['consecutive_failures'] or '{}')
-            sim = json.loads(config['stations_in_maintenance'] or '[]')
+            cf = _parse_json_col(config.get('consecutive_failures'), {})
+            sim = _parse_json_col(config.get('stations_in_maintenance'), [])
             for key, count in cf.items():
                 if count > 0:
                     idx = int(key) if key != 'all' else 0
