@@ -3011,25 +3011,24 @@ def reportar_falla_maquina():
             """, (machine_id,))
         fallas_activas = (cursor.fetchone() or {}).get('cnt', 0)
 
-        # Si hay 3 o más fallas sin resolver → encolar MAINTENANCE al ESP32
-        if fallas_activas >= 3:
-            try:
-                cursor.execute("""
-                    INSERT INTO esp32_commands
-                    (machine_id, command, parameters, triggered_by, status, triggered_at)
-                    VALUES (%s, 'MAINTENANCE', %s, 'sistema_auto', 'queued', NOW())
-                """, (machine_id, json.dumps({
-                    'machine_name': maquina['name'],
-                    'station_index': station_index,
-                    'failure_count': fallas_activas,
-                    'reason': '3 fallas sin resolver — apagado automático'
-                })))
-                app.logger.warning(
-                    f"⚠ MAINTENANCE encolado — {maquina['name']} "
-                    f"(station={station_index}) fallas_activas={fallas_activas}"
-                )
-            except Exception as cmd_err:
-                app.logger.error(f"No se pudo encolar MAINTENANCE: {cmd_err}")
+        # Cualquier falla desde la web → encolar MAINTENANCE al ESP32 para mostrar pantalla de mantenimiento
+        try:
+            cursor.execute("""
+                INSERT INTO esp32_commands
+                (machine_id, command, parameters, triggered_by, status, triggered_at)
+                VALUES (%s, 'MAINTENANCE', %s, 'sistema_auto', 'queued', NOW())
+            """, (machine_id, json.dumps({
+                'machine_name': maquina['name'],
+                'station_index': station_index,
+                'failure_count': fallas_activas,
+                'reason': 'Falla reportada desde web — activar pantalla mantenimiento'
+            })))
+            app.logger.warning(
+                f"⚠ MAINTENANCE encolado — {maquina['name']} "
+                f"(station={station_index}) fallas_activas={fallas_activas}"
+            )
+        except Exception as cmd_err:
+            app.logger.error(f"No se pudo encolar MAINTENANCE: {cmd_err}")
 
         connection.commit()
 
@@ -4621,7 +4620,28 @@ def obtener_maquina(maquina_id):
         """, (maquina_id,))
         
         propietarios = cursor.fetchall()
-        
+
+        # Fallas activas por estación (desde errorreport — reportes cajero/web)
+        cursor.execute("""
+            SELECT station_index, COUNT(*) as count
+            FROM errorreport
+            WHERE machineId = %s AND isResolved = 0
+            GROUP BY station_index
+        """, (maquina_id,))
+        failure_rows = cursor.fetchall()
+        active_failure_stations = []
+        machine_level_failures = 0
+        for row in failure_rows:
+            if row['station_index'] is None:
+                machine_level_failures += row['count']
+            else:
+                active_failure_stations.append({
+                    'station_index': row['station_index'],
+                    'count': row['count'],
+                    'cajero_count': row['count'],
+                    'esp32_count': 0
+                })
+
         # Calcular tiempo desde último uso
         ultimo_uso_texto = "Nunca"
         if maquina['dateLastQRUsed']:
@@ -4663,6 +4683,8 @@ def obtener_maquina(maquina_id):
             'machine_subtype': maquina.get('machine_subtype', 'simple') or 'simple',
             'station_names': _parse_json_col(maquina.get('station_names'), []),
             'show_station_selection': bool(maquina.get('show_station_selection', False)),
+            'active_failure_stations': active_failure_stations,
+            'machine_level_failures': machine_level_failures,
         })
         
     except Exception as e:

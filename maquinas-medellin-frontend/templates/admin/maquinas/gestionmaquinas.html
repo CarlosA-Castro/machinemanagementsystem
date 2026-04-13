@@ -1729,8 +1729,10 @@
                 <p class="text-gray-600">Cargando datos de estaciones...</p>
             </div>
         `;
-        document.getElementById('modalEstacion').classList.remove('hidden');
-        
+        const mEstacion = document.getElementById('modalEstacion');
+        mEstacion.classList.remove('hidden');
+        mEstacion.classList.add('flex');
+
         // 2. Cargar configuración de la máquina
         const techResponse = await fetch(`/api/esp32/machine-config/${maquinaId}`);
         let stations = [];
@@ -2031,24 +2033,28 @@
     this.machineIdActual = maquinaId;
     // Asegurar que estacionNombre sea string
     const nombreEstacion = String(estacionNombre || `Estación ${estacionIndex + 1}`);
-    this.estacionActual = { 
-        index: estacionIndex, 
-        nombre: nombreEstacion 
+    this.estacionActual = {
+        index: estacionIndex,
+        nombre: nombreEstacion
     };
     document.getElementById('estacionReinicioNombre').textContent = nombreEstacion;
-    document.getElementById('modalConfirmarReinicio').classList.remove('hidden');
+    const m = document.getElementById('modalConfirmarReinicio');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
 },
 
             mostrarModalIngresarTurno: function(maquinaId, estacionIndex, estacionNombre) {
     this.machineIdActual = maquinaId;
     // Asegurar que estacionNombre sea string
     const nombreEstacion = String(estacionNombre || `Estación ${estacionIndex + 1}`);
-    this.estacionActual = { 
-        index: estacionIndex, 
-        nombre: nombreEstacion 
+    this.estacionActual = {
+        index: estacionIndex,
+        nombre: nombreEstacion
     };
     document.getElementById('estacionTurnoNombre').textContent = nombreEstacion;
-    document.getElementById('modalIngresarTurno').classList.remove('hidden');
+    const m = document.getElementById('modalIngresarTurno');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
 },
 
 
@@ -2153,15 +2159,21 @@
 },
 
             cerrarModalConfirmacion: function() {
-                document.getElementById('modalConfirmarReinicio').classList.add('hidden');
+                const m = document.getElementById('modalConfirmarReinicio');
+                m.classList.add('hidden');
+                m.classList.remove('flex');
             },
 
             cerrarModalTurno: function() {
-                document.getElementById('modalIngresarTurno').classList.add('hidden');
+                const m = document.getElementById('modalIngresarTurno');
+                m.classList.add('hidden');
+                m.classList.remove('flex');
             },
 
             cerrarModalEstacion: function() {
-                document.getElementById('modalEstacion').classList.add('hidden');
+                const m = document.getElementById('modalEstacion');
+                m.classList.add('hidden');
+                m.classList.remove('flex');
             },
 
             cerrarModal: function() {
@@ -2477,8 +2489,8 @@
             actualizar: async function() {
                 try {
                     const [rJ, rF] = await Promise.all([
-                        fetch('/api/turnusage/recientes?limit=30'),
-                        fetch('/api/machinefailures/recientes?limit=30')
+                        fetch('/api/turnusage/recientes?limit=200'),
+                        fetch('/api/machinefailures/recientes?limit=200')
                     ]);
                     this.juegos = rJ.ok ? await rJ.json() : [];
                     this.fallas = rF.ok ? await rF.json() : [];
@@ -2523,7 +2535,7 @@
                                 ${j.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${j.qr_name}</span>` : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}
-                                ${j.turns_remaining !== undefined ? ` · <span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
+                                ${j.turns_remaining != null ? ` · <span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
                             </div>
                         </div>`;
                     }).join('');
