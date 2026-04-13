@@ -250,6 +250,22 @@
             white-space: nowrap;
             letter-spacing: 0.01em;
         }
+
+        /* ===== Sidebar nav override ===== */
+        aside .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: #d1d5db;
+            border-radius: 8px;
+            transition: all 0.15s;
+            text-decoration: none;
+            min-height: 36px;
+            white-space: nowrap;
+        }
+        aside .nav-link:hover { background: rgba(255,255,255,0.12); color: white; }
+        aside .nav-link.active { background: rgba(59,130,246,0.22); color: white; font-weight: 600; border-left: 3px solid #3b82f6; padding-left: calc(0.75rem - 3px); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -257,57 +273,36 @@
     <div id="particles-js"></div>
 
     <div class="flex flex-col lg:flex-row min-h-screen">
-        <aside class="w-full lg:w-64 bg-gray-900 text-white shadow-lg flex flex-col justify-between">
-            <div>
-                <div class="p-4 lg:p-6 text-xl lg:text-2xl font-bold border-b border-gray-200 text-center lg:text-left">
-                    <i class="fas fa-user-cog mr-2"></i>Admin
+        <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh">
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex items-center gap-3">
+                    <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">
+                    <div>
+                        <div class="font-bold text-sm">Inversiones Arcade</div>
+                        <div class="text-xs text-gray-400">Panel Admin</div>
+                    </div>
                 </div>
-                <nav class="sidebar-nav mt-4 space-y-0 lg:space-y-3 px-2 lg:px-4 text-sm font-medium">
-                    <a href="/local" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-local">
-                        <i class="fas fa-store mr-2"></i>Ir al Local
-                    </a>
-                    <a href="/admin" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-admin">
-                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                    </a>
-                    <a href="/admin/usuarios/lista" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-usuarios">
-                        <i class="fas fa-users mr-2"></i>Usuarios
-                    </a>
-                    <a href="/admin/maquinas/gestionmaquinas" class="nav-link btn-touch rounded-lg transition bg-gray-200 text-gray-900" id="nav-maquinas">
-                        <i class="fas fa-gamepad mr-2"></i>Máquinas
-                    </a>
-                    <a href="/admin/paquetes/lista" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-paquetes">
-                        <i class="fas fa-cube mr-2"></i>Paquetes
-                    </a>
-                    <a href="/admin/locales/listalocales" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-locales">
-                        <i class="fas fa-store mr-2"></i>Locales
-                    </a>
-                    <a href="/admin/mensajes/gestionmensajes" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-mensajes">
-                        <i class="fas fa-comment mr-2"></i>Mensajes
-                    </a>
-                    <a href="/admin/ventas/liquidaciones" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-liquidaciones">
-                        <i class="fas fa-chart-pie mr-2"></i>Liquidaciones
-                    </a>
-                    <a href="/admin/inversores/gestionsocios" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-socios">
-                        <i class="fas fa-handshake mr-2"></i>Socios
-                    </a>
-                    <a href="/admin/logs/consola-completa" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-consola">
-                        <i class="fas fa-terminal mr-2"></i>Consola de Logs
-                    </a>
-                    <a href="/admin/logs/gestionlogs" class="nav-link btn-touch rounded-lg hover:bg-gray-200 hover:text-gray-900 transition" id="nav-gestion-logs">
-                        <i class="fas fa-chart-line mr-2"></i>Gestión de Logs
-                    </a>
-                </nav>
             </div>
-            <div class="user-info-desktop bg-gray-800 p-4 border-t border-gray-700 text-white">
-                <div class="mb-1"><i class="fas fa-user mr-2"></i><span id="nombreUsuario">{{ nombre_usuario }}</span></div>
-                <div class="mb-1"><i class="fas fa-user-shield mr-2"></i>Administrador</div>
-                <div class="mb-2 text-xs text-gray-400">
-                    <div><i class="fas fa-clock mr-1"></i><span id="horaActualSidebar">Cargando...</span></div>
-                    <div><i class="fas fa-calendar mr-1"></i><span id="fechaActualSidebar">Cargando...</span></div>
-                </div>
-                <a href="/logout" class="text-red-400 hover:underline btn-touch inline-block">
-                    <i class="fas fa-sign-out-alt mr-1"></i>Salir
-                </a>
+            <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+                <a href="/admin" class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+                <a href="/local" class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
+                <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
+                <a href="/admin/usuarios/gestionusuarios" class="nav-link" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
+                <a href="/admin/maquinas/gestionmaquinas" class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+                <a href="/admin/paquetes/gestionpaquetes" class="nav-link" id="nav-paquetes"><i class="fas fa-box mr-2"></i>Paquetes</a>
+                <a href="/admin/locales/listalocales" class="nav-link" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
+                <a href="/admin/mensajes/gestionmensajes" class="nav-link" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+                <a href="/admin/ventas/liquidaciones" class="nav-link" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+                <a href="/admin/inversores/gestionsocios" class="nav-link" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
+                <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
+                <a href="/admin/logs/transaccionales" class="nav-link" id="nav-logs-transaccionales"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
+                <a href="/admin/logs/consola-completa" class="nav-link" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+                <a href="/admin/logs/gestionlogs" class="nav-link" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
+            </nav>
+            <div class="p-4 border-t border-gray-700 text-sm">
+                <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
+                <div class="text-gray-400 text-xs mb-2"><span id="horaActualSidebar">{{ hora_actual }}</span></div>
+                <a href="/logout" class="text-red-400 hover:underline text-xs"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
             </div>
         </aside>
 
@@ -441,6 +436,7 @@
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Subtipo</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estaciones</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Estado</th>
+                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">ESP32</th>
                                 <th class="text-left py-3 px-4 text-sm font-medium text-gray-700">Local</th>
                                 <th class="text-center py-3 px-4 text-sm font-medium text-gray-700">Acciones</th>
                             </tr>
@@ -759,6 +755,33 @@
         </div>
     </div>
 
+    <!-- Modal Confirmar Resolver Falla -->
+    <div id="modalConfirmarResolver" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div class="flex flex-col items-center text-center mb-5">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <i class="fas fa-wrench text-2xl text-green-600"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">Resolver Falla</h3>
+                <p class="text-sm text-gray-500" id="resolverConfirmMsg">¿Confirmar resolución de falla?</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 text-xs text-amber-800">
+                <i class="fas fa-info-circle mr-1"></i>
+                Se limpiará la nota de error, el estado cambiará a <strong>Activa</strong> y se enviará señal RESUME a la ESP32.
+            </div>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('modalConfirmarResolver').classList.add('hidden')"
+                        class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition">
+                    Cancelar
+                </button>
+                <button id="resolverConfirmBtn" onclick="MaquinaManager._ejecutarResolver()"
+                        class="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition flex items-center justify-center gap-2">
+                    <i class="fas fa-check"></i> Resolver
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalConfirmarReinicio" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
             <div class="flex justify-between items-center mb-4">
@@ -865,41 +888,24 @@
             
             init: function() {
                 particlesJS('particles-js', {
-            particles: {
-              number: { value: 80, density: { enable: true, value_area: 800 } },
-              color: { value: '#3b82f6' },
-              shape: { type: 'circle' },
-              opacity: {
-                value: 0.6, random: true,
-                anim: { enable: true, speed: 0.8, opacity_min: 0.2, sync: false }
-              },
-              size: {
-                value: 3, random: true,
-                anim: { enable: true, speed: 1.5, size_min: 0.5, sync: false }
-              },
-              line_linked: {
-                enable: true, distance: 140, color: '#3b82f6',
-                opacity: 0.4, width: 1.2
-              },
-              move: {
-                enable: true, speed: 1.4, direction: 'none',
-                random: true, straight: false, out_mode: 'out', bounce: false
-              }
-            },
-            interactivity: {
-              detect_on: 'canvas',
-              events: {
-                onhover: { enable: true, mode: 'grab' },
-                onclick: { enable: true, mode: 'push' },
-                resize: true
-              },
-              modes: {
-                grab: { distance: 160, line_linked: { opacity: 0.9 } },
-                push: { particles_nb: 4 }
-              }
-            },
-            retina_detect: true
-          });
+                    particles: {
+                        number: { value: 40, density: { enable: true, value_area: 600 } },
+                        color: { value: '#3b82f6' },
+                        shape: { type: 'circle' },
+                        opacity: { value: 0.2, random: true },
+                        size: { value: 2, random: true },
+                        line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
+                        move: { enable: true, speed: 0.5, direction: 'none', random: true }
+                    },
+                    interactivity: {
+                        detect_on: 'canvas',
+                        events: {
+                            onhover: { enable: true, mode: 'grab' },
+                            onclick: { enable: true, mode: 'push' },
+                            resize: true
+                        }
+                    }
+                });
 
                 this.actualizarHora();
                 setInterval(() => this.actualizarHora(), 1000);
@@ -916,6 +922,9 @@
                 }
 
                 HistorialManager.init();
+
+                // Polling en tiempo real: refresca lista de máquinas cada 20s
+                setInterval(() => this.cargarMaquinas(), 20000);
             },
 
             marcarEnlaceActivo: function() {
@@ -1127,7 +1136,7 @@
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.id}</td>
                             <td class="py-3 px-4">
                                 <div class="font-medium text-gray-800">${maquina.name}</div>
-                                ${maquina.errorNote ? `<div class="text-xs text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>${maquina.errorNote.substring(0, 30)}...</div>` : ''}
+                                ${maquina.errorNote ? `<span class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-100 border border-red-300 text-red-700 rounded-full text-xs font-semibold max-w-[180px] truncate" title="${maquina.errorNote}"><i class="fas fa-circle-exclamation text-red-500 flex-shrink-0"></i><span class="truncate">${maquina.errorNote.substring(0, 28)}${maquina.errorNote.length > 28 ? '…' : ''}</span></span>` : ''}
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600 capitalize">${maquina.type}</td>
                             <td class="py-3 px-4">
@@ -1139,6 +1148,21 @@
                                 <div class="flex flex-wrap gap-1">${stationsHtml}</div>
                             </td>
                             <td class="py-3 px-4"><span class="${estadoClass}">${estadoText}</span></td>
+                            <td class="py-3 px-4">
+                                ${(() => {
+                                    const wOk = maquina.esp32_wifi === true;
+                                    const sOk = maquina.esp32_server === true;
+                                    const online = maquina.esp32_online === true;
+                                    const wColor = online && wOk ? '#22c55e' : '#d1d5db';
+                                    const sColor = online && sOk ? '#22c55e' : '#d1d5db';
+                                    const wTip  = online && wOk ? 'WiFi: conectado' : 'WiFi: sin señal';
+                                    const sTip  = online && sOk ? 'Servidor: online' : 'Servidor: offline';
+                                    return `<span class="inline-flex items-center gap-1">
+                                        <span title="${wTip}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${wColor};border:1px solid #9ca3af;flex-shrink:0"></span>
+                                        <span title="${sTip}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sColor};border:1px solid #9ca3af;flex-shrink:0"></span>
+                                    </span>`;
+                                })()}
+                            </td>
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
                             <td class="py-3 px-4">
                                 <div class="flex justify-center space-x-1">
@@ -1162,7 +1186,7 @@
                                     </div>
                                     ${(maquina.errorNote || maquina.status !== 'activa') ? `
                                     <div class="action-btn-wrap">
-                                        <button onclick="MaquinaManager.resolverFalla(${maquina.id})" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
+                                        <button onclick="MaquinaManager.resolverFalla(${maquina.id}, null, '${(maquina.name||'').replace(/'/g,"\\'")}', ${esMulti})" class="action-button text-green-600 hover:text-green-800" title="Resolver falla">
                                             <i class="fas fa-wrench"></i>
                                         </button>
                                         <span class="action-btn-label text-green-600">Resolver</span>
@@ -1772,21 +1796,36 @@
         // 4. Cargar estadísticas REALES para CADA ESTACIÓN
         console.log('🔍 Cargando estadísticas para máquina', maquinaId);
         
-        // Obtener TODOS los juegos de esta máquina
-        const juegosResponse = await fetch(`/api/turnusage/recientes?limit=500&machine_id=${maquinaId}`);
-        const fallasResponse = await fetch(`/api/machinefailures/recientes?limit=500&machine_id=${maquinaId}`);
-        
+        // Obtener TODOS los juegos y fallas de esta máquina (ambas fuentes)
+        const [juegosResponse, fallasResponse, maquinaInfoResponse] = await Promise.all([
+            fetch(`/api/turnusage/recientes?limit=500&machine_id=${maquinaId}`),
+            fetch(`/api/machinefailures/recientes?limit=500&machine_id=${maquinaId}`),
+            fetch(`/api/maquinas/${maquinaId}`)
+        ]);
+
         let todosJuegos = [];
         let todasFallas = [];
-        
+        // active_failure_stations: [{station_index, count}] desde errorreport (cajero reports)
+        let activeFailureStations = {};
+
         if (juegosResponse.ok) {
             todosJuegos = await juegosResponse.json();
-            console.log('🎮 Juegos encontrados para máquina:', todosJuegos.length);
         }
-        
         if (fallasResponse.ok) {
             todasFallas = await fallasResponse.json();
-            console.log('⚠️ Fallas encontradas para máquina:', todasFallas.length);
+        }
+        let machineLevelFailures = 0;
+        if (maquinaInfoResponse.ok) {
+            const mInfo = await maquinaInfoResponse.json();
+            (mInfo.active_failure_stations || []).forEach(f => {
+                // Guardar desglose cajero/ESP32 por estación
+                activeFailureStations[f.station_index] = {
+                    count:        f.count        || 0,
+                    cajero_count: f.cajero_count || 0,
+                    esp32_count:  f.esp32_count  || 0
+                };
+            });
+            machineLevelFailures = mInfo.machine_level_failures || 0;
         }
         
         // 5. Procesar estadísticas POR ESTACIÓN
@@ -1810,26 +1849,49 @@
                 ultimoJuego = juegosEstacion[0];
             }
             
+            // Fallas activas sin resolver para esta estación (cajero + ESP32)
+            const activeInfo = activeFailureStations[station.index] || { count: 0, cajero_count: 0, esp32_count: 0 };
+
             return {
                 ...station,
                 stats: {
                     totalPlays: juegosEstacion.length,
                     lastPlay: ultimoJuego ? new Date(ultimoJuego.usedAt) : null,
-                    failures: fallasEstacion.length,
+                    failures: activeInfo.count,       // solo fallas activas sin resolver
+                    cajero_count: activeInfo.cajero_count,
+                    esp32_count: activeInfo.esp32_count,
                     lastFailure: fallasEstacion.length > 0 ? fallasEstacion[0] : null
                 }
             };
         });
         
         // 6. Generar HTML con los datos reales
-        let html = `
-            <div class="mb-4 p-4 bg-blue-50 rounded-lg">
-                <p class="text-sm text-gray-700">
-                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>
-                    Última actualización: ${new Date().toLocaleString('es-CO')}
-                </p>
-                <p class="text-xs text-gray-500 mt-1">
-                    Total máquina: ${todosJuegos.length} juegos, ${todasFallas.length} fallas
+        let html = '';
+
+        // Banner de falla global (sin estación específica — pre-V32 o machine-level)
+        if (machineLevelFailures > 0) {
+            html += `
+            <div class="mb-4 bg-red-50 border-2 border-red-300 rounded-xl overflow-hidden">
+                <div class="bg-red-600 px-4 py-2 flex items-center gap-2">
+                    <i class="fas fa-exclamation-triangle text-white"></i>
+                    <span class="text-white font-bold text-sm">FALLA ACTIVA — ${machineLevelFailures} reporte${machineLevelFailures > 1 ? 's' : ''} sin resolver</span>
+                </div>
+                <div class="px-4 py-3 flex items-center justify-between">
+                    <p class="text-sm text-red-700">La estación específica no fue registrada (reporte manual). Resolver toda la máquina para reactivarla.</p>
+                    <button onclick="MaquinaManager.resolverFalla(${maquinaId}, null, '${maquina.name.replace(/'/g,"\\'")}', true)"
+                            class="ml-4 flex-shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                        <i class="fas fa-wrench"></i> Resolver
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        html += `
+            <div class="mb-3 p-3 bg-blue-50 rounded-lg">
+                <p class="text-xs text-gray-500">
+                    <i class="fas fa-info-circle mr-1 text-blue-500"></i>
+                    Actualizado: ${new Date().toLocaleString('es-CO')} —
+                    Total: ${todosJuegos.length} juegos, ${todasFallas.length} fallas QR
                 </p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1873,49 +1935,56 @@
                 }
             }
             
+            const hasFallas = station.stats.failures > 0;
             html += `
-                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all">
+                <div class="bg-white border ${hasFallas ? 'border-red-200' : 'border-gray-200'} rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-3">
                         <div>
-                            <h4 class="text-lg font-bold">${stationName}</h4>
-                            <p class="text-sm opacity-90">Estación ${station.index + 1}</p>
+                            <h4 class="text-base font-bold text-gray-800">${stationName}</h4>
+                            <p class="text-xs text-gray-500">Estación ${station.index + 1}</p>
                         </div>
-                        <div class="bg-white bg-opacity-20 rounded-lg px-3 py-1">
+                        <span class="bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-1 rounded-lg">
                             <i class="fas fa-microchip mr-1"></i>GPIO${station.relayPin}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold text-blue-700">${station.stats.totalPlays}</div>
+                            <div class="text-xs text-blue-500">Jugadas</div>
+                        </div>
+                        <div class="bg-${hasFallas ? 'red' : 'gray'}-50 border border-${hasFallas ? 'red' : 'gray'}-100 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold text-${hasFallas ? 'red' : 'gray'}-600">${station.stats.failures}</div>
+                            <div class="text-xs text-${hasFallas ? 'red' : 'gray'}-400">Fallas</div>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-2 my-4">
-                        <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                            <div class="text-xl font-bold">${station.stats.totalPlays}</div>
-                            <div class="text-xs">Jugadas</div>
-                        </div>
-                        <div class="bg-white bg-opacity-20 rounded-lg p-2 text-center">
-                            <div class="text-xl font-bold">${station.stats.failures}</div>
-                            <div class="text-xs">Fallas</div>
-                        </div>
-                    </div>
-                    
-                    <div class="text-xs text-white opacity-80 mb-3 space-y-1">
+
+                    <div class="text-xs text-gray-500 mb-3 space-y-1">
                         <div><i class="far fa-clock mr-1"></i>Último juego: ${ultimaJugadaTexto}</div>
-                        <div><i class="fas fa-exclamation-triangle mr-1"></i>Última falla: ${ultimaFallaTexto}</div>
+                        <div><i class="fas fa-exclamation-triangle mr-1 ${hasFallas ? 'text-red-400' : ''}"></i>Última falla: ${ultimaFallaTexto}</div>
                     </div>
-                    
-                    <div class="flex justify-end space-x-2 mt-2">
-                        <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquinaId}, ${station.index}, '${stationName}')" 
-                                class="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        <button onclick="MaquinaManager.mostrarModalIngresarTurno(${maquinaId}, ${station.index}, '${stationName}')"
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center">
                             <i class="fas fa-play mr-1"></i> Turno
                         </button>
-                        <button onclick="MaquinaManager.mostrarModalReinicio(${maquinaId}, ${station.index}, '${stationName}')" 
-                                class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
+                        <button onclick="MaquinaManager.mostrarModalReinicio(${maquinaId}, ${station.index}, '${stationName}')"
+                                class="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center">
                             <i class="fas fa-power-off mr-1"></i> Reiniciar
                         </button>
-                        ${station.stats.failures > 0 ? `
-                        <button onclick="MaquinaManager.resolverFallaEstacion(${maquinaId}, ${station.index}, '${stationName}')" 
-                                class="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center">
-                            <i class="fas fa-wrench mr-1"></i> Resolver
-                        </button>
-                        ` : ''}
+                        ${hasFallas ? (() => {
+                            const c = station.stats.cajero_count || 0;
+                            const e = station.stats.esp32_count  || 0;
+                            const partes = [];
+                            if (c > 0) partes.push(`${c} cajero`);
+                            if (e > 0) partes.push(`${e} ESP32`);
+                            return `
+                        <button onclick="MaquinaManager.resolverFalla(${maquinaId}, ${station.index}, '${stationName}')"
+                                class="w-full mt-1 bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1">
+                            <i class="fas fa-wrench"></i> Resolver falla (${partes.join(' + ')})
+                        </button>`;
+                        })() : ''}
                     </div>
                 </div>
             `;
@@ -2155,27 +2224,53 @@
                 }, 4000);
             },
 
-            resolverFalla: async function(maquinaId) {
-                if (!confirm('¿Resolver la falla de esta máquina? Se limpiará la nota de error y el estado cambiará a Activa.')) return;
+            // Datos pendientes para _ejecutarResolver
+            _resolverPending: null,
 
+            resolverFalla: function(maquinaId, stationIndex, name, esMulti) {
+                // stationIndex: number o null (máquinas simples o resolve-all para multi)
+                const esEstacion = stationIndex !== undefined && stationIndex !== null;
+                let msg;
+                if (esEstacion) {
+                    msg = `¿Confirmar resolución de falla de la estación "${name || `Estación ${stationIndex + 1}`}"?`;
+                } else if (esMulti) {
+                    msg = `¿Resolver todas las fallas activas de "${name || ''}"? Se reactivarán todas las estaciones.`;
+                } else {
+                    msg = `¿Confirmar resolución de falla de la máquina "${name || ''}"?`;
+                }
+                document.getElementById('resolverConfirmMsg').textContent = msg;
+                this._resolverPending = { maquinaId, stationIndex: esEstacion ? stationIndex : null, name };
+                document.getElementById('modalConfirmarResolver').classList.remove('hidden');
+                document.getElementById('modalConfirmarResolver').classList.add('flex');
+            },
+
+            _ejecutarResolver: async function() {
+                const { maquinaId, stationIndex, name } = this._resolverPending || {};
+                if (!maquinaId) return;
+                document.getElementById('modalConfirmarResolver').classList.add('hidden');
+                document.getElementById('modalConfirmarResolver').classList.remove('flex');
+
+                const body = stationIndex !== null ? { estacion_index: stationIndex } : {};
                 try {
                     const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({})
+                        body: JSON.stringify(body)
                     });
-
                     if (response.ok) {
-                        this.mostrarAlerta('Falla resuelta correctamente', 'success');
+                        const msg = stationIndex !== null
+                            ? `Falla resuelta en ${name || `Estación ${stationIndex + 1}`}`
+                            : 'Falla resuelta correctamente';
+                        this.mostrarAlerta(msg, 'success');
                         this.cargarMaquinas();
-                        // log fire-and-forget — no await para evitar mostrar error si el endpoint falla
+                        if (stationIndex !== null) this.verEstaciones(maquinaId);
                         fetch('/api/logs/accion', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ accion: 'RESOLVER_FALLA', detalles: { machine_id: maquinaId, tipo: 'simple' } })
+                            body: JSON.stringify({ accion: 'RESOLVER_FALLA', detalles: { machine_id: maquinaId, station_index: stationIndex } })
                         }).catch(() => {});
                     } else {
-                        const data = await response.json();
+                        const data = await response.json().catch(() => ({}));
                         this.mostrarAlerta(data.message || 'Error al resolver falla', 'error');
                     }
                 } catch (error) {
@@ -2206,18 +2301,22 @@
                         (s && typeof s === 'object') ? (s.name || `Estación ${i+1}`) : String(s || `Estación ${i+1}`)
                     );
 
-                    const [juegosRes, fallasRes] = await Promise.all([
+                    const [juegosRes, fallasRes, reportesRes] = await Promise.all([
                         fetch(`/api/turnusage/recientes?limit=200&machine_id=${maquinaId}`),
-                        fetch(`/api/machinefailures/recientes?limit=200&machine_id=${maquinaId}`)
+                        fetch(`/api/machinefailures/recientes?limit=200&machine_id=${maquinaId}`),
+                        fetch(`/api/maquinas/${maquinaId}/reportes`)
                     ]);
 
                     const juegos = juegosRes.ok ? await juegosRes.json() : [];
                     const fallas = fallasRes.ok ? await fallasRes.json() : [];
+                    const reportesData = reportesRes.ok ? await reportesRes.json() : {};
+                    const reportes = reportesData.reportes || [];
 
                     // Unificar y ordenar por fecha desc
                     const eventos = [
                         ...juegos.map(j => ({ tipo: 'juego', fecha: new Date(j.usedAt || 0), datos: j })),
-                        ...fallas.map(f => ({ tipo: 'falla', fecha: new Date(f.reported_at || f.reportedAt || 0), datos: f }))
+                        ...fallas.map(f => ({ tipo: 'falla', fecha: new Date(f.reported_at || f.reportedAt || 0), datos: f })),
+                        ...reportes.map(r => ({ tipo: 'reporte', fecha: new Date(r.reportedAt || 0), datos: r }))
                     ].sort((a, b) => b.fecha - a.fecha);
 
                     if (eventos.length === 0) {
@@ -2227,6 +2326,7 @@
                     }
 
                     // Resumen rápido
+                    const totalFallas = fallas.length + reportes.length;
                     let resumenHtml = `
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                             <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
@@ -2234,8 +2334,8 @@
                                 <div class="text-xs text-green-600">Juegos totales</div>
                             </div>
                             <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                                <div class="text-2xl font-bold text-red-700">${fallas.length}</div>
-                                <div class="text-xs text-red-600">Fallas totales</div>
+                                <div class="text-2xl font-bold text-red-700">${totalFallas}</div>
+                                <div class="text-xs text-red-600">Fallas totales${reportes.length > 0 ? ` <span class="text-orange-500">(${reportes.length} reportadas)</span>` : ''}</div>
                             </div>
                             ${esMulti ? stationNames.map((sn, si) => {
                                 const jEst = juegos.filter(j => j.station_index == si || (si === 0 && j.station_index === undefined)).length;
@@ -2268,11 +2368,11 @@
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
                                             <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
                                             ${j.qr_code ? `<span><i class="fas fa-qrcode mr-1"></i>${j.qr_code.substring(0,10)}...</span>` : ''}
-                                            ${j.turns_remaining !== undefined ? `<span class="text-green-600">Turnos restantes: ${j.turns_remaining}</span>` : ''}
+                                            ${j.turns_remaining !== undefined ? `<span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
                                         </div>
                                     </div>
                                 </div>`;
-                        } else {
+                        } else if (ev.tipo === 'falla') {
                             const f = ev.datos;
                             const stIdx = f.station_index ?? 0;
                             const stLabel = esMulti ? `<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${stationNames[stIdx] || `Est.${stIdx+1}`}</span>` : '';
@@ -2283,14 +2383,42 @@
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center flex-wrap gap-1">
-                                            <span class="text-sm font-medium text-red-800">Falla</span>
+                                            <span class="text-sm font-medium text-red-800">Falla QR</span>
                                             ${stLabel}
+                                            ${f.qr_name ? `<span class="text-xs text-gray-500">${f.qr_name}</span>` : ''}
                                             ${f.is_forced ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Forzada</span>' : ''}
                                         </div>
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
                                             <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
+                                            ${f.qr_code ? `<span><i class="fas fa-qrcode mr-1"></i>${f.qr_code.substring(0,10)}...</span>` : ''}
                                             ${f.turnos_devueltos ? `<span class="text-red-600">Turnos devueltos: ${f.turnos_devueltos}</span>` : ''}
                                             ${f.notes ? `<span class="italic">${f.notes.substring(0,40)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>`;
+                        } else {
+                            const r = ev.datos;
+                            const stIdx = r.station_index;
+                            const stLabel = (esMulti && stIdx !== null && stIdx !== undefined)
+                                ? `<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${stationNames[stIdx] || `Est.${stIdx+1}`}</span>` : '';
+                            const resolvedBadge = r.isResolved
+                                ? '<span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Resuelta</span>'
+                                : '<span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Pendiente</span>';
+                            listaHtml += `
+                                <div class="flex items-start gap-3 p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                                    <div class="mt-0.5 w-6 h-6 flex items-center justify-center bg-orange-500 rounded-full flex-shrink-0">
+                                        <i class="fas fa-flag text-white" style="font-size:0.6rem"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center flex-wrap gap-1">
+                                            <span class="text-sm font-medium text-orange-800">Reporte cajero</span>
+                                            ${stLabel}
+                                            ${resolvedBadge}
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
+                                            <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
+                                            ${r.user_name ? `<span><i class="fas fa-user mr-1"></i>${r.user_name}</span>` : ''}
+                                            ${r.description ? `<span class="italic">${r.description.substring(0,50)}</span>` : ''}
                                         </div>
                                     </div>
                                 </div>`;
@@ -2306,35 +2434,9 @@
                 }
             },
 
-            resolverFallaEstacion: async function(maquinaId, stationIndex, stationName) {
-                const nombreEstacion = String(stationName || `Estación ${stationIndex + 1}`);
-                if (!confirm(`¿Resolver la falla de la estación "${nombreEstacion}"?`)) return;
-
-                try {
-                    const response = await fetch(`/api/maquinas/${maquinaId}/resolver-falla`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            estacion_index: stationIndex
-                        })
-                    });
-
-                    if (response.ok) {
-                        this.mostrarAlerta(`Falla resuelta en ${nombreEstacion}`, 'success');
-                        this.verEstaciones(maquinaId);
-                        fetch('/api/logs/accion', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ accion: 'RESOLVER_FALLA_ESTACION', detalles: { machine_id: maquinaId, station_index: stationIndex, station_name: nombreEstacion } })
-                        }).catch(() => {});
-                    } else {
-                        const data = await response.json();
-                        this.mostrarAlerta(data.message || 'Error al resolver falla de estación', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error resolviendo falla de estación:', error);
-                    this.mostrarAlerta('Error de conexión', 'error');
-                }
+            cerrarModalResolver: function() {
+                document.getElementById('modalConfirmarResolver').classList.add('hidden');
+                document.getElementById('modalConfirmarResolver').classList.remove('flex');
             }
         };
 
@@ -2414,7 +2516,7 @@
                                 ${j.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${j.qr_name}</span>` : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}
-                                ${j.turns_remaining !== undefined ? ` · <span class="text-green-600">${j.turns_remaining} turnos</span>` : ''}
+                                ${j.turns_remaining !== undefined ? ` · <span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
                             </div>
                         </div>`;
                     }).join('');
@@ -2428,13 +2530,15 @@
                         const hora = new Date(f.reported_at || f.reportedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
                         const dia  = new Date(f.reported_at || f.reportedAt).toLocaleDateString('es-CO');
                         return `<div class="border-b border-gray-100 last:border-0 py-2">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <i class="fas fa-exclamation-triangle text-red-500 text-xs flex-shrink-0"></i>
                                 <span class="text-sm font-medium text-gray-800">${f.machine_name || '—'}</span>
+                                ${f.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${f.qr_name}</span>` : ''}
                                 ${f.is_forced ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Forzada</span>' : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}
                                 ${f.turnos_devueltos ? ` · <span class="text-red-600">${f.turnos_devueltos} devueltos</span>` : ''}
+                                ${f.notes ? ` · <span class="italic">${f.notes.substring(0,30)}</span>` : ''}
                             </div>
                         </div>`;
                     }).join('');
@@ -2443,6 +2547,30 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => MaquinaManager.init());
+    </script>
+    <script>
+    (function() {
+        var path = window.location.pathname;
+        var map = {
+            "/admin": "nav-dashboard",
+            "/admin/usuarios/gestionusuarios": "nav-usuarios",
+            "/admin/maquinas/gestionmaquinas": "nav-maquinas",
+            "/admin/paquetes/gestionpaquetes": "nav-paquetes",
+            "/admin/locales/listalocales": "nav-locales",
+            "/admin/mensajes/gestionmensajes": "nav-mensajes",
+            "/admin/ventas/liquidaciones": "nav-liquidaciones",
+            "/admin/inversores/gestionsocios": "nav-socios",
+            "/admin/logs/transaccionales": "nav-logs-transaccionales",
+            "/admin/logs/consola-completa": "nav-consola",
+            "/admin/logs/gestionlogs": "nav-gestion-logs"
+        };
+        var id = map[path];
+        if (id) { var el = document.getElementById(id); if (el) el.classList.add("active"); }
+        setInterval(function() {
+            var s = document.getElementById("horaActualSidebar");
+            if (s) s.textContent = new Date().toLocaleTimeString("es-CO", {hour12:false});
+        }, 1000);
+    })();
     </script>
 </body>
 </html>
