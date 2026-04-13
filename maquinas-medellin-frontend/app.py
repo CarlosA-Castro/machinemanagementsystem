@@ -3295,6 +3295,20 @@ def mostrar_gestion_mensajes():
                          hora_actual=hora_colombia.strftime('%H:%M:%S'),
                          fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
 
+@app.route('/admin/logs/transaccionales')
+def mostrar_logs_transaccionales():
+    if not session.get('logged_in'):
+        return redirect(url_for('mostrar_login'))
+    permisos = get_user_permissions()
+    if 'admin_panel' not in permisos or 'ver_logs' not in permisos:
+        return redirect(url_for('mostrar_local'))
+    hora_colombia = get_colombia_time()
+    return render_template('admin/logs/logtransaccional.html',
+                           nombre_usuario=session.get('user_name', 'Administrador'),
+                           local_usuario=session.get('user_local', 'Sistema'),
+                           hora_actual=hora_colombia.strftime('%H:%M:%S'),
+                           fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+
 @app.route('/admin/logs/gestionlogs')
 def mostrar_gestion_logs():
     if not session.get('logged_in'):
@@ -10612,6 +10626,299 @@ def check_alerts(level, message, module):
         app.logger.debug(f"Error en check_alerts: {e}")
 
 # ==================== APIS PARA LOGS ====================
+
+@app.route('/api/logs/transaccional-consolidado', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_logs_transaccional_consolidado():
+    """
+    Endpoint consolidado para la página de Logs Transaccionales.
+    Retorna en una sola llamada: KPIs, ventas, fallas ESP32, por máquina, gráfica, feed de actividad.
+    """
+    connection = None
+    cursor = None
+    try:
+        hoy = get_colombia_time().strftime('%Y-%m-%d')
+        fecha_inicio = request.args.get('fecha_inicio', hoy)
+        fecha_fin = request.args.get('fecha_fin', hoy)
+        limit_feed = int(request.args.get('limit', 100))
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        # ── KPI 1-2: Ventas ──────────────────────────────────────────────
+        cursor.execute("""
+            SELECT
+                COUNT(DISTINCT qh.qr_code)          AS paquetes_vendidos,
+                COALESCE(SUM(tp.price), 0)           AS ingresos_ventas
+            FROM qrhistory qh
+            JOIN qrcode qr   ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+              AND qr.turnPackageId IS NOT NULL
+              AND qr.turnPackageId != 1
+              AND qh.es_venta_real = TRUE
+        """, (fecha_inicio, fecha_fin))
+        kpi_ventas = cursor.fetchone()
+
+        # ── KPI 3: Turnos jugados (ESP32) ─────────────────────────────────
+        cursor.execute("""
+            SELECT COUNT(*) AS turnos_jugados
+            FROM turnusage
+            WHERE DATE(usedAt) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        kpi_turnos = cursor.fetchone()
+
+        # ── KPI 4-5: Fallas ESP32 ─────────────────────────────────────────
+        cursor.execute("""
+            SELECT
+                COUNT(*)                          AS fallas_total,
+                COALESCE(SUM(turnos_devueltos), 0) AS turnos_devueltos
+            FROM machinefailures
+            WHERE DATE(reported_at) BETWEEN %s AND %s
+        """, (fecha_inicio, fecha_fin))
+        kpi_fallas = cursor.fetchone()
+
+        # ── Ventas detalladas ─────────────────────────────────────────────
+        cursor.execute("""
+            SELECT
+                qh.fecha_hora,
+                qh.qr_code,
+                COALESCE(qr.qr_name, qh.qr_code) AS qr_name,
+                tp.name  AS paquete,
+                tp.price AS precio,
+                tp.turns AS turnos_paquete,
+                qh.user_name AS cajero
+            FROM qrhistory qh
+            JOIN qrcode qr   ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+              AND qr.turnPackageId IS NOT NULL
+              AND qr.turnPackageId != 1
+              AND qh.es_venta_real = TRUE
+            ORDER BY qh.fecha_hora DESC
+            LIMIT 200
+        """, (fecha_inicio, fecha_fin))
+        ventas = []
+        for v in cursor.fetchall():
+            row = dict(v)
+            row['precio'] = float(row['precio']) if row['precio'] else 0
+            if row.get('fecha_hora') and hasattr(row['fecha_hora'], 'isoformat'):
+                row['fecha_hora'] = row['fecha_hora'].isoformat()
+            ventas.append(row)
+
+        # ── Top paquetes ──────────────────────────────────────────────────
+        cursor.execute("""
+            SELECT
+                tp.name AS paquete,
+                COUNT(DISTINCT qh.qr_code) AS cantidad,
+                COALESCE(SUM(tp.price), 0) AS total
+            FROM qrhistory qh
+            JOIN qrcode qr   ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+              AND qr.turnPackageId IS NOT NULL
+              AND qr.turnPackageId != 1
+              AND qh.es_venta_real = TRUE
+            GROUP BY tp.id, tp.name
+            ORDER BY cantidad DESC
+            LIMIT 5
+        """, (fecha_inicio, fecha_fin))
+        top_paquetes = []
+        for p in cursor.fetchall():
+            row = dict(p)
+            row['total'] = float(row['total']) if row['total'] else 0
+            top_paquetes.append(row)
+
+        # ── Fallas ESP32 detalladas ───────────────────────────────────────
+        cursor.execute("""
+            SELECT
+                mf.id,
+                mf.reported_at,
+                mf.machine_id,
+                COALESCE(mf.machine_name, 'Desconocida') AS machine_name,
+                mf.station_index,
+                COALESCE(qr.code, '')                    AS qr_code,
+                COALESCE(qr.qr_name, '')                 AS qr_name,
+                mf.turnos_devueltos,
+                COALESCE(mf.notes, '')                   AS notes,
+                COALESCE(mf.is_forced, 0)                AS is_forced,
+                COALESCE(mf.forced_by, '')               AS forced_by
+            FROM machinefailures mf
+            LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
+            WHERE DATE(mf.reported_at) BETWEEN %s AND %s
+            ORDER BY mf.reported_at DESC
+            LIMIT 300
+        """, (fecha_inicio, fecha_fin))
+        fallas_esp32 = []
+        for f in cursor.fetchall():
+            row = dict(f)
+            if row.get('reported_at') and hasattr(row['reported_at'], 'isoformat'):
+                row['reported_at'] = row['reported_at'].isoformat()
+            fallas_esp32.append(row)
+
+        # ── Por máquina ───────────────────────────────────────────────────
+        cursor.execute("""
+            SELECT
+                m.id,
+                m.name                                          AS nombre,
+                m.status                                        AS estado,
+                COUNT(DISTINCT tu.id)                           AS turnos_periodo,
+                COUNT(DISTINCT mf.id)                           AS fallas_periodo,
+                COALESCE(SUM(mf.turnos_devueltos), 0)           AS turnos_devueltos_periodo,
+                MAX(tu.usedAt)                                  AS ultimo_uso
+            FROM machine m
+            LEFT JOIN turnusage tu
+                   ON tu.machineId = m.id
+                  AND DATE(tu.usedAt) BETWEEN %s AND %s
+            LEFT JOIN machinefailures mf
+                   ON mf.machine_id = m.id
+                  AND DATE(mf.reported_at) BETWEEN %s AND %s
+            GROUP BY m.id, m.name, m.status
+            ORDER BY turnos_periodo DESC
+        """, (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin))
+        por_maquina = []
+        for m in cursor.fetchall():
+            row = dict(m)
+            row['turnos_devueltos_periodo'] = float(row['turnos_devueltos_periodo']) if row['turnos_devueltos_periodo'] else 0
+            if row.get('ultimo_uso') and hasattr(row['ultimo_uso'], 'isoformat'):
+                row['ultimo_uso'] = row['ultimo_uso'].isoformat()
+            por_maquina.append(row)
+
+        # ── Gráfica: evolución por hora o por día ─────────────────────────
+        es_mismo_dia = (fecha_inicio == fecha_fin)
+        if es_mismo_dia:
+            cursor.execute("""
+                SELECT
+                    HOUR(qh.fecha_hora)                              AS periodo,
+                    COUNT(DISTINCT qh.qr_code)                       AS ventas_count,
+                    COALESCE(SUM(tp.price), 0)                       AS ventas_monto
+                FROM qrhistory qh
+                JOIN qrcode qr   ON qr.code = qh.qr_code
+                JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) = %s
+                  AND qr.turnPackageId IS NOT NULL
+                  AND qr.turnPackageId != 1
+                  AND qh.es_venta_real = TRUE
+                GROUP BY HOUR(qh.fecha_hora)
+                ORDER BY periodo
+            """, (fecha_inicio,))
+            grafica_ventas = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT HOUR(usedAt) AS periodo, COUNT(*) AS turnos
+                FROM turnusage
+                WHERE DATE(usedAt) = %s
+                GROUP BY HOUR(usedAt)
+                ORDER BY periodo
+            """, (fecha_inicio,))
+            grafica_turnos = cursor.fetchall()
+            tipo_grafica = 'horas'
+        else:
+            cursor.execute("""
+                SELECT
+                    DATE(qh.fecha_hora)                              AS periodo,
+                    COUNT(DISTINCT qh.qr_code)                       AS ventas_count,
+                    COALESCE(SUM(tp.price), 0)                       AS ventas_monto
+                FROM qrhistory qh
+                JOIN qrcode qr   ON qr.code = qh.qr_code
+                JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                  AND qr.turnPackageId IS NOT NULL
+                  AND qr.turnPackageId != 1
+                  AND qh.es_venta_real = TRUE
+                GROUP BY DATE(qh.fecha_hora)
+                ORDER BY periodo
+            """, (fecha_inicio, fecha_fin))
+            grafica_ventas = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT DATE(usedAt) AS periodo, COUNT(*) AS turnos
+                FROM turnusage
+                WHERE DATE(usedAt) BETWEEN %s AND %s
+                GROUP BY DATE(usedAt)
+                ORDER BY periodo
+            """, (fecha_inicio, fecha_fin))
+            grafica_turnos = cursor.fetchall()
+            tipo_grafica = 'dias'
+
+        grafica_ventas_fmt = []
+        for g in grafica_ventas:
+            row = dict(g)
+            row['ventas_monto'] = float(row['ventas_monto']) if row['ventas_monto'] else 0
+            if hasattr(row.get('periodo'), 'isoformat'):
+                row['periodo'] = row['periodo'].isoformat()
+            grafica_ventas_fmt.append(row)
+
+        grafica_turnos_fmt = []
+        for g in grafica_turnos:
+            row = dict(g)
+            if hasattr(row.get('periodo'), 'isoformat'):
+                row['periodo'] = row['periodo'].isoformat()
+            grafica_turnos_fmt.append(row)
+
+        # ── Feed de actividad (transaction_logs) ──────────────────────────
+        cursor.execute("""
+            SELECT
+                tl.id, tl.tipo, tl.categoria, tl.descripcion,
+                tl.usuario, tl.maquina_nombre, tl.maquina_id,
+                tl.entidad, tl.entidad_id, tl.monto,
+                tl.datos_extra, tl.ip_address, tl.estado, tl.created_at
+            FROM transaction_logs tl
+            WHERE DATE(tl.created_at) BETWEEN %s AND %s
+            ORDER BY tl.created_at DESC
+            LIMIT %s
+        """, (fecha_inicio, fecha_fin, limit_feed))
+        feed = []
+        for row in cursor.fetchall():
+            r = dict(row)
+            if r.get('monto') is not None:
+                r['monto'] = float(r['monto'])
+            if r.get('created_at') and hasattr(r['created_at'], 'isoformat'):
+                r['created_at'] = r['created_at'].isoformat()
+            if isinstance(r.get('datos_extra'), str):
+                try:
+                    r['datos_extra'] = json.loads(r['datos_extra'])
+                except Exception:
+                    r['datos_extra'] = {}
+            feed.append(r)
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            'periodo': {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin, 'tipo': tipo_grafica},
+            'kpis': {
+                'ingresos_ventas':   float(kpi_ventas['ingresos_ventas'] or 0),
+                'paquetes_vendidos': int(kpi_ventas['paquetes_vendidos'] or 0),
+                'turnos_jugados':    int(kpi_turnos['turnos_jugados'] or 0),
+                'fallas_total':      int(kpi_fallas['fallas_total'] or 0),
+                'turnos_devueltos':  int(kpi_fallas['turnos_devueltos'] or 0),
+            },
+            'ventas':       ventas,
+            'top_paquetes': top_paquetes,
+            'fallas_esp32': fallas_esp32,
+            'por_maquina':  por_maquina,
+            'grafica': {
+                'tipo':   tipo_grafica,
+                'ventas': grafica_ventas_fmt,
+                'turnos': grafica_turnos_fmt,
+            },
+            'feed':      feed,
+            'timestamp': get_colombia_time().isoformat(),
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error en transaccional-consolidado: {e}", exc_info=True)
+        if cursor:
+            try: cursor.close()
+            except Exception: pass
+        if connection:
+            try: connection.close()
+            except Exception: pass
+        return api_response('E001', http_status=500)
 
 @app.route('/api/logs/consola-completa', methods=['GET'])
 @handle_api_errors

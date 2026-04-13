@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Logs Transaccionales - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        #particles-js { position:fixed; width:100%; height:100%; z-index:-1; top:0; left:0; }
+
+        .glass-card {
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(6px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 6px 24px rgba(31,38,135,0.09);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        /* ── KPI cards ── */
+        .kpi-card { border-radius:14px; padding:1.1rem 1.25rem; color:white; position:relative; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.13); }
+        .kpi-card::after { content:''; position:absolute; top:-30%; right:-10%; width:140px; height:140px; background:rgba(255,255,255,0.07); border-radius:50%; }
+        .kpi-ventas    { background: linear-gradient(135deg,#059669,#10b981); }
+        .kpi-paquetes  { background: linear-gradient(135deg,#2563eb,#60a5fa); }
+        .kpi-turnos    { background: linear-gradient(135deg,#7c3aed,#a78bfa); }
+        .kpi-fallas    { background: linear-gradient(135deg,#dc2626,#f87171); }
+        .kpi-devueltos { background: linear-gradient(135deg,#d97706,#fbbf24); }
+
+        /* ── Period buttons ── */
+        .btn-periodo { padding:.4rem .9rem; border-radius:8px; font-size:.82rem; font-weight:600; cursor:pointer; transition:all .15s; background:rgba(255,255,255,.85); color:#374151; border:2px solid transparent; }
+        .btn-periodo.active, .btn-periodo:hover { background:#2563eb; color:white; border-color:#2563eb; }
+
+        /* ── Feed items ── */
+        .feed-item { border-left:4px solid #e5e7eb; padding:.65rem .8rem; margin-bottom:.45rem; border-radius:0 10px 10px 0; background:#f9fafb; cursor:pointer; transition:background .12s; }
+        .feed-item:hover { background:#f0f4f8; }
+        .feed-turno_qr       { border-color:#10b981; }
+        .feed-turno_manual   { border-color:#3b82f6; }
+        .feed-falla_maquina  { border-color:#ef4444; background:#fff8f8; }
+        .feed-resolver_falla { border-color:#f59e0b; }
+        .feed-inversion      { border-color:#8b5cf6; }
+        .feed-pago_cuota     { border-color:#ec4899; }
+        .feed-error          { border-color:#dc2626 !important; background:#fff0f0 !important; }
+
+        .feed-detail { display:none; background:#1e293b; color:#94a3b8; font-family:monospace; font-size:.75rem; padding:.65rem; border-radius:6px; margin-top:.4rem; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow-y:auto; }
+        .feed-detail.open { display:block; }
+
+        /* ── Sales feed ── */
+        .sale-item { display:flex; align-items:stretch; gap:.75rem; padding:.65rem .75rem; margin-bottom:.4rem; border-radius:10px; background:#f0fdf4; border:1px solid #bbf7d0; transition:background .1s; }
+        .sale-item:hover { background:#dcfce7; }
+        .sale-price { font-size:1.1rem; font-weight:800; color:#065f46; white-space:nowrap; display:flex; align-items:center; }
+        .sale-meta  { flex:1; min-width:0; }
+
+        /* ── Badges ── */
+        .badge { padding:.2rem .55rem; border-radius:9999px; font-size:.7rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; }
+        .b-turno_qr       { background:#d1fae5; color:#065f46; }
+        .b-turno_manual   { background:#dbeafe; color:#1e40af; }
+        .b-falla_maquina  { background:#fee2e2; color:#991b1b; }
+        .b-resolver_falla { background:#fef3c7; color:#92400e; }
+        .b-inversion      { background:#ede9fe; color:#4c1d95; }
+        .b-pago_cuota     { background:#fce7f3; color:#9d174d; }
+        .b-ok             { background:#d1fae5; color:#065f46; }
+        .b-error          { background:#fee2e2; color:#dc2626; }
+        .b-advertencia    { background:#fef9c3; color:#92400e; }
+
+        /* ── Machine rows ── */
+        .maq-row { cursor:pointer; transition:background .1s; }
+        .maq-row:hover td { background:#f0f9ff; }
+        .maq-detail { display:none; }
+        .maq-detail.open { display:table-row-group; }
+
+        /* ── Sidebar ── */
+        aside .nav-link { display:flex; align-items:center; padding:.5rem .75rem; font-size:.875rem; color:#d1d5db; border-radius:8px; transition:all .15s; text-decoration:none; min-height:36px; }
+        aside .nav-link:hover { background:rgba(255,255,255,.12); color:white; }
+        aside .nav-link.active { background:rgba(59,130,246,.22); color:white; font-weight:600; border-left:3px solid #3b82f6; padding-left:calc(.75rem - 3px); }
+
+        /* ── Misc ── */
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .spin { display:inline-block; width:16px; height:16px; border:3px solid rgba(59,130,246,.3); border-radius:50%; border-top-color:#3b82f6; animation:spin 1s linear infinite; }
+        .scroll-box { overflow-y:auto; }
+        .scroll-400 { max-height:420px; }
+        .scroll-500 { max-height:520px; }
+        .scroll-360 { max-height:360px; }
+        table.sticky-head thead th { position:sticky; top:0; background:#f8fafc; z-index:1; }
+
+        .paquete-bar { height:7px; border-radius:4px; background:linear-gradient(90deg,#3b82f6,#60a5fa); transition:width .5s; }
+
+        @media(max-width:1024px) { aside { display:none; } }
+        @media(max-width:768px)  { .kpi-grid { grid-template-columns:repeat(2,1fr) !important; } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div id="particles-js"></div>
+
+<div class="flex min-h-screen">
+
+    <!-- ══════════ SIDEBAR ══════════ -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh">
+        <div class="p-4 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">
+                <div>
+                    <div class="font-bold text-sm">Inversiones Arcade</div>
+                    <div class="text-xs text-gray-400">Panel Admin</div>
+                </div>
+            </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+            <a href="/admin" class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+            <a href="/local" class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
+            <a href="/admin/usuarios/gestionusuarios" class="nav-link" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
+            <a href="/admin/maquinas/gestionmaquinas" class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+            <a href="/admin/paquetes/gestionpaquetes" class="nav-link" id="nav-paquetes"><i class="fas fa-box mr-2"></i>Paquetes</a>
+            <a href="/admin/locales/listalocales" class="nav-link" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
+            <a href="/admin/mensajes/gestionmensajes" class="nav-link" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+            <a href="/admin/ventas/liquidaciones" class="nav-link" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+            <a href="/admin/inversores/gestionsocios" class="nav-link" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
+            <a href="/admin/logs/transaccionales" class="nav-link active" id="nav-logs-transaccionales"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
+            <a href="/admin/logs/consola-completa" class="nav-link" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+            <a href="/admin/logs/gestionlogs" class="nav-link" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
+        </nav>
+        <div class="p-4 border-t border-gray-700 text-sm">
+            <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
+            <div class="text-gray-400 text-xs mb-2"><span id="horaActualSidebar">{{ hora_actual }}</span></div>
+            <a href="/logout" class="text-red-400 hover:underline text-xs"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
+        </div>
+    </aside>
+
+    <!-- ══════════ MAIN ══════════ -->
+    <main class="flex-1 p-4 lg:p-6 overflow-y-auto">
+
+        <!-- HEADER -->
+        <div class="glass-card mb-4">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-receipt mr-2 text-blue-600"></i>Logs Transaccionales</h1>
+                    <p class="text-gray-500 text-sm mt-0.5">Ventas · Máquinas · ESP32/TFT · Actividad en tiempo real</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button class="btn-periodo active" id="btnHoy"   onclick="LT.setPeriodo('hoy')">Hoy</button>
+                    <button class="btn-periodo"         id="btnAyer"  onclick="LT.setPeriodo('ayer')">Ayer</button>
+                    <button class="btn-periodo"         id="btn7d"   onclick="LT.setPeriodo('7d')">7 días</button>
+                    <button class="btn-periodo"         id="btn30d"  onclick="LT.setPeriodo('30d')">30 días</button>
+                    <div class="flex items-center gap-1">
+                        <input type="date" id="fechaInicio" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                        <span class="text-gray-400 text-xs">→</span>
+                        <input type="date" id="fechaFin"    class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                        <button onclick="LT.setPeriodo('custom')" class="btn-periodo text-xs px-2">Aplicar</button>
+                    </div>
+                    <button onclick="LT.cargar()" id="btnRefresh"
+                        class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer select-none">
+                        <input type="checkbox" id="autoRefresh"> Auto (30s)
+                    </label>
+                    <button onclick="LT.exportCSV()"
+                        class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700 flex items-center gap-1">
+                        <i class="fas fa-download"></i> CSV
+                    </button>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2" id="periodoLabel">Cargando...</p>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+            <div class="kpi-card kpi-ventas">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1"><i class="fas fa-dollar-sign mr-1"></i>Ingresos Ventas</div>
+                <div class="text-2xl font-bold" id="kpiIngresos">—</div>
+                <div class="text-xs opacity-70 mt-0.5" id="kpiTicket">ticket prom. —</div>
+            </div>
+            <div class="kpi-card kpi-paquetes">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1"><i class="fas fa-ticket-alt mr-1"></i>Paquetes Vendidos</div>
+                <div class="text-2xl font-bold" id="kpiPaquetes">—</div>
+                <div class="text-xs opacity-70 mt-0.5">códigos QR activados</div>
+            </div>
+            <div class="kpi-card kpi-turnos">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1"><i class="fas fa-gamepad mr-1"></i>Turnos Jugados</div>
+                <div class="text-2xl font-bold" id="kpiTurnos">—</div>
+                <div class="text-xs opacity-70 mt-0.5">registros desde ESP32</div>
+            </div>
+            <div class="kpi-card kpi-fallas">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Fallas ESP32</div>
+                <div class="text-2xl font-bold" id="kpiFallas">—</div>
+                <div class="text-xs opacity-70 mt-0.5">reportadas desde TFT</div>
+            </div>
+            <div class="kpi-card kpi-devueltos">
+                <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1"><i class="fas fa-undo mr-1"></i>Turnos Devueltos</div>
+                <div class="text-2xl font-bold" id="kpiDevueltos">—</div>
+                <div class="text-xs opacity-70 mt-0.5">por fallas de máquinas</div>
+            </div>
+        </div>
+
+        <!-- GRÁFICA -->
+        <div class="glass-card mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-base font-bold text-gray-800"><i class="fas fa-chart-area mr-2 text-blue-600"></i>Evolución del Período</h2>
+                <div class="flex gap-4 text-xs text-gray-500">
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-1"></span>Ventas $</span>
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-purple-500 mr-1"></span>Turnos jugados</span>
+                </div>
+            </div>
+            <div style="height:200px; position:relative;">
+                <canvas id="chartEvolucion"></canvas>
+                <div id="chartLoading" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                    <div class="spin mr-2"></div>Cargando...
+                </div>
+            </div>
+        </div>
+
+        <!-- DOS COLUMNAS: VENTAS | MÁQUINAS -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+
+            <!-- VENTAS -->
+            <div class="glass-card">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-bold text-gray-800"><i class="fas fa-shopping-cart mr-2 text-green-600"></i>Ventas del Período</h2>
+                    <span class="text-xs text-gray-400" id="labelTotalVentas">—</span>
+                </div>
+                <!-- Top paquetes -->
+                <div class="mb-3" id="secTopPaquetes">
+                    <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Top paquetes</p>
+                    <div id="topPaquetesUI" class="space-y-1.5"><div class="text-gray-300 text-xs">—</div></div>
+                </div>
+                <!-- Tabla ventas -->
+                <div class="scroll-box scroll-360 table-auto w-full">
+                    <table class="w-full text-xs sticky-head border-collapse">
+                        <thead><tr class="text-left text-gray-400 border-b-2 border-gray-200 text-xs">
+                            <th class="py-2 px-2">Hora</th>
+                            <th class="py-2 px-2">QR / Nombre</th>
+                            <th class="py-2 px-2">Paquete</th>
+                            <th class="py-2 px-2 text-right">Precio</th>
+                            <th class="py-2 px-2">Cajero</th>
+                        </tr></thead>
+                        <tbody id="tablaVentas"><tr><td colspan="5" class="text-center py-8 text-gray-300">Cargando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MÁQUINAS -->
+            <div class="glass-card">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-bold text-gray-800"><i class="fas fa-gamepad mr-2 text-purple-600"></i>Actividad por Máquina</h2>
+                    <span class="text-xs text-gray-400">↓ click para ver fallas</span>
+                </div>
+                <div class="scroll-box scroll-360 table-auto w-full">
+                    <table class="w-full text-xs sticky-head border-collapse">
+                        <thead><tr class="text-left text-gray-400 border-b-2 border-gray-200">
+                            <th class="py-2 px-2">Máquina</th>
+                            <th class="py-2 px-2 text-center">Turnos</th>
+                            <th class="py-2 px-2 text-center">Fallas</th>
+                            <th class="py-2 px-2 text-center">Dev.</th>
+                            <th class="py-2 px-2">Estado</th>
+                            <th class="py-2 px-2">Últ. uso</th>
+                        </tr></thead>
+                        <tbody id="tablaMaquinas"><tr><td colspan="6" class="text-center py-8 text-gray-300">Cargando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL ESP32 -->
+        <div class="glass-card mb-4">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-3">
+                <h2 class="text-base font-bold text-gray-800">
+                    <i class="fas fa-microchip mr-2 text-red-600"></i>Fallas ESP32 / TFT — Detalle Completo
+                </h2>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <select id="filtroMaqFalla" onchange="LT.filtrarFallas()" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                        <option value="">Todas las máquinas</option>
+                    </select>
+                    <select id="filtroOrigenFalla" onchange="LT.filtrarFallas()" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                        <option value="">Todos los orígenes</option>
+                        <option value="tft">Solo TFT</option>
+                        <option value="cajero">Solo cajero web</option>
+                    </select>
+                    <input type="text" id="buscarFalla" placeholder="Buscar QR, máquina..."
+                        class="border border-gray-300 rounded-lg px-2 py-1 text-xs w-44" oninput="LT.filtrarFallas()">
+                    <span class="text-xs text-gray-400" id="countFallas">—</span>
+                </div>
+            </div>
+            <div class="scroll-box scroll-400 table-auto w-full">
+                <table class="w-full text-xs sticky-head border-collapse">
+                    <thead><tr class="text-left text-gray-400 border-b-2 border-gray-200">
+                        <th class="py-2 px-2">Fecha / Hora</th>
+                        <th class="py-2 px-2">Máquina</th>
+                        <th class="py-2 px-2 text-center">Est.</th>
+                        <th class="py-2 px-2">QR</th>
+                        <th class="py-2 px-2 text-center">Dev.</th>
+                        <th class="py-2 px-2">Origen</th>
+                        <th class="py-2 px-2">Notas</th>
+                    </tr></thead>
+                    <tbody id="tablaFallasEsp32"><tr><td colspan="7" class="text-center py-8 text-gray-300">Cargando...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- DOS COLUMNAS: FEED VENTAS | FEED ACTIVIDAD -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+
+            <!-- FEED VENTAS -->
+            <div class="glass-card">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-bold text-gray-800">
+                        <i class="fas fa-cash-register mr-2 text-green-600"></i>Feed de Ventas
+                    </h2>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="buscarVentaFeed" placeholder="Buscar..."
+                            class="border border-gray-300 rounded-lg px-2 py-1 text-xs w-32" oninput="LT.filtrarVentaFeed()">
+                        <span class="text-xs text-gray-400" id="countVentaFeed">— ventas</span>
+                    </div>
+                </div>
+                <div class="scroll-box scroll-500" id="ventaFeedContainer">
+                    <div class="text-center py-10 text-gray-300 text-sm"><div class="spin mx-auto mb-2"></div>Cargando...</div>
+                </div>
+            </div>
+
+            <!-- FEED ACTIVIDAD -->
+            <div class="glass-card">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-bold text-gray-800">
+                        <i class="fas fa-stream mr-2 text-indigo-600"></i>Feed de Actividad
+                    </h2>
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <select id="filtroFeedTipo" onchange="LT.filtrarFeed()" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
+                            <option value="">Todos</option>
+                            <option value="turno_qr">Turno QR</option>
+                            <option value="turno_manual">Turno manual</option>
+                            <option value="falla_maquina">Falla máquina</option>
+                            <option value="resolver_falla">Resolver falla</option>
+                            <option value="inversion">Inversión</option>
+                            <option value="pago_cuota">Pago cuota</option>
+                        </select>
+                        <input type="text" id="buscarFeed" placeholder="Buscar..."
+                            class="border border-gray-300 rounded-lg px-2 py-1 text-xs w-28" oninput="LT.filtrarFeed()">
+                        <span class="text-xs text-gray-400" id="countFeed">—</span>
+                    </div>
+                </div>
+                <div class="scroll-box scroll-500" id="feedContainer">
+                    <div class="text-center py-10 text-gray-300 text-sm"><div class="spin mx-auto mb-2"></div>Cargando...</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+const LT = {
+    datos: null,
+    chart: null,
+    arTimer: null,
+
+    // ─── Formateo de fechas ─────────────────────────────────────────────
+    fmtFecha(iso) {
+        if (!iso) return '—';
+        try {
+            // Handle "2026-04-10T00:04:56" or "2026-04-10 00:04:56"
+            const s = String(iso).replace(' ', 'T');
+            const d = new Date(s);
+            if (isNaN(d)) return iso;
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        } catch { return iso; }
+    },
+    fmtHora(iso) {
+        if (!iso) return '—';
+        try {
+            const s = String(iso).replace(' ', 'T');
+            const d = new Date(s);
+            if (isNaN(d)) return iso;
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        } catch { return iso; }
+    },
+    fmtSolo(iso) {  // just date dd/mm
+        if (!iso) return '—';
+        try {
+            const d = new Date(String(iso).replace(' ', 'T'));
+            if (isNaN(d)) return iso;
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
+        } catch { return iso; }
+    },
+    fmtPeso(n) {
+        if (n == null || n === '') return '—';
+        return '$' + Number(n).toLocaleString('es-CO', {maximumFractionDigits:0});
+    },
+    hoy() { return new Date().toISOString().slice(0,10); },
+    restarDias(d) { const dt = new Date(); dt.setDate(dt.getDate()-d); return dt.toISOString().slice(0,10); },
+
+    // ─── Período ───────────────────────────────────────────────────────
+    setPeriodo(p) {
+        document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
+        const mapa = {hoy:'btnHoy', ayer:'btnAyer', '7d':'btn7d', '30d':'btn30d'};
+        if (mapa[p]) document.getElementById(mapa[p])?.classList.add('active');
+        const hoy = this.hoy();
+        let fi, ff;
+        if      (p==='hoy')    { fi=hoy;               ff=hoy; }
+        else if (p==='ayer')   { fi=this.restarDias(1); ff=this.restarDias(1); }
+        else if (p==='7d')     { fi=this.restarDias(6); ff=hoy; }
+        else if (p==='30d')    { fi=this.restarDias(29);ff=hoy; }
+        else { fi=document.getElementById('fechaInicio').value||hoy; ff=document.getElementById('fechaFin').value||hoy; }
+        document.getElementById('fechaInicio').value = fi;
+        document.getElementById('fechaFin').value   = ff;
+        this.cargar();
+    },
+
+    // ─── Carga principal ────────────────────────────────────────────────
+    async cargar() {
+        const fi = document.getElementById('fechaInicio').value;
+        const ff = document.getElementById('fechaFin').value;
+        const btn = document.getElementById('btnRefresh');
+        btn.innerHTML = '<div class="spin"></div>';
+        btn.disabled = true;
+        document.getElementById('periodoLabel').textContent =
+            fi===ff ? `Período: ${fi}` : `Período: ${fi} → ${ff}`;
+        try {
+            const r = await fetch(`/api/logs/transaccional-consolidado?fecha_inicio=${fi}&fecha_fin=${ff}&limit=200`);
+            if (!r.ok) throw new Error('HTTP '+r.status);
+            this.datos = await r.json();
+            this.renderKpis();
+            this.renderGrafica();
+            this.renderVentas();
+            this.renderMaquinas();
+            this.renderFallasEsp32();
+            this.renderVentaFeed();
+            this.renderFeed();
+        } catch(e) {
+            document.getElementById('periodoLabel').textContent = '⚠️ Error: '+e.message;
+        } finally {
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
+            btn.disabled = false;
+        }
+    },
+
+    // ─── KPIs ──────────────────────────────────────────────────────────
+    renderKpis() {
+        const k = this.datos.kpis;
+        const pv = k.paquetes_vendidos || 0;
+        const tp = pv > 0 ? k.ingresos_ventas/pv : 0;
+        document.getElementById('kpiIngresos').textContent = this.fmtPeso(k.ingresos_ventas);
+        document.getElementById('kpiTicket').textContent   = 'ticket prom. '+this.fmtPeso(tp);
+        document.getElementById('kpiPaquetes').textContent = pv.toLocaleString('es-CO');
+        document.getElementById('kpiTurnos').textContent   = (k.turnos_jugados||0).toLocaleString('es-CO');
+        document.getElementById('kpiFallas').textContent   = (k.fallas_total||0).toLocaleString('es-CO');
+        document.getElementById('kpiDevueltos').textContent= (k.turnos_devueltos||0).toLocaleString('es-CO');
+    },
+
+    // ─── Gráfica ───────────────────────────────────────────────────────
+    renderGrafica() {
+        document.getElementById('chartLoading').style.display = 'none';
+        const g = this.datos.grafica;
+        const esH = g.tipo === 'horas';
+        const vMap={}, tMap={};
+        g.ventas.forEach(v => { vMap[String(v.periodo)] = v.ventas_monto; });
+        g.turnos.forEach(t => { tMap[String(t.periodo)] = t.turnos; });
+        let labels;
+        if (esH) {
+            labels = Array.from({length:24},(_,i)=>String(i).padStart(2,'0')+':00');
+        } else {
+            labels = [...new Set([...g.ventas.map(v=>String(v.periodo)),...g.turnos.map(t=>String(t.periodo))])].sort();
+        }
+        const dV = labels.map(l=>{ const k=esH?String(parseInt(l)):l; return vMap[k]||0; });
+        const dT = labels.map(l=>{ const k=esH?String(parseInt(l)):l; return tMap[k]||0; });
+        const ctx = document.getElementById('chartEvolucion').getContext('2d');
+        if (this.chart) this.chart.destroy();
+        this.chart = new Chart(ctx, {
+            type:'bar',
+            data:{ labels,
+                datasets:[
+                    { label:'Ventas ($)', data:dV, backgroundColor:'rgba(59,130,246,.7)', borderColor:'#2563eb', borderWidth:1.5, borderRadius:3, yAxisID:'yV', order:2 },
+                    { label:'Turnos', data:dT, type:'line', borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,.12)', borderWidth:2.5, pointRadius:3, fill:true, tension:.4, yAxisID:'yT', order:1 }
+                ]
+            },
+            options:{ responsive:true, maintainAspectRatio:false,
+                interaction:{mode:'index',intersect:false},
+                plugins:{ legend:{position:'top',labels:{font:{size:11}}},
+                    tooltip:{ callbacks:{ label: c => c.dataset.label.includes('$')
+                        ? ` ${c.dataset.label}: ${this.fmtPeso(c.parsed.y)}`
+                        : ` ${c.dataset.label}: ${c.parsed.y}` }}},
+                scales:{
+                    yV:{type:'linear',position:'left',grid:{color:'rgba(0,0,0,0.05)'},
+                        ticks:{font:{size:10},callback:v=>this.fmtPeso(v)}},
+                    yT:{type:'linear',position:'right',grid:{drawOnChartArea:false},ticks:{font:{size:10}}},
+                    x:{ticks:{font:{size:10},maxRotation:45}}
+                }
+            }
+        });
+    },
+
+    // ─── Tabla Ventas ──────────────────────────────────────────────────
+    renderVentas() {
+        const ventas = this.datos.ventas || [];
+        document.getElementById('labelTotalVentas').textContent =
+            `${ventas.length} reg. · ${this.fmtPeso(this.datos.kpis.ingresos_ventas)}`;
+        // Top paquetes
+        const top = this.datos.top_paquetes || [];
+        const maxC = top[0]?.cantidad || 1;
+        document.getElementById('topPaquetesUI').innerHTML = top.length
+            ? top.map(p=>`
+                <div>
+                    <div class="flex justify-between text-xs mb-0.5">
+                        <span class="font-semibold text-gray-700">${p.paquete}</span>
+                        <span class="text-gray-400">${p.cantidad} · ${this.fmtPeso(p.total)}</span>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-1.5">
+                        <div class="paquete-bar" style="width:${Math.round(p.cantidad/maxC*100)}%"></div>
+                    </div>
+                </div>`).join('')
+            : '<div class="text-gray-300 text-xs">Sin ventas</div>';
+        // Tabla
+        const tb = document.getElementById('tablaVentas');
+        if (!ventas.length) { tb.innerHTML='<tr><td colspan="5" class="text-center py-8 text-gray-400">Sin ventas en el período</td></tr>'; return; }
+        tb.innerHTML = ventas.map((v,i)=>`
+            <tr class="border-b border-gray-100 hover:bg-green-50 transition-colors" style="${i%2===0?'background:#f9fafb':''}">
+                <td class="py-1.5 px-2 font-mono text-gray-500 text-xs">${this.fmtHora(v.fecha_hora)}</td>
+                <td class="py-1.5 px-2">
+                    <div class="font-semibold text-gray-800 text-xs">${v.qr_name||v.qr_code}</div>
+                    <div class="text-gray-400 text-xs">${v.qr_code}</div>
+                </td>
+                <td class="py-1.5 px-2"><span class="badge" style="background:#dbeafe;color:#1e40af">${v.paquete||'—'}</span></td>
+                <td class="py-1.5 px-2 text-right font-bold text-green-700">${this.fmtPeso(v.precio)}</td>
+                <td class="py-1.5 px-2 text-gray-500 text-xs">${v.cajero||'—'}</td>
+            </tr>`).join('');
+    },
+
+    // ─── Tabla Máquinas ────────────────────────────────────────────────
+    renderMaquinas() {
+        const maquinas = this.datos.por_maquina || [];
+        const fallasPorMaq = {};
+        (this.datos.fallas_esp32||[]).forEach(f=>{ (fallasPorMaq[f.machine_id]=fallasPorMaq[f.machine_id]||[]).push(f); });
+        const tb = document.getElementById('tablaMaquinas');
+        if (!maquinas.length) { tb.innerHTML='<tr><td colspan="6" class="text-center py-8 text-gray-400">Sin datos</td></tr>'; return; }
+        tb.innerHTML = maquinas.map(m=>{
+            const sC = m.estado==='activa'?'b-ok':m.estado==='mantenimiento'?'b-advertencia':'b-error';
+            const fl = (fallasPorMaq[m.id]||[]).map(f=>`
+                <tr style="background:#fff8f8">
+                    <td class="py-1 px-3 text-gray-400 text-xs" colspan="2">${this.fmtFecha(f.reported_at)}</td>
+                    <td class="py-1 px-2 text-center text-gray-500 text-xs">${f.station_index??'—'}</td>
+                    <td class="py-1 px-2 text-blue-700 font-semibold text-xs">${f.qr_name||f.qr_code||'—'}</td>
+                    <td class="py-1 px-2 text-center text-orange-600 font-bold text-xs">${f.turnos_devueltos}</td>
+                    <td class="py-1 px-2 text-xs"><span class="badge ${f.is_forced?'b-resolver_falla':'b-falla_maquina'}">${f.is_forced?'forzado':'TFT'}</span></td>
+                    <td class="py-1 px-2 text-gray-400 text-xs">${f.notes||'—'}</td>
+                </tr>`).join('');
+            return `
+                <tr class="maq-row border-b border-gray-100" onclick="LT.toggleMaq(${m.id})" style="${!m.turnos_periodo?'opacity:.5':''}">
+                    <td class="py-2 px-2 font-semibold text-gray-800 text-xs">
+                        <i class="fas fa-chevron-right text-gray-300 mr-1 text-xs transition-transform" id="chv-${m.id}"></i>${m.nombre}
+                    </td>
+                    <td class="py-2 px-2 text-center font-bold text-purple-700 text-sm">${m.turnos_periodo}</td>
+                    <td class="py-2 px-2 text-center font-bold text-xs ${m.fallas_periodo>0?'text-red-600':'text-gray-300'}">${m.fallas_periodo}</td>
+                    <td class="py-2 px-2 text-center text-orange-600 font-semibold text-xs">${m.turnos_devueltos_periodo||0}</td>
+                    <td class="py-2 px-2"><span class="badge ${sC}">${m.estado}</span></td>
+                    <td class="py-2 px-2 text-gray-400 text-xs">${m.ultimo_uso?this.fmtFecha(m.ultimo_uso):'—'}</td>
+                </tr>
+                ${m.fallas_periodo>0?`<tbody class="maq-detail" id="det-${m.id}">
+                    <tr style="background:#fff0f0"><td colspan="6" class="px-3 pt-1 pb-0 text-xs font-semibold text-red-600 uppercase">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Fallas — ${m.nombre}</td></tr>
+                    ${fl}
+                    <tr><td colspan="6" class="py-1"></td></tr>
+                </tbody>`:''}`;
+        }).join('');
+    },
+    toggleMaq(id) {
+        const d=document.getElementById(`det-${id}`); const c=document.getElementById(`chv-${id}`);
+        if(!d) return;
+        const open=d.classList.toggle('open');
+        if(c) c.style.transform=open?'rotate(90deg)':'';
+    },
+
+    // ─── Tabla Fallas ESP32 ────────────────────────────────────────────
+    renderFallasEsp32() {
+        const fallas = this.datos.fallas_esp32 || [];
+        const sel = document.getElementById('filtroMaqFalla');
+        const maqs = [...new Map(fallas.map(f=>[f.machine_id,f.machine_name])).entries()];
+        sel.innerHTML = '<option value="">Todas las máquinas</option>'
+            + maqs.map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+        this.filtrarFallas();
+    },
+    filtrarFallas() {
+        const fallas = this.datos?.fallas_esp32 || [];
+        const maq    = document.getElementById('filtroMaqFalla').value;
+        const orig   = document.getElementById('filtroOrigenFalla').value;
+        const bus    = document.getElementById('buscarFalla').value.toLowerCase();
+        const fil    = fallas.filter(f=>{
+            if(maq && String(f.machine_id)!==maq) return false;
+            if(orig==='tft' && f.is_forced) return false;
+            if(orig==='cajero' && !f.is_forced) return false;
+            if(bus && ![(f.qr_name||''),(f.qr_code||''),(f.machine_name||''),(f.notes||'')].some(s=>s.toLowerCase().includes(bus))) return false;
+            return true;
+        });
+        document.getElementById('countFallas').textContent = `${fil.length} fallas`;
+        const tb = document.getElementById('tablaFallasEsp32');
+        if(!fil.length){ tb.innerHTML='<tr><td colspan="7" class="text-center py-8 text-gray-400">Sin fallas en el período</td></tr>'; return; }
+        tb.innerHTML = fil.map((f,i)=>`
+            <tr class="border-b border-gray-100 hover:bg-red-50" style="${i%2===0?'':'background:#fafafa'}">
+                <td class="py-1.5 px-2 font-mono text-gray-500 text-xs">${this.fmtFecha(f.reported_at)}</td>
+                <td class="py-1.5 px-2 font-semibold text-gray-800 text-xs">${f.machine_name}</td>
+                <td class="py-1.5 px-2 text-center">
+                    ${f.station_index!=null?`<span class="badge" style="background:#ede9fe;color:#4c1d95">Est.${f.station_index}</span>`:'<span class="text-gray-300">—</span>'}
+                </td>
+                <td class="py-1.5 px-2">
+                    <div class="font-semibold text-blue-700 text-xs">${f.qr_name||f.qr_code||'—'}</div>
+                    ${f.qr_name&&f.qr_code?`<div class="text-gray-400 text-xs">${f.qr_code}</div>`:''}
+                </td>
+                <td class="py-1.5 px-2 text-center font-bold text-orange-600">${f.turnos_devueltos}</td>
+                <td class="py-1.5 px-2">
+                    <span class="badge ${f.is_forced?'b-resolver_falla':'b-falla_maquina'}">
+                        ${f.is_forced?`<i class="fas fa-user"></i>${f.forced_by||'cajero'}`:'<i class="fas fa-microchip"></i>TFT'}
+                    </span>
+                </td>
+                <td class="py-1.5 px-2 text-gray-500 text-xs max-w-xs" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.notes}">${f.notes||'—'}</td>
+            </tr>`).join('');
+    },
+
+    // ─── Feed Ventas ───────────────────────────────────────────────────
+    renderVentaFeed() { this.filtrarVentaFeed(); },
+    filtrarVentaFeed() {
+        const ventas = this.datos?.ventas || [];
+        const bus = document.getElementById('buscarVentaFeed').value.toLowerCase();
+        const fil = bus ? ventas.filter(v=>[v.qr_code,v.qr_name,v.paquete,v.cajero].some(s=>(s||'').toLowerCase().includes(bus))) : ventas;
+        document.getElementById('countVentaFeed').textContent = `${fil.length} ventas`;
+        const c = document.getElementById('ventaFeedContainer');
+        if(!fil.length){ c.innerHTML='<div class="text-center py-8 text-gray-400 text-sm">Sin ventas en el período</div>'; return; }
+        c.innerHTML = fil.map(v=>`
+            <div class="sale-item">
+                <div class="sale-price">${this.fmtPeso(v.precio)}</div>
+                <div class="sale-meta">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="font-bold text-gray-800 text-sm">${v.qr_name||v.qr_code}</span>
+                        <span class="badge" style="background:#dbeafe;color:#1e40af">${v.paquete||'—'}</span>
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        <span class="font-mono">${this.fmtFecha(v.fecha_hora)}</span>
+                        <span class="mx-1">·</span>
+                        <i class="fas fa-user text-gray-400 mr-0.5"></i>${v.cajero||'—'}
+                        ${v.turnos_paquete?`<span class="mx-1">·</span><i class="fas fa-gamepad text-gray-400 mr-0.5"></i>${v.turnos_paquete} turnos`:''}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-0.5">QR: <span class="font-mono">${v.qr_code}</span></div>
+                </div>
+            </div>`).join('');
+    },
+
+    // ─── Feed Actividad ────────────────────────────────────────────────
+    renderFeed() { this.filtrarFeed(); },
+    filtrarFeed() {
+        const feed = this.datos?.feed || [];
+        const tipo = document.getElementById('filtroFeedTipo').value;
+        const bus  = document.getElementById('buscarFeed').value.toLowerCase();
+        const fil  = feed.filter(e=>{
+            if(tipo && e.tipo!==tipo) return false;
+            if(bus && ![(e.descripcion||''),(e.usuario||''),(e.maquina_nombre||'')].some(s=>s.toLowerCase().includes(bus))) return false;
+            return true;
+        });
+        document.getElementById('countFeed').textContent = `${fil.length} eventos`;
+
+        const iconMap = {
+            turno_qr:      { i:'fas fa-gamepad',          label:'Turno QR',       cls:'feed-turno_qr' },
+            turno_manual:  { i:'fas fa-hand-pointer',     label:'Turno manual',   cls:'feed-turno_manual' },
+            falla_maquina: { i:'fas fa-exclamation-circle',label:'Falla máquina', cls:'feed-falla_maquina' },
+            resolver_falla:{ i:'fas fa-check-circle',     label:'Falla resuelta', cls:'feed-resolver_falla' },
+            inversion:     { i:'fas fa-chart-line',       label:'Inversión',      cls:'feed-inversion' },
+            pago_cuota:    { i:'fas fa-credit-card',      label:'Pago cuota',     cls:'feed-pago_cuota' },
+        };
+
+        const c = document.getElementById('feedContainer');
+        if(!fil.length){ c.innerHTML='<div class="text-center py-8 text-gray-400 text-sm">Sin actividad en el período</div>'; return; }
+
+        c.innerHTML = fil.map((e,idx)=>{
+            const meta = iconMap[e.tipo] || {i:'fas fa-circle', label:e.tipo, cls:''};
+            const estadoCls = e.estado==='error'?'feed-error':'';
+            const extra = e.datos_extra && Object.keys(e.datos_extra).length>0;
+
+            // Build a rich data section
+            const campos = [];
+            if(e.maquina_nombre) campos.push(`<span class="text-gray-500"><i class="fas fa-gamepad mr-0.5 text-gray-400"></i>${e.maquina_nombre}</span>`);
+            if(e.usuario)        campos.push(`<span class="text-gray-500"><i class="fas fa-user mr-0.5 text-gray-400"></i>${e.usuario}</span>`);
+            if(e.ip_address)     campos.push(`<span class="text-gray-400 text-xs font-mono">${e.ip_address}</span>`);
+            if(e.entidad && e.entidad_id) campos.push(`<span class="text-gray-400 text-xs">${e.entidad} #${e.entidad_id}</span>`);
+
+            const extraFmt = extra ? this._fmtExtra(e.datos_extra) : null;
+
+            return `<div class="feed-item ${meta.cls} ${estadoCls}" onclick="LT.toggleFeed(${idx})">
+                <div class="flex items-start gap-2">
+                    <i class="${meta.i} text-sm mt-0.5" style="min-width:14px"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-1 mb-0.5">
+                            <span class="badge b-${e.tipo}">${meta.label}</span>
+                            ${e.estado==='error'?'<span class="badge b-error">error</span>':e.estado==='advertencia'?'<span class="badge b-advertencia">advertencia</span>':''}
+                            <span class="text-xs text-gray-400 font-mono">${this.fmtFecha(e.created_at)}</span>
+                        </div>
+                        <p class="text-sm text-gray-700 leading-snug mb-0.5">${e.descripcion||'—'}</p>
+                        ${e.monto!=null?`<div class="text-green-600 font-bold text-sm">${this.fmtPeso(e.monto)}</div>`:''}
+                        <div class="flex flex-wrap gap-2 mt-0.5 text-xs">${campos.join('')}</div>
+                    </div>
+                </div>
+                ${extraFmt?`<div class="feed-detail" id="fd-${idx}">${extraFmt}</div>`:''}
+            </div>`;
+        }).join('');
+    },
+
+    _fmtExtra(obj) {
+        // Format datos_extra as human-readable key:value pairs
+        const lines = Object.entries(obj).map(([k,v])=>{
+            const vs = v===null?'null':v===true?'sí':v===false?'no':String(v);
+            return `<span class="text-blue-300">${k}</span>: <span class="text-green-300">${vs}</span>`;
+        });
+        return lines.join('\n');
+    },
+
+    toggleFeed(idx) {
+        const el=document.getElementById(`fd-${idx}`);
+        if(el) el.classList.toggle('open');
+    },
+
+    // ─── Auto-refresh & Clock ──────────────────────────────────────────
+    setupAr() {
+        document.getElementById('autoRefresh').addEventListener('change', e=>{
+            if(e.target.checked) this.arTimer=setInterval(()=>this.cargar(),30000);
+            else clearInterval(this.arTimer);
+        });
+    },
+    startClock() {
+        setInterval(()=>{
+            const s=document.getElementById('horaActualSidebar');
+            if(s) s.textContent=new Date().toLocaleTimeString('es-CO',{hour12:false});
+        },1000);
+    },
+
+    // ─── Export CSV ────────────────────────────────────────────────────
+    exportCSV() {
+        const v=this.datos?.ventas||[];
+        if(!v.length){ alert('Sin ventas para exportar'); return; }
+        const fi=document.getElementById('fechaInicio').value, ff=document.getElementById('fechaFin').value;
+        const h='Fecha/Hora,QR Código,QR Nombre,Paquete,Precio,Cajero\n';
+        const r=v.map(x=>`"${x.fecha_hora}","${x.qr_code}","${x.qr_name||''}","${x.paquete||''}",${x.precio},"${x.cajero||''}"`).join('\n');
+        const b=new Blob(['\ufeff'+h+r],{type:'text/csv;charset=utf-8;'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+        a.download=`ventas_${fi}_${ff}.csv`; a.click();
+    },
+
+    // ─── Init ──────────────────────────────────────────────────────────
+    init() {
+        const hoy=this.hoy();
+        document.getElementById('fechaInicio').value=hoy;
+        document.getElementById('fechaFin').value=hoy;
+        this.setupAr(); this.startClock(); this.cargar();
+    }
+};
+
+particlesJS('particles-js',{
+    particles:{number:{value:30,density:{enable:true,value_area:900}},color:{value:'#3b82f6'},
+        shape:{type:'circle'},opacity:{value:.2,random:true},size:{value:3,random:true},
+        line_linked:{enable:true,distance:140,color:'#3b82f6',opacity:.12,width:1},
+        move:{enable:true,speed:1.2,random:true,out_mode:'out'}},
+    interactivity:{detect_on:'canvas',events:{onhover:{enable:false},onclick:{enable:false}}}
+});
+
+document.addEventListener('DOMContentLoaded',()=>LT.init());
+</script>
+</body>
+</html>
