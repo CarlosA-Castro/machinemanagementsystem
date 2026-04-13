@@ -6287,8 +6287,8 @@ def resolver_falla_maquina(maquina_id):
 
         # Limpiar errorNote y reactivar máquina
         cursor.execute("""
-            UPDATE machine 
-            SET errorNote = NULL, status = 'activa', updatedAt = NOW()
+            UPDATE machine
+            SET errorNote = NULL, status = 'activa'
             WHERE id = %s
         """, (maquina_id,))
 
@@ -6914,13 +6914,12 @@ def esp32_command_executed(command_id):
         cursor = get_db_cursor(connection)
         
         cursor.execute("""
-            UPDATE esp32_commands 
-            SET status = 'executed', 
-                executed_at = NOW(), 
-                response = %s,
-                result = %s
+            UPDATE esp32_commands
+            SET status = 'executed',
+                executed_at = NOW(),
+                response = %s
             WHERE id = %s
-        """, (json.dumps(data), result, command_id))
+        """, (json.dumps(data), command_id))
         
         connection.commit()
         
