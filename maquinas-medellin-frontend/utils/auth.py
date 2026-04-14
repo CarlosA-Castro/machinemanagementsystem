@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
 
-from flask import session, request, redirect, url_for, json
+from flask import session, request, redirect, json
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
@@ -32,7 +32,7 @@ def require_login(roles=None):
             if not session.get('logged_in'):
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return api_response('A004', http_status=401)
-                return redirect(url_for('mostrar_login'))
+                return redirect('/login')
 
             if roles:
                 user_role = session.get('user_role')
@@ -91,7 +91,7 @@ def require_permission(permission):
             if not session.get('logged_in'):
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return api_response('E003', http_status=401)
-                return redirect(url_for('mostrar_login'))
+                return redirect('/login')
 
             user_role = session.get('user_role')
 
@@ -112,7 +112,7 @@ def require_permission(permission):
                 if not rol:
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return api_response('E004', http_status=403)
-                    return redirect(url_for('mostrar_login'))
+                    return redirect('/login')
 
                 permisos = rol['permisos']
                 if isinstance(permisos, str):
@@ -122,7 +122,7 @@ def require_permission(permission):
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return api_response('E004', http_status=403,
                                             data={'message': f'No tienes permiso: {permission}'})
-                    return redirect(url_for('mostrar_local'))
+                    return redirect('/local')
 
             except Exception as e:
                 logger.error(f"Error verificando permiso '{permission}': {e}")

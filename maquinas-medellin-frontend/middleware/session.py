@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import session, request, redirect, url_for, jsonify
+from flask import session, request, redirect, jsonify
 
 from config import SESSION_TIMEOUT, SESSION_SKIP
 
@@ -25,7 +25,7 @@ def check_session_timeout():
                 session.clear()
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return jsonify({'error': 'session_expired', 'redirect': '/login'}), 401
-                return redirect(url_for('mostrar_login'))
+                return redirect('/login')
         except Exception:
             pass
 
