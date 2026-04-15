@@ -12,6 +12,7 @@ from utils.validators import validate_required_fields
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
 from utils.helpers import parse_json_col
 from blueprints.esp32.state import get_heartbeat_fields
+from middleware.logging_mw import log_transaccion
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -830,3 +831,332 @@ def guardar_propietarios_maquina(maquina_id):
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()
+
+
+# ==================== APIS PARA ACCIONES DE MÁQUINAS DESDE ADMIN ====================
+
+@machines_bp.route('/api/maquinas/ingresar-turno', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['machine_id', 'machine_name'])
+def ingresar_turno_manual():
+    """
+    Endpoint para que el administrador pueda INGRESAR UN TURNO MANUAL
+    Ahora también envía comando al ESP32 para activar el relé
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        machine_id = data['machine_id']
+        machine_name = data['machine_name']
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Administrador')
+
+        logger.info(f"🔄 [ADMIN] Ingresando turno manual - Máquina: {machine_name} (ID: {machine_id})")
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        # Verificar que la máquina existe
+        cursor.execute("SELECT id, name, status FROM machine WHERE id = %s", (machine_id,))
+        maquina = cursor.fetchone()
+
+        if not maquina:
+            return api_response('M001', http_status=404, data={'machine_id': machine_id})
+
+        # Verificar estado de la máquina
+        if maquina['status'] != 'activa':
+            return api_response(
+                'M003',
+                http_status=400,
+                data={
+                    'machine_id': machine_id,
+                    'current_status': maquina['status'],
+                    'message': f'La máquina está en estado "{maquina["status"]}". Solo se pueden ingresar turnos en máquinas activas.'
+                }
+            )
+
+        # Obtener estación (para máquinas multi-estación)
+        station_index = data.get('estacion', 0)
+        estacion_nombre = data.get('estacion_nombre', f'Estación {station_index + 1}')
+
+        hora_actual = get_colombia_time()
+
+        # ENVIAR COMANDO AL ESP32 — activar relé sin consumir ningún QR
+        cursor.execute("""
+            INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            machine_id,
+            'ACTIVATE_RELAY',
+            json.dumps({
+                'duration_ms': 500,
+                'machine_name': machine_name,
+                'station': station_index,
+                'station_index': station_index,
+                'estacion_nombre': estacion_nombre,
+                'origen': 'admin_manual'
+            }),
+            user_name,
+            'queued',
+            format_datetime_for_db(hora_actual)
+        ))
+
+        command_id = cursor.lastrowid
+        logger.info(f"✅ Comando ACTIVATE_RELAY encolado con ID: {command_id} (estación {station_index})")
+
+        connection.commit()
+
+        log_transaccion(
+            tipo='turno_manual',
+            categoria='operacional',
+            descripcion=f"Turno manual admin en {machine_name} — {estacion_nombre}",
+            usuario=user_name,
+            usuario_id=user_id,
+            maquina_id=machine_id,
+            maquina_nombre=machine_name,
+            entidad='machine',
+            entidad_id=machine_id,
+            datos_extra={
+                'command_id': command_id,
+                'station_index': station_index,
+                'estacion_nombre': estacion_nombre,
+                'origen': 'admin_manual'
+            }
+        )
+
+        logger.info(f"✅ Turno manual admin — Máquina: {machine_name} ({machine_id}) | Estación: {estacion_nombre} | Command ID: {command_id} | Admin: {user_name}")
+
+        return api_response(
+            'S014',
+            status='success',
+            data={
+                'machine_id': machine_id,
+                'machine_name': machine_name,
+                'command_id': command_id,
+                'station_index': station_index,
+                'estacion_nombre': estacion_nombre,
+                'timestamp': hora_actual.isoformat(),
+                'message': f'Comando enviado al ESP32 (ID: {command_id}). Sin uso de QR.'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error ingresando turno manual: {e}", exc_info=True)
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500, data={'error_detail': str(e)})
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@machines_bp.route('/api/maquinas/reiniciar', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+@validate_required_fields(['machine_id', 'machine_name'])
+def reiniciar_maquina_manual():
+    """
+    Endpoint para que el administrador pueda REINICIAR una máquina
+    Envía comando de reinicio y registra el evento
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        machine_id = data['machine_id']
+        machine_name = data['machine_name']
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Administrador')
+
+        logger.info(f"🔄 [ADMIN] Reiniciando máquina - {machine_name} (ID: {machine_id})")
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        # Verificar que la máquina existe
+        cursor.execute("SELECT id, name, status FROM machine WHERE id = %s", (machine_id,))
+        maquina = cursor.fetchone()
+
+        if not maquina:
+            return api_response('M001', http_status=404, data={'machine_id': machine_id})
+
+        # Obtener datos técnicos de la máquina
+        cursor.execute("""
+            SELECT reset_time_seconds
+            FROM machinetechnical
+            WHERE machine_id = %s
+        """, (machine_id,))
+
+        tech_data = cursor.fetchone()
+        reset_time = tech_data['reset_time_seconds'] if tech_data else 5
+
+        # Obtener el último QR usado (si existe)
+        cursor.execute("""
+            SELECT qr.code, qr.qr_name, tu.id as usage_id
+            FROM turnusage tu
+            JOIN qrcode qr ON tu.qrCodeId = qr.id
+            WHERE tu.machineId = %s
+            ORDER BY tu.usedAt DESC
+            LIMIT 1
+        """, (machine_id,))
+
+        ultimo_uso = cursor.fetchone()
+
+        # Registrar el reinicio en machine_resets
+        try:
+            cursor.execute("""
+                INSERT INTO machine_resets
+                (machine_id, machine_name, triggered_by, triggered_by_name, reset_time_seconds,
+                 qr_code, usage_id, status, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                machine_id,
+                machine_name,
+                user_id,
+                user_name,
+                reset_time,
+                ultimo_uso['code'] if ultimo_uso else None,
+                ultimo_uso['usage_id'] if ultimo_uso else None,
+                'sent',
+                f'Reinicio manual solicitado por {user_name}'
+            ))
+            reset_id = cursor.lastrowid
+        except Exception as e:
+            logger.warning(f"Error insertando en machine_resets: {e}")
+            reset_id = None
+
+        # Obtener estación desde el request (para multi-estación)
+        station_index = data.get('estacion', 0)
+        estacion_nombre = data.get('estacion_nombre', f'Estación {station_index + 1}')
+
+        hora_actual = get_colombia_time()
+
+        # Registrar en esp32_commands
+        try:
+            cursor.execute("""
+                INSERT INTO esp32_commands (machine_id, command, parameters, triggered_by, status, triggered_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                machine_id,
+                'RESET',
+                json.dumps({
+                    'reset_time': reset_time,
+                    'machine_name': machine_name,
+                    'station_index': station_index,
+                    'estacion_nombre': estacion_nombre,
+                    'restart_tft': True
+                }),
+                user_name,
+                'queued',
+                format_datetime_for_db(hora_actual)
+            ))
+            command_id = cursor.lastrowid
+            logger.info(f"✅ Comando RESET encolado con ID: {command_id} (estación {station_index})")
+        except Exception as e:
+            logger.error(f"Error insertando en esp32_commands: {e}")
+            command_id = None
+
+        # Registrar en logs de aplicación
+        cursor.execute("""
+            INSERT INTO app_logs (level, module, message, user_id, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+        """, ('INFO', 'machine_action',
+              f"Admin {user_name} solicitó reinicio de máquina {machine_name} (ID: {machine_id})",
+              user_id,
+              format_datetime_for_db(hora_actual)))
+
+        connection.commit()
+
+        logger.info(f"✅ Reinicio registrado para máquina {machine_name} - Reset ID: {reset_id}, Command ID: {command_id}")
+
+        return api_response(
+            'S015',
+            status='success',
+            data={
+                'machine_id': machine_id,
+                'machine_name': machine_name,
+                'reset_id': reset_id,
+                'command_id': command_id,
+                'reset_time_seconds': reset_time,
+                'message': f'Comando de reinicio enviado a la máquina. Tiempo estimado: {reset_time} segundos',
+                'command': 'RESET'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error reiniciando máquina: {e}", exc_info=True)
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500, data={'error_detail': str(e)})
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@machines_bp.route('/api/logs/accion', methods=['POST'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+def registrar_log_accion():
+    """
+    Endpoint para registrar logs de acciones desde el frontend
+    """
+    try:
+        data = request.get_json()
+        accion = data.get('accion')
+        detalles = data.get('detalles', {})
+        usuario = data.get('usuario', session.get('user_name', 'Desconocido'))
+        timestamp = data.get('timestamp')
+
+        logger.info(f"[LOG ACCIÓN] {accion} - {usuario} - {json.dumps(detalles)}")
+
+        # Registrar en base de datos
+        connection = get_db_connection()
+        if connection:
+            cursor = get_db_cursor(connection)
+            try:
+                fecha_mysql = None
+                if timestamp:
+                    try:
+                        fecha_iso = timestamp.replace('Z', '').replace('T', ' ')
+                        if len(fecha_iso) > 19:
+                            fecha_iso = fecha_iso[:19]
+                        fecha_mysql = fecha_iso
+                    except Exception:
+                        fecha_mysql = format_datetime_for_db(get_colombia_time())
+                else:
+                    fecha_mysql = format_datetime_for_db(get_colombia_time())
+
+                mensaje = f"Acción: {accion} | Detalles: {json.dumps(detalles)} | Usuario: {usuario}"
+                cursor.execute("""
+                    INSERT INTO app_logs (level, module, message, user_id, created_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, ('INFO', 'frontend_action', mensaje[:500], session.get('user_id'), fecha_mysql))
+
+                connection.commit()
+            except Exception as db_error:
+                logger.warning(f"No se pudo insertar en app_logs: {db_error}")
+                try:
+                    cursor.execute("""
+                        INSERT INTO app_logs (level, module, message, user_id)
+                        VALUES (%s, %s, %s, %s)
+                    """, ('INFO', 'frontend_action', mensaje[:500], session.get('user_id')))
+                    connection.commit()
+                except Exception:
+                    pass
+
+            cursor.close()
+            connection.close()
+
+        return api_response('S001', status='success', data={'logged': True})
+
+    except Exception as e:
+        logger.error(f"Error registrando log de acción: {e}")
+        return api_response('E001', http_status=500)
