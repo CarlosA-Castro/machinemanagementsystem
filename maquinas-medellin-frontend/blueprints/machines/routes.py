@@ -1160,3 +1160,170 @@ def registrar_log_accion():
     except Exception as e:
         logger.error(f"Error registrando log de acción: {e}")
         return api_response('E001', http_status=500)
+
+
+# ==================== APIS PARA REPORTES DE MÁQUINAS ====================
+
+@machines_bp.route('/api/maquinas/<int:maquina_id>/reportes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_reportes_maquina(maquina_id):
+    """Obtener reportes de fallas de una máquina específica"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT name FROM machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return api_response('M001', http_status=404, data={'machine_id': maquina_id})
+
+        cursor.execute("""
+            SELECT
+                er.id,
+                er.machineId,
+                er.userId,
+                er.description,
+                er.reportedAt,
+                er.isResolved,
+                u.name as user_name
+            FROM errorreport er
+            JOIN users u ON er.userId = u.id
+            WHERE er.machineId = %s
+            ORDER BY er.reportedAt DESC
+        """, (maquina_id,))
+
+        reportes = cursor.fetchall()
+
+        for reporte in reportes:
+            if reporte['reportedAt']:
+                fecha_colombia = parse_db_datetime(reporte['reportedAt'])
+                reporte['reportedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+
+        return jsonify({
+            'maquina_id': maquina_id,
+            'maquina_nombre': maquina['name'],
+            'reportes': reportes,
+            'total': len(reportes)
+        })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo reportes de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@machines_bp.route('/api/maquinas/<int:maquina_id>/estadisticas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_estadisticas_maquina(maquina_id):
+    """Obtener estadísticas de una máquina"""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT name, status FROM machine WHERE id = %s", (maquina_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return api_response('M001', http_status=404, data={'machine_id': maquina_id})
+
+        # Estadísticas globales de uso
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_usos,
+                COUNT(DISTINCT DATE(usedAt)) as dias_con_usos,
+                MIN(usedAt) as primer_uso,
+                MAX(usedAt) as ultimo_uso
+            FROM turnusage
+            WHERE machineId = %s
+        """, (maquina_id,))
+
+        uso_stats = cursor.fetchone()
+
+        # Usos por día (últimos 30 días)
+        cursor.execute("""
+            SELECT
+                DATE(usedAt) as fecha,
+                COUNT(*) as usos
+            FROM turnusage
+            WHERE machineId = %s
+            AND usedAt >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY DATE(usedAt)
+            ORDER BY fecha DESC
+        """, (maquina_id,))
+
+        usos_por_dia = cursor.fetchall()
+
+        # Estadísticas de reportes de fallas
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_reportes,
+                COUNT(CASE WHEN isResolved = TRUE THEN 1 END) as reportes_resueltos,
+                COUNT(CASE WHEN isResolved = FALSE THEN 1 END) as reportes_pendientes
+            FROM errorreport
+            WHERE machineId = %s
+        """, (maquina_id,))
+
+        reportes_stats = cursor.fetchone()
+
+        # Últimos 5 reportes
+        cursor.execute("""
+            SELECT
+                er.description,
+                er.reportedAt,
+                er.isResolved,
+                u.name as reportado_por
+            FROM errorreport er
+            JOIN users u ON er.userId = u.id
+            WHERE er.machineId = %s
+            ORDER BY er.reportedAt DESC
+            LIMIT 5
+        """, (maquina_id,))
+
+        ultimos_reportes = cursor.fetchall()
+
+        for reporte in ultimos_reportes:
+            if reporte['reportedAt']:
+                fecha_colombia = parse_db_datetime(reporte['reportedAt'])
+                reporte['reportedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
+
+        return jsonify({
+            'maquina_id': maquina_id,
+            'maquina_nombre': maquina['name'],
+            'estado': maquina['status'],
+            'estadisticas': {
+                'uso': {
+                    'total_usos': uso_stats['total_usos'] or 0,
+                    'dias_con_usos': uso_stats['dias_con_usos'] or 0,
+                    'primer_uso': uso_stats['primer_uso'].isoformat() if uso_stats['primer_uso'] else None,
+                    'ultimo_uso': uso_stats['ultimo_uso'].isoformat() if uso_stats['ultimo_uso'] else None
+                },
+                'reportes': {
+                    'total': reportes_stats['total_reportes'] or 0,
+                    'resueltos': reportes_stats['reportes_resueltos'] or 0,
+                    'pendientes': reportes_stats['reportes_pendientes'] or 0
+                }
+            },
+            'usos_por_dia': usos_por_dia,
+            'ultimos_reportes': ultimos_reportes,
+            'timestamp': get_colombia_time().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
