@@ -6810,17 +6810,17 @@ def mostrar_lista_usuarios():
 @app.route('/admin/paquetes/lista')
 def mostrar_lista_paquetes():
     """Redirigir a la gestiÃ³n de paquetes"""
-    return redirect(url_for('mostrar_gestion_paquetes'))
+    return redirect(url_for('admin.mostrar_gestion_paquetes'))
 
 @app.route('/admin/locales/listalocales')
 def mostrar_lista_locales():
     """Redirigir a la gestiÃ³n de locales"""
-    return redirect(url_for('mostrar_gestion_locales'))
+    return redirect(url_for('admin.mostrar_gestion_locales'))
 
 @app.route('/admin/maquinas/inventario')
 def mostrar_inventario_maquinas():
     """Redirigir a la gestiÃ³n de mÃ¡quinas"""
-    return redirect(url_for('mostrar_gestion_maquinas'))
+    return redirect(url_for('admin.mostrar_gestion_maquinas'))
 
 # ==================== APIS PARA CONTADORES GLOBALES ====================
 
