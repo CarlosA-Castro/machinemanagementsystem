@@ -3,6 +3,6 @@
 .vscode/
 
 # Ignore runtime artifacts
-logs/
+/logs/
 __pycache__/
 *.pyc
