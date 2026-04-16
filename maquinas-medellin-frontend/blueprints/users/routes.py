@@ -8,6 +8,7 @@ from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
 from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
+from utils.location_scope import apply_location_filter, get_active_location, user_can_view_all
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -69,15 +70,28 @@ def obtener_usuarios():
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
-        cursor.execute("""
+
+        # Filtrar usuarios por local activo (socios no tienen location_id, se excluyen del filtro)
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        if can_all and active_id is None:
+            loc_clause = ""
+            loc_params = []
+        else:
+            eff = active_id if active_id is not None else -1
+            loc_clause = "AND (u.location_id = %s OR u.role = 'socio')"
+            loc_params  = [eff]
+
+        cursor.execute(f"""
             SELECT
                 u.*,
                 creador.name as creador_nombre,
                 COALESCE(u.isActive, TRUE) as isActive
             FROM users u
             LEFT JOIN users creador ON u.createdBy = creador.id
+            WHERE 1=1 {loc_clause}
             ORDER BY u.createdAt DESC
-        """)
+        """, loc_params)
         usuarios = cursor.fetchall()
 
         resultado = []

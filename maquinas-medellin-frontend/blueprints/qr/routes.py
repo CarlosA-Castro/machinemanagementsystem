@@ -67,7 +67,7 @@ def generar_codigo_qr():
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
 
@@ -158,7 +158,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
 
                 user_id = session.get('user_id')
                 user_name = session.get('user_name', 'Sistema')
-                local = session.get('user_local', 'El Mekatiadero')
+                local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
                 hora_colombia = get_colombia_time()
                 fecha_hora_str = format_datetime_for_db(hora_colombia)
 
@@ -214,7 +214,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
 
@@ -308,7 +308,7 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Sistema')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
 
@@ -1290,7 +1290,7 @@ def guardar_qr():
         qr_code = data['qr_code']
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
         es_venta_real = data.get('es_venta_real', False)
         es_consulta = data.get('es_consulta', False)
 
@@ -1423,7 +1423,7 @@ def guardar_multiples_qr_con_paquete():
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
 
         if not qr_codes:
             return api_response('E005', http_status=400, data={'message': 'Lista de QR vacía'})
@@ -1551,7 +1551,7 @@ def guardar_multiples_qr():
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
 
         logger.info(f"Guardando {len(qr_codes)} QR con nombre: {nombre}")
 
@@ -1706,7 +1706,7 @@ def obtener_historial_completo():
     cursor = None
     try:
         user_id = session.get('user_id')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
 
         connection = get_db_connection()
         if not connection:
@@ -1872,7 +1872,7 @@ def registrar_venta():
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
-        local = session.get('user_local', 'El Mekatiadero')
+        local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
 
         logger.info(f"REGISTRANDO VENTA REAL: QR={qr_code}, Paquete={paquete_id}")
 

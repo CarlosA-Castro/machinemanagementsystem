@@ -159,6 +159,8 @@ def apply_location_filter(base_sql: str, params: list, column: str = 'location_i
     - Si el usuario tiene can_view_all y active_location_id es None
       (modo "todos los locales") → no agrega filtro.
     - Para roles fijos → siempre filtra por su local.
+    - Inserta el filtro ANTES de ORDER BY / GROUP BY / HAVING / LIMIT
+      para no generar SQL inválido.
 
     Retorna (sql_modificado, params_modificados).
     """
@@ -170,15 +172,58 @@ def apply_location_filter(base_sql: str, params: list, column: str = 'location_i
         return base_sql, params
 
     if active_id is None:
-        # Sin local activo y sin permiso global → no debería pasar, pero
-        # por seguridad filtramos con un valor imposible
+        # Sin local activo y sin permiso global → filtrar con valor imposible
         logger.warning("apply_location_filter: active_location_id es None sin permiso global")
         active_id = -1
 
     col = f"{table_alias}.{column}" if table_alias else column
-    connector = 'AND' if 'WHERE' in base_sql.upper() else 'WHERE'
-    sql = f"{base_sql.rstrip()} {connector} {col} = %s"
+
+    # Encontrar el punto de inserción antes de ORDER BY / GROUP BY / HAVING / LIMIT
+    sql_upper = base_sql.upper()
+    insert_pos = len(base_sql)
+    for keyword in ('ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT'):
+        idx = sql_upper.rfind(keyword)
+        if idx != -1 and idx < insert_pos:
+            insert_pos = idx
+
+    before = base_sql[:insert_pos].rstrip()
+    after  = base_sql[insert_pos:]
+    connector = 'AND' if 'WHERE' in sql_upper[:insert_pos] else 'WHERE'
+    sql = f"{before} {connector} {col} = %s {after}".rstrip()
     return sql, params + [active_id]
+
+
+def apply_location_name_filter(base_sql: str, params: list, column: str = 'local',
+                               table_alias: str = '') -> tuple:
+    """
+    Versión de apply_location_filter para tablas legacy que guardan el local
+    como texto (ej: qrhistory.local, users.local).
+
+    Filtra por active_location_name en vez de active_location_id.
+    Si no hay local activo o el nombre no está en sesión → no filtra.
+    """
+    active_id   = session.get('active_location_id')
+    active_name = session.get('active_location_name')
+    can_view_all = session.get('can_view_all_locations', False)
+
+    # Modo "ver todos" o sin nombre disponible: no filtrar
+    if (can_view_all and active_id is None) or not active_name:
+        return base_sql, params
+
+    col = f"{table_alias}.{column}" if table_alias else column
+
+    sql_upper = base_sql.upper()
+    insert_pos = len(base_sql)
+    for keyword in ('ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT'):
+        idx = sql_upper.rfind(keyword)
+        if idx != -1 and idx < insert_pos:
+            insert_pos = idx
+
+    before = base_sql[:insert_pos].rstrip()
+    after  = base_sql[insert_pos:]
+    connector = 'AND' if 'WHERE' in sql_upper[:insert_pos] else 'WHERE'
+    sql = f"{before} {connector} {col} = %s {after}".rstrip()
+    return sql, params + [active_name]
 
 
 # ── Actualización de local activo ─────────────────────────────────────────────

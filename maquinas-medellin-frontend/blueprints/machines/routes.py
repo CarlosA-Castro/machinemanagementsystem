@@ -11,6 +11,7 @@ from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
 from utils.helpers import parse_json_col
+from utils.location_scope import apply_location_filter, get_active_location, user_can_view_all
 from blueprints.esp32.state import get_heartbeat_fields
 from middleware.logging_mw import log_transaccion
 
@@ -60,8 +61,17 @@ def obtener_maquinas():
 
         cursor = get_db_cursor(connection)
 
+        # Filtro de local activo (no afecta a admins en modo "ver todos")
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        if can_all and active_id is None:
+            loc_clause, loc_params = "", []
+        else:
+            eff_id = active_id if active_id is not None else -1
+            loc_clause, loc_params = "WHERE m.location_id = %s", [eff_id]
+
         try:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     m.id, m.name, m.type, m.status, m.location_id,
                     m.dailyFailedTurns, m.dateLastQRUsed, m.errorNote,
@@ -73,11 +83,12 @@ def obtener_maquinas():
                 LEFT JOIN location l ON m.location_id = l.id
                 LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
                 LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                {loc_clause}
                 ORDER BY m.name
-            """)
+            """, loc_params)
         except Exception:
             # Fallback si las columnas de V32 aún no existen
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     m.id, m.name, m.type, m.status, m.location_id,
                     m.dailyFailedTurns, m.dateLastQRUsed, m.errorNote,
@@ -89,8 +100,9 @@ def obtener_maquinas():
                 LEFT JOIN location l ON m.location_id = l.id
                 LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
                 LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                {loc_clause}
                 ORDER BY m.name
-            """)
+            """, loc_params)
 
         maquinas = cursor.fetchall()
         resultado = []
@@ -152,7 +164,13 @@ def obtener_maquinas_por_tipo():
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
-        cursor.execute("""
+
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        loc_and = "" if (can_all and active_id is None) else \
+            f"AND m.location_id = {active_id if active_id is not None else -1}"
+
+        cursor.execute(f"""
             SELECT
                 m.id, m.name, m.type, m.status, m.location_id,
                 l.name as location_name,
@@ -162,6 +180,7 @@ def obtener_maquinas_por_tipo():
             FROM machine m
             LEFT JOIN location l ON m.location_id = l.id
             WHERE m.status IN ('activa', 'mantenimiento', 'inactiva')
+            {loc_and}
             ORDER BY m.type, m.name
         """)
         maquinas = cursor.fetchall()
@@ -413,6 +432,15 @@ def obtener_turnusage_recientes():
         if station is not None:
             query += " AND tu.station_index = %s"
             params.append(station)
+
+        # Filtro de local activo (vía subquery sobre machine)
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        if not (can_all and active_id is None):
+            eff_id = active_id if active_id is not None else -1
+            query += " AND tu.machineId IN (SELECT id FROM machine WHERE location_id = %s)"
+            params.append(eff_id)
+
         query += " ORDER BY tu.usedAt DESC LIMIT %s"
         params.append(limit)
 
@@ -484,6 +512,15 @@ def obtener_machinefailures_recientes():
         if station is not None:
             query += " AND mf.station_index = %s"
             params.append(station)
+
+        # Filtro de local activo
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        if not (can_all and active_id is None):
+            eff_id = active_id if active_id is not None else -1
+            query += " AND mf.machine_id IN (SELECT id FROM machine WHERE location_id = %s)"
+            params.append(eff_id)
+
         query += " ORDER BY mf.reported_at DESC LIMIT %s"
         params.append(limit)
 

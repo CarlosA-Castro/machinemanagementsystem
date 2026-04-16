@@ -12,10 +12,38 @@ from utils.messages import MessageService
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
 from utils.validators import validate_required_fields
+from utils.location_scope import apply_location_filter, apply_location_name_filter, get_active_location, user_can_view_all
 
 logger = logging.getLogger(LOGGER_NAME)
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+
+# ── Helpers de scoping por local ──────────────────────────────────────────────
+
+def _loc_and_machine(alias: str = 'm') -> str:
+    """Fragmento AND para filtrar tabla machine por local activo. Retorna string seguro (valor incrustado)."""
+    from flask import session as _s
+    active_id = _s.get('active_location_id')
+    can_all   = _s.get('can_view_all_locations', False)
+    if can_all and active_id is None:
+        return ""
+    eff = active_id if active_id is not None else -1
+    return f"AND {alias}.location_id = {int(eff)}"
+
+
+def _loc_and_qrh(alias: str = 'qh') -> tuple:
+    """
+    Retorna (cláusula AND, valor) para filtrar qrhistory por local activo (columna local text).
+    Si no corresponde filtrar → ('', None).
+    """
+    from flask import session as _s
+    active_id   = _s.get('active_location_id')
+    active_name = _s.get('active_location_name')
+    can_all     = _s.get('can_view_all_locations', False)
+    if (can_all and active_id is None) or not active_name:
+        return "", None
+    return f"AND {alias}.local = %s", active_name
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -42,7 +70,12 @@ def obtener_estadisticas_dashboard():
 
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        loc_and_qrh, loc_name = _loc_and_qrh()
+        loc_and_m = _loc_and_machine('m')
+
+        q_ingresos_params = [fecha_inicio, fecha_fin]
+        if loc_name: q_ingresos_params.append(loc_name)
+        cursor.execute(f"""
             SELECT
                 COALESCE(SUM(tp.price), 0) as ingresos_totales,
                 COUNT(DISTINCT qh.qr_code) as paquetes_vendidos
@@ -53,18 +86,22 @@ def obtener_estadisticas_dashboard():
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
               AND qh.es_venta_real = TRUE
-        """, (fecha_inicio, fecha_fin))
+              {loc_and_qrh}
+        """, q_ingresos_params)
         ingresos = cursor.fetchone()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COUNT(CASE WHEN status = 'activa' THEN 1 END) as maquinas_activas,
                 COUNT(*) as maquinas_totales
-            FROM machine
+            FROM machine m
+            WHERE 1=1 {loc_and_m}
         """)
         maquinas = cursor.fetchone()
 
-        cursor.execute("""
+        q_ticket_params = [fecha_inicio, fecha_fin]
+        if loc_name: q_ticket_params.append(loc_name)
+        cursor.execute(f"""
             SELECT
                 CASE
                     WHEN COUNT(DISTINCT qh.qr_code) > 0
@@ -77,13 +114,16 @@ def obtener_estadisticas_dashboard():
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-        """, (fecha_inicio, fecha_fin))
+              {loc_and_qrh}
+        """, q_ticket_params)
         ticket = cursor.fetchone()
 
         fecha_inicio_anterior = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
         fecha_fin_anterior    = (datetime.strptime(fecha_fin,    '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
 
-        cursor.execute("""
+        q_ant_params = [fecha_inicio_anterior, fecha_fin_anterior]
+        if loc_name: q_ant_params.append(loc_name)
+        cursor.execute(f"""
             SELECT
                 COALESCE(SUM(tp.price), 0) as ingresos_anterior,
                 COUNT(DISTINCT qh.qr_code) as paquetes_anterior
@@ -93,7 +133,8 @@ def obtener_estadisticas_dashboard():
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-        """, (fecha_inicio_anterior, fecha_fin_anterior))
+              {loc_and_qrh}
+        """, q_ant_params)
         anterior = cursor.fetchone()
 
         ingresos_actual = float(ingresos['ingresos_totales'] or 0)
@@ -146,8 +187,14 @@ def obtener_graficas_dashboard():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
+        loc_and_qrh, loc_name = _loc_and_qrh()
+        loc_and_m = _loc_and_machine('m')
+
+        def _qrh_params(*base):
+            return list(base) + ([loc_name] if loc_name else [])
+
         if tipo_agrupacion == 'mensual':
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DATE_FORMAT(qh.fecha_hora, '%Y-%m') as fecha,
                        COUNT(DISTINCT qh.qr_code) as ventas,
                        COALESCE(SUM(tp.price), 0) as ingresos
@@ -156,12 +203,12 @@ def obtener_graficas_dashboard():
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
+                  AND qh.es_venta_real = TRUE {loc_and_qrh}
                 GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%m')
                 ORDER BY fecha
-            """, (fecha_inicio, fecha_fin))
+            """, _qrh_params(fecha_inicio, fecha_fin))
         elif tipo_agrupacion == 'semanal':
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DATE_FORMAT(qh.fecha_hora, '%Y-S%u') as fecha,
                        COUNT(DISTINCT qh.qr_code) as ventas,
                        COALESCE(SUM(tp.price), 0) as ingresos
@@ -170,12 +217,12 @@ def obtener_graficas_dashboard():
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
+                  AND qh.es_venta_real = TRUE {loc_and_qrh}
                 GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%u')
                 ORDER BY fecha
-            """, (fecha_inicio, fecha_fin))
+            """, _qrh_params(fecha_inicio, fecha_fin))
         else:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DATE(qh.fecha_hora) as fecha,
                        COUNT(DISTINCT qh.qr_code) as ventas,
                        COALESCE(SUM(tp.price), 0) as ingresos
@@ -184,10 +231,10 @@ def obtener_graficas_dashboard():
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
+                  AND qh.es_venta_real = TRUE {loc_and_qrh}
                 GROUP BY DATE(qh.fecha_hora)
                 ORDER BY fecha
-            """, (fecha_inicio, fecha_fin))
+            """, _qrh_params(fecha_inicio, fecha_fin))
 
         evolucion_data  = cursor.fetchall()
         evolucion_ventas = {
@@ -195,7 +242,7 @@ def obtener_graficas_dashboard():
             'data':   [float(i['ingresos']) for i in evolucion_data],
         }
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT tp.name as paquete,
                    COUNT(DISTINCT qh.qr_code) as cantidad,
                    SUM(tp.price) as ingresos
@@ -204,17 +251,17 @@ def obtener_graficas_dashboard():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
+              AND qh.es_venta_real = TRUE {loc_and_qrh}
             GROUP BY tp.id, tp.name
             ORDER BY ingresos DESC LIMIT 10
-        """, (fecha_inicio, fecha_fin))
+        """, _qrh_params(fecha_inicio, fecha_fin))
         paquetes_data = cursor.fetchall()
         ventas_paquetes = {
             'labels': [i['paquete'] for i in paquetes_data],
             'data':   [i['cantidad'] for i in paquetes_data],
         }
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT m.name as maquina,
                    COUNT(tu.id) as usos,
                    COALESCE(SUM(tp.price), 0) as ingresos
@@ -223,6 +270,7 @@ def obtener_graficas_dashboard():
                 AND DATE(tu.usedAt) BETWEEN %s AND %s
             LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE 1=1 {loc_and_m}
             GROUP BY m.id, m.name
             ORDER BY ingresos DESC, usos DESC LIMIT 10
         """, (fecha_inicio, fecha_fin))
@@ -232,11 +280,12 @@ def obtener_graficas_dashboard():
             'data':   [float(i['ingresos']) for i in maquinas_data],
         }
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT COUNT(CASE WHEN status='activa' THEN 1 END) as activas,
                    COUNT(CASE WHEN status='mantenimiento' THEN 1 END) as mantenimiento,
                    COUNT(CASE WHEN status='inactiva' THEN 1 END) as inactivas
-            FROM machine
+            FROM machine m
+            WHERE 1=1 {loc_and_m}
         """)
         estado_data   = cursor.fetchone()
         estado_maquinas = [
@@ -369,11 +418,12 @@ def obtener_top_maquinas():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        loc_and_m = _loc_and_machine('m')
+        cursor.execute(f"""
             SELECT m.name as nombre, COUNT(tu.id) as usos
             FROM machine m
             INNER JOIN turnusage tu ON tu.machineId = m.id
-            WHERE DATE(tu.usedAt) BETWEEN %s AND %s
+            WHERE DATE(tu.usedAt) BETWEEN %s AND %s {loc_and_m}
             GROUP BY m.id, m.name
             ORDER BY usos DESC LIMIT 5
         """, (fecha_inicio, fecha_fin))
@@ -405,16 +455,18 @@ def obtener_ventas_recientes():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        loc_and_qrh, loc_name = _loc_and_qrh()
+        params_vr = [loc_name] if loc_name else []
+        cursor.execute(f"""
             SELECT qh.qr_code, qh.user_name, qh.fecha_hora,
                    tp.name as paquete, tp.price as precio
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
+              AND qh.es_venta_real = TRUE {loc_and_qrh}
             ORDER BY qh.fecha_hora DESC LIMIT 50
-        """)
+        """, params_vr)
 
         ventas_formateadas = []
         for v in cursor.fetchall():
@@ -462,7 +514,13 @@ def obtener_resumen_dashboard():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        loc_and_qrh, loc_name = _loc_and_qrh()
+        loc_and_m = _loc_and_machine('m')
+
+        def _p(*base):
+            return list(base) + ([loc_name] if loc_name else [])
+
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                           THEN qh.qr_code END) as vendidos_hoy,
@@ -471,14 +529,25 @@ def obtener_resumen_dashboard():
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) = %s
-        """, (fecha_hoy,))
+            WHERE DATE(qh.fecha_hora) = %s {loc_and_qrh}
+        """, _p(fecha_hoy))
         hoy = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as turnos_hoy FROM turnusage WHERE DATE(usedAt) = %s", (fecha_hoy,))
+        # turnos filtrados por local via máquina
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        if can_all and active_id is None:
+            cursor.execute("SELECT COUNT(*) as turnos_hoy FROM turnusage WHERE DATE(usedAt) = %s", (fecha_hoy,))
+        else:
+            eff = active_id if active_id is not None else -1
+            cursor.execute("""
+                SELECT COUNT(*) as turnos_hoy FROM turnusage tu
+                JOIN machine m ON tu.machineId = m.id
+                WHERE DATE(tu.usedAt) = %s AND m.location_id = %s
+            """, (fecha_hoy, eff))
         turnos_hoy = cursor.fetchone()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                           THEN qh.qr_code END) as vendidos_ayer,
@@ -487,35 +556,45 @@ def obtener_resumen_dashboard():
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) = %s
-        """, (fecha_ayer,))
+            WHERE DATE(qh.fecha_hora) = %s {loc_and_qrh}
+        """, _p(fecha_ayer))
         ayer = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as turnos_ayer FROM turnusage WHERE DATE(usedAt) = %s", (fecha_ayer,))
+        if can_all and active_id is None:
+            cursor.execute("SELECT COUNT(*) as turnos_ayer FROM turnusage WHERE DATE(usedAt) = %s", (fecha_ayer,))
+        else:
+            eff = active_id if active_id is not None else -1
+            cursor.execute("""
+                SELECT COUNT(*) as turnos_ayer FROM turnusage tu
+                JOIN machine m ON tu.machineId = m.id
+                WHERE DATE(tu.usedAt) = %s AND m.location_id = %s
+            """, (fecha_ayer, eff))
         turnos_ayer = cursor.fetchone()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COUNT(CASE WHEN status='activa'       THEN 1 END) as maquinas_activas,
                 COUNT(CASE WHEN status='mantenimiento' THEN 1 END) as maquinas_mantenimiento,
                 COUNT(CASE WHEN status='inactiva'     THEN 1 END) as maquinas_inactivas,
                 COUNT(*) as total_maquinas
-            FROM machine
+            FROM machine m
+            WHERE 1=1 {loc_and_m}
         """)
         maquinas = cursor.fetchone()
 
         cursor.execute("SELECT COUNT(*) as reportes_pendientes FROM errorreport WHERE isResolved = FALSE")
         reportes = cursor.fetchone()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT qh.qr_code, qh.user_name, qh.fecha_hora,
                    tp.name as paquete_nombre, tp.price as precio
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+            {loc_and_qrh}
             ORDER BY qh.fecha_hora DESC LIMIT 5
-        """)
+        """, [loc_name] if loc_name else [])
         ultimas_ventas = cursor.fetchall()
 
         for v in ultimas_ventas:
@@ -584,7 +663,13 @@ def obtener_estadisticas_rango_fechas():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        loc_and_qrh, loc_name = _loc_and_qrh()
+        loc_and_m = _loc_and_machine('m')
+
+        def _p(*base):
+            return list(base) + ([loc_name] if loc_name else [])
+
+        cursor.execute(f"""
             SELECT
                 DATE(qh.fecha_hora) as fecha,
                 COUNT(DISTINCT qh.qr_code) as total_escaneados,
@@ -597,13 +682,13 @@ def obtener_estadisticas_rango_fechas():
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             LEFT JOIN turnusage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s {loc_and_qrh}
             GROUP BY DATE(qh.fecha_hora)
             ORDER BY fecha DESC
-        """, (fecha_inicio, fecha_fin))
+        """, _p(fecha_inicio, fecha_fin))
         estadisticas = cursor.fetchall()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_escaneados,
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
@@ -615,21 +700,21 @@ def obtener_estadisticas_rango_fechas():
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             LEFT JOIN turnusage tu ON DATE(tu.usedAt) = DATE(qh.fecha_hora)
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-        """, (fecha_inicio, fecha_fin))
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s {loc_and_qrh}
+        """, _p(fecha_inicio, fecha_fin))
         totales = cursor.fetchone()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT m.name as maquina_nombre, COUNT(tu.id) as turnos_utilizados
             FROM turnusage tu
             JOIN machine m ON tu.machineId = m.id
-            WHERE DATE(tu.usedAt) BETWEEN %s AND %s
+            WHERE DATE(tu.usedAt) BETWEEN %s AND %s {loc_and_m}
             GROUP BY m.id, m.name
             ORDER BY turnos_utilizados DESC LIMIT 10
         """, (fecha_inicio, fecha_fin))
         maquinas_populares = cursor.fetchall()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT tp.name as paquete_nombre,
                    COUNT(DISTINCT qh.qr_code) as veces_vendido,
                    SUM(tp.price) as valor_total
@@ -638,9 +723,10 @@ def obtener_estadisticas_rango_fechas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+              {loc_and_qrh}
             GROUP BY tp.id, tp.name
             ORDER BY veces_vendido DESC LIMIT 10
-        """, (fecha_inicio, fecha_fin))
+        """, _p(fecha_inicio, fecha_fin))
         paquetes_populares = cursor.fetchall()
 
         logger.info(f"Estadísticas rango {fecha_inicio} a {fecha_fin}: {totales['total_vendidos'] or 0} vendidos")
