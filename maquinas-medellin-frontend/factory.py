@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import os
 from datetime import timedelta
 from logging.handlers import RotatingFileHandler
@@ -38,10 +38,19 @@ def _configure_logging(app: Flask) -> None:
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
 
-    # Logger compartido por todos los módulos del proyecto
+    # Logger compartido por todos los mÃ³dulos del proyecto
     maquinas_logger = logging.getLogger(LOGGER_NAME)
-    maquinas_logger.addHandler(file_handler)
-    maquinas_logger.addHandler(console_handler)
+    if not any(
+        isinstance(handler, RotatingFileHandler)
+        and getattr(handler, 'baseFilename', '').endswith('maquinas.log')
+        for handler in maquinas_logger.handlers
+    ):
+        maquinas_logger.addHandler(file_handler)
+    if not any(
+        isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler)
+        for handler in maquinas_logger.handlers
+    ):
+        maquinas_logger.addHandler(console_handler)
     maquinas_logger.setLevel(logging.INFO)
 
     # Propagar al app.logger de Flask para que /api/logs/consola-completa siga funcionando
@@ -66,7 +75,7 @@ def create_app() -> Flask:
 
     CORS(app)
 
-    # ── Sentry ────────────────────────────────────────────────────────────────
+    # â”€â”€ Sentry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[FlaskIntegration()],
@@ -75,37 +84,57 @@ def create_app() -> Flask:
         environment="production",
     )
 
-    # ── Logging ───────────────────────────────────────────────────────────────
     _configure_logging(app)
 
-    # ── Middleware (before / after request) ───────────────────────────────────
     app.before_request(check_session_timeout)
     app.before_request(before_request_log)
     app.after_request(after_request_log)
 
-    # ── Blueprints ────────────────────────────────────────────────────────────
-    # Se registran en las fases 2-3. Descomentar a medida que se completan.
-    #
-    # from blueprints.auth.routes    import auth_bp
-    # from blueprints.admin.routes   import admin_bp
-    # from blueprints.users.routes   import users_bp
-    # from blueprints.machines.routes import machines_bp
-    # from blueprints.esp32.routes   import esp32_bp
-    # from blueprints.qr.routes      import qr_bp
-    # from blueprints.sales.routes   import sales_bp
-    # from blueprints.partners.routes import partners_bp
-    # from blueprints.logs.routes    import logs_bp
-    # from blueprints.counters.routes import counters_bp
-    #
-    # app.register_blueprint(auth_bp)
-    # app.register_blueprint(admin_bp)
-    # app.register_blueprint(users_bp)
-    # app.register_blueprint(machines_bp)
-    # app.register_blueprint(esp32_bp)
-    # app.register_blueprint(qr_bp)
-    # app.register_blueprint(sales_bp)
-    # app.register_blueprint(partners_bp)
-    # app.register_blueprint(logs_bp)
-    # app.register_blueprint(counters_bp)
+    # Blueprints activos en el backend actual.
+    from blueprints.auth.routes        import auth_bp
+    from blueprints.admin.routes       import admin_bp
+    from blueprints.users.routes       import users_bp
+    from blueprints.counters.routes    import counters_bp
+    from blueprints.machines.routes    import machines_bp
+    from blueprints.esp32.routes       import esp32_bp
+    from blueprints.qr.routes          import qr_bp
+    from blueprints.packages.routes    import packages_bp
+    from blueprints.locations.routes   import locations_bp
+    from blueprints.messages.routes    import messages_bp
+    from blueprints.dashboard.routes   import dashboard_bp
+    from blueprints.owners.routes      import owners_bp
+    from blueprints.roles.routes       import roles_bp
+    from blueprints.socios.routes      import socios_bp
+    from blueprints.inversiones.routes import inversiones_bp
+    from blueprints.pagos.routes       import pagos_bp
+    from blueprints.liquidaciones.routes import liquidaciones_bp
+    from blueprints.historial.routes   import historial_bp
+    from blueprints.logs.routes        import logs_bp
+    from blueprints.devoluciones.routes import devoluciones_bp
+
+    for blueprint in (
+        auth_bp,
+        admin_bp,
+        users_bp,
+        counters_bp,
+        machines_bp,
+        esp32_bp,
+        qr_bp,
+        packages_bp,
+        locations_bp,
+        messages_bp,
+        dashboard_bp,
+        owners_bp,
+        roles_bp,
+        socios_bp,
+        inversiones_bp,
+        pagos_bp,
+        liquidaciones_bp,
+        historial_bp,
+        logs_bp,
+        devoluciones_bp,
+    ):
+        app.register_blueprint(blueprint)
 
     return app
+

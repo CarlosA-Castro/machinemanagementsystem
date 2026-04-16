@@ -1,4 +1,8 @@
-# Ignore log files
-.venv/*
-.vscode/*
-logs/maquinas.log
+# Ignore local environments
+.venv/
+.vscode/
+
+# Ignore runtime artifacts
+/logs/
+__pycache__/
+*.pyc

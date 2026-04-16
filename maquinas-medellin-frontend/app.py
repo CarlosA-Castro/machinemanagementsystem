@@ -1,4 +1,4 @@
-from flask import Flask, json, request, jsonify, render_template, redirect, url_for, session, send_file, g
+﻿from flask import Flask, json, request, jsonify, render_template, redirect, url_for, session, send_file, g
 import time
 import mysql.connector
 from mysql.connector import pooling
@@ -16,8 +16,21 @@ import io
 import csv
 import zipfile
 import traceback
+from factory import create_app
+from utils.transactions import log_transaction as shared_log_transaction
+from utils.logs import (
+    log_app_event as shared_log_app_event,
+    log_error as shared_log_error,
+    update_daily_statistics as shared_update_daily_statistics,
+    check_alerts as shared_check_alerts,
+    log_info as shared_log_info,
+    log_warning as shared_log_warning,
+    log_error_system as shared_log_error_system,
+    log_user_action as shared_log_user_action,
+    log_system_event as shared_log_system_event,
+)
 
-#  CONFIGURACIÓN DE ZONA HORARIA 
+#  CONFIGURACION DE ZONA HORARIA 
 
 COLOMBIA_TZ = pytz.timezone('America/Bogota')
 
@@ -36,74 +49,20 @@ def parse_db_datetime(dt_str):
     naive_dt = datetime.strptime(str(dt_str), '%Y-%m-%d %H:%M:%S')
     return COLOMBIA_TZ.localize(naive_dt)
 
-#  CONFIGURACIÓN SENTRY 
-sentry_sdk.init(
-    dsn="https://5fc281c2ace4860969f2f1f6fa10039d@o4510071013310464.ingest.us.sentry.io/4510071047454720",
-    integrations=[FlaskIntegration()],
-    traces_sample_rate=1.0,
-    send_default_pii=True,
-    environment="development"
-)
-
-# Configuración del logger
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-app = Flask(
-    __name__,
-    static_folder=os.path.join(BASE_DIR, 'static'),
-    template_folder=os.path.join(BASE_DIR, 'templates')
-)
-app.secret_key = 'maquinasmedellin_sk_v2_8h_timeout_2026'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
-CORS(app)
-
+# La app real se crea desde el factory para centralizar configuracion,
+# logging y middleware sin romper las rutas legacy que aun viven aqui.
+app = create_app()
 SESSION_TIMEOUT = timedelta(hours=8)
 
-# Configurar logging mejorado
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-
-# Handler para archivo con rotación
-from logging.handlers import RotatingFileHandler
-
-file_handler = RotatingFileHandler(
-    'logs/maquinas.log',
-    maxBytes=10 * 1024 * 1024,  
-    backupCount=10
-)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s [%(levelname)-8s] %(message)s  (%(filename)s:%(lineno)d)'
-))
-file_handler.setLevel(logging.INFO)
-
-# Handler para consola (EC2 docker logs)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter(
-    '%(asctime)s [%(levelname)-8s] %(message)s'
-))
-
-# Configurar app logger
-app.logger.addHandler(file_handler)
-app.logger.addHandler(console_handler)
-app.logger.setLevel(logging.INFO)
-
-# Werkzeug: solo errores (nuestro after_request ya registra los requests)
-logging.getLogger('werkzeug').setLevel(logging.ERROR)
-
-# Reducir verbosidad de otros loggers ruidosos
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('sentry_sdk').setLevel(logging.WARNING)
-
 # ============================================================
-# ESTADO EN MEMORIA — HEARTBEATS ESP32
+# ESTADO EN MEMORIA â€” HEARTBEATS ESP32
 # Clave: machine_id (int)  Valor: {wifi, server, rssi, ts}
 # No persiste entre reinicios del servidor (comportamiento correcto:
 # si el servidor reinicia, los ESP32 vuelven a enviar heartbeat en segundos)
 # ============================================================
 import time as _time
 _esp32_heartbeats: dict = {}   # { machine_id: {wifi, server, rssi, ts} }
-_ESP32_ONLINE_TIMEOUT = 90    # segundos sin heartbeat → considerado offline
+_ESP32_ONLINE_TIMEOUT = 90    # segundos sin heartbeat â†’ considerado offline
 
 def _parse_json_col(value, default):
     """Parsea una columna JSON que puede llegar como string o ya como objeto Python."""
@@ -146,68 +105,29 @@ _SKIP_ACCESS_LOG = (
 def _log_transaccion(tipo, descripcion, categoria='operacional', usuario=None, usuario_id=None,
                      maquina_id=None, maquina_nombre=None, entidad=None, entidad_id=None,
                      monto=None, datos_extra=None, estado='ok'):
-    """
-    Registra un evento transaccional en transaction_logs y en el logger.
-    Llamar desde cualquier endpoint financiero/operacional clave.
-    """
-    try:
-        extra_parts = []
-        if maquina_nombre:
-            extra_parts.append(f"Máquina={maquina_nombre}")
-        if monto is not None:
-            extra_parts.append(f"Monto=${monto:,.0f}")
-        if usuario:
-            extra_parts.append(f"Usuario={usuario}")
-        if entidad and entidad_id:
-            extra_parts.append(f"{entidad}#{entidad_id}")
-        extra_str = ' | '.join(extra_parts)
-        log_line = f"[TXN:{tipo.upper()}] {descripcion}"
-        if extra_str:
-            log_line += f" — {extra_str}"
-        if estado == 'error':
-            app.logger.error(log_line)
-        elif estado == 'advertencia':
-            app.logger.warning(log_line)
-        else:
-            app.logger.info(log_line)
-    except Exception:
-        pass
-
-    try:
-        ip = None
-        try:
-            ip = request.remote_addr
-        except RuntimeError:
-            pass
-
-        connection = get_db_connection()
-        if not connection:
-            return
-        cursor = connection.cursor()
-        cursor.execute("""
-            INSERT INTO transaction_logs
-                (tipo, categoria, descripcion, usuario, usuario_id, maquina_id, maquina_nombre,
-                 entidad, entidad_id, monto, datos_extra, ip_address, estado)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            tipo[:50], categoria[:30], descripcion[:500],
-            usuario, usuario_id, maquina_id, maquina_nombre,
-            entidad, entidad_id, monto,
-            json.dumps(datos_extra, default=str) if datos_extra else None,
-            ip, estado
-        ))
-        connection.commit()
-        cursor.close()
-        connection.close()
-    except Exception as e:
-        app.logger.warning(f"[TXN] No se pudo guardar en transaction_logs: {e}")
+    """Wrapper legacy hacia el helper compartido de transacciones."""
+    shared_log_transaction(
+        tipo=tipo,
+        descripcion=descripcion,
+        categoria=categoria,
+        usuario=usuario,
+        usuario_id=usuario_id,
+        maquina_id=maquina_id,
+        maquina_nombre=maquina_nombre,
+        entidad=entidad,
+        entidad_id=entidad_id,
+        monto=monto,
+        datos_extra=datos_extra,
+        estado=estado,
+    )
 
 
 _SESSION_SKIP = {'mostrar_login', 'procesar_login', 'static', None}
 
-@app.before_request
+# Registrado desde middleware/session.py en factory.py
+# @app.before_request
 def check_session_timeout():
-    """Cierra sesión automáticamente tras 8 horas de inactividad."""
+    """Cierra sesiÃ³n automÃ¡ticamente tras 8 horas de inactividad."""
     if request.endpoint in _SESSION_SKIP:
         return
     if not session.get('logged_in'):
@@ -229,12 +149,14 @@ def check_session_timeout():
     session.modified = True
 
 
-@app.before_request
+# Registrado desde middleware/logging_mw.py en factory.py
+# @app.before_request
 def _before_request_log():
     g._req_start = time.time()
 
 
-@app.after_request
+# Registrado desde middleware/logging_mw.py en factory.py
+# @app.after_request
 def _after_request_log(response):
     try:
         path = request.path
@@ -250,7 +172,7 @@ def _after_request_log(response):
 
         # Log en consola EC2 con formato rico
         log_fn = app.logger.error if status >= 500 else app.logger.warning if status >= 400 else app.logger.info
-        log_fn(f"[HTTP] {method} {path} → {status} | {duration_ms}ms | {ip} | {user_name}")
+        log_fn(f"[HTTP] {method} {path} â†’ {status} | {duration_ms}ms | {ip} | {user_name}")
 
         # Insertar en access_logs
         try:
@@ -290,7 +212,7 @@ class MessageService:
             if cache_key in cls._cache:
                 message_data = cls._cache[cache_key]
             else:
-                # Conexión a la base de datos
+                # ConexiÃ³n a la base de datos
                 connection = cls._get_connection()
                 if not connection:
                     return cls._get_default_message(message_code)
@@ -305,7 +227,7 @@ class MessageService:
                 cursor.execute(query, (message_code, language_code))
                 message = cursor.fetchone()
                 
-                # Fallback a español 
+                # Fallback a espaÃ±ol 
                 if not message and language_code != 'es':
                     cursor.execute("""
                         SELECT message_code, message_type, message_text, language_code
@@ -380,7 +302,7 @@ class MessageService:
     
     @classmethod
     def _get_connection(cls):
-        """Obtiene conexión a la base de datos"""
+        """Obtiene conexiÃ³n a la base de datos"""
         try:
             conn = mysql.connector.connect(
                 host=os.getenv("DB_HOST", "mysql"),
@@ -403,10 +325,10 @@ class MessageService:
             'E002': {'code': 'E002', 'type': 'error', 'text': 'Recurso no encontrado'},
             'E003': {'code': 'E003', 'type': 'error', 'text': 'No autorizado'},
             'E004': {'code': 'E004', 'type': 'error', 'text': 'Acceso prohibido'},
-            'E005': {'code': 'E005', 'type': 'error', 'text': 'Parámetros inválidos'},
-            'E006': {'code': 'E006', 'type': 'error', 'text': 'Error de conexión a la base de datos'},
-            'A001': {'code': 'A001', 'type': 'error', 'text': 'Credenciales inválidas'},
-            'S001': {'code': 'S001', 'type': 'success', 'text': 'Operación exitosa'},
+            'E005': {'code': 'E005', 'type': 'error', 'text': 'ParÃ¡metros invÃ¡lidos'},
+            'E006': {'code': 'E006', 'type': 'error', 'text': 'Error de conexiÃ³n a la base de datos'},
+            'A001': {'code': 'A001', 'type': 'error', 'text': 'Credenciales invÃ¡lidas'},
+            'S001': {'code': 'S001', 'type': 'success', 'text': 'OperaciÃ³n exitosa'},
         }
         
         message = default_messages.get(message_code, {
@@ -457,7 +379,7 @@ def handle_api_errors(func):
 
 def require_login(roles=None):
     """
-    Decorador para requerir autenticación.
+    Decorador para requerir autenticaciÃ³n.
     Si se pasan roles, acepta:
     - Roles exactos en la lista
     - Cualquier rol que tenga permiso 'admin_panel' (para rutas admin)
@@ -474,11 +396,11 @@ def require_login(roles=None):
             if roles:
                 user_role = session.get('user_role')
 
-                # Si el rol está directamente en la lista permitida, ok
+                # Si el rol estÃ¡ directamente en la lista permitida, ok
                 if user_role in roles:
                     return func(*args, **kwargs)
 
-                # Si no está, verificar permisos desde la tabla roles
+                # Si no estÃ¡, verificar permisos desde la tabla roles
                 try:
                     connection = get_db_connection()
                     if connection:
@@ -522,7 +444,7 @@ def require_login(roles=None):
     return decorator
 
 def require_permission(permission):
-    """Decorador para verificar permisos específicos desde tabla roles"""
+    """Decorador para verificar permisos especÃ­ficos desde tabla roles"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -616,7 +538,7 @@ def validate_required_fields(required_fields):
     return decorator
 
 
-# CONFIGURACIÓN DEL POOL DE CONEXIONES
+# CONFIGURACIÃ“N DEL POOL DE CONEXIONES
 
 try:
     db_config = {
@@ -630,13 +552,13 @@ try:
     "auth_plugin": "mysql_native_password"
     }
 
-    app.logger.info("🔧 Intentando crear pool de conexiones...")
+    app.logger.info("ðŸ”§ Intentando crear pool de conexiones...")
     app.logger.info(f"   Host: {db_config['host']}")
     app.logger.info(f"   User: {db_config['user']}")
     app.logger.info(f"   Database: {db_config['database']}")
     app.logger.info(f"   Port: {db_config['port']}")
     
-    # Probar conexión simple primero
+    # Probar conexiÃ³n simple primero
     test_conn = mysql.connector.connect(
          host=os.getenv("DB_HOST", "mysql"),
     user=os.getenv("DB_USER", "myuser"),
@@ -645,7 +567,7 @@ try:
     port=3306,
     auth_plugin="mysql_native_password"
 )
-    app.logger.info(" Conexión simple exitosa")
+    app.logger.info(" ConexiÃ³n simple exitosa")
     test_conn.close()
     
     # Ahora intentar el pool
@@ -653,7 +575,7 @@ try:
     app.logger.info(" Pool de conexiones creado exitosamente")
     
 except mysql.connector.Error as e:
-    app.logger.error(f" Error MySQL específico: {e}")
+    app.logger.error(f" Error MySQL especÃ­fico: {e}")
     app.logger.error(f"   Error number: {e.errno}")
     app.logger.error(f"   SQL state: {e.sqlstate}")
     connection_pool = None
@@ -680,7 +602,7 @@ def get_db_connection():
         cursor.close()
         return connection
     except Exception as e:
-        app.logger.error(f" Error obteniendo conexión: {e}")
+        app.logger.error(f" Error obteniendo conexiÃ³n: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -694,43 +616,17 @@ def get_db_cursor(connection):
         return None
 
 # ── Blueprints migrados (Fase 2-3) ───────────────────────────────────────────
-from blueprints.auth.routes     import auth_bp      # noqa: E402
-from blueprints.admin.routes    import admin_bp     # noqa: E402
-from blueprints.users.routes    import users_bp     # noqa: E402
-from blueprints.counters.routes import counters_bp  # noqa: E402
-from blueprints.machines.routes import machines_bp  # noqa: E402
-from blueprints.esp32.routes      import esp32_bp      # noqa: E402
-from blueprints.qr.routes         import qr_bp         # noqa: E402
-from blueprints.packages.routes   import packages_bp   # noqa: E402
-from blueprints.locations.routes  import locations_bp  # noqa: E402
-from blueprints.messages.routes   import messages_bp   # noqa: E402
-from blueprints.dashboard.routes  import dashboard_bp  # noqa: E402
-from blueprints.owners.routes     import owners_bp     # noqa: E402
-from blueprints.roles.routes      import roles_bp      # noqa: E402
-
-app.register_blueprint(auth_bp)
-app.register_blueprint(admin_bp)
-app.register_blueprint(users_bp)
-app.register_blueprint(counters_bp)
-app.register_blueprint(machines_bp)
-app.register_blueprint(esp32_bp)
-app.register_blueprint(qr_bp)
-app.register_blueprint(packages_bp)
-app.register_blueprint(locations_bp)
-app.register_blueprint(messages_bp)
-app.register_blueprint(dashboard_bp)
-app.register_blueprint(owners_bp)
-app.register_blueprint(roles_bp)
+# Los blueprints activos se registran exclusivamente desde factory.py.
 
 # RUTAS PENDIENTES DE MIGRAR (Fase 3+)
 
-# auth routes → blueprints/auth/routes.py
+# auth routes â†’ blueprints/auth/routes.py
 
 # QR routes → blueprints/qr/routes.py
 
-# admin routes → blueprints/admin/routes.py
+# admin routes â†’ blueprints/admin/routes.py
 
-# users routes → blueprints/users/routes.py
+# users routes â†’ blueprints/users/routes.py
 
 # paquetes routes → blueprints/packages/routes.py
 
@@ -752,2087 +648,20 @@ app.register_blueprint(roles_bp)
 
 # ==================== RUTAS PARA SOCIOS ====================
 
-@app.route('/socios')
-@require_login(['admin', 'socio'])
-def mostrar_panel_socio():
-    """Mostrar panel personalizado del socio"""
-    # Verificar si el usuario es socio o admin
-    if session.get('user_role') == 'socio':
-        # Cargar datos específicos del socio
-        socio_id = session.get('socio_id')
-    else:
-        # Admin viendo panel general
-        socio_id = request.args.get('socio_id')
-    
-    hora_colombia = get_colombia_time()
-    return render_template('socios.html',
-                         nombre_usuario=session.get('user_name', 'Socio'),
-                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
-                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
+# APIs de liquidaciones y reportes migradas a:
+# - blueprints/liquidaciones/routes.py
 
-@app.route('/admin/inversores/gestionsocios')
-@require_login(['admin'])
-def mostrar_gestion_socios():
-    """Mostrar gestión completa de socios"""
-    hora_colombia = get_colombia_time()
-    return render_template('admin/inversores/gestionsocios.html',
-                         nombre_usuario=session.get('user_name', 'Administrador'),
-                         local_usuario=session.get('user_local', 'Sistema'),
-                         hora_actual=hora_colombia.strftime('%H:%M:%S'),
-                         fecha_actual=hora_colombia.strftime('%Y-%m-%d'))
-
-# ==================== APIS ESPECÍFICAS PARA SOCIOS ====================
-
-@app.route('/api/socio/actual', methods=['GET'])
-@handle_api_errors
-@require_login(['admin', 'socio'])
-def obtener_socio_actual():
-    """Obtener datos del socio actual (para su panel)"""
-    connection = None
-    cursor = None
-    try:
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        if user_role == 'socio':
-            # Buscar socio por user_id
-            cursor.execute("SELECT * FROM socios WHERE user_id = %s", (user_id,))
-        else:
-            # Admin puede especificar socio
-            socio_id = request.args.get('socio_id')
-            cursor.execute("SELECT * FROM socios WHERE id = %s", (socio_id,))
-        
-        socio = cursor.fetchone()
-        if not socio:
-            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
-        
-        return jsonify(socio)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo socio actual: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# ==================== APIS PARA LIQUIDACIONES Y REPORTES ====================
-
-@app.route('/api/ventas-liquidadas', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_ventas_liquidadas():
-    """Obtener ventas liquidadas con distribución real - VERSIÓN CORREGIDA"""
-    connection = None
-    cursor = None
-    try:
-        app.logger.info("=== INICIANDO OBTENER VENTAS LIQUIDADAS ===")
-        
-        fecha_inicio = request.args.get('fechaInicio', get_colombia_time().strftime('%Y-%m-%d'))
-        fecha_fin = request.args.get('fechaFin', get_colombia_time().strftime('%Y-%m-%d'))
-        pagina = int(request.args.get('pagina', 1))
-        por_pagina = int(request.args.get('porPagina', 50))
-        offset = (pagina - 1) * por_pagina
-        
-        app.logger.info(f"Parámetros recibidos: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, pagina={pagina}")
-        
-        connection = get_db_connection()
-        if not connection:
-            app.logger.error("No se pudo conectar a la BD")
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Primero, verificar si hay datos
-        cursor.execute("""
-            SELECT COUNT(*) as total 
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE
-        """, (fecha_inicio, fecha_fin))
-        
-        total_result = cursor.fetchone()
-        total = total_result['total'] if total_result else 0
-        
-        app.logger.info(f"Total de ventas encontradas: {total}")
-        
-        # VERIFICAR SI HAY DATOS EN TABLAS RELACIONADAS
-        try:
-            cursor.execute("SHOW TABLES LIKE 'maquinaporcentajerestaurante'")
-            tiene_porcentaje = cursor.fetchone() is not None
-            
-            cursor.execute("SHOW TABLES LIKE 'maquinapropietario'")
-            tiene_propietarios = cursor.fetchone() is not None
-            
-            app.logger.info(f"Tablas disponibles: porcentaje={tiene_porcentaje}, propietarios={tiene_propietarios}")
-        except Exception as e:
-            app.logger.warning(f"Error verificando tablas: {e}")
-            tiene_porcentaje = False
-            tiene_propietarios = False
-        
-        if total == 0:
-            app.logger.info("No hay ventas en el período especificado")
-            return jsonify({
-                'datos': [],
-                'totalRegistros': 0,
-                'totalIngresos': 0,
-                'gananciaTotal': 0,
-                'gananciaProveedor': 0,
-                'gananciaRestaurante': 0,
-                'paginaActual': pagina,
-                'totalPaginas': 1,
-                'mensaje': 'No hay ventas registradas en el período seleccionado'
-            })
-        
-        # Consulta adaptativa basada en tablas disponibles
-        if tiene_porcentaje and tiene_propietarios:
-            app.logger.info("Usando consulta completa con tablas de porcentaje y propietarios")
-            cursor.execute("""
-                SELECT 
-                    DATE(qh.fecha_hora) as fecha,
-                    qh.qr_code,
-                    qh.user_name as vendedor,
-                    tp.name as paquete_nombre,
-                    tp.price as precio_unitario,
-                    1 as cantidad_paquetes,
-                    tp.price as ingresos_totales,
-                    COALESCE(m.name, 'Máquina no especificada') as maquina_nombre,
-                    COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                    (tp.price * COALESCE(mpr.porcentaje_restaurante, 35.00) / 100) as ingresos_restaurante,
-                    (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100) as ingresos_proveedor,
-                    (tp.price * 0.30) as ingresos_30_porciento,
-                    (tp.price * 0.35) as ingresos_35_porciento,
-                    COALESCE(p.nombre, 'Propietario general') as propietario,
-                    COALESCE(mp.porcentaje_propiedad, 100.00) as porcentaje_propiedad
-                FROM qrhistory qh
-                JOIN qrcode qr ON qr.code = qh.qr_code
-                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
-                LEFT JOIN machine m ON tu.machineId = m.id
-                LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-                LEFT JOIN maquinapropietario mp ON m.id = mp.maquina_id
-                LEFT JOIN propietarios p ON mp.propietario_id = p.id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                AND qr.turnPackageId IS NOT NULL
-                AND qr.turnPackageId != 1
-                AND qh.es_venta_real = TRUE
-                ORDER BY qh.fecha_hora DESC
-                LIMIT %s OFFSET %s
-            """, (fecha_inicio, fecha_fin, por_pagina, offset))
-        else:
-            app.logger.info("Usando consulta simplificada (sin tablas de porcentaje/propietarios)")
-            cursor.execute("""
-                SELECT 
-                    DATE(qh.fecha_hora) as fecha,
-                    qh.qr_code,
-                    qh.user_name as vendedor,
-                    tp.name as paquete_nombre,
-                    tp.price as precio_unitario,
-                    1 as cantidad_paquetes,
-                    tp.price as ingresos_totales,
-                    'Máquina no especificada' as maquina_nombre,
-                    35.00 as porcentaje_restaurante,
-                    (tp.price * 35.00 / 100) as ingresos_restaurante,
-                    (tp.price * 65.00 / 100) as ingresos_proveedor,
-                    (tp.price * 0.30) as ingresos_30_porciento,
-                    (tp.price * 0.35) as ingresos_35_porciento,
-                    'Propietario general' as propietario,
-                    100.00 as porcentaje_propiedad
-                FROM qrhistory qh
-                JOIN qrcode qr ON qr.code = qh.qr_code
-                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                AND qr.turnPackageId IS NOT NULL
-                AND qr.turnPackageId != 1
-                AND qh.es_venta_real = TRUE
-                ORDER BY qh.fecha_hora DESC
-                LIMIT %s OFFSET %s
-            """, (fecha_inicio, fecha_fin, por_pagina, offset))
-        
-        ventas = cursor.fetchall()
-        app.logger.info(f"Ventas obtenidas: {len(ventas)} registros")
-        
-        # Calcular totales
-        total_ingresos = sum(float(v['ingresos_totales']) for v in ventas)
-        total_restaurante = sum(float(v['ingresos_restaurante']) for v in ventas)
-        total_proveedor = sum(float(v['ingresos_proveedor']) for v in ventas)
-        
-        app.logger.info(f"Totales calculados: ingresos={total_ingresos}, restaurante={total_restaurante}, proveedor={total_proveedor}")
-        
-        return jsonify({
-            'datos': ventas,
-            'totalRegistros': total,
-            'totalIngresos': total_ingresos,
-            'gananciaTotal': total_ingresos,
-            'gananciaProveedor': total_proveedor,
-            'gananciaRestaurante': total_restaurante,
-            'paginaActual': pagina,
-            'totalPaginas': (total + por_pagina - 1) // por_pagina
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo ventas liquidadas: {e}", exc_info=True)
-        import traceback
-        app.logger.error(f"Traceback completo: {traceback.format_exc()}")
-        return api_response('E001', http_status=500, data={'error_detail': str(e)})
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/liquidaciones/calcular', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-def calcular_liquidacion():
-    """Calcular liquidación detallada por período - VERSIÓN CORREGIDA"""
-    connection = None
-    cursor = None
-    try:
-        app.logger.info("=== INICIANDO CALCULO DE LIQUIDACIÓN ===")
-        
-        data = request.get_json()
-        fecha_inicio = data.get('fecha_inicio', get_colombia_time().strftime('%Y-%m-%d'))
-        fecha_fin = data.get('fecha_fin', get_colombia_time().strftime('%Y-%m-%d'))
-        
-        app.logger.info(f"Calculando liquidación para {fecha_inicio} a {fecha_fin}")
-        
-        connection = get_db_connection()
-        if not connection:
-            app.logger.error("No se pudo conectar a la BD")
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar qué tablas están disponibles
-        try:
-            cursor.execute("SHOW TABLES LIKE 'maquinaporcentajerestaurante'")
-            tiene_porcentaje = cursor.fetchone() is not None
-            
-            cursor.execute("SHOW TABLES LIKE 'maquinapropietario'")
-            tiene_propietarios = cursor.fetchone() is not None
-            
-            cursor.execute("SHOW TABLES LIKE 'propietarios'")
-            tiene_tabla_propietarios = cursor.fetchone() is not None
-            
-            app.logger.info(f"Tablas disponibles: porcentaje={tiene_porcentaje}, maquinapropietario={tiene_propietarios}, propietarios={tiene_tabla_propietarios}")
-        except Exception as e:
-            app.logger.warning(f"Error verificando tablas: {e}")
-            tiene_porcentaje = False
-            tiene_propietarios = False
-            tiene_tabla_propietarios = False
-        
-        # 1. Estadísticas del período
-        cursor.execute("""
-            SELECT 
-                COUNT(DISTINCT qh.qr_code) as total_ventas,
-                COALESCE(SUM(tp.price), 0) as total_ingresos,
-                COUNT(DISTINCT m.id) as maquinas_utilizadas
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
-            LEFT JOIN machine m ON tu.machineId = m.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-            AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE
-        """, (fecha_inicio, fecha_fin))
-        
-        periodo = cursor.fetchone()
-        app.logger.info(f"Estadísticas período: {periodo}")
-        
-        if not periodo or periodo['total_ventas'] == 0:
-            app.logger.info("No hay ventas en el período")
-            return jsonify({
-                'success': True,
-                'periodo': {
-                    'fecha_inicio': fecha_inicio,
-                    'fecha_fin': fecha_fin,
-                    'total_ventas': 0,
-                    'total_ingresos': 0,
-                    'total_restaurante': 0,
-                    'total_proveedor': 0,
-                    'maquinas_utilizadas': 0
-                },
-                'distribucion_propietarios': {},
-                'resumen_maquinas': {},
-                'datos_tabla': [],
-                'totales': {
-                    'ingresos_totales': 0,
-                    'ganancia_restaurante': 0,
-                    'ganancia_proveedores': 0
-                }
-            })
-        
-        total_ingresos = float(periodo['total_ingresos'] or 0)
-        
-        # 2. Distribución por propietarios (si existe la tabla)
-        distribucion_propietarios = {}
-        if tiene_propietarios and tiene_tabla_propietarios:
-            try:
-                cursor.execute("""
-                    SELECT 
-                        p.id as propietario_id,
-                        p.nombre as propietario_nombre,
-                        COUNT(DISTINCT qh.qr_code) as ventas_asociadas,
-                        COALESCE(SUM(
-                            (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100) 
-                            * (mp.porcentaje_propiedad / 100)
-                        ), 0) as total_ingresos,
-                        GROUP_CONCAT(DISTINCT m.name SEPARATOR ', ') as maquinas_nombres
-                    FROM qrhistory qh
-                    JOIN qrcode qr ON qr.code = qh.qr_code
-                    JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                    JOIN turnusage tu ON qr.id = tu.qrCodeId
-                    JOIN machine m ON tu.machineId = m.id
-                    JOIN maquinapropietario mp ON m.id = mp.maquina_id
-                    JOIN propietarios p ON mp.propietario_id = p.id
-                    LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-                    WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                    AND qr.turnPackageId IS NOT NULL
-                    AND qr.turnPackageId != 1
-                    AND qh.es_venta_real = TRUE
-                    GROUP BY p.id, p.nombre
-                """, (fecha_inicio, fecha_fin))
-                
-                propietarios_data = cursor.fetchall()
-                
-                for prop in propietarios_data:
-                    distribucion_propietarios[prop['propietario_nombre']] = {
-                        'total_ingresos': float(prop['total_ingresos']),
-                        'ventas_asociadas': prop['ventas_asociadas'],
-                        'detalles_maquinas': prop['maquinas_nombres'].split(', ') if prop['maquinas_nombres'] else []
-                    }
-                    
-                app.logger.info(f"Distribución por propietarios: {len(distribucion_propietarios)} propietarios")
-            except Exception as e:
-                app.logger.warning(f"Error obteniendo distribución de propietarios: {e}")
-                distribucion_propietarios = {}
-        else:
-            app.logger.info("Saltando distribución por propietarios (tablas no disponibles)")
-        
-        # 3. Resumen por máquinas
-        resumen_maquinas = {}
-        try:
-            if tiene_porcentaje:
-                cursor.execute("""
-                    SELECT 
-                        m.id as maquina_id,
-                        m.name as maquina_nombre,
-                        m.type as tipo_maquina,
-                        COUNT(DISTINCT qh.qr_code) as ventas_realizadas,
-                        COALESCE(SUM(tp.price), 0) as ingresos_totales,
-                        COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                        COALESCE(SUM(tp.price * COALESCE(mpr.porcentaje_restaurante, 35.00) / 100), 0) as ingresos_restaurante,
-                        COALESCE(SUM(tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100), 0) as ingresos_proveedor
-                    FROM qrhistory qh
-                    JOIN qrcode qr ON qr.code = qh.qr_code
-                    JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                    JOIN turnusage tu ON qr.id = tu.qrCodeId
-                    JOIN machine m ON tu.machineId = m.id
-                    LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-                    WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                    AND qr.turnPackageId IS NOT NULL
-                    AND qr.turnPackageId != 1
-                    AND qh.es_venta_real = TRUE
-                    GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante
-                    ORDER BY ingresos_totales DESC
-                """, (fecha_inicio, fecha_fin))
-            else:
-                cursor.execute("""
-                    SELECT 
-                        m.id as maquina_id,
-                        m.name as maquina_nombre,
-                        m.type as tipo_maquina,
-                        COUNT(DISTINCT qh.qr_code) as ventas_realizadas,
-                        COALESCE(SUM(tp.price), 0) as ingresos_totales,
-                        35.00 as porcentaje_restaurante,
-                        COALESCE(SUM(tp.price * 35.00 / 100), 0) as ingresos_restaurante,
-                        COALESCE(SUM(tp.price * 65.00 / 100), 0) as ingresos_proveedor
-                    FROM qrhistory qh
-                    JOIN qrcode qr ON qr.code = qh.qr_code
-                    JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                    JOIN turnusage tu ON qr.id = tu.qrCodeId
-                    JOIN machine m ON tu.machineId = m.id
-                    WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                    AND qr.turnPackageId IS NOT NULL
-                    AND qr.turnPackageId != 1
-                    AND qh.es_venta_real = TRUE
-                    GROUP BY m.id, m.name, m.type
-                    ORDER BY ingresos_totales DESC
-                """, (fecha_inicio, fecha_fin))
-            
-            maquinas_data = cursor.fetchall()
-            
-            for maq in maquinas_data:
-                resumen_maquinas[maq['maquina_nombre']] = {
-                    'tipo_maquina': maq['tipo_maquina'],
-                    'ventas_realizadas': maq['ventas_realizadas'],
-                    'ingresos_totales': float(maq['ingresos_totales']),
-                    'porcentaje_restaurante': float(maq['porcentaje_restaurante']),
-                    'ingresos_restaurante': float(maq['ingresos_restaurante']),
-                    'ingresos_proveedor': float(maq['ingresos_proveedor'])
-                }
-            
-            app.logger.info(f"Resumen por máquinas: {len(resumen_maquinas)} máquinas")
-        except Exception as e:
-            app.logger.warning(f"Error obteniendo resumen por máquinas: {e}")
-            resumen_maquinas = {}
-        
-        # 4. Tabla detallada para vista
-        datos_tabla = []
-        try:
-            if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
-                cursor.execute("""
-                    SELECT 
-                        DATE(qh.fecha_hora) as fecha,
-                        qh.qr_code,
-                        tp.name as paquete_nombre,
-                        COALESCE(m.name, 'No especificada') as maquina_nombre,
-                        tp.price as ingresos_totales,
-                        COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
-                        (tp.price * COALESCE(mpr.porcentaje_restaurante, 35.00) / 100) as ingresos_restaurante,
-                        (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, 35.00)) / 100) as ingresos_proveedor,
-                        COALESCE(p.nombre, 'No asignado') as propietario
-                    FROM qrhistory qh
-                    JOIN qrcode qr ON qr.code = qh.qr_code
-                    JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                    LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
-                    LEFT JOIN machine m ON tu.machineId = m.id
-                    LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
-                    LEFT JOIN maquinapropietario mp ON m.id = mp.maquina_id
-                    LEFT JOIN propietarios p ON mp.propietario_id = p.id
-                    WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                    AND qr.turnPackageId IS NOT NULL
-                    AND qr.turnPackageId != 1
-                    AND qh.es_venta_real = TRUE
-                    ORDER BY qh.fecha_hora DESC
-                """, (fecha_inicio, fecha_fin))
-            else:
-                cursor.execute("""
-                    SELECT 
-                        DATE(qh.fecha_hora) as fecha,
-                        qh.qr_code,
-                        tp.name as paquete_nombre,
-                        'No especificada' as maquina_nombre,
-                        tp.price as ingresos_totales,
-                        35.00 as porcentaje_restaurante,
-                        (tp.price * 35.00 / 100) as ingresos_restaurante,
-                        (tp.price * 65.00 / 100) as ingresos_proveedor,
-                        'No asignado' as propietario
-                    FROM qrhistory qh
-                    JOIN qrcode qr ON qr.code = qh.qr_code
-                    JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                    WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                    AND qr.turnPackageId IS NOT NULL
-                    AND qr.turnPackageId != 1
-                    AND qh.es_venta_real = TRUE
-                    ORDER BY qh.fecha_hora DESC
-                """, (fecha_inicio, fecha_fin))
-            
-            datos_tabla = cursor.fetchall()
-            app.logger.info(f"Datos tabla: {len(datos_tabla)} registros")
-        except Exception as e:
-            app.logger.warning(f"Error obteniendo datos tabla: {e}")
-            datos_tabla = []
-        
-        # 5. Calcular totales finales
-        total_restaurante = sum(float(m['ingresos_restaurante']) for m in resumen_maquinas.values()) if resumen_maquinas else total_ingresos * 0.35
-        total_proveedor = sum(float(m['ingresos_proveedor']) for m in resumen_maquinas.values()) if resumen_maquinas else total_ingresos * 0.65
-        
-        app.logger.info(f"Cálculo completado: ingresos={total_ingresos}, restaurante={total_restaurante}, proveedor={total_proveedor}")
-        
-        return jsonify({
-            'success': True,
-            'periodo': {
-                'fecha_inicio': fecha_inicio,
-                'fecha_fin': fecha_fin,
-                'total_ventas': periodo['total_ventas'],
-                'total_ingresos': total_ingresos,
-                'total_restaurante': total_restaurante,
-                'total_proveedor': total_proveedor,
-                'maquinas_utilizadas': periodo['maquinas_utilizadas']
-            },
-            'distribucion_propietarios': distribucion_propietarios,
-            'resumen_maquinas': resumen_maquinas,
-            'datos_tabla': datos_tabla,
-            'totales': {
-                'ingresos_totales': total_ingresos,
-                'ganancia_restaurante': total_restaurante,
-                'ganancia_proveedores': total_proveedor
-            }
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error calculando liquidación: {e}", exc_info=True)
-        import traceback
-        app.logger.error(f"Traceback completo: {traceback.format_exc()}")
-        return api_response('E001', http_status=500, data={'error_detail': str(e)})
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/liquidaciones/verificar-tablas', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def verificar_tablas_liquidaciones():
-    """Verificar qué tablas existen para liquidaciones"""
-    connection = None
-    cursor = None
-    try:
-        app.logger.info("Verificando tablas para liquidaciones...")
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        tablas_requeridas = [
-            'maquinaporcentajerestaurante',
-            'maquinapropietario',
-            'propietarios',
-            'liquidaciones',
-            'liquidacion_detalles',
-            'reportes_generados'
-        ]
-        
-        resultados = {}
-        
-        for tabla in tablas_requeridas:
-            cursor.execute("SHOW TABLES LIKE %s", (tabla,))
-            existe = cursor.fetchone() is not None
-            resultados[tabla] = existe
-            
-            if existe:
-                # Verificar columnas si existe
-                try:
-                    cursor.execute(f"DESCRIBE {tabla}")
-                    columnas = cursor.fetchall()
-                    resultados[f"{tabla}_columnas"] = [col['Field'] for col in columnas]
-                except Exception as e:
-                    resultados[f"{tabla}_error"] = str(e)
-        
-        # Verificar si hay datos en las tablas
-        tablas_con_datos = {}
-        for tabla in ['maquinaporcentajerestaurante', 'maquinapropietario', 'propietarios']:
-            if resultados.get(tabla):
-                cursor.execute(f"SELECT COUNT(*) as count FROM {tabla}")
-                count_result = cursor.fetchone()
-                tablas_con_datos[tabla] = count_result['count'] if count_result else 0
-        
-        app.logger.info(f"Resultados verificación tablas: {resultados}")
-        
-        return jsonify({
-            'tablas': resultados,
-            'tablas_con_datos': tablas_con_datos,
-            'recomendaciones': [
-                'Todas las tablas existen' if all(resultados.values()) else 'Faltan algunas tablas',
-                'Configurar porcentajes de restaurante en maquinaporcentajerestaurante' if resultados.get('maquinaporcentajerestaurante') else 'Crear tabla maquinaporcentajerestaurante',
-                'Configurar propietarios en maquinapropietario y propietarios' if resultados.get('maquinapropietario') and resultados.get('propietarios') else 'Crear tablas de propietarios'
-            ]
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error verificando tablas: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# ==================== APIS PARA SOCIOS ====================
-
-@app.route('/api/socios', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_todos_socios():
-    """Obtener todos los socios"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT * FROM socios 
-            ORDER BY fecha_inscripcion DESC
-        """)
-        
-        socios = cursor.fetchall()
-        
-        return jsonify(socios)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo socios: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/completos', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_socios_completos():
-    """Obtener socios con información adicional calculada"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                s.*,
-                COALESCE(SUM(i.monto_inicial), 0) as inversion_total,
-                COUNT(DISTINCT i.id) as total_inversiones,
-                COUNT(CASE WHEN i.estado = 'activa' THEN 1 END) as inversiones_activas,
-                COUNT(DISTINCT pc.id) as total_pagos,
-                COUNT(CASE WHEN pc.estado = 'pendiente' THEN 1 END) as pagos_pendientes
-            FROM socios s
-            LEFT JOIN inversiones i ON s.id = i.socio_id
-            LEFT JOIN pagoscuotas pc ON s.id = pc.socio_id
-            GROUP BY s.id
-            ORDER BY s.fecha_inscripcion DESC
-        """)
-        
-        socios = cursor.fetchall()
-        
-        # Formatear fechas
-        for socio in socios:
-            if socio['fecha_inscripcion']:
-                socio['fecha_inscripcion'] = socio['fecha_inscripcion'].isoformat() if hasattr(socio['fecha_inscripcion'], 'isoformat') else str(socio['fecha_inscripcion'])
-            if socio['fecha_vencimiento']:
-                socio['fecha_vencimiento'] = socio['fecha_vencimiento'].isoformat() if hasattr(socio['fecha_vencimiento'], 'isoformat') else str(socio['fecha_vencimiento'])
-            if socio['created_at']:
-                socio['created_at'] = socio['created_at'].isoformat() if hasattr(socio['created_at'], 'isoformat') else str(socio['created_at'])
-            if socio['updated_at']:
-                socio['updated_at'] = socio['updated_at'].isoformat() if hasattr(socio['updated_at'], 'isoformat') else str(socio['updated_at'])
-        
-        return jsonify(socios)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo socios completos: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/<int:socio_id>', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_socio(socio_id):
-    """Obtener un socio específico"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("SELECT * FROM socios WHERE id = %s", (socio_id,))
-        socio = cursor.fetchone()
-        
-        if not socio:
-            return api_response('E002', http_status=404, data={'socio_id': socio_id})
-        
-        # Obtener inversiones del socio
-        cursor.execute("""
-            SELECT i.*, m.name as maquina_nombre
-            FROM inversiones i
-            LEFT JOIN machine m ON i.maquina_id = m.id
-            WHERE i.socio_id = %s
-            ORDER BY i.fecha_inicio DESC
-        """, (socio_id,))
-        
-        inversiones = cursor.fetchall()
-        
-        # Obtener pagos del socio
-        cursor.execute("""
-            SELECT * FROM pagoscuotas 
-            WHERE socio_id = %s
-            ORDER BY anio DESC, created_at DESC
-        """, (socio_id,))
-        
-        pagos = cursor.fetchall()
-        
-        # Formatear fechas
-        if socio['fecha_inscripcion']:
-            socio['fecha_inscripcion'] = socio['fecha_inscripcion'].isoformat() if hasattr(socio['fecha_inscripcion'], 'isoformat') else str(socio['fecha_inscripcion'])
-        if socio['fecha_vencimiento']:
-            socio['fecha_vencimiento'] = socio['fecha_vencimiento'].isoformat() if hasattr(socio['fecha_vencimiento'], 'isoformat') else str(socio['fecha_vencimiento'])
-        
-        for inversion in inversiones:
-            if inversion['fecha_inicio']:
-                inversion['fecha_inicio'] = inversion['fecha_inicio'].isoformat() if hasattr(inversion['fecha_inicio'], 'isoformat') else str(inversion['fecha_inicio'])
-            if inversion['fecha_fin']:
-                inversion['fecha_fin'] = inversion['fecha_fin'].isoformat() if hasattr(inversion['fecha_fin'], 'isoformat') else str(inversion['fecha_fin'])
-        
-        for pago in pagos:
-            if pago['fecha_pago']:
-                pago['fecha_pago'] = pago['fecha_pago'].isoformat() if hasattr(pago['fecha_pago'], 'isoformat') else str(pago['fecha_pago'])
-        
-        return jsonify({
-            'socio': socio,
-            'inversiones': inversiones,
-            'pagos': pagos
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-@validate_required_fields(['nombre', 'documento', 'fecha_inscripcion', 'fecha_vencimiento'])
-def crear_socio():
-    """Crear un nuevo socio"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        # Generar código de socio único
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Generar código (SOC-XXXX)
-        cursor.execute("SELECT MAX(CAST(SUBSTRING(codigo_socio, 5) AS UNSIGNED)) as max_num FROM socios WHERE codigo_socio LIKE 'SOC-%'")
-        max_num = cursor.fetchone()
-        next_num = (max_num['max_num'] or 0) + 1
-        codigo_socio = f"SOC-{next_num:04d}"
-        
-        # Insertar socio
-        cursor.execute("""
-            INSERT INTO socios (
-                codigo_socio, nombre, documento, tipo_documento, telefono, email,
-                direccion, fecha_inscripcion, fecha_vencimiento, cuota_anual,
-                estado, notas, porcentaje_global
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            codigo_socio,
-            data['nombre'],
-            data['documento'],
-            data.get('tipo_documento', 'CC'),
-            data.get('telefono', ''),
-            data.get('email', ''),
-            data.get('direccion', ''),
-            data['fecha_inscripcion'],
-            data['fecha_vencimiento'],
-            data.get('cuota_anual', 0),
-            data.get('estado', 'activo'),
-            data.get('notas', ''),
-            data.get('porcentaje_global', 0)
-        ))
-        
-        socio_id = cursor.lastrowid
-        
-        connection.commit()
-        
-        app.logger.info(f"Socio creado: {data['nombre']} (Código: {codigo_socio})")
-        
-        return api_response(
-            'S002',
-            status='success',
-            data={'socio_id': socio_id, 'codigo_socio': codigo_socio}
-        )
-        
-    except Exception as e:
-        app.logger.error(f"Error creando socio: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/<int:socio_id>', methods=['PUT'])
-@handle_api_errors
-@require_login(['admin'])
-@validate_required_fields(['nombre', 'documento', 'fecha_inscripcion', 'fecha_vencimiento'])
-def actualizar_socio(socio_id):
-    """Actualizar un socio existente"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que existe
-        cursor.execute("SELECT id FROM socios WHERE id = %s", (socio_id,))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'socio_id': socio_id})
-        
-        # Actualizar socio
-        cursor.execute("""
-            UPDATE socios SET
-                nombre = %s,
-                documento = %s,
-                tipo_documento = %s,
-                telefono = %s,
-                email = %s,
-                direccion = %s,
-                fecha_inscripcion = %s,
-                fecha_vencimiento = %s,
-                cuota_anual = %s,
-                estado = %s,
-                notas = %s,
-                porcentaje_global = %s,
-                updated_at = NOW()
-            WHERE id = %s
-        """, (
-            data['nombre'],
-            data['documento'],
-            data.get('tipo_documento', 'CC'),
-            data.get('telefono', ''),
-            data.get('email', ''),
-            data.get('direccion', ''),
-            data['fecha_inscripcion'],
-            data['fecha_vencimiento'],
-            data.get('cuota_anual', 0),
-            data.get('estado', 'activo'),
-            data.get('notas', ''),
-            data.get('porcentaje_global', 0),
-            socio_id
-        ))
-        
-        connection.commit()
-        
-        app.logger.info(f"Socio actualizado: {data['nombre']} (ID: {socio_id})")
-        
-        return api_response('S003', status='success')
-        
-    except Exception as e:
-        app.logger.error(f"Error actualizando socio: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/<int:socio_id>', methods=['DELETE'])
-@handle_api_errors
-@require_login(['admin'])
-def eliminar_socio(socio_id):
-    """Eliminar un socio"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que existe
-        cursor.execute("SELECT nombre FROM socios WHERE id = %s", (socio_id,))
-        socio = cursor.fetchone()
-        if not socio:
-            return api_response('E002', http_status=404, data={'socio_id': socio_id})
-        
-        # Verificar si tiene inversiones activas
-        cursor.execute("SELECT COUNT(*) as inversiones_activas FROM inversiones WHERE socio_id = %s AND estado = 'activa'", (socio_id,))
-        inversiones = cursor.fetchone()
-        
-        if inversiones['inversiones_activas'] > 0:
-            return api_response(
-                'W006',
-                status='warning',
-                http_status=400,
-                data={
-                    'message': f'El socio tiene {inversiones["inversiones_activas"]} inversiones activas',
-                    'inversiones_activas': inversiones['inversiones_activas']
-                }
-            )
-        
-        # Eliminar pagos asociados
-        cursor.execute("DELETE FROM pagoscuotas WHERE socio_id = %s", (socio_id,))
-        
-        # Eliminar inversiones (primero cambiar estado a finalizada)
-        cursor.execute("UPDATE inversiones SET estado = 'finalizada' WHERE socio_id = %s", (socio_id,))
-        
-        # Eliminar socio
-        cursor.execute("DELETE FROM socios WHERE id = %s", (socio_id,))
-        
-        connection.commit()
-        
-        app.logger.info(f"Socio eliminado: {socio['nombre']} (ID: {socio_id})")
-        
-        return api_response('S004', status='success')
-        
-    except Exception as e:
-        app.logger.error(f"Error eliminando socio: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/estadisticas', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_estadisticas_socios():
-    """Obtener estadísticas generales de socios"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Estadísticas generales
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total_socios,
-                COUNT(CASE WHEN estado = 'activo' THEN 1 END) as socios_activos,
-                COUNT(CASE WHEN estado = 'inactivo' THEN 1 END) as socios_inactivos,
-                COUNT(CASE WHEN estado = 'pendiente_pago' THEN 1 END) as socios_pendientes,
-                SUM(cuota_anual) as cuota_anual_total,
-                SUM(porcentaje_global) as porcentaje_total
-            FROM socios
-        """)
-        
-        stats = cursor.fetchone()
-        
-        # Inversión total
-        cursor.execute("SELECT COALESCE(SUM(monto_inicial), 0) as inversion_total FROM inversiones WHERE estado = 'activa'")
-        inversion = cursor.fetchone()
-        
-        # Pagos pendientes
-        cursor.execute("SELECT COUNT(*) as cuotas_pendientes FROM pagoscuotas WHERE estado = 'pendiente'")
-        pendientes = cursor.fetchone()
-        
-        # ROI promedio (simplificado por ahora)
-        roi_promedio = 12.5  # Esto debería calcularse de forma más compleja
-        
-        return jsonify({
-            'total_socios': stats['total_socios'] or 0,
-            'socios_activos': stats['socios_activos'] or 0,
-            'socios_inactivos': stats['socios_inactivos'] or 0,
-            'socios_pendientes': stats['socios_pendientes'] or 0,
-            'cuota_anual_total': float(stats['cuota_anual_total'] or 0),
-            'inversion_total': float(inversion['inversion_total'] or 0),
-            'cuotas_pendientes': pendientes['cuotas_pendientes'] or 0,
-            'roi_promedio': roi_promedio,
-            'porcentaje_total': float(stats['porcentaje_total'] or 0)
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo estadísticas de socios: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/top', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_top_socios():
-    """Obtener top 10 socios por inversión"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                s.id,
-                s.codigo_socio,
-                s.nombre,
-                s.documento,
-                s.estado,
-                COALESCE(SUM(i.monto_inicial), 0) as inversion_total,
-                COUNT(i.id) as total_inversiones
-            FROM socios s
-            LEFT JOIN inversiones i ON s.id = i.socio_id AND i.estado = 'activa'
-            GROUP BY s.id, s.codigo_socio, s.nombre, s.documento, s.estado
-            HAVING COALESCE(SUM(i.monto_inicial), 0) > 0
-            ORDER BY inversion_total DESC
-            LIMIT 10
-        """)
-        
-        top_socios = cursor.fetchall()
-        
-        return jsonify(top_socios)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo top socios: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/recientes', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_socios_recientes():
-    """Obtener socios inscritos recientemente"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                id,
-                codigo_socio,
-                nombre,
-                documento,
-                fecha_inscripcion,
-                estado,
-                cuota_anual
-            FROM socios
-            ORDER BY fecha_inscripcion DESC
-            LIMIT 10
-        """)
-        
-        socios_recientes = cursor.fetchall()
-        
-        return jsonify(socios_recientes)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo socios recientes: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/<int:socio_id>/inversiones', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_inversiones_socio(socio_id):
-    """Obtener inversiones de un socio específico"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT 
-                i.*,
-                m.name as maquina_nombre,
-                m.type as maquina_tipo,
-                l.name as ubicacion
-            FROM inversiones i
-            LEFT JOIN machine m ON i.maquina_id = m.id
-            LEFT JOIN location l ON m.location_id = l.id
-            WHERE i.socio_id = %s
-            ORDER BY i.fecha_inicio DESC
-        """, (socio_id,))
-        
-        inversiones = cursor.fetchall()
-        
-        return jsonify(inversiones)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo inversiones de socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/<int:socio_id>/pagos', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_pagos_socio(socio_id):
-    """Obtener pagos de un socio específico"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT * FROM pagoscuotas 
-            WHERE socio_id = %s
-            ORDER BY anio DESC, created_at DESC
-        """, (socio_id,))
-        
-        pagos = cursor.fetchall()
-        
-        return jsonify(pagos)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo pagos de socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socios/<int:socio_id>/ingresos/ultimos', methods=['GET'])
-@handle_api_errors
-@require_login(['admin'])
-def obtener_ultimos_ingresos_socio(socio_id):
-    """Obtener últimos ingresos de un socio (simplificado)"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Esta es una implementación simplificada
-        # Deberías ajustarla según tu lógica de negocio real
-        cursor.execute("""
-            SELECT 
-                '2024-01' as fecha_periodo,
-                'Máquina A' as maquina_nombre,
-                1000.00 as ganancia_neta,
-                TRUE as liquidado
-            UNION ALL
-            SELECT 
-                '2023-12',
-                'Máquina B',
-                850.50,
-                TRUE
-            UNION ALL
-            SELECT 
-                '2023-11',
-                'Todas',
-                1250.75,
-                FALSE
-            LIMIT 5
-        """)
-        
-        ingresos = cursor.fetchall()
-        
-        return jsonify(ingresos)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo ingresos de socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# ==================== APIS PARA INVERSIONES ====================
-
-@app.route('/api/inversiones', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-@validate_required_fields(['socio_id', 'maquina_id', 'porcentaje_inversion', 'fecha_inicio', 'monto_inicial'])
-def crear_inversion():
-    """Crear una nueva inversión"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que el socio existe
-        cursor.execute("SELECT id FROM socios WHERE id = %s", (data['socio_id'],))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'socio_id': data['socio_id']})
-        
-        # Verificar que la máquina existe
-        cursor.execute("SELECT id FROM machine WHERE id = %s", (data['maquina_id'],))
-        if not cursor.fetchone():
-            return api_response('M001', http_status=404, data={'machine_id': data['maquina_id']})
-        
-        # Verificar porcentaje disponible
-        cursor.execute("""
-            SELECT COALESCE(SUM(porcentaje_inversion), 0) as porcentaje_ocupado
-            FROM inversiones 
-            WHERE maquina_id = %s AND estado = 'activa'
-        """, (data['maquina_id'],))
-        
-        porcentaje_ocupado = cursor.fetchone()['porcentaje_ocupado'] or 0
-        porcentaje_disponible = 100 - porcentaje_ocupado
-        
-        if float(data['porcentaje_inversion']) > porcentaje_disponible:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={
-                    'message': f'Porcentaje no disponible. Solo queda {porcentaje_disponible}%',
-                    'porcentaje_disponible': porcentaje_disponible
-                }
-            )
-        
-        # Crear inversión
-        cursor.execute("""
-            INSERT INTO inversiones (
-                socio_id, maquina_id, porcentaje_inversion, fecha_inicio,
-                fecha_fin, monto_inicial, estado
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            data['socio_id'],
-            data['maquina_id'],
-            data['porcentaje_inversion'],
-            data['fecha_inicio'],
-            data.get('fecha_fin'),
-            data['monto_inicial'],
-            data.get('estado', 'activa')
-        ))
-        
-        inversion_id = cursor.lastrowid
-        
-        connection.commit()
-        
-        app.logger.info(f"Inversión creada — ID: {inversion_id} | Socio: {data['socio_id']} | Máquina: {data['maquina_id']} | %: {data['porcentaje_inversion']} | Monto: ${float(data['monto_inicial']):,.0f}")
-
-        _log_transaccion(
-            tipo='inversion',
-            categoria='financiero',
-            descripcion=f"Nueva inversión {data['porcentaje_inversion']}% en máquina {data['maquina_id']} — socio {data['socio_id']}",
-            usuario=session.get('user_name'),
-            usuario_id=session.get('user_id'),
-            maquina_id=data['maquina_id'],
-            entidad='socio',
-            entidad_id=data['socio_id'],
-            monto=float(data['monto_inicial']),
-            datos_extra={
-                'inversion_id': inversion_id,
-                'porcentaje_inversion': float(data['porcentaje_inversion']),
-                'fecha_inicio': str(data['fecha_inicio']),
-                'estado': data.get('estado', 'activa')
-            }
-        )
-
-        return api_response(
-            'S002',
-            status='success',
-            data={'inversion_id': inversion_id}
-        )
-
-    except Exception as e:
-        app.logger.error(f"Error creando inversión: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/inversiones/<int:inversion_id>', methods=['PUT'])
-@handle_api_errors
-@require_login(['admin'])
-def actualizar_inversion(inversion_id):
-    """Actualizar una inversión existente"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que existe
-        cursor.execute("SELECT id FROM inversiones WHERE id = %s", (inversion_id,))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'inversion_id': inversion_id})
-        
-        # Actualizar
-        update_fields = []
-        update_values = []
-        
-        if 'porcentaje_inversion' in data:
-            update_fields.append("porcentaje_inversion = %s")
-            update_values.append(data['porcentaje_inversion'])
-        
-        if 'fecha_fin' in data:
-            update_fields.append("fecha_fin = %s")
-            update_values.append(data['fecha_fin'])
-        
-        if 'estado' in data:
-            update_fields.append("estado = %s")
-            update_values.append(data['estado'])
-        
-        if 'monto_inicial' in data:
-            update_fields.append("monto_inicial = %s")
-            update_values.append(data['monto_inicial'])
-        
-        if not update_fields:
-            return api_response('E005', http_status=400, data={'message': 'No hay campos para actualizar'})
-        
-        update_fields.append("updated_at = NOW()")
-        
-        update_values.append(inversion_id)
-        update_query = f"UPDATE inversiones SET {', '.join(update_fields)} WHERE id = %s"
-        
-        cursor.execute(update_query, update_values)
-        connection.commit()
-        
-        app.logger.info(f"Inversión actualizada: ID {inversion_id}")
-        
-        return api_response('S003', status='success')
-        
-    except Exception as e:
-        app.logger.error(f"Error actualizando inversión: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# ==================== APIS PARA PAGOS DE CUOTAS ====================
-
-@app.route('/api/pagoscuotas', methods=['POST'])
-@handle_api_errors
-@require_login(['admin'])
-@validate_required_fields(['socio_id', 'anio', 'monto'])
-def crear_pago_cuota():
-    """Crear un nuevo pago de cuota"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que el socio existe
-        cursor.execute("SELECT id FROM socios WHERE id = %s", (data['socio_id'],))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'socio_id': data['socio_id']})
-        
-        # Verificar si ya existe pago para este año
-        cursor.execute("""
-            SELECT id FROM pagoscuotas 
-            WHERE socio_id = %s AND anio = %s
-        """, (data['socio_id'], data['anio']))
-        
-        if cursor.fetchone():
-            return api_response(
-                'E007',
-                http_status=400,
-                data={'message': f'Ya existe un pago para el año {data["anio"]}'}
-            )
-        
-        # Crear pago
-        cursor.execute("""
-            INSERT INTO pagoscuotas (
-                socio_id, anio, monto, fecha_pago, metodo_pago,
-                comprobante, estado, notas
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            data['socio_id'],
-            data['anio'],
-            data['monto'],
-            data.get('fecha_pago'),
-            data.get('metodo_pago', 'efectivo'),
-            data.get('comprobante', ''),
-            data.get('estado', 'pendiente'),
-            data.get('notas', '')
-        ))
-        
-        pago_id = cursor.lastrowid
-        
-        connection.commit()
-        
-        app.logger.info(f"Pago de cuota creado — ID: {pago_id} | Socio: {data['socio_id']} | Año: {data['anio']} | Monto: ${float(data['monto']):,.0f} | Método: {data.get('metodo_pago','efectivo')}")
-
-        _log_transaccion(
-            tipo='pago_cuota',
-            categoria='financiero',
-            descripcion=f"Pago cuota anual {data['anio']} — socio {data['socio_id']} vía {data.get('metodo_pago','efectivo')}",
-            usuario=session.get('user_name'),
-            usuario_id=session.get('user_id'),
-            entidad='socio',
-            entidad_id=data['socio_id'],
-            monto=float(data['monto']),
-            datos_extra={
-                'pago_id': pago_id,
-                'anio': data['anio'],
-                'metodo_pago': data.get('metodo_pago', 'efectivo'),
-                'estado': data.get('estado', 'pendiente'),
-                'comprobante': data.get('comprobante', '')
-            }
-        )
-
-        return api_response(
-            'S002',
-            status='success',
-            data={'pago_id': pago_id}
-        )
-
-    except Exception as e:
-        app.logger.error(f"Error creando pago de cuota: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/pagoscuotas/<int:pago_id>', methods=['PUT'])
-@handle_api_errors
-@require_login(['admin'])
-def actualizar_pago_cuota(pago_id):
-    """Actualizar un pago de cuota existente"""
-    connection = None
-    cursor = None
-    try:
-        data = request.get_json()
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que existe
-        cursor.execute("SELECT id FROM pagoscuotas WHERE id = %s", (pago_id,))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'pago_id': pago_id})
-        
-        # Actualizar
-        update_fields = []
-        update_values = []
-        
-        if 'fecha_pago' in data:
-            update_fields.append("fecha_pago = %s")
-            update_values.append(data['fecha_pago'])
-        
-        if 'metodo_pago' in data:
-            update_fields.append("metodo_pago = %s")
-            update_values.append(data['metodo_pago'])
-        
-        if 'comprobante' in data:
-            update_fields.append("comprobante = %s")
-            update_values.append(data['comprobante'])
-        
-        if 'estado' in data:
-            update_fields.append("estado = %s")
-            update_values.append(data['estado'])
-        
-        if 'notas' in data:
-            update_fields.append("notas = %s")
-            update_values.append(data['notas'])
-        
-        if not update_fields:
-            return api_response('E005', http_status=400, data={'message': 'No hay campos para actualizar'})
-        
-        update_fields.append("updated_at = NOW()")
-        
-        update_values.append(pago_id)
-        update_query = f"UPDATE pagoscuotas SET {', '.join(update_fields)} WHERE id = %s"
-        
-        cursor.execute(update_query, update_values)
-        connection.commit()
-        
-        app.logger.info(f"Pago de cuota actualizado: ID {pago_id}")
-        
-        return api_response('S003', status='success')
-        
-    except Exception as e:
-        app.logger.error(f"Error actualizando pago de cuota: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/pagoscuotas/<int:pago_id>', methods=['DELETE'])
-@handle_api_errors
-@require_login(['admin'])
-def eliminar_pago_cuota(pago_id):
-    """Eliminar un pago de cuota"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Verificar que existe
-        cursor.execute("SELECT id FROM pagoscuotas WHERE id = %s", (pago_id,))
-        if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'pago_id': pago_id})
-        
-        # Eliminar
-        cursor.execute("DELETE FROM pagoscuotas WHERE id = %s", (pago_id,))
-        connection.commit()
-        
-        app.logger.info(f"Pago de cuota eliminado: ID {pago_id}")
-        
-        return api_response('S004', status='success')
-        
-    except Exception as e:
-        app.logger.error(f"Error eliminando pago de cuota: {e}")
-        if connection:
-            connection.rollback()
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# ==================== APIS PARA PANEL DE SOCIO (ROL SOCIO) ====================
-
-@app.route('/api/socio/panel/estadisticas', methods=['GET'])
-@handle_api_errors
-@require_login(['socio'])
-def obtener_estadisticas_panel_socio():
-    """Obtener estadísticas para el panel del socio"""
-    connection = None
-    cursor = None
-    try:
-        user_id = session.get('user_id')
-        user_name = session.get('user_name')
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Buscar socio por nombre (puedes ajustar esta lógica)
-        cursor.execute("""
-            SELECT * FROM socios 
-            WHERE nombre = %s 
-            ORDER BY id DESC 
-            LIMIT 1
-        """, (user_name,))
-        
-        socio = cursor.fetchone()
-        
-        if not socio:
-            # Si no existe, crear un socio básico con la información del usuario
-            return api_response('E002', http_status=404, data={
-                'message': 'No se encontró información de socio asociada a tu usuario',
-                'user_name': user_name
-            })
-        
-        socio_id = socio['id']
-        
-        # Calcular estadísticas del socio
-        cursor.execute("""
-            SELECT 
-                COALESCE(SUM(i.monto_inicial), 0) as total_invertido,
-                COUNT(i.id) as total_inversiones,
-                COUNT(CASE WHEN i.estado = 'activa' THEN 1 END) as inversiones_activas,
-                COALESCE(SUM(i.monto_inicial * i.porcentaje_inversion / 100), 0) as inversion_personal
-            FROM inversiones i
-            WHERE i.socio_id = %s
-        """, (socio_id,))
-        
-        inversiones_stats = cursor.fetchone()
-        
-        # Calcular ingresos mensuales (simplificado)
-        cursor.execute("""
-            SELECT 
-                MONTH(fecha_hora) as mes,
-                YEAR(fecha_hora) as anio,
-                COALESCE(SUM(tp.price * i.porcentaje_inversion / 100), 0) as ingresos_mensuales
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            JOIN inversiones i ON i.maquina_id = (
-                SELECT tu.machineId 
-                FROM turnusage tu 
-                JOIN qrcode qr2 ON qr2.id = tu.qrCodeId 
-                WHERE qr2.code = qh.qr_code 
-                LIMIT 1
-            )
-            WHERE DATE(qh.fecha_hora) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-            AND i.socio_id = %s
-            AND qh.es_venta_real = TRUE
-            GROUP BY YEAR(fecha_hora), MONTH(fecha_hora)
-            ORDER BY anio DESC, mes DESC
-            LIMIT 12
-        """, (socio_id,))
-        
-        ingresos_mensuales = cursor.fetchall()
-        
-        # Calcular ROI simplificado (esto debería ser más complejo en producción)
-        total_invertido = float(inversiones_stats['total_invertido'] or 0)
-        if total_invertido > 0:
-            # Supongamos un ROI del 12.5% anual por ahora
-            roi_total = 12.5
-            ingreso_mensual_promedio = total_invertido * (roi_total / 100) / 12
-        else:
-            roi_total = 0
-            ingreso_mensual_promedio = 0
-        
-        # Obtener cuota anual
-        cuota_anual = float(socio.get('cuota_anual', 0) or 0)
-        
-        # Determinar estado de cuota
-        estado_cuota = 'al_dia'
-        if socio['estado'] == 'pendiente_pago':
-            estado_cuota = 'pendiente'
-        
-        return jsonify({
-            'socio': {
-                'id': socio['id'],
-                'codigo_socio': socio['codigo_socio'],
-                'nombre': socio['nombre'],
-                'documento': socio['documento'],
-                'email': socio.get('email', ''),
-                'telefono': socio.get('telefono', ''),
-                'fecha_inscripcion': socio['fecha_inscripcion'].isoformat() if socio['fecha_inscripcion'] else None,
-                'fecha_vencimiento': socio['fecha_vencimiento'].isoformat() if socio['fecha_vencimiento'] else None,
-                'estado': socio['estado'],
-                'cuota_anual': cuota_anual,
-                'porcentaje_global': float(socio.get('porcentaje_global', 0) or 0)
-            },
-            'estadisticas': {
-                'total_invertido': total_invertido,
-                'inversion_personal': float(inversiones_stats['inversion_personal'] or 0),
-                'total_inversiones': inversiones_stats['total_inversiones'] or 0,
-                'inversiones_activas': inversiones_stats['inversiones_activas'] or 0,
-                'ingreso_mensual': ingreso_mensual_promedio,
-                'ingreso_mensual_real': float(sum([i['ingresos_mensuales'] for i in ingresos_mensuales])) / len(ingresos_mensuales) if ingresos_mensuales else 0,
-                'roi_total': roi_total,
-                'estado_cuota': estado_cuota,
-                'ranking_roi': 25,  # Ejemplo: Top 25%
-                'tendencia_mensual': 2.5,  # Ejemplo: +2.5% vs mes anterior
-                'rentabilidad_total': 15.2  # Ejemplo: 15.2% rentabilidad total
-            },
-            'ingresos_mensuales': [float(i['ingresos_mensuales']) for i in reversed(ingresos_mensuales)] if ingresos_mensuales else [0] * 12
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo estadísticas panel socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socio/panel/maquinas', methods=['GET'])
-@handle_api_errors
-@require_login(['socio'])
-def obtener_maquinas_socio_panel():
-    """Obtener máquinas del socio para el panel"""
-    connection = None
-    cursor = None
-    try:
-        user_id = session.get('user_id')
-        user_name = session.get('user_name')
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Buscar socio por nombre
-        cursor.execute("SELECT id FROM socios WHERE nombre = %s ORDER BY id DESC LIMIT 1", (user_name,))
-        socio = cursor.fetchone()
-        
-        if not socio:
-            return jsonify([])
-        
-        socio_id = socio['id']
-        
-        # Obtener inversiones activas con información de máquinas
-        cursor.execute("""
-            SELECT 
-                i.id as inversion_id,
-                i.porcentaje_inversion,
-                i.monto_inicial,
-                i.fecha_inicio,
-                i.estado,
-                m.id as maquina_id,
-                m.name as maquina_nombre,
-                m.type as maquina_tipo,
-                l.name as ubicacion,
-                ROUND(
-                    (i.monto_inicial * i.porcentaje_inversion / 100) * 
-                    (SELECT COALESCE(SUM(tp.price * i2.porcentaje_inversion / 100), 0) 
-                     FROM qrhistory qh
-                     JOIN qrcode qr ON qr.code = qh.qr_code
-                     JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                     JOIN turnusage tu ON qr.id = tu.qrCodeId
-                     JOIN inversiones i2 ON i2.maquina_id = tu.machineId
-                     WHERE i2.socio_id = %s
-                     AND MONTH(qh.fecha_hora) = MONTH(CURDATE())
-                     AND YEAR(qh.fecha_hora) = YEAR(CURDATE())
-                    ) / NULLIF(SUM(i.monto_inicial * i.porcentaje_inversion / 100) OVER(), 0) * 100,
-                    2
-                ) as rentabilidad_mensual
-            FROM inversiones i
-            JOIN machine m ON i.maquina_id = m.id
-            LEFT JOIN location l ON m.location_id = l.id
-            WHERE i.socio_id = %s 
-            AND i.estado = 'activa'
-            ORDER BY i.fecha_inicio DESC
-        """, (socio_id, socio_id))
-        
-        maquinas = cursor.fetchall()
-        
-        # Calcular ingresos estimados
-        maquinas_formateadas = []
-        for maquina in maquinas:
-            # Calcular ingreso mensual estimado (simplificado)
-            ingreso_mensual = float(maquina['monto_inicial'] or 0) * float(maquina['porcentaje_inversion'] or 0) / 100 * 0.12 / 12
-            
-            maquinas_formateadas.append({
-                'id': maquina['maquina_id'],
-                'nombre': maquina['maquina_nombre'],
-                'tipo': maquina['maquina_tipo'],
-                'ubicacion': maquina['ubicacion'],
-                'porcentaje_propiedad': float(maquina['porcentaje_inversion']),
-                'inversion_inicial': float(maquina['monto_inicial'] or 0),
-                'ingreso_mensual': ingreso_mensual,
-                'rentabilidad': float(maquina['rentabilidad_mensual'] or 0),
-                'fecha_adquisicion': maquina['fecha_inicio'].isoformat() if maquina['fecha_inicio'] else None,
-                'estado': maquina['estado']
-            })
-        
-        return jsonify(maquinas_formateadas)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo máquinas panel socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socio/panel/ingresos', methods=['GET'])
-@handle_api_errors
-@require_login(['socio'])
-def obtener_ingresos_socio_panel():
-    """Obtener ingresos del socio para el panel"""
-    connection = None
-    cursor = None
-    try:
-        user_id = session.get('user_id')
-        user_name = session.get('user_name')
-        pagina = int(request.args.get('pagina', 1))
-        por_pagina = int(request.args.get('por_pagina', 10))
-        offset = (pagina - 1) * por_pagina
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Buscar socio por nombre
-        cursor.execute("SELECT id FROM socios WHERE nombre = %s ORDER BY id DESC LIMIT 1", (user_name,))
-        socio = cursor.fetchone()
-        
-        if not socio:
-            return jsonify({'ingresos': [], 'total': 0})
-        
-        socio_id = socio['id']
-        
-        # Obtener ingresos históricos (versión simplificada)
-        cursor.execute("""
-            SELECT 
-                DATE_FORMAT(qh.fecha_hora, '%Y-%m') as periodo,
-                DATE_FORMAT(qh.fecha_hora, '%M %Y') as periodo_nombre,
-                m.name as maquina_nombre,
-                COUNT(DISTINCT qh.qr_code) as turnos_totales,
-                COALESCE(SUM(tp.price), 0) as ingresos_brutos,
-                i.porcentaje_inversion as porcentaje_propiedad,
-                COALESCE(SUM(tp.price * i.porcentaje_inversion / 100), 0) as ganancia_neta,
-                TRUE as liquidado
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            JOIN turnusage tu ON qr.id = tu.qrCodeId
-            JOIN machine m ON tu.machineId = m.id
-            JOIN inversiones i ON i.maquina_id = m.id AND i.socio_id = %s
-            WHERE qh.es_venta_real = TRUE
-            GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%m'), m.name, i.porcentaje_inversion
-            ORDER BY periodo DESC
-            LIMIT %s OFFSET %s
-        """, (socio_id, por_pagina, offset))
-        
-        ingresos = cursor.fetchall()
-        
-        # Obtener total
-        cursor.execute("""
-            SELECT COUNT(DISTINCT CONCAT(DATE_FORMAT(qh.fecha_hora, '%Y-%m'), m.name)) as total
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            JOIN turnusage tu ON qr.id = tu.qrCodeId
-            JOIN machine m ON tu.machineId = m.id
-            JOIN inversiones i ON i.maquina_id = m.id AND i.socio_id = %s
-            WHERE qh.es_venta_real = TRUE
-        """, (socio_id,))
-        
-        total = cursor.fetchone()['total'] or 0
-        
-        return jsonify({
-            'ingresos': ingresos,
-            'total': total,
-            'pagina': pagina,
-            'por_pagina': por_pagina,
-            'total_paginas': (total + por_pagina - 1) // por_pagina
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo ingresos panel socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socio/panel/pagos', methods=['GET'])
-@handle_api_errors
-@require_login(['socio'])
-def obtener_pagos_socio_panel():
-    """Obtener pagos del socio para el panel"""
-    connection = None
-    cursor = None
-    try:
-        user_id = session.get('user_id')
-        user_name = session.get('user_name')
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Buscar socio por nombre
-        cursor.execute("SELECT id FROM socios WHERE nombre = %s ORDER BY id DESC LIMIT 1", (user_name,))
-        socio = cursor.fetchone()
-        
-        if not socio:
-            return jsonify([])
-        
-        socio_id = socio['id']
-        
-        # Obtener pagos pendientes
-        cursor.execute("""
-            SELECT 
-                pc.id,
-                pc.anio,
-                pc.monto,
-                pc.fecha_pago,
-                pc.metodo_pago,
-                pc.comprobante,
-                pc.estado,
-                DATE_ADD(DATE(CONCAT(pc.anio, '-01-01')), INTERVAL 30 DAY) as fecha_vencimiento,
-                'cuota_anual' as tipo_pago
-            FROM pagoscuotas pc
-            WHERE pc.socio_id = %s 
-            AND pc.estado = 'pendiente'
-            ORDER BY pc.anio DESC
-            LIMIT 10
-        """, (socio_id,))
-        
-        pagos = cursor.fetchall()
-        
-        # Formatear respuesta
-        pagos_formateados = []
-        for pago in pagos:
-            pagos_formateados.append({
-                'id': pago['id'],
-                'tipo_pago': pago['tipo_pago'],
-                'monto': float(pago['monto']),
-                'fecha_pago': pago['fecha_pago'].isoformat() if pago['fecha_pago'] else None,
-                'fecha_vencimiento': pago['fecha_vencimiento'].isoformat() if pago['fecha_vencimiento'] else None,
-                'metodo_pago': pago['metodo_pago'],
-                'comprobante': pago['comprobante'],
-                'estado': pago['estado'],
-                'anio': pago['anio']
-            })
-        
-        return jsonify(pagos_formateados)
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo pagos panel socio: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/socio/actual', methods=['GET'])
-@handle_api_errors
-@require_login(['socio'])
-def obtener_socio_actual_simple():
-    """Obtener información básica del socio actual (versión corregida)"""
-    connection = None
-    cursor = None
-    try:
-        user_name = session.get('user_name')
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        # Buscar socio por nombre (relación por nombre de usuario)
-        cursor.execute("""
-            SELECT * FROM socios 
-            WHERE nombre = %s 
-            ORDER BY id DESC 
-            LIMIT 1
-        """, (user_name,))
-        
-        socio = cursor.fetchone()
-        
-        if not socio:
-            # Crear socio básico con la información del usuario si no existe
-            return jsonify({
-                'id': 0,
-                'codigo_socio': 'TEMP-' + user_name[:10].upper(),
-                'nombre': user_name,
-                'documento': 'PENDIENTE',
-                'email': '',
-                'telefono': '',
-                'fecha_inscripcion': datetime.now().date().isoformat(),
-                'fecha_vencimiento': (datetime.now() + timedelta(days=365)).date().isoformat(),
-                'estado': 'activo',
-                'cuota_anual': 0,
-                'porcentaje_global': 0,
-                'tipo_socio': 'inversionista',
-                'notas': 'Socio temporal creado automáticamente'
-            })
-        
-        return jsonify({
-            'id': socio['id'],
-            'codigo_socio': socio['codigo_socio'],
-            'nombre': socio['nombre'],
-            'documento': socio['documento'],
-            'email': socio.get('email', ''),
-            'telefono': socio.get('telefono', ''),
-            'fecha_inscripcion': socio['fecha_inscripcion'].isoformat() if socio['fecha_inscripcion'] else None,
-            'fecha_vencimiento': socio['fecha_vencimiento'].isoformat() if socio['fecha_vencimiento'] else None,
-            'estado': socio['estado'],
-            'cuota_anual': float(socio.get('cuota_anual', 0) or 0),
-            'porcentaje_global': float(socio.get('porcentaje_global', 0) or 0),
-            'tipo_socio': 'inversionista',
-            'notas': socio.get('notas', '')
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error obteniendo socio actual: {e}")
-        sentry_sdk.capture_exception(e)
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
+# APIs de socios, inversiones y pagos migradas a:
+# - blueprints/socios/routes.py
+# - blueprints/inversiones/routes.py
+# - blueprints/pagos/routes.py
 
 # ==================== MIDDLEWARE PARA LOGGING ====================
 
-@app.before_request
+# Registrado desde middleware/logging_mw.py en factory.py
+# @app.before_request
 def log_request_info():
-    """Middleware para registrar información de cada request"""
+    """Middleware para registrar informaciÃ³n de cada request"""
     try:
         if request.path.startswith('/static/'):
             return
@@ -2844,7 +673,7 @@ def log_request_info():
             
             start_time = datetime.now()
             
-            # Almacenar para usar después del request
+            # Almacenar para usar despuÃ©s del request
             request.start_time = start_time
             
             cursor.close()
@@ -2853,9 +682,10 @@ def log_request_info():
     except Exception as e:
         app.logger.debug(f"Error en log_request_info: {e}")
 
-@app.after_request
+# Registrado desde middleware/logging_mw.py en factory.py
+# @app.after_request
 def log_response_info(response):
-    """Middleware para registrar información de cada response"""
+    """Middleware para registrar informaciÃ³n de cada response"""
     try:
         if request.path.startswith('/static/'):
             return response
@@ -2886,7 +716,7 @@ def log_response_info(response):
                     
                     connection.commit()
                     
-                    # Actualizar estadísticas diarias
+                    # Actualizar estadÃ­sticas diarias
                     update_daily_statistics()
                     
                 except Exception as e:
@@ -2902,170 +732,31 @@ def log_response_info(response):
     return response
 
 def log_app_event(level, message, module=None, user_id=None):
-    """Función para registrar eventos de la aplicación - CORREGIDA"""
-    try:
-        connection = get_db_connection()
-        if connection:
-            cursor = get_db_cursor(connection)
-            
-            cursor.execute("""
-                INSERT INTO app_logs 
-                (level, module, message, ip_address, user_id)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                level,
-                module or 'app',
-                str(message)[:1000],
-                request.remote_addr if hasattr(request, 'remote_addr') else None,
-                user_id or session.get('user_id')
-            ))
-            
-            connection.commit()
-            cursor.close()
-            connection.close()
-            
-    except Exception as e:
-        app.logger.error(f"Error en log_app_event: {e}")
+    """Wrapper legacy hacia el helper compartido de logs."""
+    return shared_log_app_event(level, message, module, user_id=user_id)
 
 def log_error(error_type, error_message, stack_trace=None, module=None, user_id=None):
-    """Función para registrar errores - CORREGIDA"""
-    try:
-        connection = get_db_connection()
-        if connection:
-            cursor = get_db_cursor(connection)
-            
-            cursor.execute("""
-                INSERT INTO error_logs 
-                (error_type, error_message, stack_trace, module, 
-                 request_path, request_method, ip_address, user_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                error_type,
-                str(error_message)[:2000],
-                str(stack_trace)[:5000] if stack_trace else None,
-                module or 'app',
-                request.path if hasattr(request, 'path') else None,
-                request.method if hasattr(request, 'method') else None,
-                request.remote_addr if hasattr(request, 'remote_addr') else None,
-                user_id or session.get('user_id')
-            ))
-            
-            connection.commit()
-            cursor.close()
-            connection.close()
-            
-    except Exception as e:
-        app.logger.error(f"Error en log_error: {e}")
+    """Wrapper legacy hacia el helper compartido de logs."""
+    return shared_log_error(error_type, error_message, stack_trace, module, user_id)
 
 def update_daily_statistics():
-    """Actualizar estadísticas diarias"""
-    try:
-        connection = get_db_connection()
-        if connection:
-            cursor = get_db_cursor(connection)
-            today = datetime.now().date()
-            
-            # Contar logs por nivel hoy
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total_logs,
-                    COUNT(CASE WHEN level = 'INFO' THEN 1 END) as info_logs,
-                    COUNT(CASE WHEN level = 'WARNING' THEN 1 END) as warning_logs,
-                    COUNT(CASE WHEN level = 'ERROR' THEN 1 END) as error_logs
-                FROM app_logs 
-                WHERE DATE(created_at) = %s
-            """, (today,))
-            
-            app_stats = cursor.fetchone()
-            
-            # Contar access logs
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as access_logs,
-                    COUNT(DISTINCT ip_address) as unique_ips,
-                    COUNT(DISTINCT user_id) as unique_users,
-                    AVG(response_time_ms) as avg_response_time
-                FROM access_logs 
-                WHERE DATE(created_at) = %s
-            """, (today,))
-            
-            access_stats = cursor.fetchone()
-            
-            # Insertar o actualizar estadísticas
-            cursor.execute("""
-                INSERT INTO log_statistics 
-                (date, total_logs, info_logs, warning_logs, error_logs, 
-                 access_logs, unique_ips, unique_users, avg_response_time_ms)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                total_logs = VALUES(total_logs),
-                info_logs = VALUES(info_logs),
-                warning_logs = VALUES(warning_logs),
-                error_logs = VALUES(error_logs),
-                access_logs = VALUES(access_logs),
-                unique_ips = VALUES(unique_ips),
-                unique_users = VALUES(unique_users),
-                avg_response_time_ms = VALUES(avg_response_time_ms),
-                updated_at = NOW()
-            """, (
-                today,
-                app_stats['total_logs'] or 0,
-                app_stats['info_logs'] or 0,
-                app_stats['warning_logs'] or 0,
-                app_stats['error_logs'] or 0,
-                access_stats['access_logs'] or 0,
-                access_stats['unique_ips'] or 0,
-                access_stats['unique_users'] or 0,
-                access_stats['avg_response_time'] or 0
-            ))
-            
-            connection.commit()
-            cursor.close()
-            connection.close()
-            
-    except Exception as e:
-        app.logger.debug(f"Error en update_daily_statistics: {e}")
+    """Wrapper legacy hacia el helper compartido de logs."""
+    return shared_update_daily_statistics()
 
 def check_alerts(level, message, module):
-    """Verificar si se dispara alguna alerta"""
-    try:
-        connection = get_db_connection()
-        if connection:
-            cursor = get_db_cursor(connection)
-            
-            # Verificar alertas activas
-            cursor.execute("SELECT * FROM log_alerts WHERE is_active = TRUE")
-            alerts = cursor.fetchall()
-            
-            for alert in alerts:
-                # Aquí iría la lógica para evaluar cada condición
-                # Por ahora solo logueamos
-                if level == 'ERROR' and 'error' in alert['condition'].lower():
-                    cursor.execute("""
-                        UPDATE log_alerts 
-                        SET last_triggered = NOW() 
-                        WHERE id = %s
-                    """, (alert['id'],))
-                    
-                    # En una implementación real, aquí enviarías notificaciones
-                    app.logger.warning(f"ALERTA: {alert['alert_message']}")
-            
-            connection.commit()
-            cursor.close()
-            connection.close()
-            
-    except Exception as e:
-        app.logger.debug(f"Error en check_alerts: {e}")
+    """Wrapper legacy hacia el helper compartido de logs."""
+    return shared_check_alerts(level, message, module)
 
 # ==================== APIS PARA LOGS ====================
 
-@app.route('/api/logs/transaccional-consolidado', methods=['GET'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/transaccional-consolidado', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
 def obtener_logs_transaccional_consolidado():
     """
-    Endpoint consolidado para la página de Logs Transaccionales.
-    Retorna en una sola llamada: KPIs, ventas, fallas ESP32, por máquina, gráfica, feed de actividad.
+    Endpoint consolidado para la pÃ¡gina de Logs Transaccionales.
+    Retorna en una sola llamada: KPIs, ventas, fallas ESP32, por mÃ¡quina, grÃ¡fica, feed de actividad.
     """
     connection = None
     cursor = None
@@ -3080,7 +771,7 @@ def obtener_logs_transaccional_consolidado():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        # ── KPI 1-2: Ventas ──────────────────────────────────────────────
+        # â”€â”€ KPI 1-2: Ventas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 COUNT(DISTINCT qh.qr_code)          AS paquetes_vendidos,
@@ -3095,7 +786,7 @@ def obtener_logs_transaccional_consolidado():
         """, (fecha_inicio, fecha_fin))
         kpi_ventas = cursor.fetchone()
 
-        # ── KPI 3: Turnos jugados (ESP32) ─────────────────────────────────
+        # â”€â”€ KPI 3: Turnos jugados (ESP32) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT COUNT(*) AS turnos_jugados
             FROM turnusage
@@ -3103,7 +794,7 @@ def obtener_logs_transaccional_consolidado():
         """, (fecha_inicio, fecha_fin))
         kpi_turnos = cursor.fetchone()
 
-        # ── KPI 4-5: Fallas ESP32 ─────────────────────────────────────────
+        # â”€â”€ KPI 4-5: Fallas ESP32 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 COUNT(*)                          AS fallas_total,
@@ -3113,7 +804,7 @@ def obtener_logs_transaccional_consolidado():
         """, (fecha_inicio, fecha_fin))
         kpi_fallas = cursor.fetchone()
 
-        # ── Ventas detalladas ─────────────────────────────────────────────
+        # â”€â”€ Ventas detalladas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 qh.fecha_hora,
@@ -3141,7 +832,7 @@ def obtener_logs_transaccional_consolidado():
                 row['fecha_hora'] = row['fecha_hora'].isoformat()
             ventas.append(row)
 
-        # ── Top paquetes ──────────────────────────────────────────────────
+        # â”€â”€ Top paquetes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 tp.name AS paquete,
@@ -3164,7 +855,7 @@ def obtener_logs_transaccional_consolidado():
             row['total'] = float(row['total']) if row['total'] else 0
             top_paquetes.append(row)
 
-        # ── Fallas ESP32 detalladas ───────────────────────────────────────
+        # â”€â”€ Fallas ESP32 detalladas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 mf.id,
@@ -3191,7 +882,7 @@ def obtener_logs_transaccional_consolidado():
                 row['reported_at'] = row['reported_at'].isoformat()
             fallas_esp32.append(row)
 
-        # ── Por máquina ───────────────────────────────────────────────────
+        # â”€â”€ Por mÃ¡quina â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 m.id,
@@ -3219,7 +910,7 @@ def obtener_logs_transaccional_consolidado():
                 row['ultimo_uso'] = row['ultimo_uso'].isoformat()
             por_maquina.append(row)
 
-        # ── Gráfica: evolución por hora o por día ─────────────────────────
+        # â”€â”€ GrÃ¡fica: evoluciÃ³n por hora o por dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         es_mismo_dia = (fecha_inicio == fecha_fin)
         if es_mismo_dia:
             cursor.execute("""
@@ -3291,7 +982,7 @@ def obtener_logs_transaccional_consolidado():
                 row['periodo'] = row['periodo'].isoformat()
             grafica_turnos_fmt.append(row)
 
-        # ── Feed de actividad (transaction_logs) ──────────────────────────
+        # â”€â”€ Feed de actividad (transaction_logs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         cursor.execute("""
             SELECT
                 tl.id, tl.tipo, tl.categoria, tl.descripcion,
@@ -3352,11 +1043,12 @@ def obtener_logs_transaccional_consolidado():
             except Exception: pass
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/consola-completa', methods=['GET'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/consola-completa', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
 def obtener_logs_consola():
-    """Obtener logs de múltiples fuentes - VERSIÓN CORREGIDA"""
+    """Obtener logs de mÃºltiples fuentes - VERSIÃ“N CORREGIDA"""
     try:
         limit = int(request.args.get('limit', 200))
         nivel = request.args.get('nivel', 'todos')
@@ -3375,10 +1067,10 @@ def obtener_logs_consola():
             
         cursor = get_db_cursor(connection)
         
-        # Construir consultas dinámicas para cada fuente
+        # Construir consultas dinÃ¡micas para cada fuente
         all_logs = []
         
-        # 1. Logs de aplicación
+        # 1. Logs de aplicaciÃ³n
         if fuente in ['todos', 'app']:
             try:
                 app_query = """
@@ -3482,14 +1174,14 @@ def obtener_logs_consola():
             except Exception as e:
                 app.logger.error(f"Error ejecutando consulta access logs: {e}")
         
-        # 3. Logs de sesión (CORREGIDO: sin columna 'action')
+        # 3. Logs de sesiÃ³n (CORREGIDO: sin columna 'action')
         if fuente in ['todos', 'session']:
             try:
                 session_query = """
                     SELECT 
                         'session' as fuente,
                         'INFO' as nivel,
-                        CONCAT('Sesión usuario: ', COALESCE(u.name, 'Desconocido'), 
+                        CONCAT('SesiÃ³n usuario: ', COALESCE(u.name, 'Desconocido'), 
                                ' - Login: ', DATE_FORMAT(s.loginTime, '%%H:%%i:%%s')) as mensaje,
                         'session' as modulo,
                         NULL as ip_address,
@@ -3655,7 +1347,7 @@ def obtener_logs_consola():
                     'user_id': log.get('user_id'),
                 }
                 
-                # Agregar información específica por fuente
+                # Agregar informaciÃ³n especÃ­fica por fuente
                 if log.get('fuente') == 'access':
                     log_entry.update({
                         'metodo': log.get('metodo', ''),
@@ -3710,11 +1402,12 @@ def obtener_logs_consola():
         app.logger.error(f"Error obteniendo logs consola: {e}", exc_info=True)
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/estadisticas', methods=['GET'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/estadisticas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
 def obtener_estadisticas_logs():
-    """Obtener estadísticas de logs - VERSIÓN CORREGIDA"""
+    """Obtener estadÃ­sticas de logs - VERSIÃ“N CORREGIDA"""
     try:
         connection = get_db_connection()
         if not connection:
@@ -3724,7 +1417,7 @@ def obtener_estadisticas_logs():
         
         hoy = get_colombia_time().date()
         
-        # Estadísticas del día desde las tablas reales
+        # EstadÃ­sticas del dÃ­a desde las tablas reales
         # 1. Total logs hoy
         cursor.execute("""
             SELECT COUNT(*) as total_logs_hoy
@@ -3752,7 +1445,7 @@ def obtener_estadisticas_logs():
         
         accesos = cursor.fetchone()
         
-        # 4. Usuarios activos hoy (distintos que han iniciado sesión)
+        # 4. Usuarios activos hoy (distintos que han iniciado sesiÃ³n)
         cursor.execute("""
             SELECT COUNT(DISTINCT user_id) as usuarios_activos_hoy
             FROM access_logs 
@@ -3762,7 +1455,7 @@ def obtener_estadisticas_logs():
         
         usuarios_activos = cursor.fetchone()
         
-        # 5. Top endpoints del día
+        # 5. Top endpoints del dÃ­a
         cursor.execute("""
             SELECT 
                 CONCAT(method, ' ', path) as endpoint,
@@ -3808,14 +1501,15 @@ def obtener_estadisticas_logs():
         })
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo estadísticas: {e}", exc_info=True)
+        app.logger.error(f"Error obteniendo estadÃ­sticas: {e}", exc_info=True)
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/config', methods=['GET'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/config', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
 def obtener_config_logs():
-    """Obtener configuración de logs"""
+    """Obtener configuraciÃ³n de logs"""
     try:
         connection = get_db_connection()
         if not connection:
@@ -3839,15 +1533,16 @@ def obtener_config_logs():
         })
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo configuración: {e}")
+        app.logger.error(f"Error obteniendo configuraciÃ³n: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/config', methods=['POST'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/config', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
 @validate_required_fields(['config_key', 'config_value'])
 def actualizar_config_logs():
-    """Actualizar configuración de logs"""
+    """Actualizar configuraciÃ³n de logs"""
     try:
         data = request.get_json()
         
@@ -3876,7 +1571,7 @@ def actualizar_config_logs():
         
         connection.commit()
         
-        log_app_event('INFO', f'Configuración actualizada: {data["config_key"]}', 
+        log_app_event('INFO', f'ConfiguraciÃ³n actualizada: {data["config_key"]}', 
                      'logs', data, session.get('user_id'))
         
         cursor.close()
@@ -3885,10 +1580,11 @@ def actualizar_config_logs():
         return api_response('S003', status='success')
         
     except Exception as e:
-        app.logger.error(f"Error actualizando configuración: {e}")
+        app.logger.error(f"Error actualizando configuraciÃ³n: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/alertas', methods=['POST'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/alertas', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
 @validate_required_fields(['alert_type', 'alert_message', 'condition'])
@@ -3929,7 +1625,8 @@ def crear_alerta_logs():
         app.logger.error(f"Error creando alerta: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/alertas/<int:alerta_id>/toggle', methods=['PUT'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/alertas/<int:alerta_id>/toggle', methods=['PUT'])
 @handle_api_errors
 @require_login(['admin'])
 def toggle_alerta_logs(alerta_id):
@@ -3966,7 +1663,8 @@ def toggle_alerta_logs(alerta_id):
         app.logger.error(f"Error toggle alerta: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/limpiar', methods=['POST'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/limpiar', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
 def limpiar_logs_sistema():
@@ -3994,7 +1692,7 @@ def limpiar_logs_sistema():
             """, (fecha_limite,))
             total_eliminados += cursor.rowcount
         
-        # Crear backup de estadísticas
+        # Crear backup de estadÃ­sticas
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS log_statistics_backup_%s 
             SELECT * FROM log_statistics 
@@ -4008,7 +1706,7 @@ def limpiar_logs_sistema():
         
         connection.commit()
         
-        log_app_event('INFO', f'Logs limpiados: {total_eliminados} registros eliminados (>{dias} días)', 
+        log_app_event('INFO', f'Logs limpiados: {total_eliminados} registros eliminados (>{dias} dÃ­as)', 
                      'logs', {'dias': dias, 'eliminados': total_eliminados}, session.get('user_id'))
         
         cursor.close()
@@ -4024,7 +1722,8 @@ def limpiar_logs_sistema():
         app.logger.error(f"Error limpiando logs: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/exportar', methods=['POST'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/exportar', methods=['POST'])
 @handle_api_errors
 @require_login(['admin'])
 def exportar_logs_sistema():
@@ -4041,7 +1740,7 @@ def exportar_logs_sistema():
             
         cursor = get_db_cursor(connection)
         
-        # Crear registro de exportación
+        # Crear registro de exportaciÃ³n
         cursor.execute("""
             INSERT INTO log_exports 
             (export_name, start_date, end_date, filters, exported_by)
@@ -4139,7 +1838,7 @@ def exportar_logs_sistema():
                     csv_writer.writerows(error_logs)
                     zipf.writestr('error_logs.csv', csv_str.getvalue())
         
-        # Actualizar registro de exportación
+        # Actualizar registro de exportaciÃ³n
         file_size = os.path.getsize(temp_path)
         
         connection = get_db_connection()
@@ -4159,7 +1858,7 @@ def exportar_logs_sistema():
             cursor.close()
             connection.close()
         
-        log_app_event('INFO', f'Exportación de logs completada: {export_id}', 
+        log_app_event('INFO', f'ExportaciÃ³n de logs completada: {export_id}', 
                      'logs', {'export_id': export_id, 'tamano': file_size}, session.get('user_id'))
         
         return send_file(
@@ -4173,7 +1872,8 @@ def exportar_logs_sistema():
         app.logger.error(f"Error exportando logs: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/errores/<int:error_id>/resolver', methods=['PUT'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/errores/<int:error_id>/resolver', methods=['PUT'])
 @handle_api_errors
 @require_login(['admin'])
 def resolver_error_log(error_id):
@@ -4210,7 +1910,8 @@ def resolver_error_log(error_id):
         app.logger.error(f"Error resolviendo error: {e}")
         return api_response('E001', http_status=500)
 
-@app.route('/api/logs/dashboard', methods=['GET'])
+# Migrado a blueprints/logs/routes.py
+# @app.route('/api/logs/dashboard', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
 def obtener_dashboard_logs():
@@ -4225,7 +1926,7 @@ def obtener_dashboard_logs():
         hoy = datetime.now().date()
         ayer = (datetime.now() - timedelta(days=1)).date()
         
-        # Resumen rápido
+        # Resumen rÃ¡pido
         cursor.execute("""
             SELECT 
                 (SELECT COUNT(*) FROM app_logs WHERE DATE(created_at) = %s) as total_logs_hoy,
@@ -4236,7 +1937,7 @@ def obtener_dashboard_logs():
         
         resumen = cursor.fetchone()
         
-        # Evolución últimos 7 días
+        # EvoluciÃ³n Ãºltimos 7 dÃ­as
         cursor.execute("""
             SELECT 
                 date,
@@ -4279,7 +1980,7 @@ def obtener_dashboard_logs():
         
         actividad_hora = cursor.fetchall()
         
-        # Métricas de rendimiento
+        # MÃ©tricas de rendimiento
         cursor.execute("""
             SELECT 
                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY response_time_ms) as p50,
@@ -4326,18 +2027,19 @@ def obtener_dashboard_logs():
 
 # ==================== APIS PARA HISTORIAL PACKFAILURE ====================
 
-@app.route('/api/qr/historial-completo/<qr_code>', methods=['GET'])
+# Migrado a blueprints/devoluciones/routes.py
+# @app.route('/api/qr/historial-completo/<qr_code>', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_historial_completo_qr(qr_code):
     """
     ENDPOINT PRINCIPAL para packfailure.html
-    SIN LÍMITE de devoluciones - AHORA ILIMITADO
+    SIN LÃMITE de devoluciones - AHORA ILIMITADO
     """
     connection = None
     cursor = None
     try:
-        app.logger.info(f"🔍 Historial completo solicitado para QR: {qr_code}")
+        app.logger.info(f"ðŸ” Historial completo solicitado para QR: {qr_code}")
         
         connection = get_db_connection()
         if not connection:
@@ -4345,7 +2047,7 @@ def obtener_historial_completo_qr(qr_code):
             
         cursor = get_db_cursor(connection)
         
-        # 1. INFORMACIÓN BÁSICA DEL QR
+        # 1. INFORMACIÃ“N BÃSICA DEL QR
         cursor.execute("""
             SELECT 
                 qr.id as qr_id,
@@ -4418,7 +2120,7 @@ def obtener_historial_completo_qr(qr_code):
             if turnos_despues < 0:
                 turnos_despues = 0
             
-            # B) ¿HUBO FALLA REPORTADA?
+            # B) Â¿HUBO FALLA REPORTADA?
             cursor.execute("""
                 SELECT 
                     id,
@@ -4441,7 +2143,7 @@ def obtener_historial_completo_qr(qr_code):
             falla_forzada = falla['is_forced'] if falla else False
             falla_id = falla['id'] if falla else None
             
-            # C) ¿ALGUIEN JUGÓ DESPUÉS?
+            # C) Â¿ALGUIEN JUGÃ“ DESPUÃ‰S?
             cursor.execute("""
                 SELECT 
                     tu.id,
@@ -4468,23 +2170,23 @@ def obtener_historial_completo_qr(qr_code):
             alguien_jugo_despues = uso_posterior is not None
             fecha_uso_posterior = uso_posterior['usedAt'] if uso_posterior else None
             
-            # D) ESTADO DE VALIDACIÓN
+            # D) ESTADO DE VALIDACIÃ“N
             if hubo_falla and not alguien_jugo_despues:
                 estado_validacion = 'APTO'
                 color_estado = 'green'
-                mensaje_estado = '✅ Apto para devolución - Falla confirmada'
+                mensaje_estado = 'âœ… Apto para devoluciÃ³n - Falla confirmada'
             elif hubo_falla and alguien_jugo_despues:
                 estado_validacion = 'NO_APTO'
                 color_estado = 'red'
-                mensaje_estado = '❌ No apto - Alguien jugó exitosamente después'
+                mensaje_estado = 'âŒ No apto - Alguien jugÃ³ exitosamente despuÃ©s'
             elif not hubo_falla:
                 estado_validacion = 'SIN_REPORTE'
                 color_estado = 'yellow'
-                mensaje_estado = '⚠️ Sin reporte de falla - Verificar con cliente'
+                mensaje_estado = 'âš ï¸ Sin reporte de falla - Verificar con cliente'
             else:
                 estado_validacion = 'REVISAR'
                 color_estado = 'orange'
-                mensaje_estado = '🔍 Revisar caso'
+                mensaje_estado = 'ðŸ” Revisar caso'
             
             historial_juegos.append({
                 'usage_id': juego_id,
@@ -4542,11 +2244,11 @@ def obtener_historial_completo_qr(qr_code):
             'timestamp': get_colombia_time().isoformat()
         }
         
-        app.logger.info(f"✅ Historial generado para {qr_code}: {len(historial_juegos)} juegos")
+        app.logger.info(f"âœ… Historial generado para {qr_code}: {len(historial_juegos)} juegos")
         return jsonify(response_data)
         
     except Exception as e:
-        app.logger.error(f"❌ Error: {e}", exc_info=True)
+        app.logger.error(f"âŒ Error: {e}", exc_info=True)
         return api_response('E001', http_status=500)
     finally:
         if cursor:
@@ -4554,12 +2256,13 @@ def obtener_historial_completo_qr(qr_code):
         if connection:
             connection.close()
 
-@app.route('/api/qr/estado-devolucion/<qr_code>', methods=['GET'])
+# Migrado a blueprints/devoluciones/routes.py
+# @app.route('/api/qr/estado-devolucion/<qr_code>', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_estado_devolucion_qr(qr_code):
     """
-    Endpoint rápido para saber si un QR ya tuvo devolución
+    Endpoint rÃ¡pido para saber si un QR ya tuvo devoluciÃ³n
     """
     connection = None
     cursor = None
@@ -4603,7 +2306,7 @@ def obtener_estado_devolucion_qr(qr_code):
         })
         
     except Exception as e:
-        app.logger.error(f"Error obteniendo estado devolución: {e}")
+        app.logger.error(f"Error obteniendo estado devoluciÃ³n: {e}")
         return api_response('E001', http_status=500)
     finally:
         if cursor:
@@ -4612,16 +2315,17 @@ def obtener_estado_devolucion_qr(qr_code):
             connection.close()
 
 
-@app.route('/api/qr/procesar-devolucion', methods=['POST'])
+# Migrado a blueprints/devoluciones/routes.py
+# @app.route('/api/qr/procesar-devolucion', methods=['POST'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 @validate_required_fields(['qr_code', 'machine_id', 'usage_id'])
 def procesar_devolucion_unica():
     """
-    Procesa UNA devolución de EXACTAMENTE 1 turno
+    Procesa UNA devoluciÃ³n de EXACTAMENTE 1 turno
     - Siempre devuelve 1 turno
     - Solo se puede una vez por QR en toda su vida
-    - Valida el límite antes de procesar
+    - Valida el lÃ­mite antes de procesar
     """
     connection = None
     cursor = None
@@ -4632,9 +2336,9 @@ def procesar_devolucion_unica():
         usage_id = data['usage_id']
         is_forced = data.get('is_forced', False)
         forced_by = session.get('user_name', 'Cajero')
-        notes = data.get('notes', f'Devolución desde packfailure - Usage ID: {usage_id}')
+        notes = data.get('notes', f'DevoluciÃ³n desde packfailure - Usage ID: {usage_id}')
         
-        app.logger.info(f"🔄 Procesando devolución - QR: {qr_code}, Máquina: {machine_id}, Uso: {usage_id}, Forzado: {is_forced}")
+        app.logger.info(f"ðŸ”„ Procesando devoluciÃ³n - QR: {qr_code}, MÃ¡quina: {machine_id}, Uso: {usage_id}, Forzado: {is_forced}")
         
         connection = get_db_connection()
         if not connection:
@@ -4654,7 +2358,7 @@ def procesar_devolucion_unica():
         qr_id = qr_data['id']
         
         # ==========================================
-        # 2. VALIDAR LÍMITE DE UNA SOLA DEVOLUCIÓN
+        # 2. VALIDAR LÃMITE DE UNA SOLA DEVOLUCIÃ“N
         # ==========================================
         cursor.execute("""
             SELECT COUNT(*) as total
@@ -4665,14 +2369,14 @@ def procesar_devolucion_unica():
         devoluciones_existentes = cursor.fetchone()['total']
         
         if devoluciones_existentes >= 1:
-            app.logger.warning(f"⛔ Devolución rechazada - QR {qr_code} ya tuvo devolución")
+            app.logger.warning(f"â›” DevoluciÃ³n rechazada - QR {qr_code} ya tuvo devoluciÃ³n")
             return api_response(
                 'D001',
                 status='error',
                 http_status=400,
                 data={
                     'qr_code': qr_code,
-                    'motivo': 'Este QR ya ha recibido una devolución anteriormente',
+                    'motivo': 'Este QR ya ha recibido una devoluciÃ³n anteriormente',
                     'limite': 1,
                     'actual': devoluciones_existentes
                 }
@@ -4694,7 +2398,7 @@ def procesar_devolucion_unica():
             return api_response('E002', http_status=404, data={'message': 'Registro de uso no encontrado'})
         
         # ==========================================
-        # 4. REGISTRAR LA DEVOLUCIÓN
+        # 4. REGISTRAR LA DEVOLUCIÃ“N
         # ==========================================
         cursor.execute("""
             INSERT INTO machinefailures 
@@ -4738,7 +2442,7 @@ def procesar_devolucion_unica():
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         nuevos_turnos = cursor.fetchone()['turns_remaining']
         
-        app.logger.info(f"✅ Devolución exitosa - ID: {failure_id}, QR: {qr_code}, Nuevos turnos: {nuevos_turnos}")
+        app.logger.info(f"âœ… DevoluciÃ³n exitosa - ID: {failure_id}, QR: {qr_code}, Nuevos turnos: {nuevos_turnos}")
         
         return api_response(
             'S003',
@@ -4752,12 +2456,12 @@ def procesar_devolucion_unica():
                 'turnos_restantes': nuevos_turnos,
                 'is_forced': is_forced,
                 'limite': 1,
-                'devoluciones_restantes': 0  # Ya no puede más
+                'devoluciones_restantes': 0  # Ya no puede mÃ¡s
             }
         )
         
     except Exception as e:
-        app.logger.error(f"❌ Error procesando devolución: {e}", exc_info=True)
+        app.logger.error(f"âŒ Error procesando devoluciÃ³n: {e}", exc_info=True)
         if connection:
             connection.rollback()
         return api_response('E001', http_status=500)
@@ -4770,187 +2474,31 @@ def procesar_devolucion_unica():
 # ==================== FUNCIONES DE LOGGING MEJORADAS ====================
 
 def log_info(message, module=None, user_id=None):
-    """Log de nivel INFO"""
-    log_app_event('INFO', message, module, user_id or session.get('user_id'))
+    """Log de nivel INFO."""
+    return shared_log_info(message, module, user_id)
 
 def log_warning(message, module=None,  user_id=None):
-    """Log de nivel WARNING"""
-    log_app_event('WARNING', message, module, user_id or session.get('user_id'))
+    """Log de nivel WARNING."""
+    return shared_log_warning(message, module, user_id)
 
 def log_error_system(error, module=None, user_id=None):
-    """Log de error del sistema"""
-    log_error(
-        type(error).__name__,
-        str(error),
-        traceback.format_exc(),
-        module,
-        user_id or session.get('user_id')
-    )
+    """Log de error del sistema."""
+    return shared_log_error_system(error, module, user_id)
 
 def log_user_action(action, user_id=None):
-    """Log de acción de usuario"""
-    log_info(f"Usuario {user_id or session.get('user_id')}: {action}", 'user_action')
+    """Log de acción de usuario."""
+    return shared_log_user_action(action, user_id)
 
 def log_system_event(event):
-    """Log de evento del sistema"""
-    log_info(f"Evento del sistema: {event}", 'system')
+    """Log de evento del sistema."""
+    return shared_log_system_event(event)
 
-@app.route('/admin/logs/backup-manual', methods=['POST'])
-@require_login(['admin'])
-def backup_logs_manual():
-    """Backup manual de logs"""
-    try:
-        from datetime import datetime
-        import tempfile
-        import zipfile
-        
-        # Crear archivo ZIP temporal
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-        temp_path = temp_file.name
-        temp_file.close()
-        
-        with zipfile.ZipFile(temp_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Incluir archivo de log principal
-            log_file = 'logs/maquinas.log'
-            if os.path.exists(log_file):
-                zipf.write(log_file, 'maquinas.log')
-            
-            # Incluir archivos de log rotados
-            for i in range(1, 11):
-                rotated_file = f'logs/maquinas.log.{i}'
-                if os.path.exists(rotated_file):
-                    zipf.write(rotated_file, f'maquinas.log.{i}')
-        
-        filename = f'logs_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
-        
-        return send_file(
-            temp_path,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/zip'
-        )
-        
-    except Exception as e:
-        app.logger.error(f"Error en backup manual: {e}")
-        return api_response('E001', http_status=500)
+# Backup manual y devolución de turnos migrados a sus blueprints correspondientes.
 
-# ==================== DEVOLUCIÓN TURNOS ====================
-
-@app.route('/api/qr-id/<qr_code>', methods=['GET'])
-@handle_api_errors
-def obtener_id_qr(qr_code):
-    """Obtener ID de un código QR"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
-        qr_data = cursor.fetchone()
-        
-        if not qr_data:
-            return api_response('Q001', http_status=404)
-        
-        return jsonify({'id': qr_data['id']})
-            
-    except Exception as e:
-        app.logger.error(f"Error obteniendo ID QR: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/historial-juegos/<qr_code>', methods=['GET'])
-@handle_api_errors
-def obtener_historial_juegos(qr_code):
-    """Obtener historial de juegos de un QR"""
-    connection = None
-    cursor = None
-    try:
-        limit = request.args.get('limit', 5)
-        
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT tu.usedAt, m.name as machine_name
-            FROM qrcode qr
-            JOIN turnusage tu ON qr.id = tu.qrCodeId
-            JOIN machine m ON tu.machineId = m.id
-            WHERE qr.code = %s
-            ORDER BY tu.usedAt DESC
-            LIMIT %s
-        """, (qr_code, int(limit)))
-        
-        juegos = cursor.fetchall()
-        
-        # Formatear fechas
-        for juego in juegos:
-            if juego['usedAt']:
-                fecha_colombia = parse_db_datetime(juego['usedAt'])
-                juego['usedAt'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
-        
-        return jsonify(juegos)
-            
-    except Exception as e:
-        app.logger.error(f"Error obteniendo historial de juegos: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-@app.route('/api/historial-devoluciones/<qr_code>', methods=['GET'])
-@handle_api_errors
-def obtener_historial_devoluciones(qr_code):
-    """Obtener historial de devoluciones de un QR"""
-    connection = None
-    cursor = None
-    try:
-        connection = get_db_connection()
-        if not connection:
-            return api_response('E006', http_status=500)
-            
-        cursor = get_db_cursor(connection)
-        
-        cursor.execute("""
-            SELECT mf.turnos_devueltos, mf.reported_at, mf.machine_name
-            FROM qrcode qr
-            JOIN machinefailures mf ON qr.id = mf.qr_code_id
-            WHERE qr.code = %s
-            ORDER BY mf.reported_at DESC
-        """, (qr_code,))
-        
-        devoluciones = cursor.fetchall()
-        
-        # Formatear fechas
-        for devolucion in devoluciones:
-            if devolucion['reported_at']:
-                fecha_colombia = parse_db_datetime(devolucion['reported_at'])
-                devolucion['reported_at'] = fecha_colombia.strftime('%Y-%m-%d %H:%M:%S')
-        
-        return jsonify(devoluciones)
-            
-    except Exception as e:
-        app.logger.error(f"Error obteniendo historial de devoluciones: {e}")
-        return api_response('E001', http_status=500)
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-# ==================== INICIAR SERVIDOR ====================
 
 if __name__ == '__main__':
-    app.logger.info("🚀 Iniciando servidor Flask en http://127.0.0.1:5000")
+    app.logger.info("ðŸš€ Iniciando servidor Flask en http://127.0.0.1:5000")
     app.run(debug=True, port=5000, host='0.0.0.0')
+
+
+
