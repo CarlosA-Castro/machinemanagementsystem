@@ -100,15 +100,16 @@ def obtener_usuarios():
             if is_active is None:
                 is_active = True
             resultado.append({
-                'id':        usuario['id'],
-                'name':      usuario['name'],
-                'role':      usuario['role'],
-                'local':     usuario.get('local', 'El Mekatiadero'),
-                'createdBy': usuario['createdBy'],
-                'creador':   {'name': usuario['creador_nombre']} if usuario['creador_nombre'] else None,
-                'createdAt': usuario['createdAt'].isoformat() if usuario.get('createdAt') else None,
-                'notes':     usuario.get('notes', ''),
-                'isActive':  is_active,
+                'id':          usuario['id'],
+                'name':        usuario['name'],
+                'role':        usuario['role'],
+                'local':       usuario.get('local', ''),
+                'location_id': usuario.get('location_id'),
+                'createdBy':   usuario['createdBy'],
+                'creador':     {'name': usuario['creador_nombre']} if usuario['creador_nombre'] else None,
+                'createdAt':   usuario['createdAt'].isoformat() if usuario.get('createdAt') else None,
+                'notes':       usuario.get('notes', ''),
+                'isActive':    is_active,
             })
 
         return jsonify(resultado)
@@ -142,12 +143,14 @@ def obtener_usuario(usuario_id):
             return api_response('U001', http_status=404, data={'usuario_id': usuario_id})
 
         return jsonify({
-            'id':        usuario['id'],
-            'name':      usuario['name'],
-            'role':      usuario['role'],
-            'createdBy': usuario['createdBy'],
-            'createdAt': usuario['createdAt'],
-            'notes':     usuario['notes'],
+            'id':          usuario['id'],
+            'name':        usuario['name'],
+            'role':        usuario['role'],
+            'location_id': usuario.get('location_id'),
+            'local':       usuario.get('local', ''),
+            'createdBy':   usuario['createdBy'],
+            'createdAt':   usuario['createdAt'],
+            'notes':       usuario['notes'],
         })
 
     except Exception as e:
@@ -167,14 +170,21 @@ def crear_usuario():
     connection = None
     cursor = None
     try:
-        data     = request.get_json()
-        name     = data['name']
-        password = data['password']
-        role     = data['role']
-        notes    = data.get('notes', '')
+        data        = request.get_json()
+        name        = data['name']
+        password    = data['password']
+        role        = data['role']
+        notes       = data.get('notes', '')
+        location_id = data.get('location_id')  # requerido para roles fijos
 
         if len(password) < 6:
             return api_response('U003', http_status=400)
+
+        # Roles fijos requieren local asignado o no podrán iniciar sesión
+        ROLES_FIJO = {'cajero', 'admin_restaurante'}
+        if role in ROLES_FIJO and not location_id:
+            return api_response('E005', http_status=400,
+                                data={'message': f'El rol "{role}" requiere asignar un local'})
 
         connection = get_db_connection()
         if not connection:
@@ -190,12 +200,18 @@ def crear_usuario():
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
 
+        if location_id:
+            cursor.execute("SELECT id FROM location WHERE id = %s AND status = 'activo'", (location_id,))
+            if not cursor.fetchone():
+                return api_response('E002', http_status=404,
+                                    data={'message': 'Local no encontrado o inactivo'})
+
         cursor.execute(
-            "INSERT INTO users (name, password, role, createdBy, notes) VALUES (%s, %s, %s, %s, %s)",
-            (name, password, role, session.get('user_id'), notes)
+            "INSERT INTO users (name, password, role, createdBy, notes, location_id) VALUES (%s, %s, %s, %s, %s, %s)",
+            (name, password, role, session.get('user_id'), notes, location_id or None)
         )
         connection.commit()
-        logger.info(f"Usuario creado: {name} ({role})")
+        logger.info(f"Usuario creado: {name} ({role}) local={location_id}")
 
         return api_response('S002', status='success', data={'usuario_id': cursor.lastrowid})
 
@@ -216,12 +232,18 @@ def actualizar_usuario(usuario_id):
     connection = None
     cursor = None
     try:
-        data      = request.get_json()
-        name      = data['name']
-        password  = data.get('password')
-        role      = data['role']
-        notes     = data.get('notes')
-        isActive  = data.get('isActive')
+        data        = request.get_json()
+        name        = data['name']
+        password    = data.get('password')
+        role        = data['role']
+        notes       = data.get('notes')
+        isActive    = data.get('isActive')
+        location_id = data.get('location_id')  # None = sin cambio si no se envía
+
+        ROLES_FIJO = {'cajero', 'admin_restaurante'}
+        if role in ROLES_FIJO and not location_id:
+            return api_response('E005', http_status=400,
+                                data={'message': f'El rol "{role}" requiere asignar un local'})
 
         connection = get_db_connection()
         if not connection:
@@ -241,15 +263,21 @@ def actualizar_usuario(usuario_id):
         if cursor.fetchone():
             return api_response('U002', http_status=400, data={'name': name})
 
+        if location_id:
+            cursor.execute("SELECT id FROM location WHERE id = %s AND status = 'activo'", (location_id,))
+            if not cursor.fetchone():
+                return api_response('E002', http_status=404,
+                                    data={'message': 'Local no encontrado o inactivo'})
+
         if password:
             cursor.execute(
-                "UPDATE users SET name=%s, password=%s, role=%s, notes=%s, isActive=%s WHERE id=%s",
-                (name, password, role, notes, isActive, usuario_id)
+                "UPDATE users SET name=%s, password=%s, role=%s, notes=%s, isActive=%s, location_id=%s WHERE id=%s",
+                (name, password, role, notes, isActive, location_id or None, usuario_id)
             )
         else:
             cursor.execute(
-                "UPDATE users SET name=%s, role=%s, notes=%s, isActive=%s WHERE id=%s",
-                (name, role, notes, isActive, usuario_id)
+                "UPDATE users SET name=%s, role=%s, notes=%s, isActive=%s, location_id=%s WHERE id=%s",
+                (name, role, notes, isActive, location_id or None, usuario_id)
             )
 
         connection.commit()

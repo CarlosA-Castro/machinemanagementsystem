@@ -154,6 +154,14 @@ def test_db():
         return f"Error: {str(e)}"
 
 
+def _local_activo() -> str:
+    """Nombre del local activo en sesión, con fallback a user_local."""
+    return (
+        session.get('active_location_name')
+        or session.get('user_local', 'El Mekatiadero')
+    )
+
+
 @auth_bp.route('/local')
 def mostrar_local():
     if not session.get('logged_in'):
@@ -162,7 +170,7 @@ def mostrar_local():
     return render_template(
         'local.html',
         nombre_usuario=session.get('user_name', 'Usuario'),
-        local_usuario=session.get('user_local', 'El Mekatiadero'),
+        local_usuario=_local_activo(),
         hora_actual=hora_colombia.strftime('%H:%M:%S'),
         fecha_actual=hora_colombia.strftime('%Y-%m-%d'),
     )
@@ -175,7 +183,7 @@ def mostrar_package():
     return render_template(
         'package.html',
         nombre_usuario=session.get('user_name', 'Usuario'),
-        local_usuario=session.get('user_local', 'El Mekatiadero'),
+        local_usuario=_local_activo(),
     )
 
 
@@ -186,7 +194,7 @@ def mostrar_package_failure():
     return render_template(
         'packfailure.html',
         nombre_usuario=session.get('user_name', 'Usuario'),
-        local_usuario=session.get('user_local', 'El Mekatiadero'),
+        local_usuario=_local_activo(),
     )
 
 
@@ -197,7 +205,7 @@ def mostrar_machine_report():
     return render_template(
         'machinereport.html',
         nombre_usuario=session.get('user_name', 'Usuario'),
-        local_usuario=session.get('user_local', 'El Mekatiadero'),
+        local_usuario=_local_activo(),
     )
 
 
@@ -208,7 +216,7 @@ def mostrar_sales():
     return render_template(
         'sales.html',
         nombre_usuario=session.get('user_name', 'Usuario'),
-        local_usuario=session.get('user_local', 'El Mekatiadero'),
+        local_usuario=_local_activo(),
     )
 
 
