@@ -292,6 +292,7 @@
 
         <!-- Contenido principal - SE MUEVE ABAJO EN MÓVIL -->
         <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+            {% include 'partials/_location_context_bar.html' %}
             <h1 class="text-2xl lg:text-3xl font-bold mb-2">Gestión de Mensajes</h1>
             <p class="mb-4 lg:mb-6 text-base lg:text-lg"><i class="fas fa-comments mr-2"></i>Sistema de mensajes de error, éxito, advertencia e información</p>
 
@@ -1114,5 +1115,6 @@
         }, 1000);
     })();
     </script>
+    <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
 </body>
 </html>

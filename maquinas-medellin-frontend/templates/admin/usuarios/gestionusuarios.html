@@ -226,11 +226,17 @@
                             <option value="false">Inactivo</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-store mr-2"></i>Local</label>
-                        <select id="local" class="w-full border border-gray-300 rounded-lg p-3 text-base">
-                            <option value="El Mekatiadero">El Mekatiadero</option>
+                    <div id="localContainer">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-store mr-2"></i>Local
+                            <span id="localRequired" class="text-red-500 hidden"> *</span>
+                        </label>
+                        <select id="locationId" class="w-full border border-gray-300 rounded-lg p-3 text-base">
+                            <option value="">Cargando locales...</option>
                         </select>
+                        <p id="localHelp" class="text-xs text-orange-600 mt-1 hidden">
+                            <i class="fas fa-exclamation-circle mr-1"></i>Este rol requiere local asignado
+                        </p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-sticky-note mr-2"></i>Notas</label>
@@ -554,6 +560,27 @@
             this.mostrarUsuarios(filtrados);
         },
 
+        localesCache: null,
+
+        cargarLocales: function() {
+            const sel = document.getElementById('locationId');
+            if (!sel) return;
+            if (this.localesCache) {
+                sel.innerHTML = '<option value="">Sin local asignado</option>' +
+                    this.localesCache.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+                return;
+            }
+            sel.innerHTML = '<option value="">Cargando...</option>';
+            fetch('/api/session/locales-disponibles')
+                .then(r => r.json())
+                .then(data => {
+                    this.localesCache = data.locales || [];
+                    sel.innerHTML = '<option value="">Sin local asignado</option>' +
+                        this.localesCache.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+                })
+                .catch(() => { sel.innerHTML = '<option value="">Error cargando locales</option>'; });
+        },
+
         mostrarModalCrear: function() {
             document.getElementById('modalTitulo').innerHTML = `<i class="fas fa-user-plus mr-2 text-green-600"></i>Crear Nuevo Usuario`;
             document.getElementById('formUsuario').reset();
@@ -561,6 +588,10 @@
             document.getElementById('password').required = true;
             document.getElementById('passwordHelp').textContent = 'La contraseña debe tener al menos 6 caracteres';
             document.getElementById('estadoContainer').classList.add('hidden');
+            document.getElementById('localRequired').classList.add('hidden');
+            document.getElementById('localHelp').classList.add('hidden');
+            this.cargarLocales();
+            document.getElementById('locationId').value = '';
             document.getElementById('modalUsuario').classList.remove('hidden');
             document.getElementById('modalUsuario').classList.add('flex');
         },
@@ -572,12 +603,19 @@
             document.getElementById('usuarioId').value = usuario.id;
             document.getElementById('nombre').value = usuario.name || '';
             document.getElementById('rol').value = usuario.role || '';
-            document.getElementById('local').value = usuario.local || 'El Mekatiadero';
             document.getElementById('notas').value = usuario.notes || '';
             document.getElementById('isActive').value = (usuario.isActive === true || usuario.isActive === 1) ? 'true' : 'false';
             document.getElementById('estadoContainer').classList.remove('hidden');
             document.getElementById('password').required = false;
             document.getElementById('passwordHelp').textContent = 'Dejar en blanco para mantener la contraseña actual';
+            const rolesConLocal = ['cajero', 'admin_restaurante'];
+            const tieneLocalFijo = rolesConLocal.includes(usuario.role);
+            document.getElementById('localRequired').classList.toggle('hidden', !tieneLocalFijo);
+            document.getElementById('localHelp').classList.toggle('hidden', !tieneLocalFijo);
+            this.cargarLocales();
+            setTimeout(() => {
+                if (usuario.location_id) document.getElementById('locationId').value = usuario.location_id;
+            }, 50);
             document.getElementById('modalUsuario').classList.remove('hidden');
             document.getElementById('modalUsuario').classList.add('flex');
         },
@@ -586,10 +624,11 @@
             event.preventDefault();
             const usuarioId = document.getElementById('usuarioId').value;
             const esEdicion = !!usuarioId;
+            const locationIdVal = document.getElementById('locationId').value;
             const datos = {
                 name: document.getElementById('nombre').value,
                 role: document.getElementById('rol').value,
-                local: document.getElementById('local').value,
+                location_id: locationIdVal ? parseInt(locationIdVal) : null,
                 notes: document.getElementById('notas').value
             };
             const password = document.getElementById('password').value;
@@ -854,6 +893,17 @@
     document.addEventListener('DOMContentLoaded', function() {
         UsuariosApp.init();
         RolesApp.init();
+
+        // Show/hide required indicator when role changes
+        const rolSelect = document.getElementById('rol');
+        if (rolSelect) {
+            rolSelect.addEventListener('change', function() {
+                const rolesConLocal = ['cajero', 'admin_restaurante'];
+                const requiere = rolesConLocal.includes(this.value);
+                document.getElementById('localRequired').classList.toggle('hidden', !requiere);
+                document.getElementById('localHelp').classList.toggle('hidden', !requiere);
+            });
+        }
     });
     </script>
     <script>

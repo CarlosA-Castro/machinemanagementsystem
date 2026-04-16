@@ -134,6 +134,7 @@
 
     <!-- ══════════ MAIN ══════════ -->
     <main class="flex-1 p-4 lg:p-6 overflow-y-auto">
+        {% include 'partials/_location_context_bar.html' %}
 
         <!-- HEADER -->
         <div class="glass-card mb-4">
@@ -766,5 +767,6 @@ particlesJS('particles-js',{
 
 document.addEventListener('DOMContentLoaded',()=>LT.init());
 </script>
+<script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
 </body>
 </html>
