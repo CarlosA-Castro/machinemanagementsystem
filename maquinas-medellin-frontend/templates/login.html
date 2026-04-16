@@ -158,150 +158,224 @@
     });
   </script>
 
-  <!-- Script de verificación de login optimizado -->
+  <!-- Script de verificación de login -->
   <script>
-  // Namespace para Login App
   const LoginApp = {
+
+    // ── Verificación de código ───────────────────────────────────────────────
     verificarCodigo: function() {
-  const codigo = document.getElementById("codigoEmpleado").value.trim();
-  const loadingElement = document.getElementById("loading");
+      const codigo = document.getElementById("codigoEmpleado").value.trim();
+      const loadingElement = document.getElementById("loading");
 
-  if (!codigo) {
-    this.mostrarAlerta("Por favor ingrese su código.", "warning");
-    return;
-  }
-
-  // Mostrar loading
-  loadingElement.classList.remove('hidden');
-  document.querySelector('button').disabled = true;
-
-  fetch("/login", {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      "X-Requested-With": "XMLHttpRequest"
-    },
-    body: JSON.stringify({ codigo })
-  })
-  .then(res => {
-    if (!res.ok) {
-      throw new Error('Error en la respuesta del servidor');
-    }
-    return res.json();
-  })
-  .then(data => {
-    loadingElement.classList.add('hidden');
-    document.querySelector('button').disabled = false;
-    
-    if (data.valido) {
-      sessionStorage.setItem("nombreUsuario", data.nombre);
-      sessionStorage.setItem("rolUsuario", data.role);
-      sessionStorage.setItem("localUsuario", data.local);
-      sessionStorage.setItem("userId", data.user_id || '');
-      
-      console.log("✅ Login exitoso. Rol:", data.role);
-      
-      // MODIFICACIÓN: Manejo específico para socios
-      if (data.role === 'socio') {
-        // Redirigir directamente a socios.html
-        window.location.href = "/socios";
-      } else if (data.role === 'admin') {
-        this.mostrarModalSeleccion(data.role);
-      } else {
-        // Para cajeros y otros roles, redirigir a local
-        window.location.href = "/local";
+      if (!codigo) {
+        this.mostrarAlerta("Por favor ingrese su código.", "warning");
+        return;
       }
-    } else {
-      this.mostrarAlerta("Código inválido. Intenta de nuevo.", "error");
-    }
-  })
-  .catch(err => {
-    loadingElement.classList.add('hidden');
-    document.querySelector('button').disabled = false;
-    console.error("Error:", err);
-    this.mostrarAlerta("Error de conexión. Intente nuevamente.", "error");
-  });
-},
 
-    mostrarModalSeleccion: function(rol) {
-      const esAdminRestaurante = rol === 'admin_restaurante';
-      const titulo = esAdminRestaurante ? 'Admin Restaurante' : 'Administrador';
-      
-      const modalHTML = `
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div class="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 class="text-2xl font-bold mb-2 text-center">${titulo}</h2>
-            <p class="text-gray-600 mb-6 text-center">Elige cómo quieres acceder al sistema</p>
-            
-            <div class="space-y-3">
-              <button onclick="LoginApp.accederComoAdmin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-4 rounded-lg btn-touch text-lg">
-                <i class="fas fa-cog mr-2"></i>Modo Administración
-              </button>
-              
-              <button onclick="LoginApp.accederComoCajero()" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-4 rounded-lg btn-touch text-lg">
-                <i class="fas fa-cash-register mr-2"></i>Modo Cajero/Local
+      loadingElement.classList.remove('hidden');
+      document.querySelector('button').disabled = true;
+
+      fetch("/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({ codigo })
+      })
+      .then(res => res.json())
+      .then(data => {
+        loadingElement.classList.add('hidden');
+        document.querySelector('button').disabled = false;
+
+        if (!data.valido) {
+          this.mostrarAlerta(data.error || "Código inválido. Intenta de nuevo.", "error");
+          return;
+        }
+
+        sessionStorage.setItem("nombreUsuario", data.nombre);
+        sessionStorage.setItem("rolUsuario",    data.role);
+        sessionStorage.setItem("localUsuario",  data.local || '');
+        sessionStorage.setItem("userId",        data.user_id || '');
+
+        // Socios: flujo propio sin selector de local
+        if (data.role === 'socio') {
+          window.location.href = "/socios";
+          return;
+        }
+
+        // Admin con múltiples locales: mostrar selector
+        if (data.needs_location_select && data.locales_disponibles && data.locales_disponibles.length > 1) {
+          this.mostrarSelectorLocal(data.locales_disponibles, data.role);
+          return;
+        }
+
+        // Roles fijos o admin con local ya definido: ir directo
+        this._redirigirPorRol(data.role);
+      })
+      .catch(err => {
+        loadingElement.classList.add('hidden');
+        document.querySelector('button').disabled = false;
+        console.error("Error login:", err);
+        this.mostrarAlerta("Error de conexión. Intente nuevamente.", "error");
+      });
+    },
+
+    // ── Selector de local post-login ─────────────────────────────────────────
+    mostrarSelectorLocal: function(locales, role) {
+      const tarjetas = locales.map(l => `
+        <button
+          onclick="LoginApp.seleccionarLocal(${l.id}, '${l.name.replace(/'/g, "\\'")}', '${role}')"
+          class="w-full flex items-center gap-3 bg-gray-50 hover:bg-blue-50 border border-gray-200
+                 hover:border-blue-400 text-gray-800 py-4 px-5 rounded-xl btn-touch text-left
+                 transition-all duration-150 group">
+          <span class="w-10 h-10 rounded-full bg-blue-100 group-hover:bg-blue-200 flex items-center
+                       justify-center text-blue-600 shrink-0">
+            <i class="fas fa-store text-sm"></i>
+          </span>
+          <span class="font-semibold text-base">${l.name}</span>
+          <i class="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-blue-500"></i>
+        </button>
+      `).join('');
+
+      const html = `
+        <div id="modal-selector-local"
+             class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <!-- Cabecera -->
+            <div class="bg-blue-600 rounded-t-2xl px-6 py-5 text-white">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div>
+                  <h2 class="text-xl font-bold leading-tight">Seleccionar local</h2>
+                  <p class="text-blue-100 text-sm">¿A qué local deseas ingresar?</p>
+                </div>
+              </div>
+            </div>
+            <!-- Lista de locales -->
+            <div class="p-5 space-y-3 max-h-72 overflow-y-auto">
+              ${tarjetas}
+            </div>
+            <!-- Pie -->
+            <div class="px-5 pb-5">
+              <button onclick="LoginApp.cerrarModal('modal-selector-local')"
+                      class="w-full py-3 rounded-xl border border-gray-300 text-gray-500
+                             hover:bg-gray-50 btn-touch text-sm">
+                <i class="fas fa-times mr-1"></i>Cancelar
               </button>
             </div>
-            
-            <button onclick="LoginApp.cerrarModal()" class="mt-6 text-gray-500 hover:text-gray-700 w-full py-3 rounded-lg border btn-touch">
-              <i class="fas fa-times mr-1"></i>Cerrar
-            </button>
           </div>
         </div>
       `;
-      
-      const modalDiv = document.createElement('div');
-      modalDiv.innerHTML = modalHTML;
-      modalDiv.id = 'modal-seleccion';
-      document.body.appendChild(modalDiv);
+
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      document.body.appendChild(div);
     },
 
-    accederComoAdmin: function() {
-      window.location.href = "/admin";
+    seleccionarLocal: function(locationId, locationName, role) {
+      // Mostrar loading dentro del modal
+      const tarjetas = document.querySelectorAll('#modal-selector-local button');
+      tarjetas.forEach(b => b.disabled = true);
+
+      fetch("/api/session/seleccionar-local", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: locationId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.ok) {
+          this.mostrarAlerta("No se pudo seleccionar el local.", "error");
+          tarjetas.forEach(b => b.disabled = false);
+          return;
+        }
+        sessionStorage.setItem("localActivo", locationName);
+        this.cerrarModal('modal-selector-local');
+        this._redirigirPorRol(role);
+      })
+      .catch(() => {
+        this.mostrarAlerta("Error de conexión.", "error");
+        tarjetas.forEach(b => b.disabled = false);
+      });
     },
 
-    accederComoCajero: function() {
-      window.location.href = "/local";
-    },
-
-    cerrarModal: function() {
-      const modal = document.getElementById('modal-seleccion');
-      if (modal) {
-        modal.remove();
+    // ── Redirección por rol ──────────────────────────────────────────────────
+    _redirigirPorRol: function(role) {
+      if (role === 'admin') {
+        // Admin: ofrecer modo admin o cajero dentro del local seleccionado
+        this.mostrarModalModo();
+      } else {
+        window.location.href = "/local";
       }
+    },
+
+    mostrarModalModo: function() {
+      const html = `
+        <div id="modal-modo"
+             class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div class="bg-gray-800 rounded-t-2xl px-6 py-5 text-white">
+              <h2 class="text-xl font-bold">Administrador</h2>
+              <p class="text-gray-300 text-sm mt-1">¿Cómo deseas acceder?</p>
+            </div>
+            <div class="p-5 space-y-3">
+              <button onclick="window.location.href='/admin'"
+                      class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-4
+                             rounded-xl btn-touch text-base font-semibold">
+                <i class="fas fa-cog mr-2"></i>Panel de Administración
+              </button>
+              <button onclick="window.location.href='/local'"
+                      class="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-4
+                             rounded-xl btn-touch text-base font-semibold">
+                <i class="fas fa-cash-register mr-2"></i>Modo Cajero / Local
+              </button>
+            </div>
+            <div class="px-5 pb-5">
+              <button onclick="LoginApp.cerrarModal('modal-modo')"
+                      class="w-full py-3 rounded-xl border border-gray-300 text-gray-500
+                             hover:bg-gray-50 btn-touch text-sm">
+                <i class="fas fa-times mr-1"></i>Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      document.body.appendChild(div);
+    },
+
+    // ── Utilidades ───────────────────────────────────────────────────────────
+    cerrarModal: function(id) {
+      const el = document.getElementById(id);
+      if (el) el.closest('[id]').remove();
     },
 
     mostrarAlerta: function(mensaje, tipo) {
-      // Toast notification simple
       const toast = document.createElement('div');
-      toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+      toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 text-white ${
         tipo === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-      } text-white`;
+      }`;
       toast.textContent = mensaje;
       document.body.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.remove();
-      }, 3000);
+      setTimeout(() => toast.remove(), 3000);
     }
   };
 
-  // Focus automático en el input y soporte para Enter key
+  // Focus automático y soporte Enter / iOS
   document.addEventListener('DOMContentLoaded', function() {
     const input = document.getElementById('codigoEmpleado');
     input.focus();
-    
+
     input.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        LoginApp.verificarCodigo();
-      }
+      if (e.key === 'Enter') LoginApp.verificarCodigo();
     });
-    
-    // Prevenir zoom en iOS
+
     document.addEventListener('touchstart', function() {
-      if (input) {
-        input.style.fontSize = '16px';
-      }
+      if (input) input.style.fontSize = '16px';
     });
   });
   </script>
