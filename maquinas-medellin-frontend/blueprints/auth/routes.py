@@ -54,6 +54,11 @@ def procesar_login():
         usuario = cursor.fetchone()
 
         if usuario:
+            # Bloquear usuarios desactivados antes de cualquier operación de sesión
+            if not usuario.get('isActive', True):
+                logger.warning(f"Intento de login de usuario inactivo: {usuario.get('name')}")
+                return jsonify({'valido': False, 'error': 'Usuario inactivo. Contacte al administrador.'}), 403
+
             session['user_id']    = usuario['id']
             session['user_name']  = usuario['name']
             session['user_role']  = usuario['role']

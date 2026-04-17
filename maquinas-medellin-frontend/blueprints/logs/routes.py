@@ -934,13 +934,14 @@ def limpiar_logs_sistema():
             )
             total_eliminados += cursor.rowcount
 
+        backup_suffix = datetime.now().strftime('%Y%m%d')
         cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS log_statistics_backup_%s
+            f"""
+            CREATE TABLE IF NOT EXISTS log_statistics_backup_{backup_suffix}
             SELECT * FROM log_statistics
             WHERE date < %s
             """,
-            (datetime.now().strftime('%Y%m%d'), fecha_limite),
+            (fecha_limite,),
         )
         cursor.execute("DELETE FROM log_statistics WHERE date < %s", (fecha_limite,))
         connection.commit()

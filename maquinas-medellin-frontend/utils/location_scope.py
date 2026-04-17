@@ -66,12 +66,13 @@ def build_user_location_context(usuario: dict, cursor) -> dict:
         allowed_ids = [assigned_id]
 
     # Para roles fijos: active = assigned desde el inicio
-    # Para roles globales: active queda None hasta que elijan en el selector
+    # Para roles globales: active = assigned si tienen local asignado;
+    #   None (= "todos los locales") solo si no tienen local asignado.
     if can_switch:
-        active_id = None
-        active_name = None
+        active_id   = assigned_id    # None si el admin no tiene local asignado → modo "todos"
+        active_name = assigned_name
     else:
-        active_id = assigned_id
+        active_id   = assigned_id
         active_name = assigned_name
 
     return {

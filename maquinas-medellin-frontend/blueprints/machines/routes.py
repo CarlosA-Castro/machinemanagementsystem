@@ -50,6 +50,7 @@ def _nombre_imagen(nombre_maquina: str) -> str:
 
 @machines_bp.route('/api/maquinas', methods=['GET'])
 @handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
 def obtener_maquinas():
     """Obtener todas las máquinas con información completa."""
     connection = None
