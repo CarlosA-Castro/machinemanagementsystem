@@ -56,6 +56,7 @@ def mostrar_gestion_paquetes():
     )
 
 
+@admin_bp.route('/admin/locales/listalocales')
 @admin_bp.route('/admin/locales/gestionlocales')
 @require_login(['admin'])
 def mostrar_gestion_locales():

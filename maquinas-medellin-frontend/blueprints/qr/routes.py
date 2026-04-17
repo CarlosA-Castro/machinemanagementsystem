@@ -14,6 +14,7 @@ from utils.helpers import parse_json_col
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
 from utils.validators import validate_required_fields
+from utils.location_scope import get_active_location, user_can_view_all
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -747,7 +748,7 @@ def obtener_siguiente_qr():
 @qr_bp.route('/api/paquetes', methods=['GET'])
 @handle_api_errors
 def obtener_paquetes():
-    """Obtener todos los paquetes disponibles"""
+    """Obtener paquetes disponibles filtrados por local activo."""
     connection = None
     cursor = None
     try:
@@ -756,7 +757,19 @@ def obtener_paquetes():
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT * FROM turnpackage ORDER BY id")
+
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+
+        if can_all and active_id is None:
+            cursor.execute("SELECT * FROM turnpackage ORDER BY id")
+        else:
+            eff = active_id if active_id is not None else -1
+            cursor.execute(
+                "SELECT * FROM turnpackage WHERE location_id = %s ORDER BY id",
+                (eff,)
+            )
+
         return jsonify(cursor.fetchall())
     except Exception as e:
         logger.error(f"Error obteniendo paquetes: {e}")
@@ -1928,7 +1941,18 @@ def ventas_dia():
 
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        local_actual = active_name or session.get('user_local', 'El Mekatiadero')
+
+        if can_all and active_id is None:
+            loc_clause = ""
+            loc_params = (fecha,)
+        else:
+            loc_clause = "AND qh.local = %s"
+            loc_params = (fecha, local_actual)
+
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
                 COALESCE(SUM(tp.price), 0) as valor_total
@@ -1938,8 +1962,9 @@ def ventas_dia():
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
-            AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
-        """, (fecha,))
+            AND qh.es_venta_real = TRUE
+            {loc_clause}
+        """, loc_params)
 
         resultado = cursor.fetchone()
 
