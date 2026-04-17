@@ -166,12 +166,14 @@ def obtener_maquinas_por_tipo():
 
         cursor = get_db_cursor(connection)
 
-        active_id, _ = get_active_location()
+        active_id, active_name = get_active_location()
         can_all = user_can_view_all()
-        loc_and = "" if (can_all and active_id is None) else \
-            f"AND m.location_id = {active_id if active_id is not None else -1}"
 
-        cursor.execute(f"""
+        # Fallback: si el ID de location no está en sesión, buscar por nombre
+        if active_id is None:
+            active_name = active_name or session.get('user_local')
+
+        BASE_SQL = """
             SELECT
                 m.id, m.name, m.type, m.status, m.location_id,
                 l.name as location_name,
@@ -181,9 +183,15 @@ def obtener_maquinas_por_tipo():
             FROM machine m
             LEFT JOIN location l ON m.location_id = l.id
             WHERE m.status IN ('activa', 'mantenimiento', 'inactiva')
-            {loc_and}
-            ORDER BY m.type, m.name
-        """)
+        """
+
+        if active_id is not None:
+            cursor.execute(BASE_SQL + " AND m.location_id = %s ORDER BY m.type, m.name", (active_id,))
+        elif active_name:
+            cursor.execute(BASE_SQL + " AND l.name = %s ORDER BY m.type, m.name", (active_name,))
+        else:
+            # Admin sin local activo seleccionado → ver todas las máquinas
+            cursor.execute(BASE_SQL + " ORDER BY m.type, m.name")
         maquinas = cursor.fetchall()
 
         resultado = {'arcade': [], 'simulador': [], 'peluchera': [], 'otros': []}
