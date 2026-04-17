@@ -169,10 +169,6 @@ def obtener_maquinas_por_tipo():
         active_id, active_name = get_active_location()
         can_all = user_can_view_all()
 
-        # Fallback: si el ID de location no está en sesión, buscar por nombre
-        if active_id is None:
-            active_name = active_name or session.get('user_local')
-
         BASE_SQL = """
             SELECT
                 m.id, m.name, m.type, m.status, m.location_id,
@@ -186,11 +182,16 @@ def obtener_maquinas_por_tipo():
         """
 
         if active_id is not None:
+            # Filtro por ID de local (caso normal con sesión correcta)
             cursor.execute(BASE_SQL + " AND m.location_id = %s ORDER BY m.type, m.name", (active_id,))
         elif active_name:
+            # Admin que seleccionó local: filtrar por nombre
             cursor.execute(BASE_SQL + " AND l.name = %s ORDER BY m.type, m.name", (active_name,))
+        elif not can_all:
+            # Cajero/admin_restaurante sin active_location_id → sesión incompleta, mostrar vacío
+            cursor.execute(BASE_SQL + " AND 1=0 ORDER BY m.type, m.name")
         else:
-            # Admin sin local activo seleccionado → ver todas las máquinas
+            # Admin global sin local activo seleccionado → ver todas
             cursor.execute(BASE_SQL + " ORDER BY m.type, m.name")
         maquinas = cursor.fetchall()
 
