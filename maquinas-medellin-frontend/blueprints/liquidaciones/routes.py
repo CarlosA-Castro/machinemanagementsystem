@@ -1296,6 +1296,69 @@ def registrar_liquidacion_maquina():
         if connection: connection.close()
 
 
+# ─── Configurar porcentajes por máquina ──────────────────────────────────────
+
+@liquidaciones_bp.route('/api/liquidaciones/maquinas/<int:maquina_id>/porcentajes', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin'])
+def actualizar_porcentajes_maquina(maquina_id):
+    """Guardar porcentaje_restaurante y porcentaje_admin para una máquina."""
+    connection = None
+    cursor = None
+    try:
+        data        = request.get_json() or {}
+        pct_negocio = _to_float(data.get('porcentaje_restaurante'), RESTAURANT_PERCENTAGE_DEFAULT)
+        pct_admin   = _to_float(data.get('porcentaje_admin'),       ADMIN_PERCENTAGE_DEFAULT)
+
+        if pct_negocio < 0 or pct_admin < 0 or (pct_negocio + pct_admin) >= 100:
+            return api_response('E002', http_status=400,
+                                data={'message': 'Los porcentajes deben ser positivos y sumar menos de 100'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute('SELECT id FROM machine WHERE id = %s', (maquina_id,))
+        if not cursor.fetchone():
+            return api_response('M001', http_status=404, data={'machine_id': maquina_id})
+
+        tiene_admin = _has_admin_col(cursor)
+
+        if tiene_admin:
+            cursor.execute(
+                """INSERT INTO maquinaporcentajerestaurante (maquina_id, porcentaje_restaurante, porcentaje_admin)
+                   VALUES (%s, %s, %s)
+                   ON DUPLICATE KEY UPDATE
+                       porcentaje_restaurante = VALUES(porcentaje_restaurante),
+                       porcentaje_admin       = VALUES(porcentaje_admin)""",
+                (maquina_id, pct_negocio, pct_admin),
+            )
+        else:
+            cursor.execute(
+                """INSERT INTO maquinaporcentajerestaurante (maquina_id, porcentaje_restaurante)
+                   VALUES (%s, %s)
+                   ON DUPLICATE KEY UPDATE porcentaje_restaurante = VALUES(porcentaje_restaurante)""",
+                (maquina_id, pct_negocio),
+            )
+
+        connection.commit()
+        logger.info(f'Porcentajes actualizados: maquina_id={maquina_id}, negocio={pct_negocio}, admin={pct_admin}')
+        return jsonify({
+            'success': True,
+            'porcentaje_restaurante': pct_negocio,
+            'porcentaje_admin': pct_admin,
+            'porcentaje_utilidad': round(100 - pct_negocio - pct_admin, 2),
+        })
+
+    except Exception as e:
+        logger.error(f'Error actualizando porcentajes: {e}', exc_info=True)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 # ─── Verificar tablas ─────────────────────────────────────────────────────────
 
 @liquidaciones_bp.route('/api/liquidaciones/verificar-tablas', methods=['GET'])
