@@ -484,9 +484,9 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
           AND qh.es_venta_real = TRUE
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad,
                  tp.id, tp.name, tp.price, tp.turns,
-                 mpr.porcentaje_restaurante, pct_admin
+                 mpr.porcentaje_restaurante, {admin_expr}
         ORDER BY p.nombre, m.name, paquetes_vendidos DESC
-        """.replace('pct_admin', admin_expr),
+        """,
         (fecha_inicio, fecha_fin),
     )
 
