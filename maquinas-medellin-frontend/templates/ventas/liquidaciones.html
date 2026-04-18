@@ -548,7 +548,7 @@
                     <i class="fas fa-table mr-2"></i>Detalle
                 </div>
                 <div class="tab" onclick="LiquidacionesApp.cambiarPestana('propietarios')">
-                    <i class="fas fa-users mr-2"></i>Propietarios
+                    <i class="fas fa-users mr-2"></i>Inversionistas
                 </div>
                 <div class="tab" onclick="LiquidacionesApp.cambiarPestana('maquinas')">
                     <i class="fas fa-gamepad mr-2"></i>Máquinas
@@ -801,6 +801,25 @@
                 </div>
 
                 <!-- Pestaña Gráficos -->
+                    <div class="glass-card mt-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-box-open mr-2 text-indigo-600"></i>Paquetes y Turnos del Período
+                        </h2>
+                        <div id="tablaPaquetesResumen">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="glass-card mt-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-clock-rotate-left mr-2 text-orange-600"></i>Últimas 5 Liquidaciones de Máquinas
+                        </h2>
+                        <div id="ultimasLiquidacionesMaquinas" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
                 <div id="pestanaGraficos" class="pestana-contenido hidden">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         <div class="glass-card">
@@ -910,7 +929,7 @@
                 <div id="pestanaPropietarios" class="pestana-contenido hidden">
                     <div class="glass-card">
                         <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-users mr-2 text-purple-600"></i>Reporte por Propietarios
+                            <i class="fas fa-users mr-2 text-purple-600"></i>Liquidación de Inversionistas
                         </h2>
                         <div id="tablaPropietarios">
                             <!-- Se llenará dinámicamente -->
@@ -920,9 +939,61 @@
 
                 <!-- Pestaña Máquinas -->
                 <div id="pestanaMaquinas" class="pestana-contenido hidden">
+                    <div class="glass-card mb-6">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800">
+                                <i class="fas fa-cash-register mr-2 text-green-600"></i>Ingreso de Dinero por Máquina
+                            </h2>
+                            <div class="text-sm text-gray-500">
+                                Registra el cierre operativo de cada máquina para que la liquidación use dinero real y no solo estimados.
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                                <input type="date" id="cierreFecha" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Máquina</label>
+                                <select id="cierreMaquinaId" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                    <option value="">Selecciona una máquina</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Turnos retirados</label>
+                                <input type="number" id="cierreTurnos" min="0" step="1" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Valor por turno</label>
+                                <input type="number" id="cierreValorTurno" min="0" step="100" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="3000">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Costos operativos</label>
+                                <input type="number" id="cierreCostosOperativos" min="0" step="1000" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="0">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="LiquidacionesApp.guardarCierreMaquina()" class="btn btn-success w-full">
+                                    <i class="fas fa-save mr-2"></i>Guardar cierre
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                            <textarea id="cierreObservaciones" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Notas de mantenimiento, gastos, diferencias de caja..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="glass-card mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-receipt mr-2 text-blue-600"></i>Histórico de Ingresos Registrados
+                        </h2>
+                        <div id="historialCierresMaquinas">
+                            <!-- Se llenará dinámicamente -->
+                        </div>
+                    </div>
                     <div class="glass-card">
                         <h2 class="text-xl font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-gamepad mr-2 text-purple-600"></i>Reporte por Máquinas
+                            <i class="fas fa-gamepad mr-2 text-purple-600"></i>Rendimiento por Máquinas
                         </h2>
                         <div id="tablaMaquinas">
                             <!-- Se llenará dinámicamente -->
@@ -1014,6 +1085,8 @@
             estado: {
                 datos: [],
                 datosReporte: null,
+                catalogoMaquinas: [],
+                cierresMaquinas: [],
                 filtros: {
                     fechaInicio: formatearFechaInput(primerDiaMes),
                     fechaFin: formatearFechaInput(hoy),
@@ -1043,20 +1116,19 @@
             init: function() {
                 console.log('Inicializando módulo de liquidaciones y reportes...');
                 
-                // Configurar eventos
                 this.configurarEventos();
-                
-                // Cargar datos iniciales
+                document.getElementById('cierreFecha').value = formatearFechaInput(hoy);
+
                 this.actualizarDatos();
+                this.cargarDatosReporte();
+                this.cargarMaquinasParaCierre();
+                this.cargarCierresMaquinas();
                 
-                // Actualizar hora y fecha
                 this.actualizarHora();
                 setInterval(() => this.actualizarHora(), 1000);
                 
-                // ===== NUEVO: Marcar el enlace activo =====
                 marcarEnlaceActivo();
                 
-                // Sincronizar nombre de usuario con versión móvil
                 const nombreUsuario = document.getElementById('nombreUsuario');
                 const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
                 if (nombreUsuario && nombreUsuarioMobile) {
@@ -1074,7 +1146,6 @@
             
             // Configurar eventos
             configurarEventos: function() {
-                // Cerrar menú de exportación al hacer clic fuera
                 document.addEventListener('click', (e) => {
                     const menu = document.getElementById('exportMenu');
                     if (menu && !menu.contains(e.target) && !e.target.closest('button[onclick*="mostrarMenuExportar"]')) {
@@ -1082,7 +1153,6 @@
                     }
                 });
                 
-                // Configurar fechas por defecto
                 document.getElementById('fechaInicio').value = this.estado.filtros.fechaInicio;
                 document.getElementById('fechaFin').value = this.estado.filtros.fechaFin;
                 document.getElementById('tipoReporte').value = this.estado.filtros.tipoReporte;
@@ -1091,28 +1161,87 @@
             
             // Cambiar pestaña activa
             cambiarPestana: function(pestana) {
-                // Ocultar todas las pestañas
                 document.querySelectorAll('.pestana-contenido').forEach(p => p.classList.add('hidden'));
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 
-                // Mostrar pestaña seleccionada
                 document.getElementById('pestana' + this.capitalize(pestana)).classList.remove('hidden');
                 document.querySelector(`.tab[onclick="LiquidacionesApp.cambiarPestana('${pestana}')"]`).classList.add('active');
                 
-                // Si es la pestaña de gráficos, inicializar gráficos
                 if (pestana === 'graficos') {
                     setTimeout(() => this.inicializarGraficos(), 100);
                 }
                 
-                // Si es la pestaña de reportes, cargar datos de reporte
-                if (pestana !== 'liquidaciones' && pestana !== 'resumen') {
+                if (['resumen', 'graficos', 'detallado', 'propietarios', 'maquinas'].includes(pestana)) {
                     this.cargarDatosReporte();
+                }
+
+                if (pestana === 'maquinas') {
+                    this.cargarCierresMaquinas();
                 }
             },
             
             // Capitalizar primera letra
             capitalize: function(str) {
                 return str.charAt(0).toUpperCase() + str.slice(1);
+            },
+
+            escapeHtml: function(value) {
+                return String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#39;');
+            },
+
+            renderEmptyState: function(icono, titulo, descripcion) {
+                return `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="${icono} text-4xl mb-3 block"></i>
+                        <div class="font-medium text-gray-700 mb-1">${titulo}</div>
+                        <div class="text-sm">${descripcion}</div>
+                    </div>
+                `;
+            },
+
+            construirUrlConFiltros: function(baseUrl) {
+                const { fechaInicio, fechaFin, paginacion, busqueda } = this.estado.filtros;
+                const query = new URLSearchParams({
+                    fechaInicio,
+                    fechaFin,
+                    pagina: paginacion.paginaActual,
+                    porPagina: paginacion.registrosPorPagina
+                });
+
+                if (busqueda) {
+                    query.set('busqueda', busqueda);
+                }
+
+                return `${baseUrl}?${query.toString()}`;
+            },
+
+            actualizarEncabezadosTablaPrincipal: function() {
+                const encabezados = document.querySelectorAll('#tablaLiquidaciones thead th');
+                const columnasTotales = document.querySelectorAll('#tablaLiquidaciones tfoot td');
+                const modo = this.estado.filtros.tipoReporte;
+
+                if (modo === 'liquidaciones') {
+                    encabezados[1].textContent = 'Turnos retirados';
+                    encabezados[2].innerHTML = 'Ingreso Bruto <i class="fas fa-sort ml-1"></i>';
+                    encabezados[3].textContent = 'Administración';
+                    encabezados[4].textContent = 'Negocio';
+                    encabezados[5].textContent = 'Costos';
+                    encabezados[6].textContent = 'Utilidad Operativa';
+                    columnasTotales[0].textContent = 'TOTALES:';
+                } else {
+                    encabezados[1].textContent = 'Cant. Paquetes';
+                    encabezados[2].innerHTML = 'Ingresos Totales <i class="fas fa-sort ml-1"></i>';
+                    encabezados[3].textContent = '30% Máquinas';
+                    encabezados[4].textContent = '35% Proveedores';
+                    encabezados[5].textContent = 'Ingresos Restaurante';
+                    encabezados[6].textContent = 'Ingresos Proveedores';
+                    columnasTotales[0].textContent = 'TOTALES:';
+                }
             },
             
             // Inicializar gráficos
@@ -1176,12 +1305,17 @@
                     this.estado.graficos.ventasDiarias.destroy();
                 }
                 
-                // Datos de ejemplo - en producción se obtendrían de la API
-                const datosEjemplo = {
-                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                const diarios = {};
+                (this.estado.datosReporte?.datos_tabla || []).forEach(item => {
+                    diarios[item.fecha] = (diarios[item.fecha] || 0) + (item.ingresos_totales || 0);
+                });
+                const labels = Object.keys(diarios).sort();
+                const data = labels.map(label => diarios[label]);
+                const datosGrafico = {
+                    labels: labels.length > 0 ? labels.map(label => this.formatearFecha(label)) : ['Sin datos'],
                     datasets: [{
-                        label: 'Ingresos',
-                        data: [120000, 190000, 150000, 180000, 220000, 300000, 280000],
+                        label: 'Ingresos diarios',
+                        data: data.length > 0 ? data : [0],
                         backgroundColor: 'rgba(59, 130, 246, 0.5)',
                         borderColor: 'rgb(59, 130, 246)',
                         borderWidth: 2
@@ -1190,7 +1324,7 @@
                 
                 this.estado.graficos.ventasDiarias = new Chart(ctx, {
                     type: 'bar',
-                    data: datosEjemplo,
+                    data: datosGrafico,
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
@@ -1216,32 +1350,52 @@
                     this.estado.graficos.evolucion.destroy();
                 }
                 
-                // Datos de ejemplo
-                const datosEjemplo = {
-                    labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
-                    datasets: [
-                        {
-                            label: 'Ingresos Totales',
-                            data: [850000, 920000, 780000, 1100000],
-                            borderColor: 'rgb(59, 130, 246)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        },
-                        {
-                            label: 'Ganancia Proveedores',
-                            data: [552500, 598000, 507000, 715000],
-                            borderColor: 'rgb(139, 92, 246)',
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                };
+                const liquidaciones = [...(this.estado.datosReporte?.ultimas_liquidaciones_maquinas || [])]
+                    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+                    .slice(-5);
+                const comparativos = this.estado.datosReporte?.comparativos || {};
+                const datosGrafico = liquidaciones.length > 0
+                    ? {
+                        labels: liquidaciones.map(item => this.formatearFecha(item.fecha)),
+                        datasets: [
+                            {
+                                label: 'Ingreso bruto',
+                                data: liquidaciones.map(item => item.ingreso_bruto || 0),
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Utilidad operativa',
+                                data: liquidaciones.map(item => item.utilidad_operativa || 0),
+                                borderColor: 'rgb(139, 92, 246)',
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
+                    }
+                    : {
+                        labels: ['Período previo', 'Período actual'],
+                        datasets: [
+                            {
+                                label: 'Ingresos',
+                                data: [
+                                    comparativos.periodo_previo?.ingresos || 0,
+                                    comparativos.periodo_actual?.ingresos || 0
+                                ],
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
+                    };
                 
                 this.estado.graficos.evolucion = new Chart(ctx, {
                     type: 'line',
-                    data: datosEjemplo,
+                    data: datosGrafico,
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
@@ -1266,11 +1420,11 @@
                     this.estado.graficos.paquetes.destroy();
                 }
                 
-                // Datos de ejemplo
-                const datosEjemplo = {
-                    labels: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'],
+                const paquetes = (this.estado.datosReporte?.paquetes_resumen || []).slice(0, 10);
+                const datosGrafico = {
+                    labels: paquetes.length > 0 ? paquetes.map(item => item.paquete_nombre) : ['Sin ventas'],
                     datasets: [{
-                        data: [12, 19, 8, 15, 10, 7, 5, 9, 11, 6],
+                        data: paquetes.length > 0 ? paquetes.map(item => item.paquetes_vendidos || 0) : [1],
                         backgroundColor: [
                             '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
                             '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#ec4899'
@@ -1280,7 +1434,7 @@
                 
                 this.estado.graficos.paquetes = new Chart(ctx, {
                     type: 'doughnut',
-                    data: datosEjemplo,
+                    data: datosGrafico,
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
@@ -1318,6 +1472,13 @@
                         this.actualizarTablaDetalle(data);
                         this.actualizarTablaPropietarios(data);
                         this.actualizarTablaMaquinas(data);
+                        this.actualizarPaquetesResumen(data);
+                        this.actualizarUltimasLiquidacionesMaquinas(data);
+
+                        const pestanaGraficos = document.getElementById('pestanaGraficos');
+                        if (pestanaGraficos && !pestanaGraficos.classList.contains('hidden')) {
+                            this.inicializarGraficos();
+                        }
                     }
                 } catch (error) {
                     console.error('Error cargando datos de reporte:', error);
@@ -1329,8 +1490,7 @@
                 try {
                     this.mostrarCarga(true);
                     
-                    // Obtener filtros actuales
-                    const { fechaInicio, fechaFin, tipoReporte, busqueda, orden, paginacion } = this.estado.filtros;
+                    const { fechaInicio, fechaFin, tipoReporte, paginacion } = this.estado.filtros;
                     
                     console.log('🔄 Actualizando datos con filtros:', {
                         fechaInicio, fechaFin, tipoReporte, 
@@ -1338,18 +1498,9 @@
                         registros: paginacion.registrosPorPagina 
                     });
                     
-                    let url;
-                    if (tipoReporte === 'ventas') {
-                        // Usar la API simplificada para ventas
-                        url = `/api/ventas-liquidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
-                    } else {
-                        // Para liquidaciones usar otra API (si la tienes)
-                        url = `/api/liquidaciones?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&pagina=${paginacion.paginaActual}&porPagina=${paginacion.registrosPorPagina}`;
-                    }
-                    
-                    if (busqueda) {
-                        url += `&busqueda=${encodeURIComponent(busqueda)}`;
-                    }
+                    const url = tipoReporte === 'liquidaciones'
+                        ? this.construirUrlConFiltros('/api/liquidaciones/maquinas')
+                        : this.construirUrlConFiltros('/api/ventas-liquidadas');
                     
                     console.log('📡 URL de la API:', url);
                     
@@ -1362,19 +1513,53 @@
                     }
                     
                     const data = await response.json();
+
+                    let datosNormalizados = data.datos || [];
+                    if (tipoReporte === 'liquidaciones') {
+                        let totalNegocio = 0;
+                        let totalCostos = 0;
+                        let totalUtilidad = 0;
+
+                        datosNormalizados = datosNormalizados.map(item => {
+                            const negocio = item.negocio || 0;
+                            const costos = item.costos_operativos || 0;
+                            const utilidad = item.utilidad_operativa || 0;
+                            totalNegocio += negocio;
+                            totalCostos += costos;
+                            totalUtilidad += utilidad;
+
+                            return {
+                                ...item,
+                                cantidad_paquetes: item.turnos_retirados || 0,
+                                ingresos_totales: item.ingreso_bruto || 0,
+                                ingresos_30_porciento: item.administracion || 0,
+                                ingresos_35_porciento: negocio,
+                                ingresos_restaurante: costos,
+                                ingresos_proveedor: utilidad
+                            };
+                        });
+
+                        data.totalIngresos = data.totales?.ingreso_bruto || 0;
+                        data.gananciaTotal = totalUtilidad;
+                        data.gananciaProveedor = totalUtilidad;
+                        data.gananciaRestaurante = totalNegocio;
+                        data.totalCostosOperativos = totalCostos;
+                    }
                     
                     console.log('✅ Datos recibidos correctamente:', {
                         totalRegistros: data.totalRegistros,
-                        datosRecibidos: data.datos ? data.datos.length : 0,
+                        datosRecibidos: datosNormalizados.length,
                         totalIngresos: data.totalIngresos
                     });
                     
-                    // Actualizar estado
-                    this.estado.datos = data.datos || [];
+                    this.estado.datos = datosNormalizados;
                     this.estado.filtros.paginacion.totalRegistros = data.totalRegistros || 0;
-                    this.estado.filtros.paginacion.totalPaginas = Math.ceil((data.totalRegistros || 0) / this.estado.filtros.paginacion.registrosPorPagina);
+                    this.estado.filtros.paginacion.totalPaginas = Math.max(
+                        1,
+                        Math.ceil((data.totalRegistros || 0) / this.estado.filtros.paginacion.registrosPorPagina)
+                    );
+                    this.actualizarEncabezadosTablaPrincipal();
                     
-                    // Actualizar UI
                     this.actualizarTabla();
                     this.actualizarResumen(data);
                     this.actualizarPaginacion();
@@ -1383,7 +1568,6 @@
                     console.error('❌ Error al actualizar datos:', error);
                     this.mostrarAlerta('Error al cargar los datos: ' + error.message, 'error');
                     
-                    // Mostrar datos de ejemplo en caso de error (para desarrollo)
                     this.mostrarDatosEjemplo();
                 } finally {
                     this.mostrarCarga(false);
@@ -1529,6 +1713,8 @@
                 this.estado.filtros.paginacion.paginaActual = 1;
                 
                 this.actualizarDatos();
+                this.cargarDatosReporte();
+                this.cargarCierresMaquinas();
             },
             
             // Actualizar la tabla con los datos actuales
@@ -1539,7 +1725,7 @@
                 if (this.estado.datos.length === 0) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td colspan="8" class="text-center py-8 text-gray-500">
+                        <td colspan="7" class="text-center py-8 text-gray-500">
                             <i class="fas fa-inbox text-4xl mb-2 block"></i>
                             No se encontraron registros para los filtros seleccionados.
                         </td>
@@ -1559,21 +1745,19 @@
                             fecha: fecha,
                             totalPaquetes: 0,
                             totalIngresos: 0,
-                            total30Porciento: 0,  // 30% para máquinas
-                            total35Porciento: 0,  // 35% para proveedores
+                            total30Porciento: 0,
+                            total35Porciento: 0,
                             totalIngresosRestaurante: 0,
                             totalIngresosProveedor: 0
                         };
                     }
                     
-                    // Calcular distribución de ingresos
                     const ingresos = item.ingresos_totales || item.ingresos || 0;
                     const ingresos30 = item.ingresos_30_porciento || (ingresos * 0.30);
                     const ingresos35 = item.ingresos_35_porciento || (ingresos * 0.35);
                     const ingresosRestaurante = item.ingresos_restaurante || item.ganancia_restaurante || (ingresos * 0.35);
                     const ingresosProveedor = item.ingresos_proveedor || item.ganancia_proveedor || 0;
                     
-                    // Actualizar totales por fecha
                     liquidacionesPorFecha[fecha].totalPaquetes += item.cantidad_paquetes || 1;
                     liquidacionesPorFecha[fecha].totalIngresos += item.ingresos_totales || item.ingresos || 0;
                     liquidacionesPorFecha[fecha].total30Porciento += ingresos30;
@@ -1582,7 +1766,6 @@
                     liquidacionesPorFecha[fecha].totalIngresosProveedor += ingresosProveedor;
                 });
                 
-                // Calcular totales generales
                 let totalPaquetes = 0;
                 let totalIngresos = 0;
                 let total30Porciento = 0;
@@ -1590,22 +1773,21 @@
                 let totalIngresosRestaurante = 0;
                 let totalIngresosProveedor = 0;
                 
-                // Mostrar una fila por liquidación
                 Object.values(liquidacionesPorFecha).forEach(liquidacion => {
+                    const etiquetaSecundaria = this.estado.filtros.tipoReporte === 'liquidaciones' ? '' : ' <span class="text-xs text-gray-500">(35%)</span>';
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-gray-50';
                     tr.innerHTML = `
                         <td>${this.formatearFecha(liquidacion.fecha)}</td>
                         <td class="text-right">${liquidacion.totalPaquetes.toLocaleString()}</td>
                         <td class="text-right font-semibold">${formatearMoneda(liquidacion.totalIngresos)}</td>
-                        <td class="text-right text-orange-600">${formatearMoneda(liquidacion.total30Porciento)} <span class="text-xs text-gray-500">(30%)</span></td>
-                        <td class="text-right text-blue-600">${formatearMoneda(liquidacion.total35Porciento)} <span class="text-xs text-gray-500">(35%)</span></td>
-                        <td class="text-right text-green-600">${formatearMoneda(liquidacion.totalIngresosRestaurante)} <span class="text-xs text-gray-500">(35%)</span></td>
+                        <td class="text-right text-orange-600">${formatearMoneda(liquidacion.total30Porciento)}</td>
+                        <td class="text-right text-blue-600">${formatearMoneda(liquidacion.total35Porciento)}</td>
+                        <td class="text-right text-green-600">${formatearMoneda(liquidacion.totalIngresosRestaurante)}${etiquetaSecundaria}</td>
                         <td class="text-right text-purple-600">${formatearMoneda(liquidacion.totalIngresosProveedor)}</td>
                     `;
                     tbody.appendChild(tr);
                     
-                    // Sumar a totales generales
                     totalPaquetes += liquidacion.totalPaquetes;
                     totalIngresos += liquidacion.totalIngresos;
                     total30Porciento += liquidacion.total30Porciento;
@@ -1614,7 +1796,6 @@
                     totalIngresosProveedor += liquidacion.totalIngresosProveedor;
                 });
                 
-                // Actualizar totales en el pie de la tabla
                 document.getElementById('totalPaquetes').textContent = totalPaquetes.toLocaleString();
                 document.getElementById('totalIngresosTabla').textContent = formatearMoneda(totalIngresos);
                 document.getElementById('total30Porciento').textContent = formatearMoneda(total30Porciento);
@@ -1636,8 +1817,13 @@
                 document.getElementById('gananciaRestaurante').textContent = formatearMoneda(gananciaRestaurante);
                 
                 // Actualizar texto de registros mostrados
-                const desde = (this.estado.filtros.paginacion.paginaActual - 1) * this.estado.filtros.paginacion.registrosPorPagina + 1;
-                const hasta = Math.min(desde + this.estado.datos.length - 1, this.estado.filtros.paginacion.totalRegistros);
+                const tieneRegistros = this.estado.filtros.paginacion.totalRegistros > 0;
+                const desde = tieneRegistros
+                    ? (this.estado.filtros.paginacion.paginaActual - 1) * this.estado.filtros.paginacion.registrosPorPagina + 1
+                    : 0;
+                const hasta = tieneRegistros
+                    ? Math.min(desde + this.estado.datos.length - 1, this.estado.filtros.paginacion.totalRegistros)
+                    : 0;
                 
                 document.getElementById('mostrandoDesde').textContent = desde;
                 document.getElementById('mostrandoHasta').textContent = hasta;
@@ -1650,11 +1836,11 @@
                 const totalIngresos = periodo.total_ingresos || 0;
                 const gananciaRestaurante = periodo.total_restaurante || 0;
                 const gananciaProveedor = periodo.total_proveedor || 0;
-                const gananciaTotal = totalIngresos;
+                const gananciaTotal = (data.inversionistas || []).reduce((total, item) => total + (item.utilidad_total || 0), 0) || totalIngresos;
                 const totalVentas = periodo.total_ventas || 0;
                 const maquinasActivas = periodo.maquinas_utilizadas || 0;
                 const ticketPromedio = totalVentas > 0 ? totalIngresos / totalVentas : 0;
-                const turnosUsados = totalVentas * 10; // Estimación
+                const turnosUsados = Object.values(data.resumen_maquinas || {}).reduce((total, maquina) => total + (maquina.turnos_usados || 0), 0);
                 
                 document.getElementById('totalIngresosResumen').textContent = formatearMoneda(totalIngresos);
                 document.getElementById('gananciaTotalResumen').textContent = formatearMoneda(gananciaTotal);
@@ -1668,37 +1854,67 @@
             
             // Actualizar distribución por propietarios
             actualizarDistribucionPropietarios: function(data) {
-                const distribucion = data.distribucion_propietarios || {};
                 const container = document.getElementById('distribucionPropietarios');
-                container.innerHTML = '';
-                
-                Object.entries(distribucion).forEach(([nombre, datos]) => {
-                    const card = document.createElement('div');
-                    card.className = 'summary-card';
-                    card.innerHTML = `
+                const inversionistas = data.inversionistas || [];
+                const distribucion = data.distribucion_propietarios || {};
+                const totalBase = data.periodo?.total_proveedor || 1;
+
+                if (inversionistas.length > 0) {
+                    container.innerHTML = inversionistas.slice(0, 4).map(inversionista => `
+                        <div class="summary-card">
+                            <div class="flex justify-between items-start mb-2 gap-3">
+                                <h3 class="font-semibold text-gray-800">${this.escapeHtml(inversionista.socio_nombre)}</h3>
+                                <div class="text-lg font-bold text-green-600">${formatearMoneda(inversionista.utilidad_total || 0)}</div>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-3">
+                                ${((inversionista.utilidad_total || 0) / totalBase * 100).toFixed(1)}% del total liquidado
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                <span>${inversionista.maquinas_poseidas || 0} máquinas</span>
+                                <span>${(inversionista.rendimiento_porcentual || 0).toFixed(1)}% vs período previo</span>
+                            </div>
+                            <div class="space-y-2">
+                                ${(inversionista.maquinas || []).slice(0, 3).map(maquina => `
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="truncate">${this.escapeHtml(maquina.maquina_nombre)}</span>
+                                        <span class="font-medium">${formatearMoneda(maquina.utilidad_participacion || 0)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                    return;
+                }
+
+                const items = Object.entries(distribucion);
+                if (items.length === 0) {
+                    container.innerHTML = this.renderEmptyState(
+                        'fas fa-users',
+                        'Sin distribución disponible',
+                        'Aún no hay propietarios o inversionistas configurados para este período.'
+                    );
+                    return;
+                }
+
+                container.innerHTML = items.map(([nombre, datos]) => `
+                    <div class="summary-card">
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-semibold text-gray-800">${nombre}</h3>
-                            <div class="text-lg font-bold text-green-600">${formatearMoneda(datos.total_ingresos)}</div>
+                            <h3 class="font-semibold text-gray-800">${this.escapeHtml(nombre)}</h3>
+                            <div class="text-lg font-bold text-green-600">${formatearMoneda(datos.total_ingresos || 0)}</div>
                         </div>
                         <div class="text-sm text-gray-600 mb-3">
-                            ${((datos.total_ingresos / (data.periodo?.total_proveedor || 1)) * 100).toFixed(1)}% del total proveedores
+                            ${((datos.total_ingresos || 0) / totalBase * 100).toFixed(1)}% del total proveedores
                         </div>
                         <div class="space-y-2">
-                            ${datos.detalles_maquinas?.slice(0, 3).map(maquina => `
+                            ${(datos.detalles_maquinas || []).slice(0, 3).map(maquina => `
                                 <div class="flex justify-between items-center text-xs">
-                                    <span class="truncate">${maquina.maquina_nombre}</span>
-                                    <span class="font-medium">${formatearMoneda(maquina.monto_propietario)}</span>
+                                    <span class="truncate">${this.escapeHtml(maquina.maquina_nombre)}</span>
+                                    <span class="font-medium">${formatearMoneda(maquina.monto_propietario || 0)}</span>
                                 </div>
                             `).join('')}
-                            ${datos.detalles_maquinas?.length > 3 ? `
-                                <div class="text-xs text-gray-500 text-center">
-                                    +${datos.detalles_maquinas.length - 3} máquinas más
-                                </div>
-                            ` : ''}
                         </div>
-                    `;
-                    container.appendChild(card);
-                });
+                    </div>
+                `).join('');
             },
             
             // Actualizar top máquinas
@@ -1711,8 +1927,18 @@
                 const maquinasArray = Object.values(maquinas)
                     .sort((a, b) => (b.ingresos_totales || 0) - (a.ingresos_totales || 0))
                     .slice(0, 5);
+
+                if (maquinasArray.length === 0) {
+                    container.innerHTML = this.renderEmptyState(
+                        'fas fa-chart-line',
+                        'Sin top de máquinas',
+                        'Las máquinas con actividad aparecerán aquí automáticamente.'
+                    );
+                    return;
+                }
                 
                 maquinasArray.forEach((maquina, index) => {
+                    const topPaquete = maquina.paquetes?.[0]?.paquete_nombre || 'Sin paquetes';
                     const item = document.createElement('div');
                     item.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
                     item.innerHTML = `
@@ -1722,12 +1948,12 @@
                             </div>
                             <div>
                                 <div class="font-medium">${maquina.maquina_nombre}</div>
-                                <div class="text-xs text-gray-500">${formatearMoneda(maquina.ingresos_proveedor || 0)} proveedor</div>
+                                <div class="text-xs text-gray-500">${this.escapeHtml(topPaquete)} · ${maquina.turnos_usados || 0} turnos</div>
                             </div>
                         </div>
                         <div class="text-right">
                             <div class="font-bold text-green-600">${formatearMoneda(maquina.ingresos_totales || 0)}</div>
-                            <div class="text-xs text-gray-500">total</div>
+                            <div class="text-xs text-gray-500">${(maquina.rendimiento_porcentual || 0).toFixed(1)}% variación</div>
                         </div>
                     `;
                     container.appendChild(item);
@@ -1773,10 +1999,54 @@
             
             // Actualizar tabla de propietarios
             actualizarTablaPropietarios: function(data) {
-                const distribucion = data.distribucion_propietarios || {};
                 const container = document.getElementById('tablaPropietarios');
-                
-                let html = `
+                const inversionistas = data.inversionistas || [];
+                const distribucion = data.distribucion_propietarios || {};
+                const totalProveedor = data.periodo?.total_proveedor || 1;
+
+                if (inversionistas.length > 0) {
+                    container.innerHTML = `
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Inversionista</th>
+                                        <th class="text-right">Ingreso Participación</th>
+                                        <th class="text-right">Utilidad</th>
+                                        <th class="text-right">Máquinas</th>
+                                        <th class="text-right">Variación</th>
+                                        <th>Paquetes Top</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${inversionistas.map(inversionista => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="font-medium">${this.escapeHtml(inversionista.socio_nombre)}</td>
+                                            <td class="text-right">${formatearMoneda(inversionista.ingreso_total || 0)}</td>
+                                            <td class="text-right font-semibold text-green-600">${formatearMoneda(inversionista.utilidad_total || 0)}</td>
+                                            <td class="text-right">${inversionista.maquinas_poseidas || 0}</td>
+                                            <td class="text-right">${(inversionista.rendimiento_porcentual || 0).toFixed(1)}%</td>
+                                            <td class="text-sm text-gray-600">${(inversionista.paquetes_top || []).map(item => `${this.escapeHtml(item.paquete_nombre)} (${item.turnos_usados})`).join(', ') || 'Sin paquetes'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const filas = Object.entries(distribucion);
+                if (filas.length === 0) {
+                    container.innerHTML = this.renderEmptyState(
+                        'fas fa-user-friends',
+                        'Sin inversionistas configurados',
+                        'Cuando existan socios o propietarios asociados a máquinas, aparecerán aquí.'
+                    );
+                    return;
+                }
+
+                container.innerHTML = `
                     <div class="table-container">
                         <table>
                             <thead>
@@ -1789,79 +2059,297 @@
                                 </tr>
                             </thead>
                             <tbody>
-                `;
-                
-                Object.entries(distribucion).forEach(([nombre, datos]) => {
-                    const totalProveedor = data.periodo?.total_proveedor || 1;
-                    const porcentaje = ((datos.total_ingresos / totalProveedor) * 100).toFixed(1);
-                    const numMaquinas = datos.detalles_maquinas?.length || 0;
-                    const principalesMaquinas = datos.detalles_maquinas?.slice(0, 3).map(m => m.maquina_nombre).join(', ') || '';
-                    
-                    html += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="font-medium">${nombre}</td>
-                            <td class="text-right font-semibold text-green-600">${formatearMoneda(datos.total_ingresos)}</td>
-                            <td class="text-right">${porcentaje}%</td>
-                            <td class="text-right">${numMaquinas}</td>
-                            <td class="text-sm text-gray-600">${principalesMaquinas}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
+                                ${filas.map(([nombre, datos]) => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="font-medium">${this.escapeHtml(nombre)}</td>
+                                        <td class="text-right font-semibold text-green-600">${formatearMoneda(datos.total_ingresos || 0)}</td>
+                                        <td class="text-right">${(((datos.total_ingresos || 0) / totalProveedor) * 100).toFixed(1)}%</td>
+                                        <td class="text-right">${(datos.detalles_maquinas || []).length}</td>
+                                        <td class="text-sm text-gray-600">${(datos.detalles_maquinas || []).slice(0, 3).map(m => this.escapeHtml(m.maquina_nombre)).join(', ') || 'Sin máquinas'}</td>
+                                    </tr>
+                                `).join('')}
                             </tbody>
                         </table>
                     </div>
                 `;
-                
-                container.innerHTML = html;
             },
             
             // Actualizar tabla de máquinas
             actualizarTablaMaquinas: function(data) {
                 const maquinas = data.resumen_maquinas || {};
                 const container = document.getElementById('tablaMaquinas');
-                
-                let html = `
+
+                if (Object.keys(maquinas).length === 0) {
+                    container.innerHTML = this.renderEmptyState(
+                        'fas fa-gamepad',
+                        'Sin rendimiento disponible',
+                        'No hubo uso de máquinas ni cierres manuales dentro del rango filtrado.'
+                    );
+                    return;
+                }
+
+                container.innerHTML = `
                     <div class="table-container">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Máquina</th>
                                     <th>Tipo</th>
-                                    <th class="text-right">Ingresos Totales</th>
-                                    <th class="text-right">% Rest.</th>
-                                    <th class="text-right">Restaurante</th>
-                                    <th class="text-right">Proveedor</th>
-                                    <th class="text-right">Ventas</th>
+                                    <th class="text-right">Ingreso Base</th>
+                                    <th class="text-right">Fuente</th>
+                                    <th class="text-right">Turnos Usados</th>
+                                    <th class="text-right">Turnos Retirados</th>
+                                    <th class="text-right">Utilidad</th>
+                                    <th class="text-right">Variación</th>
                                 </tr>
                             </thead>
                             <tbody>
-                `;
-                
-                Object.values(maquinas).forEach(maquina => {
-                    const ventas = maquina.detalles?.length || 0;
-                    
-                    html += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="font-medium">${maquina.maquina_nombre}</td>
-                            <td class="text-gray-600">${maquina.tipo_maquina}</td>
-                            <td class="text-right font-semibold">${formatearMoneda(maquina.ingresos_totales || 0)}</td>
-                            <td class="text-right text-blue-600">${maquina.porcentaje_restaurante || 35}%</td>
-                            <td class="text-right text-green-600">${formatearMoneda(maquina.ingresos_restaurante || 0)}</td>
-                            <td class="text-right text-purple-600">${formatearMoneda(maquina.ingresos_proveedor || 0)}</td>
-                            <td class="text-right text-gray-600">${ventas}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
+                                ${Object.values(maquinas).map(maquina => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="font-medium">${this.escapeHtml(maquina.maquina_nombre)}</td>
+                                        <td class="text-gray-600">${this.escapeHtml(maquina.tipo_maquina || 'general')}</td>
+                                        <td class="text-right font-semibold">${formatearMoneda(maquina.ingresos_totales || 0)}</td>
+                                        <td class="text-right text-xs ${maquina.fuente_ingresos === 'manual' ? 'text-green-600' : 'text-amber-600'}">${maquina.fuente_ingresos === 'manual' ? 'Cierre real' : 'Estimado por uso'}</td>
+                                        <td class="text-right">${(maquina.turnos_usados || 0).toLocaleString()}</td>
+                                        <td class="text-right">${(maquina.turnos_retirados || 0).toLocaleString()}</td>
+                                        <td class="text-right text-purple-600">${formatearMoneda(maquina.utilidad_operativa || 0)}</td>
+                                        <td class="text-right">${(maquina.rendimiento_porcentual || 0).toFixed(1)}%</td>
+                                    </tr>
+                                `).join('')}
                             </tbody>
                         </table>
                     </div>
                 `;
-                
-                container.innerHTML = html;
+            },
+
+            actualizarPaquetesResumen: function(data) {
+                const container = document.getElementById('tablaPaquetesResumen');
+                const paquetes = data.paquetes_resumen || [];
+
+                if (paquetes.length === 0) {
+                    container.innerHTML = this.renderEmptyState(
+                        'fas fa-box-open',
+                        'Sin paquetes vendidos',
+                        'Cuando existan ventas dentro del rango seleccionado aparecerá el detalle de paquetes.'
+                    );
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Paquete</th>
+                                    <th class="text-right">Vendidos</th>
+                                    <th class="text-right">Turnos Totales</th>
+                                    <th class="text-right">Turnos Usados</th>
+                                    <th class="text-right">Turnos Restantes</th>
+                                    <th class="text-right">Valor Restante</th>
+                                    <th class="text-right">Ingresos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${paquetes.map(paquete => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="font-medium">${this.escapeHtml(paquete.paquete_nombre)}</td>
+                                        <td class="text-right">${(paquete.paquetes_vendidos || 0).toLocaleString()}</td>
+                                        <td class="text-right">${(paquete.turnos_totales || 0).toLocaleString()}</td>
+                                        <td class="text-right">${(paquete.turnos_usados || 0).toLocaleString()}</td>
+                                        <td class="text-right">${(paquete.turnos_restantes || 0).toLocaleString()}</td>
+                                        <td class="text-right text-amber-600">${formatearMoneda(paquete.valor_turnos_restantes || 0)}</td>
+                                        <td class="text-right font-semibold text-green-600">${formatearMoneda(paquete.ingresos_totales || 0)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            },
+
+            actualizarUltimasLiquidacionesMaquinas: function(data) {
+                const container = document.getElementById('ultimasLiquidacionesMaquinas');
+                const liquidaciones = data.ultimas_liquidaciones_maquinas || [];
+
+                if (liquidaciones.length === 0) {
+                    container.innerHTML = this.renderEmptyState(
+                        'fas fa-cash-register',
+                        'Sin cierres registrados',
+                        'Registra ingresos manuales por máquina y aquí verás las últimas liquidaciones.'
+                    );
+                    return;
+                }
+
+                container.innerHTML = liquidaciones.map(item => `
+                    <div class="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+                        <div class="flex justify-between items-start gap-3 mb-3">
+                            <div>
+                                <div class="font-semibold text-gray-800">${this.escapeHtml(item.maquina_nombre)}</div>
+                                <div class="text-xs text-gray-500">${this.formatearFecha(item.fecha)} · ${this.escapeHtml(item.tipo_maquina || 'general')}</div>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded-full ${item.utilidad_operativa >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${formatearMoneda(item.utilidad_operativa || 0)}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <div class="text-gray-500">Ingreso bruto</div>
+                                <div class="font-medium">${formatearMoneda(item.ingreso_bruto || 0)}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Turnos retirados</div>
+                                <div class="font-medium">${(item.turnos_retirados || 0).toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Negocio</div>
+                                <div class="font-medium">${formatearMoneda(item.negocio || 0)}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">Costos</div>
+                                <div class="font-medium">${formatearMoneda(item.costos_operativos || 0)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            cargarMaquinasParaCierre: async function() {
+                try {
+                    const response = await fetch('/api/liquidaciones/maquinas/catalogo');
+                    if (!response.ok) {
+                        throw new Error('No se pudo cargar el catálogo de máquinas');
+                    }
+
+                    const data = await response.json();
+                    this.estado.catalogoMaquinas = data.datos || [];
+
+                    const select = document.getElementById('cierreMaquinaId');
+                    select.innerHTML = '<option value="">Selecciona una máquina</option>';
+
+                    this.estado.catalogoMaquinas.forEach(maquina => {
+                        const option = document.createElement('option');
+                        option.value = maquina.id;
+                        option.textContent = `${maquina.name} (${maquina.type || 'general'})`;
+                        option.dataset.valorTurno = maquina.valor_por_turno || 3000;
+                        option.dataset.porcentajeRestaurante = maquina.porcentaje_restaurante || 35;
+                        select.appendChild(option);
+                    });
+
+                    select.onchange = (event) => {
+                        const option = event.target.selectedOptions[0];
+                        if (!option) {
+                            return;
+                        }
+                        document.getElementById('cierreValorTurno').value = option.dataset.valorTurno || '';
+                    };
+                } catch (error) {
+                    console.error('Error cargando máquinas para cierre:', error);
+                    this.mostrarAlerta('No fue posible cargar las máquinas para registrar cierres.', 'warning');
+                }
+            },
+
+            cargarCierresMaquinas: async function() {
+                try {
+                    const response = await fetch(this.construirUrlConFiltros('/api/liquidaciones/maquinas'));
+                    if (!response.ok) {
+                        throw new Error('No se pudo cargar el histórico de cierres');
+                    }
+
+                    const data = await response.json();
+                    this.estado.cierresMaquinas = data.datos || [];
+
+                    const container = document.getElementById('historialCierresMaquinas');
+                    if (this.estado.cierresMaquinas.length === 0) {
+                        container.innerHTML = this.renderEmptyState(
+                            'fas fa-receipt',
+                            'Histórico vacío',
+                            'Todavía no hay ingresos registrados manualmente para este rango.'
+                        );
+                        return;
+                    }
+
+                    container.innerHTML = `
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Máquina</th>
+                                        <th class="text-right">Turnos</th>
+                                        <th class="text-right">Ingreso Bruto</th>
+                                        <th class="text-right">Negocio</th>
+                                        <th class="text-right">Costos</th>
+                                        <th class="text-right">Utilidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${this.estado.cierresMaquinas.map(item => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td>${this.formatearFecha(item.fecha)}</td>
+                                            <td class="font-medium">${this.escapeHtml(item.maquina_nombre)}</td>
+                                            <td class="text-right">${(item.turnos_retirados || 0).toLocaleString()}</td>
+                                            <td class="text-right">${formatearMoneda(item.ingreso_bruto || 0)}</td>
+                                            <td class="text-right">${formatearMoneda(item.negocio || 0)}</td>
+                                            <td class="text-right">${formatearMoneda(item.costos_operativos || 0)}</td>
+                                            <td class="text-right font-semibold text-purple-600">${formatearMoneda(item.utilidad_operativa || 0)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Error cargando cierres de máquinas:', error);
+                    this.mostrarAlerta('No fue posible cargar el histórico de cierres.', 'warning');
+                }
+            },
+
+            guardarCierreMaquina: async function() {
+                const payload = {
+                    fecha: document.getElementById('cierreFecha').value,
+                    maquina_id: document.getElementById('cierreMaquinaId').value,
+                    turnos_retirados: Number(document.getElementById('cierreTurnos').value || 0),
+                    valor_por_turno: Number(document.getElementById('cierreValorTurno').value || 0),
+                    costos_operativos: Number(document.getElementById('cierreCostosOperativos').value || 0),
+                    observaciones: document.getElementById('cierreObservaciones').value
+                };
+
+                if (!payload.fecha || !payload.maquina_id || payload.turnos_retirados <= 0) {
+                    this.mostrarAlerta('Completa fecha, máquina y turnos retirados para guardar el cierre.', 'warning');
+                    return;
+                }
+
+                try {
+                    this.mostrarCarga(true);
+                    const response = await fetch('/api/liquidaciones/maquinas', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        throw new Error(data?.data?.message || data?.error || 'No se pudo guardar el cierre');
+                    }
+
+                    this.mostrarAlerta(data.message || 'Cierre registrado correctamente', 'success');
+                    document.getElementById('cierreTurnos').value = '';
+                    document.getElementById('cierreCostosOperativos').value = '';
+                    document.getElementById('cierreObservaciones').value = '';
+
+                    await Promise.all([
+                        this.actualizarDatos(),
+                        this.cargarDatosReporte(),
+                        this.cargarCierresMaquinas()
+                    ]);
+                } catch (error) {
+                    console.error('Error guardando cierre de máquina:', error);
+                    this.mostrarAlerta('No fue posible guardar el cierre: ' + error.message, 'error');
+                } finally {
+                    this.mostrarCarga(false);
+                }
             },
             
             // Resto de funciones de paginación, ordenación, etc.
