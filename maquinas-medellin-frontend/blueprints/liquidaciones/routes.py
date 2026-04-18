@@ -97,7 +97,7 @@ def _admin_expr(tiene_admin_col):
 
 def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
     """Resumen de paquetes vendidos en el período, con turnos usados y restantes."""
-    cursor.execute(
+    sql, params = apply_location_name_filter(
         """
         SELECT
             tp.id AS paquete_id,
@@ -117,8 +117,10 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
         GROUP BY tp.id, tp.name, tp.turns, tp.price
         ORDER BY paquetes_vendidos DESC
         """,
-        (fecha_inicio, fecha_fin),
+        [fecha_inicio, fecha_fin],
+        column='local', table_alias='qh',
     )
+    cursor.execute(sql, params)
 
     paquetes = []
     for row in cursor.fetchall():
@@ -162,7 +164,7 @@ def _fetch_turnos_summary(cursor, fecha_inicio, fecha_fin, paquetes):
 
 def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
     """Top 3 máquinas por turnos jugados en el período."""
-    cursor.execute(
+    sql, params = apply_location_name_filter(
         """
         SELECT m.name AS maquina_nombre, COUNT(tu.id) AS turnos_jugados
         FROM turnusage tu
@@ -177,8 +179,10 @@ def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
         ORDER BY turnos_jugados DESC
         LIMIT 3
         """,
-        (fecha_inicio, fecha_fin),
+        [fecha_inicio, fecha_fin],
+        column='local', table_alias='qh',
     )
+    cursor.execute(sql, params)
     return [
         {'nombre': r['maquina_nombre'], 'turnos_jugados': int(r['turnos_jugados'])}
         for r in cursor.fetchall()
@@ -205,9 +209,9 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
         WHERE DATE(tu.usedAt) BETWEEN %s AND %s
-        GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante, pct_admin
+        GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante, {admin_col}
         ORDER BY ingresos_estimados DESC
-        """.replace('pct_admin', admin_col),
+        """,
         (RESTAURANT_PERCENTAGE_DEFAULT, fecha_inicio, fecha_fin),
     )
 
@@ -454,7 +458,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
     tiene_admin = _has_admin_col(cursor)
     admin_expr  = _admin_expr(tiene_admin)
 
-    cursor.execute(
+    sql, params = apply_location_name_filter(
         f"""
         SELECT
             p.id AS propietario_id,
@@ -487,8 +491,10 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
                  mpr.porcentaje_restaurante, {admin_expr}
         ORDER BY p.nombre, m.name, paquetes_vendidos DESC
         """,
-        (fecha_inicio, fecha_fin),
+        [fecha_inicio, fecha_fin],
+        column='local', table_alias='qh',
     )
+    cursor.execute(sql, params)
 
     inv_map = {}
     for r in cursor.fetchall():
@@ -634,7 +640,7 @@ def _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin):
         return []
     try:
         cursor.execute(
-            """SELECT id, concepto, monto, categoria, fecha
+            """SELECT id, concepto, monto, fecha
                FROM gastos_liquidacion
                WHERE fecha BETWEEN %s AND %s
                ORDER BY fecha DESC""",
@@ -645,7 +651,6 @@ def _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin):
                 'id':       g['id'],
                 'concepto': g['concepto'],
                 'monto':    float(g['monto']),
-                'categoria': g.get('categoria') or '',
                 'fecha':    str(g['fecha']),
             }
             for g in cursor.fetchall()
@@ -681,32 +686,11 @@ def calcular_liquidacion():
         tiene_tabla_propietarios = _table_exists(cursor, 'propietarios')
         tiene_admin            = _has_admin_col(cursor) if tiene_porcentaje else False
 
-        # Totales del período
-        periodo_sql, periodo_params = apply_location_name_filter(
-            """
-            SELECT
-                COUNT(DISTINCT qh.qr_code) AS total_ventas,
-                COALESCE(SUM(tp.price), 0) AS total_ingresos,
-                COUNT(DISTINCT tu.machineId) AS maquinas_utilizadas
-            FROM qrhistory qh
-            JOIN qrcode qr ON qr.code = qh.qr_code
-            JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-              AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
-            """,
-            [fecha_inicio, fecha_fin],
-            column='local', table_alias='qh',
-        )
-        cursor.execute(periodo_sql, periodo_params)
-        periodo = cursor.fetchone() or {}
-        total_ingresos = _to_float(periodo.get('total_ingresos'))
-
-        # Resumen de paquetes vendidos
+        # Resumen de paquetes vendidos (fuente canónica de ingresos — sin JOIN a turnusage)
         paquetes_resumen = _fetch_package_summary(cursor, fecha_inicio, fecha_fin)
         turnos_summary   = _fetch_turnos_summary(cursor, fecha_inicio, fecha_fin, paquetes_resumen)
+        # total_ingresos derivado de paquetes para evitar multiplicación por filas de turnusage
+        total_ingresos = sum(p['ingresos_totales'] for p in paquetes_resumen)
         top3_maquinas    = _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin)
 
         # Resumen por máquina, comparativos, propietarios
@@ -770,7 +754,7 @@ def calcular_liquidacion():
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                LEFT JOIN turnusage tu ON qr.id = tu.qrCodeId
+                LEFT JOIN (SELECT qrCodeId, MIN(machineId) AS machineId FROM turnusage GROUP BY qrCodeId) tu ON qr.id = tu.qrCodeId
                 LEFT JOIN machine m ON tu.machineId = m.id
                 LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
                 LEFT JOIN maquinapropietario mp ON m.id = mp.maquina_id
@@ -827,9 +811,9 @@ def calcular_liquidacion():
             'periodo': {
                 'fecha_inicio':      fecha_inicio.isoformat(),
                 'fecha_fin':         fecha_fin.isoformat(),
-                'total_ventas':      int(periodo.get('total_ventas') or 0),
+                'total_ventas':      sum(p['paquetes_vendidos'] for p in paquetes_resumen),
                 'total_ingresos':    round(total_ingresos, 2),
-                'maquinas_utilizadas': int(periodo.get('maquinas_utilizadas') or 0),
+                'maquinas_utilizadas': len(resumen_maquinas),
             },
             'distribucion':           distribucion,
             'comparativos':           comparativos,
@@ -1024,7 +1008,6 @@ def registrar_gasto():
         data      = request.get_json() or {}
         concepto  = (data.get('concepto') or '').strip()
         monto     = _to_float(data.get('monto'))
-        categoria = (data.get('categoria') or 'otro').strip()
         fecha     = data.get('fecha') or get_colombia_time().strftime('%Y-%m-%d')
 
         if not concepto or monto <= 0:
@@ -1036,9 +1019,9 @@ def registrar_gasto():
         cursor = get_db_cursor(connection)
 
         cursor.execute(
-            """INSERT INTO gastos_liquidacion (concepto, monto, categoria, fecha, usuario_id)
-               VALUES (%s, %s, %s, %s, %s)""",
-            (concepto, monto, categoria, fecha, session.get('user_id')),
+            """INSERT INTO gastos_liquidacion (concepto, monto, fecha, usuario_id)
+               VALUES (%s, %s, %s, %s)""",
+            (concepto, monto, fecha, session.get('user_id')),
         )
         connection.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
