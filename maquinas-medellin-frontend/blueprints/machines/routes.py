@@ -168,7 +168,6 @@ def obtener_maquinas_por_tipo():
 
         active_id, active_name = get_active_location()
         can_all = user_can_view_all()
-        logger.info(f"[DEBUG maquinas-por-tipo] user={session.get('user_name')} role={session.get('user_role')} active_id={active_id} active_name={active_name} can_all={can_all} user_local={session.get('user_local')}")
 
         BASE_SQL = """
             SELECT

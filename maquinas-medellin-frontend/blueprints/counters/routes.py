@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 
@@ -23,6 +24,10 @@ def obtener_contador_global_vendidos():
     cursor = None
     try:
         fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        loc_cond = "" if (can_all and active_id is None) else " AND qh.local = %s"
+        loc_val  = [] if (can_all and active_id is None) else [active_name]
 
         connection = get_db_connection()
         if not connection:
@@ -37,7 +42,7 @@ def obtener_contador_global_vendidos():
             WHERE DATE(qh.fecha_hora) = %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-        """, (fecha,))
+        """ + loc_cond, [fecha] + loc_val)
         resultado = cursor.fetchone()
 
         cursor.execute("""
@@ -48,7 +53,7 @@ def obtener_contador_global_vendidos():
             WHERE DATE(qh.fecha_hora) = %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-        """, (fecha,))
+        """ + loc_cond, [fecha] + loc_val)
         ventas = cursor.fetchone()
 
         logger.info(f"Contador global vendidos: {resultado['total_vendidos'] or 0} QR vendidos hoy")
@@ -78,6 +83,10 @@ def obtener_contador_global_escaneados():
     cursor = None
     try:
         fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        loc_cond = "" if (can_all and active_id is None) else " AND qh.local = %s"
+        loc_val  = [] if (can_all and active_id is None) else [active_name]
 
         connection = get_db_connection()
         if not connection:
@@ -87,9 +96,9 @@ def obtener_contador_global_escaneados():
 
         cursor.execute("""
             SELECT COUNT(*) as total_escaneados
-            FROM qrhistory
-            WHERE DATE(fecha_hora) = %s
-        """, (fecha,))
+            FROM qrhistory qh
+            WHERE DATE(qh.fecha_hora) = %s
+        """ + loc_cond, [fecha] + loc_val)
         resultado = cursor.fetchone()
 
         cursor.execute("""
@@ -99,7 +108,7 @@ def obtener_contador_global_escaneados():
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             WHERE DATE(qh.fecha_hora) = %s
-        """, (fecha,))
+        """ + loc_cond, [fecha] + loc_val)
         desglose = cursor.fetchone()
 
         logger.info(f"Contador global escaneados: {resultado['total_escaneados'] or 0} hoy")
@@ -130,6 +139,10 @@ def obtener_contador_global_turnos():
     cursor = None
     try:
         fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        loc_id_cond = "" if (can_all and active_id is None) else " AND m.location_id = %s"
+        loc_id_val  = [] if (can_all and active_id is None) else [active_id]
 
         connection = get_db_connection()
         if not connection:
@@ -139,9 +152,10 @@ def obtener_contador_global_turnos():
 
         cursor.execute("""
             SELECT COUNT(*) as turnos_utilizados
-            FROM turnusage
-            WHERE DATE(usedAt) = %s
-        """, (fecha,))
+            FROM turnusage tu
+            JOIN machine m ON tu.machineId = m.id
+            WHERE DATE(tu.usedAt) = %s
+        """ + loc_id_cond, [fecha] + loc_id_val)
         resultado = cursor.fetchone()
 
         cursor.execute("""
@@ -149,9 +163,10 @@ def obtener_contador_global_turnos():
             FROM turnusage tu
             JOIN machine m ON tu.machineId = m.id
             WHERE DATE(tu.usedAt) = %s
+        """ + loc_id_cond + """
             GROUP BY m.id, m.name
             ORDER BY turnos DESC
-        """, (fecha,))
+        """, [fecha] + loc_id_val)
         por_maquina = cursor.fetchall()
 
         logger.info(f"Contador global turnos: {resultado['turnos_utilizados'] or 0} hoy")
@@ -181,6 +196,12 @@ def obtener_contador_global_resumen():
     cursor = None
     try:
         fecha = request.args.get('fecha', get_colombia_time().strftime('%Y-%m-%d'))
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        loc_cond    = "" if (can_all and active_id is None) else " AND qh.local = %s"
+        loc_val     = [] if (can_all and active_id is None) else [active_name]
+        loc_id_cond = "" if (can_all and active_id is None) else " AND m.location_id = %s"
+        loc_id_val  = [] if (can_all and active_id is None) else [active_id]
 
         connection = get_db_connection()
         if not connection:
@@ -198,16 +219,26 @@ def obtener_contador_global_resumen():
             WHERE DATE(qh.fecha_hora) = %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-        """, (fecha,))
+        """ + loc_cond, [fecha] + loc_val)
         ventas = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as total_escaneados FROM qrhistory WHERE DATE(fecha_hora) = %s", (fecha,))
+        cursor.execute("""
+            SELECT COUNT(*) as total_escaneados FROM qrhistory qh WHERE DATE(qh.fecha_hora) = %s
+        """ + loc_cond, [fecha] + loc_val)
         escaneados = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as turnos_utilizados FROM turnusage WHERE DATE(usedAt) = %s", (fecha,))
+        cursor.execute("""
+            SELECT COUNT(*) as turnos_utilizados
+            FROM turnusage tu JOIN machine m ON tu.machineId = m.id
+            WHERE DATE(tu.usedAt) = %s
+        """ + loc_id_cond, [fecha] + loc_id_val)
         turnos = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as fallas_reportadas FROM machinefailures WHERE DATE(reported_at) = %s", (fecha,))
+        cursor.execute("""
+            SELECT COUNT(*) as fallas_reportadas
+            FROM machinefailures mf JOIN machine m ON mf.machine_id = m.id
+            WHERE DATE(mf.reported_at) = %s
+        """ + loc_id_cond, [fecha] + loc_id_val)
         fallas = cursor.fetchone()
 
         cursor.execute("SELECT COUNT(*) as reportes_maquinas FROM errorreport WHERE DATE(reportedAt) = %s", (fecha,))

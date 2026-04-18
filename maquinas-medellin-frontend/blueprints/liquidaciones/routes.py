@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import apply_location_name_filter, get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 
@@ -38,8 +39,8 @@ def obtener_ventas_liquidadas():
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
-        cursor.execute(
-            """
+
+        _sql_count = """
             SELECT COUNT(*) as total
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
@@ -47,9 +48,11 @@ def obtener_ventas_liquidadas():
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
               AND qh.es_venta_real = TRUE
-            """,
-            (fecha_inicio, fecha_fin),
+            """
+        _sql_count, _params_count = apply_location_name_filter(
+            _sql_count, [fecha_inicio, fecha_fin], column='local', table_alias='qh'
         )
+        cursor.execute(_sql_count, _params_count)
         total_result = cursor.fetchone()
         total = total_result['total'] if total_result else 0
 
@@ -86,7 +89,7 @@ def obtener_ventas_liquidadas():
 
         if tiene_porcentaje and tiene_propietarios:
             logger.info("Usando consulta completa con tablas de porcentaje y propietarios")
-            cursor.execute(
+            _sql, _params = apply_location_name_filter(
                 """
                 SELECT
                     DATE(qh.fecha_hora) as fecha,
@@ -119,11 +122,13 @@ def obtener_ventas_liquidadas():
                 ORDER BY qh.fecha_hora DESC
                 LIMIT %s OFFSET %s
                 """,
-                (fecha_inicio, fecha_fin, por_pagina, offset),
+                [fecha_inicio, fecha_fin, por_pagina, offset],
+                column='local', table_alias='qh',
             )
+            cursor.execute(_sql, _params)
         else:
             logger.info("Usando consulta simplificada (sin tablas de porcentaje/propietarios)")
-            cursor.execute(
+            _sql, _params = apply_location_name_filter(
                 """
                 SELECT
                     DATE(qh.fecha_hora) as fecha,
@@ -151,8 +156,10 @@ def obtener_ventas_liquidadas():
                 ORDER BY qh.fecha_hora DESC
                 LIMIT %s OFFSET %s
                 """,
-                (fecha_inicio, fecha_fin, por_pagina, offset),
+                [fecha_inicio, fecha_fin, por_pagina, offset],
+                column='local', table_alias='qh',
             )
+            cursor.execute(_sql, _params)
 
         ventas = cursor.fetchall()
         logger.info(f"Ventas obtenidas: {len(ventas)} registros")
@@ -231,7 +238,7 @@ def calcular_liquidacion():
             tiene_propietarios = False
             tiene_tabla_propietarios = False
 
-        cursor.execute(
+        _sql_p, _params_p = apply_location_name_filter(
             """
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
@@ -247,8 +254,10 @@ def calcular_liquidacion():
               AND qr.turnPackageId != 1
               AND qh.es_venta_real = TRUE
             """,
-            (fecha_inicio, fecha_fin),
+            [fecha_inicio, fecha_fin],
+            column='local', table_alias='qh',
         )
+        cursor.execute(_sql_p, _params_p)
         periodo = cursor.fetchone()
         logger.info(f"Estadísticas período: {periodo}")
 
@@ -282,7 +291,7 @@ def calcular_liquidacion():
         distribucion_propietarios = {}
         if tiene_propietarios and tiene_tabla_propietarios:
             try:
-                cursor.execute(
+                _sql_dp, _params_dp = apply_location_name_filter(
                     """
                     SELECT
                         p.id as propietario_id,
@@ -307,8 +316,10 @@ def calcular_liquidacion():
                       AND qh.es_venta_real = TRUE
                     GROUP BY p.id, p.nombre
                     """,
-                    (fecha_inicio, fecha_fin),
+                    [fecha_inicio, fecha_fin],
+                    column='local', table_alias='qh',
                 )
+                cursor.execute(_sql_dp, _params_dp)
                 propietarios_data = cursor.fetchall()
 
                 for prop in propietarios_data:
@@ -328,7 +339,7 @@ def calcular_liquidacion():
         resumen_maquinas = {}
         try:
             if tiene_porcentaje:
-                cursor.execute(
+                _sql_rm, _params_rm = apply_location_name_filter(
                     """
                     SELECT
                         m.id as maquina_id,
@@ -352,10 +363,12 @@ def calcular_liquidacion():
                     GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante
                     ORDER BY ingresos_totales DESC
                     """,
-                    (fecha_inicio, fecha_fin),
+                    [fecha_inicio, fecha_fin],
+                    column='local', table_alias='qh',
                 )
+                cursor.execute(_sql_rm, _params_rm)
             else:
-                cursor.execute(
+                _sql_rm, _params_rm = apply_location_name_filter(
                     """
                     SELECT
                         m.id as maquina_id,
@@ -378,8 +391,10 @@ def calcular_liquidacion():
                     GROUP BY m.id, m.name, m.type
                     ORDER BY ingresos_totales DESC
                     """,
-                    (fecha_inicio, fecha_fin),
+                    [fecha_inicio, fecha_fin],
+                    column='local', table_alias='qh',
                 )
+                cursor.execute(_sql_rm, _params_rm)
 
             maquinas_data = cursor.fetchall()
             for maq in maquinas_data:
@@ -400,7 +415,7 @@ def calcular_liquidacion():
         datos_tabla = []
         try:
             if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
-                cursor.execute(
+                _sql_dt, _params_dt = apply_location_name_filter(
                     """
                     SELECT
                         DATE(qh.fecha_hora) as fecha,
@@ -426,10 +441,12 @@ def calcular_liquidacion():
                       AND qh.es_venta_real = TRUE
                     ORDER BY qh.fecha_hora DESC
                     """,
-                    (fecha_inicio, fecha_fin),
+                    [fecha_inicio, fecha_fin],
+                    column='local', table_alias='qh',
                 )
+                cursor.execute(_sql_dt, _params_dt)
             else:
-                cursor.execute(
+                _sql_dt, _params_dt = apply_location_name_filter(
                     """
                     SELECT
                         DATE(qh.fecha_hora) as fecha,
@@ -450,8 +467,10 @@ def calcular_liquidacion():
                       AND qh.es_venta_real = TRUE
                     ORDER BY qh.fecha_hora DESC
                     """,
-                    (fecha_inicio, fecha_fin),
+                    [fecha_inicio, fecha_fin],
+                    column='local', table_alias='qh',
                 )
+                cursor.execute(_sql_dt, _params_dt)
 
             datos_tabla = cursor.fetchall()
             logger.info(f"Datos tabla: {len(datos_tabla)} registros")

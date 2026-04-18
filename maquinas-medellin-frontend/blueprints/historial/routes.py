@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, session
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import parse_db_datetime
 
@@ -23,7 +24,8 @@ def obtener_historial_completo():
     cursor = None
     try:
         user_id = session.get('user_id')
-        local = session.get('user_local', 'El Mekatiadero')
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
 
         connection = get_db_connection()
         if not connection:
@@ -31,54 +33,27 @@ def obtener_historial_completo():
 
         cursor = get_db_cursor(connection)
 
+        BASE_QRY = """
+            SELECT
+                h.id, h.qr_code, h.user_name, h.qr_name, h.fecha_hora,
+                qr.turnPackageId,
+                tp.name as package_name,
+                tp.price as precio_paquete,
+                ut.turns_remaining
+            FROM qrhistory h
+            LEFT JOIN qrcode qr ON qr.code = h.qr_code
+            LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
+            LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            WHERE h.es_venta_real = TRUE
+        """
+
         if session.get('user_role') == 'admin':
-            cursor.execute(
-                """
-                SELECT
-                    h.id,
-                    h.qr_code,
-                    h.user_name,
-                    h.qr_name,
-                    h.fecha_hora,
-                    qr.turnPackageId,
-                    tp.name as package_name,
-                    tp.price as precio_paquete,
-                    ut.turns_remaining
-                FROM qrhistory h
-                LEFT JOIN qrcode qr ON qr.code = h.qr_code
-                LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
-                LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
-                WHERE h.local = %s
-                  AND h.es_venta_real = TRUE
-                ORDER BY h.fecha_hora DESC
-                LIMIT 100
-                """,
-                (local,),
-            )
+            if can_all and active_id is None:
+                cursor.execute(BASE_QRY + " ORDER BY h.fecha_hora DESC LIMIT 100")
+            else:
+                cursor.execute(BASE_QRY + " AND h.local = %s ORDER BY h.fecha_hora DESC LIMIT 100", (active_name,))
         else:
-            cursor.execute(
-                """
-                SELECT
-                    h.id,
-                    h.qr_code,
-                    h.user_name,
-                    h.qr_name,
-                    h.fecha_hora,
-                    qr.turnPackageId,
-                    tp.name as package_name,
-                    tp.price as precio_paquete,
-                    ut.turns_remaining
-                FROM qrhistory h
-                LEFT JOIN qrcode qr ON qr.code = h.qr_code
-                LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
-                LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
-                WHERE (h.user_id = %s OR h.local = %s)
-                  AND h.es_venta_real = TRUE
-                ORDER BY h.fecha_hora DESC
-                LIMIT 50
-                """,
-                (user_id, local),
-            )
+            cursor.execute(BASE_QRY + " AND (h.user_id = %s OR h.local = %s) ORDER BY h.fecha_hora DESC LIMIT 50", (user_id, active_name))
 
         historial = cursor.fetchall()
 
