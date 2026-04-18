@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, request, session
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
-from utils.location_scope import apply_location_name_filter
+from utils.location_scope import apply_location_filter, apply_location_name_filter
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
@@ -97,7 +97,7 @@ def _admin_expr(tiene_admin_col):
 
 def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
     """Resumen de paquetes vendidos en el período, con turnos usados y restantes."""
-    sql, params = apply_location_name_filter(
+    sql, params = apply_location_filter(
         """
         SELECT
             tp.id AS paquete_id,
@@ -118,7 +118,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
         ORDER BY paquetes_vendidos DESC
         """,
         [fecha_inicio, fecha_fin],
-        column='local', table_alias='qh',
+        column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
 
@@ -164,13 +164,14 @@ def _fetch_turnos_summary(cursor, fecha_inicio, fecha_fin, paquetes):
 
 def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
     """Top 3 máquinas por turnos jugados en el período."""
-    sql, params = apply_location_name_filter(
+    sql, params = apply_location_filter(
         """
         SELECT m.name AS maquina_nombre, COUNT(tu.id) AS turnos_jugados
         FROM turnusage tu
         JOIN machine m ON tu.machineId = m.id
         JOIN qrcode  qr ON tu.qrCodeId = qr.id
         JOIN qrhistory qh ON qh.qr_code = qr.code
+        JOIN turnpackage tp ON qr.turnPackageId = tp.id
         WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
           AND qh.es_venta_real = TRUE
           AND qr.turnPackageId IS NOT NULL
@@ -180,7 +181,7 @@ def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
         LIMIT 3
         """,
         [fecha_inicio, fecha_fin],
-        column='local', table_alias='qh',
+        column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
     return [
@@ -458,7 +459,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
     tiene_admin = _has_admin_col(cursor)
     admin_expr  = _admin_expr(tiene_admin)
 
-    sql, params = apply_location_name_filter(
+    sql, params = apply_location_filter(
         f"""
         SELECT
             p.id AS propietario_id,
@@ -492,7 +493,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         ORDER BY p.nombre, m.name, paquetes_vendidos DESC
         """,
         [fecha_inicio, fecha_fin],
-        column='local', table_alias='qh',
+        column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
 
@@ -738,7 +739,7 @@ def calcular_liquidacion():
 
         # Tabla detallada
         if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
-            datos_sql, datos_params = apply_location_name_filter(
+            datos_sql, datos_params = apply_location_filter(
                 """
                 SELECT
                     DATE(qh.fecha_hora) AS fecha,
@@ -766,10 +767,10 @@ def calcular_liquidacion():
                 ORDER BY qh.fecha_hora DESC
                 """,
                 [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [fecha_inicio, fecha_fin],
-                column='local', table_alias='qh',
+                column='location_id', table_alias='tp',
             )
         else:
-            datos_sql, datos_params = apply_location_name_filter(
+            datos_sql, datos_params = apply_location_filter(
                 """
                 SELECT
                     DATE(qh.fecha_hora) AS fecha,
@@ -792,7 +793,7 @@ def calcular_liquidacion():
                 ORDER BY qh.fecha_hora DESC
                 """,
                 [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [fecha_inicio, fecha_fin],
-                column='local', table_alias='qh',
+                column='location_id', table_alias='tp',
             )
         cursor.execute(datos_sql, datos_params)
         datos_tabla = cursor.fetchall()
@@ -875,16 +876,17 @@ def obtener_ventas_liquidadas():
         tiene_admin = _has_admin_col(cursor) if tiene_porcentaje else False
         admin_expr  = _admin_expr(tiene_admin)
 
-        count_sql, count_params = apply_location_name_filter(
+        count_sql, count_params = apply_location_filter(
             """SELECT COUNT(*) AS total
                FROM qrhistory qh
                JOIN qrcode qr ON qr.code = qh.qr_code
+               JOIN turnpackage tp ON qr.turnPackageId = tp.id
                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                  AND qr.turnPackageId IS NOT NULL
                  AND qr.turnPackageId != 1
                  AND qh.es_venta_real = TRUE""",
             [fecha_inicio, fecha_fin],
-            column='local', table_alias='qh',
+            column='location_id', table_alias='tp',
         )
         cursor.execute(count_sql, count_params)
         total = (cursor.fetchone() or {}).get('total', 0)
@@ -905,7 +907,7 @@ def obtener_ventas_liquidadas():
                      'LEFT JOIN propietarios p ON mp.propietario_id = p.id')
                     if tiene_propietarios else '')
 
-        query, params = apply_location_name_filter(
+        query, params = apply_location_filter(
             f"""
             SELECT
                 DATE(qh.fecha_hora) AS fecha,
@@ -925,7 +927,7 @@ def obtener_ventas_liquidadas():
             FROM qrhistory qh
             JOIN qrcode      qr ON qr.code          = qh.qr_code
             JOIN turnpackage  tp ON qr.turnPackageId = tp.id
-            LEFT JOIN turnusage tu ON qr.id          = tu.qrCodeId
+            LEFT JOIN (SELECT qrCodeId, MIN(machineId) AS machineId FROM turnusage GROUP BY qrCodeId) tu ON qr.id = tu.qrCodeId
             LEFT JOIN machine    m ON tu.machineId   = m.id
             {mpr_join}
             {mp_join}
@@ -937,7 +939,7 @@ def obtener_ventas_liquidadas():
             LIMIT %s OFFSET %s
             """,
             [fecha_inicio, fecha_fin, por_pagina, offset],
-            column='local', table_alias='qh',
+            column='location_id', table_alias='tp',
         )
         cursor.execute(query, params)
         ventas = cursor.fetchall()
