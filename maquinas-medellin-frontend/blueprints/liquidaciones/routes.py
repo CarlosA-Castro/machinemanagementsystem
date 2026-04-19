@@ -116,8 +116,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
             tp.turns AS turnos_por_paquete,
             tp.price AS precio_unitario,
             COUNT(DISTINCT qh.qr_code) AS paquetes_vendidos,
-            COUNT(DISTINCT qh.qr_code) * COALESCE(MAX(tp.price), 0) AS ingresos_totales,
-            COALESCE(SUM(qr.remainingTurns), 0) AS turnos_restantes_acum
+            COUNT(DISTINCT qh.qr_code) * COALESCE(MAX(tp.price), 0) AS ingresos_totales
         FROM qrhistory qh
         JOIN qrcode qr ON qr.code = qh.qr_code
         JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -132,14 +131,35 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
         column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
+    rows = cursor.fetchall()
+
+    # Turnos realmente jugados por tipo de paquete:
+    # se cuentan los registros de turnusage de los QR vendidos en el período.
+    cursor.execute(
+        """
+        SELECT qr.turnPackageId AS paquete_id, COUNT(tu.id) AS turnos_jugados
+        FROM turnusage tu
+        JOIN qrcode qr ON tu.qrCodeId = qr.id
+        WHERE qr.code IN (
+            SELECT qh2.qr_code FROM qrhistory qh2
+            WHERE DATE(qh2.fecha_hora) BETWEEN %s AND %s
+              AND qh2.es_venta_real = TRUE
+        )
+          AND qr.turnPackageId IS NOT NULL
+          AND qr.turnPackageId != 1
+        GROUP BY qr.turnPackageId
+        """,
+        (fecha_inicio, fecha_fin),
+    )
+    plays_by_pkg = {r['paquete_id']: int(r['turnos_jugados']) for r in cursor.fetchall()}
 
     paquetes = []
-    for row in cursor.fetchall():
+    for row in rows:
         turnos_por_paquete = int(row['turnos_por_paquete'] or 0)
         paquetes_vendidos  = int(row['paquetes_vendidos'] or 0)
         turnos_totales     = paquetes_vendidos * turnos_por_paquete
-        turnos_restantes   = int(row['turnos_restantes_acum'] or 0)
-        turnos_usados      = max(turnos_totales - turnos_restantes, 0)
+        turnos_usados      = plays_by_pkg.get(int(row['paquete_id']), 0)
+        turnos_restantes   = max(turnos_totales - turnos_usados, 0)
         ingresos           = _to_float(row['ingresos_totales'])
         precio_turno       = ingresos / turnos_totales if turnos_totales > 0 else 0.0
 
@@ -487,8 +507,8 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
             tp.name AS paquete_nombre,
             tp.price AS precio_unitario,
             tp.turns AS turnos_paquete,
-            COUNT(DISTINCT qh.qr_code) AS paquetes_vendidos,
-            COUNT(DISTINCT qh.qr_code) * tp.price AS total_paquete,
+            COUNT(tu.id) AS turnos_jugados,
+            COUNT(tu.id) * COALESCE(tp.price / NULLIF(tp.turns, 0), 0) AS total_paquete,
             COALESCE(mpr.porcentaje_restaurante, 35.00) AS pct_negocio,
             {admin_expr} AS pct_admin
         FROM qrhistory qh
@@ -506,7 +526,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad,
                  tp.id, tp.name, tp.price, tp.turns,
                  mpr.porcentaje_restaurante, {admin_expr}
-        ORDER BY p.nombre, m.name, paquetes_vendidos DESC
+        ORDER BY p.nombre, m.name, turnos_jugados DESC
         """,
         [fecha_inicio, fecha_fin],
         column='location_id', table_alias='tp',
@@ -530,12 +550,15 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
             }
         maq = inv_map[pid]['maquinas'][mid]
         total_p = _to_float(r['total_paquete'])
+        turnos_pkg = int(r['turnos_paquete'] or 1)
+        precio_unit = _to_float(r['precio_unitario'])
         maq['paquetes'].append({
             'paquete_id':        r['paquete_id'],
             'paquete_nombre':    r['paquete_nombre'],
-            'precio_unitario':   _to_float(r['precio_unitario']),
-            'turnos_paquete':    int(r['turnos_paquete'] or 0),
-            'paquetes_vendidos': int(r['paquetes_vendidos'] or 0),
+            'precio_unitario':   precio_unit,
+            'turnos_paquete':    turnos_pkg,
+            'precio_por_turno':  round(precio_unit / turnos_pkg, 2),
+            'turnos_jugados':    int(r['turnos_jugados'] or 0),
             'total':             total_p,
         })
         maq['ingresos_maquina'] += total_p

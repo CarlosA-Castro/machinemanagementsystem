@@ -154,7 +154,7 @@
             box-shadow: 0 4px 16px rgba(0,0,0,0.25); pointer-events: none; text-align: center;
         }
         .tip-wrap.tip-left .tip-text { left: auto; right: 0; transform: none; }
-        .tip-wrap:hover .tip-text { display: block; }
+        /* tooltip hover handled by JS fixed engine below */
         .tip-wrap .tip-text::after {
             content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
             border: 5px solid transparent; border-top-color: #1e293b;
@@ -474,8 +474,9 @@
                 <div class="tab-info" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">
                     <i class="fas fa-info-circle mr-2"></i>
                     <strong>¿Cómo se calcula lo que recibe cada inversionista?</strong>
-                    Ingresos de la máquina × <em>% Utilidad</em> (lo que queda después de Negocio y Administración) × <em>% Propiedad</em> del inversionista sobre esa máquina.
-                    Si tienes el 50% de una máquina, recibes el 50% de su utilidad.
+                    Se cuentan los <em>turnos jugados</em> en cada máquina (del historial real) × precio/turno del paquete = ingresos de la máquina.
+                    Luego: ingresos × <em>% Utilidad</em> (lo que queda tras Negocio y Administración) × <em>% Propiedad</em>.
+                    Si tienes el 50% de una máquina, recibes el 50% de su utilidad basada en turnos jugados.
                 </div>
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-gray-700"><i class="fas fa-user-tie mr-2 text-purple-600"></i>Liquidación por Inversionista</h2>
@@ -953,8 +954,8 @@ function renderInversionistas(data) {
             const paqRows = (maq.paquetes || []).map(p =>
                 `<tr>
                     <td class="py-1 text-sm">${p.paquete_nombre}</td>
-                    <td class="py-1 text-sm text-right">${fmtN(p.paquetes_vendidos || p.cantidad_vendidos)}×</td>
-                    <td class="py-1 text-sm text-right">${fmt(p.precio_unitario || 0)}</td>
+                    <td class="py-1 text-sm text-right">${fmtN(p.turnos_jugados || 0)} turnos</td>
+                    <td class="py-1 text-sm text-right">${fmt(p.precio_por_turno || 0)}/turno</td>
                     <td class="py-1 text-sm text-right font-semibold">${fmt(p.total)}</td>
                 </tr>`
             ).join('');
@@ -980,7 +981,7 @@ function renderInversionistas(data) {
                 <!-- Paquetes jugados en esta máquina -->
                 ${paqRows ? `<div class="tbl-wrap mb-3">
                     <table>
-                        <thead><tr><th>Paquete</th><th class="text-right">Cant.</th><th class="text-right">Precio</th><th class="text-right">Total</th></tr></thead>
+                        <thead><tr><th>Paquete</th><th class="text-right">Turnos jugados</th><th class="text-right">$/turno</th><th class="text-right">Total</th></tr></thead>
                         <tbody>${paqRows}</tbody>
                     </table>
                 </div>` : '<p class="text-xs text-gray-400 mb-3">Sin detalle de paquetes disponible</p>'}
@@ -1448,6 +1449,33 @@ function cerrarModal(id) { document.getElementById(id).classList.remove('open');
 document.querySelectorAll('.modal-overlay').forEach(m =>
     m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); })
 );
+
+// Motor de tooltips con position:fixed para evitar clipping por overflow:auto
+(function() {
+    const box = document.createElement('div');
+    box.style.cssText = 'display:none;position:fixed;z-index:9999;background:#1e293b;color:#f1f5f9;' +
+        'border-radius:8px;padding:7px 11px;font-size:0.72rem;line-height:1.5;width:220px;' +
+        'pointer-events:none;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.25);';
+    document.body.appendChild(box);
+    function move(e) {
+        const w = 220, m = 8;
+        let x = e.clientX - w / 2;
+        let y = e.clientY - box.offsetHeight - 12;
+        if (x < m) x = m;
+        if (x + w > innerWidth - m) x = innerWidth - w - m;
+        if (y < m) y = e.clientY + 16;
+        box.style.left = x + 'px';
+        box.style.top  = y + 'px';
+    }
+    document.querySelectorAll('.tip-wrap').forEach(el => {
+        const tip = el.querySelector('.tip-text');
+        if (!tip) return;
+        const text = tip.textContent.trim();
+        el.addEventListener('mouseenter', e => { box.textContent = text; box.style.display = 'block'; move(e); });
+        el.addEventListener('mousemove', move);
+        el.addEventListener('mouseleave', () => { box.style.display = 'none'; });
+    });
+})();
 </script>
 
 <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
