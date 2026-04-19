@@ -680,11 +680,11 @@
         </p>
 
         <div class="reveal d3" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.75rem;">
-          <a href="/login" class="btn-primary btn-glow">
-            <i class="fas fa-gamepad"></i> Acceder al Sistema
+          <a href="#simula" class="btn-primary btn-glow">
+            <i class="fas fa-chart-line"></i> Simula tu inversión
           </a>
-          <a href="#plataforma" class="btn-secondary">
-            <i class="fas fa-info-circle"></i> Ver más
+          <a href="/login" class="btn-secondary">
+            <i class="fas fa-sign-in-alt"></i> Acceder al Sistema
           </a>
         </div>
 
@@ -746,6 +746,123 @@
   <div style="position:absolute;bottom:1.75rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:0.3rem;z-index:10;opacity:.4;">
     <span style="font-size:0.58rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--cream);">Scroll</span>
     <i class="fas fa-chevron-down scroll-arrow" style="color:var(--cream);font-size:0.7rem;"></i>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== SIMULADOR ===================== -->
+<section id="simula" style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-5xl mx-auto">
+
+    <div style="text-align:center;margin-bottom:3rem;">
+      <span class="s-label reveal">Para Inversionistas</span>
+      <h2 class="s-title reveal d1">Simula tu inversión</h2>
+      <p class="reveal d2" style="font-size:0.9rem;color:rgba(244,241,235,0.42);margin-top:0.75rem;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.7;">
+        Ajusta los parámetros y mira en tiempo real cuánto podrías ganar basado en los datos históricos reales de la operación.
+      </p>
+      <div class="s-underline reveal d3" style="margin:0.9rem auto 0;"></div>
+    </div>
+
+    <div class="sim-grid reveal d1">
+
+      <!-- Controles -->
+      <div class="sim-card">
+        <p style="font-size:0.72rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1.5rem;">
+          <i class="fas fa-sliders-h mr-1"></i> Configura tu inversión
+        </p>
+
+        <!-- % Propiedad -->
+        <div class="sim-slider-wrap">
+          <div class="sim-label">
+            <span>% Propiedad por máquina</span>
+            <span class="sim-label-val" id="val-prop">25%</span>
+          </div>
+          <input type="range" class="sim-range" id="rng-prop" min="5" max="100" step="5" value="25">
+        </div>
+
+        <!-- N° Máquinas -->
+        <div class="sim-slider-wrap">
+          <div class="sim-label">
+            <span>Número de máquinas</span>
+            <span class="sim-label-val" id="val-maq">2</span>
+          </div>
+          <input type="range" class="sim-range" id="rng-maq" min="1" max="10" step="1" value="2">
+        </div>
+
+        <!-- Período -->
+        <div class="sim-slider-wrap" style="margin-bottom:0;">
+          <div class="sim-label" style="margin-bottom:0.7rem;">
+            <span>Período de proyección</span>
+          </div>
+          <div class="sim-period-btns">
+            <button class="sim-period-btn" data-m="1">1 mes</button>
+            <button class="sim-period-btn active" data-m="3">3 meses</button>
+            <button class="sim-period-btn" data-m="6">6 meses</button>
+            <button class="sim-period-btn" data-m="12">1 año</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado -->
+      <div class="sim-result-card">
+        <div style="position:relative;z-index:1;">
+          <p style="font-size:0.7rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1rem;">
+            <i class="fas fa-chart-line mr-1"></i> Ganancia estimada
+          </p>
+
+          <div style="margin-bottom:0.3rem;">
+            <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);margin-bottom:0.25rem;">Total en el período</div>
+            <div class="sim-result-main" id="sim-total">$0</div>
+          </div>
+
+          <div class="sim-formula-row" id="sim-formula-row">
+            <span class="sim-formula-chip active-chip" id="fc-turnos">— turnos/mes</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip active-chip" id="fc-precio">$—/turno</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-util">— % util.</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-prop">— % prop.</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-maq">— máq.</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-meses">— meses</span>
+          </div>
+
+          <div class="sim-breakdown">
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-mensual">$0</div>
+              <div class="sim-bd-lbl">Por mes</div>
+            </div>
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-por-maquina">$0</div>
+              <div class="sim-bd-lbl">Por máquina/mes</div>
+            </div>
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-turnos-mes">—</div>
+              <div class="sim-bd-lbl">Turnos prom./mes</div>
+            </div>
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-pct-util">—%</div>
+              <div class="sim-bd-lbl">% Utilidad prom.</div>
+            </div>
+          </div>
+
+          <div class="sim-disclaimer">
+            <i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0;color:rgba(244,241,235,0.25);"></i>
+            <span>Estimado basado en datos históricos reales de la operación. Los resultados pueden variar según temporada, ubicación y uso del equipo.</span>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;margin-top:1.5rem;text-align:center;">
+          <a href="#se-parte" class="btn-primary btn-glow" style="display:inline-flex;font-size:0.88rem;padding:.7rem 1.6rem;">
+            <i class="fas fa-handshake"></i> Quiero invertir
+          </a>
+        </div>
+      </div>
+
+    </div>
   </div>
 </section>
 
@@ -954,123 +1071,6 @@
       }
     </style>
 
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ===================== SIMULADOR ===================== -->
-<section id="simula" style="padding:5rem 1.5rem;position:relative;z-index:10;">
-  <div class="max-w-5xl mx-auto">
-
-    <div style="text-align:center;margin-bottom:3rem;">
-      <span class="s-label reveal">Para Inversionistas</span>
-      <h2 class="s-title reveal d1">Simula tu inversión</h2>
-      <p class="reveal d2" style="font-size:0.9rem;color:rgba(244,241,235,0.42);margin-top:0.75rem;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.7;">
-        Ajusta los parámetros y mira en tiempo real cuánto podrías ganar basado en los datos históricos reales de la operación.
-      </p>
-      <div class="s-underline reveal d3" style="margin:0.9rem auto 0;"></div>
-    </div>
-
-    <div class="sim-grid reveal d1">
-
-      <!-- Controles -->
-      <div class="sim-card">
-        <p style="font-size:0.72rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1.5rem;">
-          <i class="fas fa-sliders-h mr-1"></i> Configura tu inversión
-        </p>
-
-        <!-- % Propiedad -->
-        <div class="sim-slider-wrap">
-          <div class="sim-label">
-            <span>% Propiedad por máquina</span>
-            <span class="sim-label-val" id="val-prop">25%</span>
-          </div>
-          <input type="range" class="sim-range" id="rng-prop" min="5" max="100" step="5" value="25">
-        </div>
-
-        <!-- N° Máquinas -->
-        <div class="sim-slider-wrap">
-          <div class="sim-label">
-            <span>Número de máquinas</span>
-            <span class="sim-label-val" id="val-maq">2</span>
-          </div>
-          <input type="range" class="sim-range" id="rng-maq" min="1" max="10" step="1" value="2">
-        </div>
-
-        <!-- Período -->
-        <div class="sim-slider-wrap" style="margin-bottom:0;">
-          <div class="sim-label" style="margin-bottom:0.7rem;">
-            <span>Período de proyección</span>
-          </div>
-          <div class="sim-period-btns">
-            <button class="sim-period-btn" data-m="1">1 mes</button>
-            <button class="sim-period-btn active" data-m="3">3 meses</button>
-            <button class="sim-period-btn" data-m="6">6 meses</button>
-            <button class="sim-period-btn" data-m="12">1 año</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Resultado -->
-      <div class="sim-result-card">
-        <div style="position:relative;z-index:1;">
-          <p style="font-size:0.7rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1rem;">
-            <i class="fas fa-chart-line mr-1"></i> Ganancia estimada
-          </p>
-
-          <div style="margin-bottom:0.3rem;">
-            <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);margin-bottom:0.25rem;">Total en el período</div>
-            <div class="sim-result-main" id="sim-total">$0</div>
-          </div>
-
-          <div class="sim-formula-row" id="sim-formula-row">
-            <span class="sim-formula-chip active-chip" id="fc-turnos">— turnos/mes</span>
-            <span style="opacity:.3">×</span>
-            <span class="sim-formula-chip active-chip" id="fc-precio">$—/turno</span>
-            <span style="opacity:.3">×</span>
-            <span class="sim-formula-chip" id="fc-util">— % util.</span>
-            <span style="opacity:.3">×</span>
-            <span class="sim-formula-chip" id="fc-prop">— % prop.</span>
-            <span style="opacity:.3">×</span>
-            <span class="sim-formula-chip" id="fc-maq">— máq.</span>
-            <span style="opacity:.3">×</span>
-            <span class="sim-formula-chip" id="fc-meses">— meses</span>
-          </div>
-
-          <div class="sim-breakdown">
-            <div class="sim-bd-item">
-              <div class="sim-bd-val" id="sim-mensual">$0</div>
-              <div class="sim-bd-lbl">Por mes</div>
-            </div>
-            <div class="sim-bd-item">
-              <div class="sim-bd-val" id="sim-por-maquina">$0</div>
-              <div class="sim-bd-lbl">Por máquina/mes</div>
-            </div>
-            <div class="sim-bd-item">
-              <div class="sim-bd-val" id="sim-turnos-mes">—</div>
-              <div class="sim-bd-lbl">Turnos prom./mes</div>
-            </div>
-            <div class="sim-bd-item">
-              <div class="sim-bd-val" id="sim-pct-util">—%</div>
-              <div class="sim-bd-lbl">% Utilidad prom.</div>
-            </div>
-          </div>
-
-          <div class="sim-disclaimer">
-            <i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0;color:rgba(244,241,235,0.25);"></i>
-            <span>Estimado basado en datos históricos reales de la operación. Los resultados pueden variar según temporada, ubicación y uso del equipo.</span>
-          </div>
-        </div>
-
-        <div style="position:relative;z-index:1;margin-top:1.5rem;text-align:center;">
-          <a href="#se-parte" class="btn-primary btn-glow" style="display:inline-flex;font-size:0.88rem;padding:.7rem 1.6rem;">
-            <i class="fas fa-handshake"></i> Quiero invertir
-          </a>
-        </div>
-      </div>
-
-    </div>
   </div>
 </section>
 
