@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Liquidaciones - Inversiones Arcade</title>
-    <link rel="icon" href="{{ url_for('static', filename='img/maquinasmedellinlogo.jpg') }}" type="image/jpg" />
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -337,6 +337,37 @@
                     </div>
                 </div>
 
+                <!-- Detalle individual de ventas -->
+                <div class="glass-card mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-700"><i class="fas fa-list-alt mr-2 text-indigo-500"></i>Detalle de Ventas</h3>
+                        <button onclick="toggleDetalleVentas()" id="btnToggleDetalle"
+                                class="btn btn-secondary btn-sm">
+                            <i class="fas fa-chevron-down mr-1" id="iconToggleDetalle"></i>Ver detalle
+                        </button>
+                    </div>
+                    <div id="detalleVentasWrap" class="hidden">
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Vendedor</th>
+                                        <th>Paquete</th>
+                                        <th>Máquina</th>
+                                        <th class="text-right">Precio</th>
+                                        <th class="text-right">% Negocio</th>
+                                        <th class="text-right">Negocio</th>
+                                        <th class="text-right">Propietario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaDetalleVentas"></tbody>
+                            </table>
+                        </div>
+                        <p id="detalleVentasEmpty" class="hidden text-center text-gray-400 py-6">Sin ventas registradas en el período.</p>
+                    </div>
+                </div>
+
                 <!-- Resumen de turnos -->
                 <div class="glass-card mb-0">
                     <h3 class="font-bold text-gray-700 mb-4"><i class="fas fa-coins mr-2 text-yellow-500"></i>Resumen de Turnos</h3>
@@ -630,9 +661,11 @@ async function calcular() {
         document.getElementById('mainContent').classList.toggle('hidden', sinDatos);
 
         if (!sinDatos) {
+            data_global = data;
             renderNegocio(data);
             renderInversionistas(data);
             renderArcade(data);
+            renderDetalleVentas(data.datos_tabla || []);
         }
     } catch (e) {
         toast('Error al calcular: ' + e.message, 'error');
@@ -709,31 +742,69 @@ function renderChartHistorial(hist, actualIngresos) {
         return d.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
     }).reverse();
     const valores = hist.map(h => h.total_ingresos).reverse();
-
-    // Agrega el período actual
     labels.push('Actual');
     valores.push(actualIngresos);
+
+    const negocio  = hist.map(h => h.total_negocio  || 0).reverse().concat([(data_global?.distribucion?.negocio?.monto  || actualIngresos * 0.317)]);
+    const admin    = hist.map(h => h.total_admin     || 0).reverse().concat([(data_global?.distribucion?.admin?.monto    || actualIngresos * 0.25)]);
+    const utilidad = hist.map(h => h.total_utilidad  || 0).reverse().concat([(data_global?.distribucion?.utilidad?.monto || actualIngresos * 0.433)]);
+
+    const isActual = (_, i) => i === valores.length - 1;
 
     charts.historial = new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
-            datasets: [{
-                label: 'Ingresos',
-                data: valores,
-                backgroundColor: valores.map((_, i) =>
-                    i === valores.length - 1 ? '#2563eb' : '#93c5fd'),
-                borderRadius: 6,
-            }]
+            datasets: [
+                {
+                    label: 'Negocio',
+                    data: negocio,
+                    backgroundColor: labels.map((_, i) => isActual(_, i) ? '#059669' : '#6ee7b7'),
+                    borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
+                    stack: 'total',
+                },
+                {
+                    label: 'Admin',
+                    data: admin,
+                    backgroundColor: labels.map((_, i) => isActual(_, i) ? '#d97706' : '#fcd34d'),
+                    borderRadius: 0,
+                    stack: 'total',
+                },
+                {
+                    label: 'Utilidad',
+                    data: utilidad,
+                    backgroundColor: labels.map((_, i) => isActual(_, i) ? '#7c3aed' : '#c4b5fd'),
+                    borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+                    stack: 'total',
+                },
+            ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false },
-                tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
-            scales: { y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } } }
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'bottom',
+                    labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: c => `${c.dataset.label}: ${fmt(c.raw)}`,
+                        footer: items => `Total: ${fmt(items.reduce((s,i) => s + i.raw, 0))}`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: {
+                    stacked: true,
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { callback: v => '$' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'k') }
+                }
+            },
+            maxBarThickness: 64,
         }
     });
 }
+let data_global = null;
 
 function renderTablaPaquetes(paquetes) {
     const tbody = document.getElementById('tablaPaquetes');
@@ -1253,6 +1324,42 @@ function renderChartsHistorial(hist) {
     }
 }
 
+// ─── DETALLE VENTAS ───────────────────────────────────────────────────────────
+function renderDetalleVentas(datos) {
+    const tbody = document.getElementById('tablaDetalleVentas');
+    const empty = document.getElementById('detalleVentasEmpty');
+    if (!datos || !datos.length) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+    tbody.innerHTML = datos.map(v => {
+        const fecha = v.fecha ? new Date(v.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+        const pctNeg = v.porcentaje_restaurante ? parseFloat(v.porcentaje_restaurante).toFixed(1) + '%' : '—';
+        const ingRest = v.ingresos_restaurante != null ? fmt(v.ingresos_restaurante) : '—';
+        return `<tr>
+            <td class="text-xs text-gray-500">${fecha}</td>
+            <td class="font-medium">${v.vendedor || '—'}</td>
+            <td>${v.paquete_nombre || '—'}</td>
+            <td class="text-gray-500">${v.maquina_nombre || '—'}</td>
+            <td class="text-right font-semibold">${fmt(v.ingresos_totales)}</td>
+            <td class="text-right text-xs text-green-700">${pctNeg}</td>
+            <td class="text-right text-green-700">${ingRest}</td>
+            <td class="text-right text-xs text-purple-600">${v.propietario || '—'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function toggleDetalleVentas() {
+    const wrap = document.getElementById('detalleVentasWrap');
+    const icon = document.getElementById('iconToggleDetalle');
+    const btn  = document.getElementById('btnToggleDetalle');
+    const open = wrap.classList.toggle('hidden') === false;
+    icon.className = open ? 'fas fa-chevron-up mr-1' : 'fas fa-chevron-down mr-1';
+    btn.querySelector('span') && (btn.lastChild.textContent = open ? ' Ocultar' : ' Ver detalle');
+}
+
 // ─── Modal helpers ────────────────────────────────────────────────────────────
 function abrirModal(id) { document.getElementById(id).classList.add('open'); }
 function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -1261,18 +1368,21 @@ document.querySelectorAll('.modal-overlay').forEach(m =>
 );
 </script>
 
+<script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
 <script>
 // Particles config
 function initParticles() {
     if (typeof particlesJS === 'undefined') return;
     particlesJS('particles-js', {
         particles: {
-            number: { value: 25, density: { enable: true, value_area: 800 } },
-            color: { value: '#94a3b8' }, opacity: { value: 0.25 },
-            size: { value: 3 }, line_linked: { enable: true, color: '#94a3b8', opacity: 0.15 },
-            move: { enable: true, speed: 0.8 }
+            number: { value: 55, density: { enable: true, value_area: 800 } },
+            color: { value: '#60a5fa' }, opacity: { value: 0.5, random: true },
+            size: { value: 3.5, random: true },
+            line_linked: { enable: true, color: '#93c5fd', opacity: 0.35, distance: 140 },
+            move: { enable: true, speed: 1.1, random: true }
         },
-        interactivity: { events: { onhover: { enable: false } } }
+        interactivity: { events: { onhover: { enable: true, mode: 'grab' },
+            modes: { grab: { distance: 120, line_linked: { opacity: 0.6 } } } } }
     });
 }
 </script>
