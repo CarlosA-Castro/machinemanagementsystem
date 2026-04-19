@@ -402,6 +402,200 @@
     #mobile-menu.open { display:block; }
     @media(max-width:767px){ .hide-mob{display:none!important;} }
     @media(min-width:768px){ #hamburger{display:none!important;} }
+
+    /* ===== SIMULATOR ===== */
+    .sim-card {
+      background: rgba(244,241,235,0.04);
+      border: 1px solid rgba(244,241,235,0.1);
+      border-radius: 20px; padding: 2rem;
+      transition: border-color 0.3s;
+    }
+    .sim-card:hover { border-color: rgba(244,241,235,0.2); }
+
+    .sim-slider-wrap { margin-bottom: 1.5rem; }
+    .sim-label {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.55rem;
+      font-size: 0.8rem; color: rgba(244,241,235,0.55); font-weight: 500;
+    }
+    .sim-label-val {
+      font-size: 0.95rem; font-weight: 800; color: var(--cream);
+      background: rgba(68,93,117,0.35);
+      border: 1px solid rgba(244,241,235,0.12);
+      border-radius: 8px; padding: 0.15rem 0.65rem;
+      min-width: 72px; text-align: center;
+    }
+    input[type=range].sim-range {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 5px; border-radius: 3px; outline: none; cursor: pointer;
+      background: linear-gradient(90deg, var(--blueg) 0%, rgba(244,241,235,0.1) 0%);
+      transition: background 0.15s;
+    }
+    input[type=range].sim-range::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--cream); cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    input[type=range].sim-range::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+      box-shadow: 0 0 0 4px rgba(244,241,235,0.15), 0 2px 8px rgba(0,0,0,0.4);
+    }
+    input[type=range].sim-range::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--cream); cursor: pointer; border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .sim-period-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .sim-period-btn {
+      flex: 1; min-width: 52px; padding: 0.45rem 0.2rem;
+      border-radius: 8px; font-size: 0.78rem; font-weight: 600;
+      border: 1px solid rgba(244,241,235,0.15);
+      background: rgba(244,241,235,0.05);
+      color: rgba(244,241,235,0.45); cursor: pointer;
+      transition: all 0.2s; text-align: center;
+    }
+    .sim-period-btn.active {
+      background: var(--navy-m); border-color: rgba(244,241,235,0.35);
+      color: var(--cream);
+      box-shadow: 0 4px 14px rgba(15,26,46,0.5);
+    }
+    .sim-period-btn:hover:not(.active) {
+      background: rgba(244,241,235,0.09); color: rgba(244,241,235,0.7);
+    }
+
+    .sim-result-card {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-m) 60%, #1a3050 100%);
+      border: 1px solid rgba(244,241,235,0.12);
+      border-radius: 20px; padding: 2rem 1.75rem;
+      position: relative; overflow: hidden; height: 100%;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .sim-result-card::before {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background: radial-gradient(ellipse 70% 60% at 80% 20%, rgba(68,93,117,0.35) 0%, transparent 65%);
+    }
+    .sim-result-main {
+      font-size: clamp(2rem,6vw,3rem); font-weight: 900; line-height: 1;
+      color: var(--cream); letter-spacing: -0.03em;
+      transition: all 0.35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .sim-result-main.bump { transform: scale(1.08); }
+    .sim-formula-row {
+      display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+      font-size: 0.7rem; color: rgba(244,241,235,0.35); margin-top: 0.5rem;
+    }
+    .sim-formula-chip {
+      background: rgba(244,241,235,0.07); border: 1px solid rgba(244,241,235,0.1);
+      border-radius: 6px; padding: 0.15rem 0.45rem;
+      color: rgba(244,241,235,0.55); font-weight: 600; font-size: 0.68rem;
+      transition: color 0.3s, background 0.3s;
+    }
+    .sim-formula-chip.active-chip {
+      background: rgba(68,93,117,0.4); border-color: rgba(244,241,235,0.25);
+      color: var(--cream);
+    }
+    .sim-breakdown {
+      margin-top: 1.25rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
+    }
+    .sim-bd-item {
+      background: rgba(244,241,235,0.05); border: 1px solid rgba(244,241,235,0.08);
+      border-radius: 10px; padding: 0.7rem 0.8rem;
+    }
+    .sim-bd-val { font-size: 1rem; font-weight: 800; color: var(--cream); }
+    .sim-bd-lbl { font-size: 0.62rem; color: rgba(244,241,235,0.38); font-weight: 500;
+                  text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.15rem; }
+    .sim-disclaimer {
+      font-size: 0.65rem; color: rgba(244,241,235,0.22);
+      line-height: 1.6; margin-top: 1.25rem; display: flex; align-items: flex-start; gap: 0.4rem;
+    }
+    @media(min-width:768px){
+      .sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+    }
+
+    /* ===== SE PARTE / CONTACT ===== */
+    .contact-wrap {
+      display: grid; gap: 1.5rem;
+    }
+    @media(min-width:768px){ .contact-wrap { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+    .contact-perks { display: flex; flex-direction: column; gap: 1rem; }
+    .contact-perk {
+      display: flex; align-items: flex-start; gap: 0.9rem;
+      background: rgba(244,241,235,0.03); border: 1px solid rgba(244,241,235,0.08);
+      border-radius: 14px; padding: 1rem 1.1rem;
+      transition: transform 0.25s, border-color 0.25s;
+    }
+    .contact-perk:hover { transform: translateX(6px); border-color: rgba(244,241,235,0.18); }
+    .contact-perk-icon {
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(36,53,85,0.7); border: 1px solid rgba(244,241,235,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; color: var(--cream);
+    }
+    .contact-perk-title { font-size: 0.82rem; font-weight: 700; color: var(--cream); margin-bottom: 0.2rem; }
+    .contact-perk-desc  { font-size: 0.72rem; color: rgba(244,241,235,0.4); line-height: 1.5; }
+
+    .contact-form-card {
+      background: rgba(244,241,235,0.04); border: 1px solid rgba(244,241,235,0.1);
+      border-radius: 20px; padding: 2rem;
+    }
+    .cf-group { margin-bottom: 1.1rem; }
+    .cf-label {
+      display: block; font-size: 0.75rem; font-weight: 600;
+      color: rgba(244,241,235,0.5); margin-bottom: 0.4rem;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .cf-input, .cf-select, .cf-textarea {
+      width: 100%; border-radius: 10px; padding: 0.7rem 0.95rem;
+      background: rgba(244,241,235,0.06); border: 1px solid rgba(244,241,235,0.12);
+      color: var(--cream); font-size: 0.88rem; outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+    .cf-input::placeholder, .cf-textarea::placeholder { color: rgba(244,241,235,0.2); }
+    .cf-input:focus, .cf-select:focus, .cf-textarea:focus {
+      border-color: rgba(244,241,235,0.35);
+      background: rgba(244,241,235,0.09);
+      box-shadow: 0 0 0 3px rgba(68,93,117,0.25);
+    }
+    .cf-select option { background: var(--navy-d); color: #fff; }
+    .cf-textarea { resize: vertical; min-height: 80px; }
+    .cf-row { display: grid; gap: 0.75rem; }
+    @media(min-width:480px){ .cf-row { grid-template-columns: 1fr 1fr; } }
+
+    .btn-submit {
+      width: 100%; padding: 0.85rem; border-radius: 12px; font-size: 0.95rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--navy-m) 0%, #2d4470 100%);
+      border: 1px solid rgba(244,241,235,0.2); color: var(--cream); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      box-shadow: 0 4px 18px rgba(15,26,46,0.5);
+    }
+    .btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(15,26,46,0.65); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .cf-success {
+      display: none; text-align: center; padding: 2rem 1rem;
+    }
+    .cf-success-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.75rem; color: #86efac; margin: 0 auto 1rem;
+      animation: successPop 0.5s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes successPop {
+      0%   { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .cf-error-msg {
+      display: none; margin-top: 0.75rem; padding: 0.65rem 0.9rem;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 8px; font-size: 0.78rem; color: #fca5a5; text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -429,6 +623,8 @@
       <a href="#plataforma" class="nav-a">Plataforma</a>
       <a href="#maquinas"   class="nav-a">Máquinas</a>
       <a href="#cifras"     class="nav-a">Cifras</a>
+      <a href="#simula"     class="nav-a">Simula</a>
+      <a href="#se-parte"   class="nav-a" style="color:var(--red);">Sé Parte</a>
     </div>
 
     <div style="display:flex;align-items:center;gap:0.75rem;">
@@ -450,6 +646,8 @@
       <a href="#plataforma" class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Plataforma</a>
       <a href="#maquinas"   class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Máquinas</a>
       <a href="#cifras"     class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Cifras</a>
+      <a href="#simula"     class="nav-a" style="padding:.75rem .85rem;border-radius:8px;" onclick="document.getElementById('mobile-menu').classList.remove('open')">Simula</a>
+      <a href="#se-parte"   class="nav-a" style="padding:.75rem .85rem;border-radius:8px;color:var(--red);" onclick="document.getElementById('mobile-menu').classList.remove('open')">Sé Parte</a>
     </div>
   </div>
 </nav>
@@ -761,6 +959,244 @@
 
 <div class="divider"></div>
 
+<!-- ===================== SIMULADOR ===================== -->
+<section id="simula" style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-5xl mx-auto">
+
+    <div style="text-align:center;margin-bottom:3rem;">
+      <span class="s-label reveal">Para Inversionistas</span>
+      <h2 class="s-title reveal d1">Simula tu inversión</h2>
+      <p class="reveal d2" style="font-size:0.9rem;color:rgba(244,241,235,0.42);margin-top:0.75rem;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.7;">
+        Ajusta los parámetros y mira en tiempo real cuánto podrías ganar basado en los datos históricos reales de la operación.
+      </p>
+      <div class="s-underline reveal d3" style="margin:0.9rem auto 0;"></div>
+    </div>
+
+    <div class="sim-grid reveal d1">
+
+      <!-- Controles -->
+      <div class="sim-card">
+        <p style="font-size:0.72rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1.5rem;">
+          <i class="fas fa-sliders-h mr-1"></i> Configura tu inversión
+        </p>
+
+        <!-- % Propiedad -->
+        <div class="sim-slider-wrap">
+          <div class="sim-label">
+            <span>% Propiedad por máquina</span>
+            <span class="sim-label-val" id="val-prop">25%</span>
+          </div>
+          <input type="range" class="sim-range" id="rng-prop" min="5" max="100" step="5" value="25">
+        </div>
+
+        <!-- N° Máquinas -->
+        <div class="sim-slider-wrap">
+          <div class="sim-label">
+            <span>Número de máquinas</span>
+            <span class="sim-label-val" id="val-maq">2</span>
+          </div>
+          <input type="range" class="sim-range" id="rng-maq" min="1" max="10" step="1" value="2">
+        </div>
+
+        <!-- Período -->
+        <div class="sim-slider-wrap" style="margin-bottom:0;">
+          <div class="sim-label" style="margin-bottom:0.7rem;">
+            <span>Período de proyección</span>
+          </div>
+          <div class="sim-period-btns">
+            <button class="sim-period-btn" data-m="1">1 mes</button>
+            <button class="sim-period-btn active" data-m="3">3 meses</button>
+            <button class="sim-period-btn" data-m="6">6 meses</button>
+            <button class="sim-period-btn" data-m="12">1 año</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado -->
+      <div class="sim-result-card">
+        <div style="position:relative;z-index:1;">
+          <p style="font-size:0.7rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1rem;">
+            <i class="fas fa-chart-line mr-1"></i> Ganancia estimada
+          </p>
+
+          <div style="margin-bottom:0.3rem;">
+            <div style="font-size:0.72rem;color:rgba(244,241,235,0.38);margin-bottom:0.25rem;">Total en el período</div>
+            <div class="sim-result-main" id="sim-total">$0</div>
+          </div>
+
+          <div class="sim-formula-row" id="sim-formula-row">
+            <span class="sim-formula-chip active-chip" id="fc-turnos">— turnos/mes</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip active-chip" id="fc-precio">$—/turno</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-util">— % util.</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-prop">— % prop.</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-maq">— máq.</span>
+            <span style="opacity:.3">×</span>
+            <span class="sim-formula-chip" id="fc-meses">— meses</span>
+          </div>
+
+          <div class="sim-breakdown">
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-mensual">$0</div>
+              <div class="sim-bd-lbl">Por mes</div>
+            </div>
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-por-maquina">$0</div>
+              <div class="sim-bd-lbl">Por máquina/mes</div>
+            </div>
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-turnos-mes">—</div>
+              <div class="sim-bd-lbl">Turnos prom./mes</div>
+            </div>
+            <div class="sim-bd-item">
+              <div class="sim-bd-val" id="sim-pct-util">—%</div>
+              <div class="sim-bd-lbl">% Utilidad prom.</div>
+            </div>
+          </div>
+
+          <div class="sim-disclaimer">
+            <i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0;color:rgba(244,241,235,0.25);"></i>
+            <span>Estimado basado en datos históricos reales de la operación. Los resultados pueden variar según temporada, ubicación y uso del equipo.</span>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;margin-top:1.5rem;text-align:center;">
+          <a href="#se-parte" class="btn-primary btn-glow" style="display:inline-flex;font-size:0.88rem;padding:.7rem 1.6rem;">
+            <i class="fas fa-handshake"></i> Quiero invertir
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ===================== SÉ PARTE ===================== -->
+<section id="se-parte" style="padding:5rem 1.5rem;position:relative;z-index:10;">
+  <div class="max-w-5xl mx-auto">
+
+    <div style="text-align:center;margin-bottom:3rem;">
+      <span class="s-label reveal">Únete</span>
+      <h2 class="s-title reveal d1">Sé parte de Inversiones Arcade</h2>
+      <p class="reveal d2" style="font-size:0.9rem;color:rgba(244,241,235,0.42);margin-top:0.75rem;max-width:500px;margin-left:auto;margin-right:auto;line-height:1.7;">
+        Déjanos tus datos y uno de nuestros socios te contacta para explicarte cómo funciona la inversión y resolver todas tus dudas.
+      </p>
+      <div class="s-underline reveal d3" style="margin:0.9rem auto 0;"></div>
+    </div>
+
+    <div class="contact-wrap reveal d1">
+
+      <!-- Perks -->
+      <div class="contact-perks">
+        <div class="contact-perk">
+          <div class="contact-perk-icon"><i class="fas fa-shield-alt"></i></div>
+          <div>
+            <div class="contact-perk-title">Inversión con respaldo real</div>
+            <div class="contact-perk-desc">Tienes participación en una máquina física con historial de juegos verificable en tiempo real desde la plataforma.</div>
+          </div>
+        </div>
+        <div class="contact-perk">
+          <div class="contact-perk-icon"><i class="fas fa-chart-pie"></i></div>
+          <div>
+            <div class="contact-perk-title">Liquidaciones transparentes</div>
+            <div class="contact-perk-desc">Cada período recibes un reporte detallado de turnos jugados, ingresos y tu participación calculada automáticamente.</div>
+          </div>
+        </div>
+        <div class="contact-perk">
+          <div class="contact-perk-icon"><i class="fas fa-map-marker-alt"></i></div>
+          <div>
+            <div class="contact-perk-title">Red de locales en Medellín</div>
+            <div class="contact-perk-desc">Máquinas ubicadas estratégicamente en zonas de alta afluencia. +500 ventas QR y operación 7 días a la semana.</div>
+          </div>
+        </div>
+        <div class="contact-perk">
+          <div class="contact-perk-icon"><i class="fas fa-percentage"></i></div>
+          <div>
+            <div class="contact-perk-title">Tú defines tu porcentaje</div>
+            <div class="contact-perk-desc">Entra con el porcentaje de propiedad que desees. Desde un 10% de una máquina hasta el 100%.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulario -->
+      <div class="contact-form-card">
+        <div id="cf-form-wrap">
+          <p style="font-size:0.72rem;font-weight:700;color:rgba(244,241,235,0.3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:1.4rem;">
+            <i class="fas fa-paper-plane mr-1"></i> Cuéntanos de ti
+          </p>
+
+          <div class="cf-row">
+            <div class="cf-group">
+              <label class="cf-label">Nombre *</label>
+              <input type="text" class="cf-input" id="cf-nombre" placeholder="Tu nombre completo" maxlength="120">
+            </div>
+            <div class="cf-group">
+              <label class="cf-label">WhatsApp *</label>
+              <input type="tel" class="cf-input" id="cf-whatsapp" placeholder="+57 300 000 0000" maxlength="30">
+            </div>
+          </div>
+
+          <div class="cf-group">
+            <label class="cf-label">Email <span style="opacity:.45;font-weight:400;">(opcional)</span></label>
+            <input type="email" class="cf-input" id="cf-email" placeholder="tu@correo.com" maxlength="120">
+          </div>
+
+          <div class="cf-group">
+            <label class="cf-label">¿Cuántas máquinas te interesan?</label>
+            <select class="cf-select" id="cf-maquinas">
+              <option value="1">1 máquina</option>
+              <option value="2-3">2 – 3 máquinas</option>
+              <option value="4+">4 o más</option>
+              <option value="no-se">Todavía no lo sé</option>
+            </select>
+          </div>
+
+          <div class="cf-group" style="margin-bottom:1.4rem;">
+            <label class="cf-label">Mensaje <span style="opacity:.45;font-weight:400;">(opcional)</span></label>
+            <textarea class="cf-textarea cf-input" id="cf-mensaje" placeholder="¿Tienes alguna pregunta o comentario?" maxlength="500"></textarea>
+          </div>
+
+          <button class="btn-submit" id="cf-submit" onclick="submitContacto()">
+            <i class="fas fa-paper-plane"></i> Enviar y que me contacten
+          </button>
+          <div class="cf-error-msg" id="cf-error"></div>
+
+          <p style="font-size:0.65rem;color:rgba(244,241,235,0.18);text-align:center;margin-top:1rem;line-height:1.5;">
+            <i class="fas fa-lock" style="margin-right:3px;"></i>
+            Tus datos son privados. Solo los usamos para contactarte sobre la inversión.
+          </p>
+        </div>
+
+        <!-- Success state -->
+        <div class="cf-success" id="cf-success">
+          <div class="cf-success-icon"><i class="fas fa-check"></i></div>
+          <h3 style="font-size:1.1rem;font-weight:800;color:var(--cream);margin-bottom:0.5rem;">¡Listo, te contactamos pronto!</h3>
+          <p style="font-size:0.82rem;color:rgba(244,241,235,0.45);line-height:1.6;max-width:280px;margin:0 auto;">
+            Recibimos tu solicitud. Un socio de Inversiones Arcade te escribirá por WhatsApp en las próximas horas.
+          </p>
+          <a href="https://wa.me/573218001092" target="_blank"
+             style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:1.5rem;
+                    padding:0.65rem 1.4rem;border-radius:10px;font-size:0.85rem;font-weight:700;
+                    background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);
+                    color:#86efac;text-decoration:none;transition:background .2s;"
+             onmouseover="this.style.background='rgba(34,197,94,0.25)'"
+             onmouseout="this.style.background='rgba(34,197,94,0.15)'">
+            <i class="fab fa-whatsapp"></i> También puedes escribirnos ya
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <!-- ===================== CTA FINAL ===================== -->
 <section style="padding:5rem 1.5rem;position:relative;z-index:10;">
   <div class="max-w-2xl mx-auto">
@@ -912,6 +1348,163 @@
       card.style.transform = '';
     });
   });
+</script>
+
+<!-- ===== SIMULADOR DE INVERSIÓN ===== -->
+<script>
+(function() {
+  var SIM = { avgTurnos: 120, avgPrecio: 3000, avgUtil: 40 };
+  var meses = 3;
+
+  // Cargar promedios reales del servidor
+  fetch('/api/public/promedios')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      SIM.avgTurnos = d.avg_turnos_mes  || 120;
+      SIM.avgPrecio = d.avg_precio_turno || 3000;
+      SIM.avgUtil   = d.avg_pct_util     || 40;
+      recalc();
+    })
+    .catch(function(){ recalc(); });
+
+  function fmt(n) {
+    if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+    if (n >= 1000)    return '$' + (n/1000).toFixed(0) + 'k';
+    return '$' + Math.round(n).toLocaleString('es-CO');
+  }
+  function fmtN(n) { return Math.round(n).toLocaleString('es-CO'); }
+
+  function animateNum(el, from, to, isCurrency, duration) {
+    duration = duration || 420;
+    var start = performance.now();
+    (function step(now) {
+      var p = Math.min((now - start) / duration, 1);
+      var ease = 1 - Math.pow(1 - p, 3);
+      var val = from + (to - from) * ease;
+      el.textContent = isCurrency ? fmt(val) : fmtN(val);
+      if (p < 1) requestAnimationFrame(step);
+    })(start);
+  }
+
+  var prevTotal = 0;
+
+  function recalc() {
+    var prop = parseInt(document.getElementById('rng-prop').value, 10);
+    var nMaq = parseInt(document.getElementById('rng-maq').value, 10);
+
+    var ganMensualPorMaq = SIM.avgTurnos * SIM.avgPrecio * (SIM.avgUtil / 100) * (prop / 100);
+    var ganMensual  = ganMensualPorMaq * nMaq;
+    var ganTotal    = ganMensual * meses;
+
+    // Animar número principal
+    var el = document.getElementById('sim-total');
+    el.classList.add('bump');
+    setTimeout(function(){ el.classList.remove('bump'); }, 380);
+    animateNum(el, prevTotal, ganTotal, true, 420);
+    prevTotal = ganTotal;
+
+    animateNum(document.getElementById('sim-mensual'),    0, ganMensual,       true,  320);
+    animateNum(document.getElementById('sim-por-maquina'),0, ganMensualPorMaq, true,  320);
+
+    document.getElementById('sim-turnos-mes').textContent = fmtN(SIM.avgTurnos * nMaq);
+    document.getElementById('sim-pct-util').textContent   = SIM.avgUtil.toFixed(1) + '%';
+
+    // Chips de fórmula
+    document.getElementById('fc-turnos').textContent = fmtN(SIM.avgTurnos) + ' turnos/mes';
+    document.getElementById('fc-precio').textContent = fmt(SIM.avgPrecio) + '/turno';
+    document.getElementById('fc-util').textContent   = SIM.avgUtil.toFixed(1) + '% util.';
+    document.getElementById('fc-prop').textContent   = prop + '% prop.';
+    document.getElementById('fc-maq').textContent    = nMaq + ' máq.';
+    document.getElementById('fc-meses').textContent  = meses + (meses === 1 ? ' mes' : ' meses');
+
+    // Actualizar chips como activos
+    ['fc-util','fc-prop','fc-maq','fc-meses'].forEach(function(id){
+      document.getElementById(id).classList.add('active-chip');
+    });
+
+    // Actualizar track del slider con color
+    ['rng-prop','rng-maq'].forEach(function(id){
+      var el = document.getElementById(id);
+      var pct = (el.value - el.min) / (el.max - el.min) * 100;
+      el.style.background = 'linear-gradient(90deg, #445d75 ' + pct + '%, rgba(244,241,235,0.1) ' + pct + '%)';
+    });
+  }
+
+  // Sliders
+  document.getElementById('rng-prop').addEventListener('input', function() {
+    document.getElementById('val-prop').textContent = this.value + '%';
+    recalc();
+  });
+  document.getElementById('rng-maq').addEventListener('input', function() {
+    document.getElementById('val-maq').textContent = this.value;
+    recalc();
+  });
+
+  // Botones de período
+  document.querySelectorAll('.sim-period-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.sim-period-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      meses = parseInt(btn.dataset.m, 10);
+      recalc();
+    });
+  });
+
+  // Inicializar tracks al cargar
+  document.addEventListener('DOMContentLoaded', recalc);
+  recalc();
+})();
+</script>
+
+<!-- ===== FORMULARIO CONTACTO INVERSOR ===== -->
+<script>
+function submitContacto() {
+  var nombre   = document.getElementById('cf-nombre').value.trim();
+  var whatsapp = document.getElementById('cf-whatsapp').value.trim();
+  var email    = document.getElementById('cf-email').value.trim();
+  var maquinas = document.getElementById('cf-maquinas').value;
+  var mensaje  = document.getElementById('cf-mensaje').value.trim();
+  var errEl    = document.getElementById('cf-error');
+  var btn      = document.getElementById('cf-submit');
+
+  errEl.style.display = 'none';
+
+  if (!nombre) { showErr('Por favor ingresa tu nombre.'); return; }
+  if (!whatsapp) { showErr('Por favor ingresa tu número de WhatsApp.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando…';
+
+  fetch('/api/contacto-inversor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre: nombre, whatsapp: whatsapp, email: email,
+                           maquinas_interes: maquinas, mensaje: mensaje })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d.ok) {
+      document.getElementById('cf-form-wrap').style.display = 'none';
+      var s = document.getElementById('cf-success');
+      s.style.display = 'block';
+      s.style.animation = 'none';
+    } else {
+      showErr(d.error || 'Error al enviar. Intenta de nuevo.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar y que me contacten';
+    }
+  })
+  .catch(function(){
+    showErr('Error de conexión. Intenta de nuevo.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar y que me contacten';
+  });
+
+  function showErr(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+}
 </script>
 
 </body>

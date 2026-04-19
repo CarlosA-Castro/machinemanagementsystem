@@ -26,6 +26,100 @@ def landing():
     return render_template('landing.html')
 
 
+@auth_bp.route('/api/public/promedios')
+def public_promedios():
+    """Estadísticas anonimizadas para el simulador de inversión (sin autenticación)."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Promedio de turnos jugados por máquina por mes (últimos 3 meses)
+        cur.execute("""
+            SELECT COALESCE(AVG(t.turnos_mes), 0) AS avg_turnos
+            FROM (
+                SELECT machineId,
+                       DATE_FORMAT(usedAt, '%%Y-%%m') AS mes,
+                       COUNT(*) AS turnos_mes
+                FROM turnusage
+                WHERE usedAt >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+                GROUP BY machineId, mes
+            ) t
+        """)
+        row = cur.fetchone()
+        avg_turnos = float(row['avg_turnos'] if row else 0) or 120.0
+
+        # Precio promedio por turno (de paquetes activos, excluyendo paquete free)
+        cur.execute("""
+            SELECT COALESCE(AVG(price / NULLIF(turns, 0)), 0) AS avg_precio_turno
+            FROM turnpackage
+            WHERE id != 1 AND turns > 0 AND price > 0
+        """)
+        row = cur.fetchone()
+        avg_precio_turno = float(row['avg_precio_turno'] if row else 0) or 3000.0
+
+        # % utilidad promedio: 100 - negocio - admin
+        try:
+            cur.execute("""
+                SELECT COALESCE(
+                    AVG(100 - COALESCE(porcentaje_restaurante, 35) - COALESCE(porcentaje_admin, 25)),
+                    40
+                ) AS avg_pct_util
+                FROM maquinaporcentajerestaurante
+            """)
+            row = cur.fetchone()
+            avg_pct_util = float(row['avg_pct_util'] if row else 0) or 40.0
+        except Exception:
+            avg_pct_util = 40.0
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            'avg_turnos_mes':    round(avg_turnos, 1),
+            'avg_precio_turno':  round(avg_precio_turno, 0),
+            'avg_pct_util':      round(avg_pct_util, 1),
+        })
+    except Exception as e:
+        logger.error('public_promedios error: %s', e)
+        return jsonify({
+            'avg_turnos_mes':   120.0,
+            'avg_precio_turno': 3000.0,
+            'avg_pct_util':     40.0,
+        })
+
+
+@auth_bp.route('/api/contacto-inversor', methods=['POST'])
+def contacto_inversor():
+    """Recibe formulario de contacto de posibles inversionistas."""
+    try:
+        data = request.get_json(silent=True) or {}
+        nombre   = (data.get('nombre') or '').strip()[:120]
+        whatsapp = (data.get('whatsapp') or '').strip()[:30]
+        email    = (data.get('email') or '').strip()[:120] or None
+        maquinas = (data.get('maquinas_interes') or '1').strip()[:20]
+        mensaje  = (data.get('mensaje') or '').strip()[:1000] or None
+
+        if not nombre or not whatsapp:
+            return jsonify({'ok': False, 'error': 'Nombre y WhatsApp son requeridos'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO contacto_inversor
+               (nombre, whatsapp, email, maquinas_interes, mensaje)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (nombre, whatsapp, email, maquinas, mensaje),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.info('Nuevo contacto inversor: %s (%s)', nombre, whatsapp)
+        return jsonify({'ok': True})
+    except Exception as e:
+        logger.error('contacto_inversor error: %s', e)
+        return jsonify({'ok': False, 'error': 'Error al guardar. Intenta de nuevo.'}), 500
+
+
 @auth_bp.route('/login', methods=['GET'])
 def mostrar_login():
     session.clear()
