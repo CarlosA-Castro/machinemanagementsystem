@@ -116,7 +116,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
             tp.turns AS turnos_por_paquete,
             tp.price AS precio_unitario,
             COUNT(DISTINCT qh.qr_code) AS paquetes_vendidos,
-            COALESCE(SUM(tp.price), 0) AS ingresos_totales,
+            COUNT(DISTINCT qh.qr_code) * COALESCE(MAX(tp.price), 0) AS ingresos_totales,
             COALESCE(SUM(qr.remainingTurns), 0) AS turnos_restantes_acum
         FROM qrhistory qh
         JOIN qrcode qr ON qr.code = qh.qr_code
@@ -214,7 +214,12 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
             {admin_col} AS porcentaje_admin,
             COUNT(tu.id) AS turnos_usados,
             COUNT(DISTINCT qr.id) AS qrs_utilizados,
-            COALESCE(SUM(tp.price / NULLIF(tp.turns, 0)), 0) AS ingresos_estimados
+            COALESCE(SUM(
+                CASE WHEN tp.price IS NOT NULL AND COALESCE(tp.turns, 0) > 0
+                     THEN tp.price / tp.turns
+                     ELSE COALESCE(m.valor_por_turno, 3000.00)
+                END
+            ), 0) AS ingresos_estimados
         FROM turnusage tu
         JOIN machine m ON tu.machineId = m.id
         JOIN qrcode  qr ON tu.qrCodeId = qr.id
@@ -752,6 +757,7 @@ def calcular_liquidacion():
             datos_sql = f"""
                 SELECT
                     DATE(qh.fecha_hora) AS fecha,
+                    qh.user_name AS vendedor,
                     qh.qr_code,
                     tp.name AS paquete_nombre,
                     tp.turns AS turnos_usados,
@@ -782,6 +788,7 @@ def calcular_liquidacion():
                 """
                 SELECT
                     DATE(qh.fecha_hora) AS fecha,
+                    qh.user_name AS vendedor,
                     qh.qr_code,
                     tp.name AS paquete_nombre,
                     tp.turns AS turnos_usados,
@@ -804,7 +811,17 @@ def calcular_liquidacion():
                 column='location_id', table_alias='tp',
             )
         cursor.execute(datos_sql, datos_params)
-        datos_tabla = cursor.fetchall()
+        datos_tabla = [
+            {
+                'fecha':                  str(row['fecha'])[:10] if row.get('fecha') else None,
+                'vendedor':               str(row.get('vendedor') or ''),
+                'paquete_nombre':         str(row.get('paquete_nombre') or ''),
+                'ingresos_totales':       float(row.get('ingresos_totales') or 0),
+                'porcentaje_restaurante': float(row.get('porcentaje_restaurante') or 0),
+                'ingresos_restaurante':   float(row.get('ingresos_restaurante') or 0),
+            }
+            for row in cursor.fetchall()
+        ]
 
         historial = _fetch_historial_cierres(cursor, limite=5)
         gastos    = _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin)
