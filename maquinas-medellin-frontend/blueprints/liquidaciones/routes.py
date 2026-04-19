@@ -483,7 +483,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
             tp.price AS precio_unitario,
             tp.turns AS turnos_paquete,
             COUNT(DISTINCT qh.qr_code) AS paquetes_vendidos,
-            SUM(tp.price) AS total_paquete,
+            COUNT(DISTINCT qh.qr_code) * tp.price AS total_paquete,
             COALESCE(mpr.porcentaje_restaurante, 35.00) AS pct_negocio,
             {admin_expr} AS pct_admin
         FROM qrhistory qh
@@ -652,18 +652,16 @@ def _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin):
         return []
     try:
         cursor.execute(
-            """SELECT id, concepto, monto, fecha
+            """SELECT id, concepto, monto
                FROM gastos_liquidacion
-               WHERE fecha BETWEEN %s AND %s
-               ORDER BY fecha DESC""",
-            (fecha_inicio, fecha_fin),
+               ORDER BY id DESC
+               LIMIT 100""",
         )
         return [
             {
                 'id':       g['id'],
                 'concepto': g['concepto'],
                 'monto':    float(g['monto']),
-                'fecha':    str(g['fecha']),
             }
             for g in cursor.fetchall()
         ]
@@ -1019,7 +1017,6 @@ def registrar_gasto():
         data      = request.get_json() or {}
         concepto  = (data.get('concepto') or '').strip()
         monto     = _to_float(data.get('monto'))
-        fecha     = data.get('fecha') or get_colombia_time().strftime('%Y-%m-%d')
 
         if not concepto or monto <= 0:
             return api_response('E002', http_status=400)
@@ -1030,9 +1027,9 @@ def registrar_gasto():
         cursor = get_db_cursor(connection)
 
         cursor.execute(
-            """INSERT INTO gastos_liquidacion (concepto, monto, fecha, usuario_id)
-               VALUES (%s, %s, %s, %s)""",
-            (concepto, monto, fecha, session.get('user_id')),
+            """INSERT INTO gastos_liquidacion (concepto, monto, usuario_id)
+               VALUES (%s, %s, %s)""",
+            (concepto, monto, session.get('user_id')),
         )
         connection.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
@@ -1213,7 +1210,20 @@ def obtener_catalogo_maquinas_liquidacion():
             (RESTAURANT_PERCENTAGE_DEFAULT,),
         )
         maquinas = cursor.fetchall()
-        return jsonify({'datos': maquinas, 'totalRegistros': len(maquinas)})
+        return jsonify({
+            'datos': [
+                {
+                    'id':                   int(m['id']),
+                    'name':                 m['name'],
+                    'type':                 m['type'] or '',
+                    'valor_por_turno':      float(m['valor_por_turno'] or 0),
+                    'porcentaje_restaurante': float(m['porcentaje_restaurante'] or RESTAURANT_PERCENTAGE_DEFAULT),
+                    'porcentaje_admin':     float(m['porcentaje_admin'] or ADMIN_PERCENTAGE_DEFAULT),
+                }
+                for m in maquinas
+            ],
+            'totalRegistros': len(maquinas),
+        })
 
     except Exception as e:
         logger.error(f'Error obteniendo catálogo de máquinas: {e}', exc_info=True)
