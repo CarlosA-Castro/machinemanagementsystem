@@ -93,6 +93,17 @@ def _admin_expr(tiene_admin_col):
     return '25.00'
 
 
+def _tp_location_cond():
+    """Filtro manual por tp.location_id para queries con subqueries internas."""
+    active_id = session.get('active_location_id')
+    can_view_all = session.get('can_view_all_locations', False)
+    if can_view_all and active_id is None:
+        return '', []
+    if active_id:
+        return 'AND tp.location_id = %s', [active_id]
+    return '', []
+
+
 # ─── Helpers de consulta ──────────────────────────────────────────────────────
 
 def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
@@ -739,8 +750,8 @@ def calcular_liquidacion():
 
         # Tabla detallada
         if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
-            datos_sql, datos_params = apply_location_filter(
-                """
+            loc_cond, loc_params = _tp_location_cond()
+            datos_sql = f"""
                 SELECT
                     DATE(qh.fecha_hora) AS fecha,
                     qh.qr_code,
@@ -764,11 +775,10 @@ def calcular_liquidacion():
                   AND qr.turnPackageId IS NOT NULL
                   AND qr.turnPackageId != 1
                   AND qh.es_venta_real = TRUE
+                  {loc_cond}
                 ORDER BY qh.fecha_hora DESC
-                """,
-                [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [fecha_inicio, fecha_fin],
-                column='location_id', table_alias='tp',
-            )
+                """
+            datos_params = [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [fecha_inicio, fecha_fin] + loc_params
         else:
             datos_sql, datos_params = apply_location_filter(
                 """
@@ -907,8 +917,8 @@ def obtener_ventas_liquidadas():
                      'LEFT JOIN propietarios p ON mp.propietario_id = p.id')
                     if tiene_propietarios else '')
 
-        query, params = apply_location_filter(
-            f"""
+        loc_cond_v, loc_params_v = _tp_location_cond()
+        query = f"""
             SELECT
                 DATE(qh.fecha_hora) AS fecha,
                 qh.qr_code,
@@ -935,12 +945,11 @@ def obtener_ventas_liquidadas():
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
               AND qh.es_venta_real = TRUE
+              {loc_cond_v}
             ORDER BY qh.fecha_hora DESC
             LIMIT %s OFFSET %s
-            """,
-            [fecha_inicio, fecha_fin, por_pagina, offset],
-            column='location_id', table_alias='tp',
-        )
+            """
+        params = [fecha_inicio, fecha_fin] + loc_params_v + [por_pagina, offset]
         cursor.execute(query, params)
         ventas = cursor.fetchall()
 
