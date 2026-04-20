@@ -636,6 +636,10 @@
                 this.mostrarError('La contraseña es obligatoria para crear un usuario');
                 return;
             }
+            if (password && password.length < 6) {
+                this.mostrarError('La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
             if (password) datos.password = password;
             if (esEdicion) datos.isActive = document.getElementById('isActive').value === 'true';
             fetch(esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios', {
@@ -643,9 +647,14 @@
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify(datos)
             })
-            .then(response => { if (!response.ok) throw new Error('Error en la respuesta'); return response.json(); })
-            .then(() => { this.mostrarAlerta(esEdicion ? 'Usuario actualizado' : 'Usuario creado', 'success'); this.cerrarModal(); this.cargarUsuarios(); })
-            .catch(error => { console.error(error); this.mostrarError('Error al guardar el usuario'); });
+            .then(response => response.json().then(body => ({ ok: response.ok, body })))
+            .then(({ ok, body }) => {
+                if (!ok) throw body;
+                this.mostrarAlerta(esEdicion ? 'Usuario actualizado' : 'Usuario creado', 'success');
+                this.cerrarModal();
+                this.cargarUsuarios();
+            })
+            .catch(error => { console.error(error); this.mostrarError(error?.message || error?.data?.message || 'Error al guardar el usuario'); });
         },
 
         cambiarEstadoUsuario: function(id, isActive, nombre) {
