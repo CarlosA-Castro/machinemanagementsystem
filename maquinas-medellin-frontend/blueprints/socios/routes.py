@@ -10,6 +10,14 @@ from utils.auth import require_login
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
+from utils.socios_finance import (
+    calcular_utilidad_socio,
+    calcular_detalle_por_maquina,
+    calcular_detalle_por_local,
+    calcular_evolucion_mensual,
+    calcular_roi,
+    calcular_resumen_todos_socios,
+)
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -480,7 +488,6 @@ def obtener_estadisticas_socios():
                 'cuota_anual_total': float(stats['cuota_anual_total'] or 0),
                 'inversion_total': float(inversion['inversion_total'] or 0),
                 'cuotas_pendientes': pendientes['cuotas_pendientes'] or 0,
-                'roi_promedio': 12.5,
                 'porcentaje_total': float(stats['porcentaje_total'] or 0),
             }
         )
@@ -733,11 +740,12 @@ def obtener_estadisticas_panel_socio():
         ingresos_mensuales = cursor.fetchall()
 
         total_invertido = float(inversiones_stats['total_invertido'] or 0)
-        if total_invertido > 0:
-            roi_total = 12.5
-            ingreso_mensual_promedio = total_invertido * (roi_total / 100) / 12
+        roi_total = calcular_roi(cursor, socio_id)
+        if ingresos_mensuales:
+            ingreso_mensual_promedio = float(sum(
+                i['ingresos_mensuales'] for i in ingresos_mensuales
+            )) / len(ingresos_mensuales)
         else:
-            roi_total = 0
             ingreso_mensual_promedio = 0
 
         cuota_anual = float(socio.get('cuota_anual', 0) or 0)
@@ -764,12 +772,8 @@ def obtener_estadisticas_panel_socio():
                     'total_inversiones': inversiones_stats['total_inversiones'] or 0,
                     'inversiones_activas': inversiones_stats['inversiones_activas'] or 0,
                     'ingreso_mensual': ingreso_mensual_promedio,
-                    'ingreso_mensual_real': float(sum([i['ingresos_mensuales'] for i in ingresos_mensuales])) / len(ingresos_mensuales) if ingresos_mensuales else 0,
                     'roi_total': roi_total,
                     'estado_cuota': estado_cuota,
-                    'ranking_roi': 25,
-                    'tendencia_mensual': 2.5,
-                    'rentabilidad_total': 15.2,
                 },
                 'ingresos_mensuales': [float(i['ingresos_mensuales']) for i in reversed(ingresos_mensuales)] if ingresos_mensuales else [0] * 12,
             }
@@ -839,7 +843,6 @@ def obtener_maquinas_socio_panel():
         maquinas = cursor.fetchall()
         maquinas_formateadas = []
         for maquina in maquinas:
-            ingreso_mensual = float(maquina['monto_inicial'] or 0) * float(maquina['porcentaje_inversion'] or 0) / 100 * 0.12 / 12
             maquinas_formateadas.append(
                 {
                     'id': maquina['maquina_id'],
@@ -848,7 +851,6 @@ def obtener_maquinas_socio_panel():
                     'ubicacion': maquina['ubicacion'],
                     'porcentaje_propiedad': float(maquina['porcentaje_inversion']),
                     'inversion_inicial': float(maquina['monto_inicial'] or 0),
-                    'ingreso_mensual': ingreso_mensual,
                     'rentabilidad': float(maquina['rentabilidad_mensual'] or 0),
                     'fecha_adquisicion': _serialize_value(maquina['fecha_inicio']) if maquina.get('fecha_inicio') else None,
                     'estado': maquina['estado'],
@@ -1000,6 +1002,262 @@ def obtener_pagos_socio_panel():
         return jsonify(pagos_formateados)
     except Exception as e:
         logger.error(f"Error obteniendo pagos panel socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+# ─── Endpoints financieros reales ─────────────────────────────────────────────
+
+def _parse_periodo(args):
+    """Lee fecha_inicio / fecha_fin de query params; por defecto mes actual."""
+    hoy = get_colombia_time().date()
+    inicio_mes = hoy.replace(day=1)
+    try:
+        fi = datetime.strptime(args.get('fecha_inicio', str(inicio_mes)), '%Y-%m-%d').date()
+    except ValueError:
+        fi = inicio_mes
+    try:
+        ff = datetime.strptime(args.get('fecha_fin', str(hoy)), '%Y-%m-%d').date()
+    except ValueError:
+        ff = hoy
+    if fi > ff:
+        fi, ff = ff, fi
+    return fi, ff
+
+
+@socios_bp.route('/api/socios/resumen-financiero', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def resumen_financiero_socios():
+    """Todos los socios activos con su participación real en el período."""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio, fecha_fin = _parse_periodo(request.args)
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+        datos = calcular_resumen_todos_socios(cursor, fecha_inicio, fecha_fin)
+        return jsonify({
+            'fecha_inicio': str(fecha_inicio),
+            'fecha_fin':    str(fecha_fin),
+            'socios':       datos,
+        })
+    except Exception as e:
+        logger.error(f"Error resumen financiero socios: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@socios_bp.route('/api/socios/por-local', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def socios_por_local():
+    """Socios filtrados por local: resuelto via inversiones → machine → location."""
+    connection = None
+    cursor = None
+    try:
+        local_id = request.args.get('local_id', type=int)
+        fecha_inicio, fecha_fin = _parse_periodo(request.args)
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        # Locales disponibles (para el selector en el front)
+        cursor.execute(
+            """
+            SELECT DISTINCT l.id, l.name
+            FROM location l
+            JOIN machine m ON m.location_id = l.id
+            JOIN inversiones i ON i.maquina_id = m.id AND i.estado = 'activa'
+            ORDER BY l.name
+            """
+        )
+        locales = [{'id': r['id'], 'name': r['name']} for r in cursor.fetchall()]
+
+        # Socios del local (o todos si no se filtra)
+        where_local = 'AND l.id = %s' if local_id else ''
+        params = [fecha_inicio, fecha_fin]
+        if local_id:
+            params.append(local_id)
+
+        cursor.execute(
+            f"""
+            SELECT
+                s.id AS socio_id, s.nombre, s.codigo_socio, s.estado,
+                l.id AS local_id, l.name AS local_nombre,
+                COALESCE(SUM(i.monto_inicial), 0) AS inversion_total,
+                COUNT(DISTINCT i.id)               AS maquinas_activas
+            FROM socios s
+            JOIN inversiones i ON i.socio_id = s.id AND i.estado = 'activa'
+            JOIN machine m ON i.maquina_id = m.id
+            JOIN location l ON m.location_id = l.id
+            WHERE s.estado = 'activo'
+              {where_local}
+            GROUP BY s.id, s.nombre, s.codigo_socio, s.estado, l.id, l.name
+            ORDER BY s.nombre
+            """,
+            params,
+        )
+        socios = [dict(r) for r in cursor.fetchall()]
+        return jsonify({'locales': locales, 'socios': socios, 'local_id': local_id})
+    except Exception as e:
+        logger.error(f"Error socios por local: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@socios_bp.route('/api/socios/<int:socio_id>/financiero', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def detalle_financiero_socio(socio_id):
+    """Detalle financiero completo de un socio: período, por máquina, por local, ROI."""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio, fecha_fin = _parse_periodo(request.args)
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute('SELECT * FROM socios WHERE id = %s', (socio_id,))
+        socio = cursor.fetchone()
+        if not socio:
+            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
+        socio = dict(socio)
+        _serialize_dict_dates(socio, ['fecha_inscripcion', 'fecha_vencimiento'])
+
+        utilidad   = calcular_utilidad_socio(cursor, socio_id, fecha_inicio, fecha_fin)
+        por_local  = calcular_detalle_por_local(cursor, socio_id, fecha_inicio, fecha_fin)
+        roi        = calcular_roi(cursor, socio_id)
+        evolucion  = calcular_evolucion_mensual(cursor, socio_id, meses=6)
+
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(monto_inicial), 0) AS total,
+                   COUNT(*)                         AS cantidad
+            FROM inversiones WHERE socio_id = %s AND estado = 'activa'
+            """,
+            (socio_id,),
+        )
+        inv = cursor.fetchone()
+
+        return jsonify({
+            'socio':          socio,
+            'periodo':        {'fecha_inicio': str(fecha_inicio), 'fecha_fin': str(fecha_fin)},
+            'financiero':     utilidad,
+            'por_local':      por_local,
+            'roi':            roi,
+            'evolucion':      evolucion,
+            'inversion_total': float(inv['total'] or 0),
+            'maquinas_activas': int(inv['cantidad'] or 0),
+        })
+    except Exception as e:
+        logger.error(f"Error detalle financiero socio {socio_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@socios_bp.route('/api/socios/<int:socio_id>/evolucion', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'socio'])
+def evolucion_socio(socio_id):
+    """Evolución mensual de la participación del socio (últimos N meses)."""
+    connection = None
+    cursor = None
+    try:
+        meses = min(int(request.args.get('meses', 6)), 24)
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+        datos = calcular_evolucion_mensual(cursor, socio_id, meses=meses)
+        return jsonify(datos)
+    except Exception as e:
+        logger.error(f"Error evolución socio {socio_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@socios_bp.route('/api/socio/panel/financiero', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def panel_financiero_socio_actual():
+    """Panel del socio autenticado: utilidad real del período + evolución."""
+    connection = None
+    cursor = None
+    try:
+        fecha_inicio, fecha_fin = _parse_periodo(request.args)
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        socio = _resolve_socio_by_session(cursor)
+        if not socio or not socio.get('id'):
+            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
+        socio_id = socio['id']
+
+        utilidad  = calcular_utilidad_socio(cursor, socio_id, fecha_inicio, fecha_fin)
+        por_local = calcular_detalle_por_local(cursor, socio_id, fecha_inicio, fecha_fin)
+        evolucion = calcular_evolucion_mensual(cursor, socio_id, meses=6)
+        roi       = calcular_roi(cursor, socio_id)
+
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(monto_inicial), 0) AS total
+            FROM inversiones WHERE socio_id = %s AND estado = 'activa'
+            """,
+            (socio_id,),
+        )
+        inv_row = cursor.fetchone()
+
+        return jsonify({
+            'socio': {
+                'id':               socio['id'],
+                'nombre':           socio['nombre'],
+                'codigo_socio':     socio['codigo_socio'],
+                'estado':           socio['estado'],
+                'cuota_anual':      float(socio.get('cuota_anual', 0) or 0),
+                'porcentaje_global': float(socio.get('porcentaje_global', 0) or 0),
+            },
+            'periodo':        {'fecha_inicio': str(fecha_inicio), 'fecha_fin': str(fecha_fin)},
+            'financiero':     utilidad,
+            'por_local':      por_local,
+            'evolucion':      evolucion,
+            'roi':            roi,
+            'inversion_total': float(inv_row['total'] or 0),
+        })
+    except Exception as e:
+        logger.error(f"Error panel financiero socio actual: {e}")
         sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
     finally:

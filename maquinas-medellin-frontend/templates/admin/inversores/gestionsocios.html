@@ -440,15 +440,15 @@
                     </div>
                 </div>
                 
-                <!-- ROI Promedio -->
+                <!-- Utilidad del Mes -->
                 <div class="stat-card glass-card border-l-purple-500">
                     <div class="flex items-center">
                         <div class="bg-purple-100 p-3 rounded-lg mr-4">
-                            <i class="fas fa-percentage text-purple-600 text-xl"></i>
+                            <i class="fas fa-chart-bar text-purple-600 text-xl"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-600">ROI Promedio</p>
-                            <p id="roi-promedio" class="text-2xl font-bold text-gray-800">0%</p>
+                            <p class="text-sm text-gray-600">Utilidad del Mes</p>
+                            <p id="utilidad-periodo" class="text-2xl font-bold text-gray-800">$0</p>
                         </div>
                     </div>
                 </div>
@@ -459,10 +459,10 @@
                 <h2 class="text-xl font-semibold mb-4 text-gray-800">
                     <i class="fas fa-filter mr-2 text-purple-600"></i>Filtros de Socios
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Buscar socio:</label>
-                        <input type="text" id="busqueda-socios" placeholder="Nombre, documento, código..." 
+                        <input type="text" id="busqueda-socios" placeholder="Nombre, documento, código..."
                                class="w-full border border-gray-300 rounded-lg p-3">
                     </div>
                     <div>
@@ -472,6 +472,12 @@
                             <option value="activo">Activos</option>
                             <option value="inactivo">Inactivos</option>
                             <option value="pendiente_pago">Pendiente pago</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Local:</label>
+                        <select id="filtro-local" class="w-full border border-gray-300 rounded-lg p-3">
+                            <option value="">Todos los locales</option>
                         </select>
                     </div>
                     <div class="flex items-end">
@@ -511,6 +517,34 @@
                 </table>
             </div>
             
+            <!-- Flujo del Dinero -->
+            <div class="glass-card mt-6">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                    <h2 class="text-xl font-semibold text-gray-800">
+                        <i class="fas fa-money-bill-wave mr-2 text-green-600"></i>Flujo del Dinero — Participación por Socio
+                    </h2>
+                    <div class="flex flex-wrap gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Desde</label>
+                            <input type="date" id="flujo-fecha-inicio" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Hasta</label>
+                            <input type="date" id="flujo-fecha-fin" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <button onclick="GestionSocios.cargarFlujoDinero()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm btn-touch">
+                            <i class="fas fa-sync-alt mr-1"></i>Calcular
+                        </button>
+                    </div>
+                </div>
+                <div id="flujo-dinero-contenido">
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-calendar-alt text-3xl mb-2"></i>
+                        <p>Selecciona un período y presiona Calcular</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Sección de reportes -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                 <div class="glass-card">
@@ -789,18 +823,19 @@
         // Inicializar DataTable
         this.inicializarDataTable();
         
-        // Cargar estadísticas
-        this.cargarEstadisticas();
-        
-        // Inicializar gráficos
+        // Inicializar gráficos primero (antes de cargar datos)
         this.inicializarGraficos();
-        
-        // Cargar datos adicionales
+
+        // Cargar estadísticas y datos
+        this.cargarEstadisticas();
         this.cargarTopSocios();
         this.cargarSociosRecientes();
-        
-        // Configurar búsqueda y filtros
+
+        // Configurar búsqueda, filtros y fechas del flujo
         this.configurarFiltros();
+
+        // Cargar flujo del mes actual
+        this.cargarFlujoDinero();
     },
     
     // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
@@ -962,15 +997,32 @@
 
     cargarEstadisticas: async function() {
         try {
-            const response = await fetch('/api/socios/estadisticas');
-            
-            if (response.ok) {
-                const data = await response.json();
-                
+            const [statsRes, flujRes] = await Promise.all([
+                fetch('/api/socios/estadisticas'),
+                fetch('/api/socios/resumen-financiero'),
+            ]);
+
+            if (statsRes.ok) {
+                const data = await statsRes.json();
                 document.getElementById('total-socios').textContent = data.total_socios || 0;
                 document.getElementById('inversion-total').textContent = this.formatearMoneda(data.inversion_total || 0);
                 document.getElementById('pagos-pendientes').textContent = data.cuotas_pendientes || 0;
-                document.getElementById('roi-promedio').textContent = `${(data.roi_promedio || 0).toFixed(1)}%`;
+
+                // Actualizar gráfico de estados con datos reales
+                if (this.charts.estados) {
+                    this.charts.estados.data.datasets[0].data = [
+                        data.socios_activos || 0,
+                        data.socios_inactivos || 0,
+                        data.socios_pendientes || 0,
+                    ];
+                    this.charts.estados.update();
+                }
+            }
+
+            if (flujRes.ok) {
+                const flujData = await flujRes.json();
+                const totalUtilidad = (flujData.socios || []).reduce((s, x) => s + (x.participacion || 0), 0);
+                document.getElementById('utilidad-periodo').textContent = this.formatearMoneda(totalUtilidad);
             }
         } catch (error) {
             console.error('Error cargando estadísticas:', error);
@@ -978,15 +1030,14 @@
     },
 
     inicializarGraficos: function() {
-        // Gráfico de distribución por estado
         const ctxEstados = document.getElementById('chartEstados').getContext('2d');
         this.charts.estados = new Chart(ctxEstados, {
             type: 'doughnut',
             data: {
-                labels: ['Activos', 'Inactivos', 'Pendientes', 'Suspendidos'],
+                labels: ['Activos', 'Inactivos', 'Pendientes'],
                 datasets: [{
-                    data: [40, 10, 20, 5],
-                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#6b7280'],
+                    data: [0, 0, 0],
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
                     borderWidth: 2,
                     borderColor: '#ffffff'
                 }]
@@ -995,35 +1046,34 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '70%',
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
+                plugins: { legend: { position: 'bottom' } }
             }
         });
 
-        // Gráfico de evolución
+        // Gráfico evolución financiera — se rellena al abrir detalle de socio
         const ctxEvolucion = document.getElementById('chartEvolucion').getContext('2d');
         this.charts.evolucion = new Chart(ctxEvolucion, {
-            type: 'line',
+            type: 'bar',
             data: {
-                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                labels: [],
                 datasets: [{
-                    label: 'Nuevos Socios',
-                    data: [5, 8, 12, 15, 18, 22, 25, 28, 30, 32, 35, 40],
+                    label: 'Participación mensual (COP)',
+                    data: [],
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
                     borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4,
-                    fill: true
+                    borderWidth: 1,
+                    borderRadius: 6,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v)
+                        }
                     }
                 }
             }
@@ -1033,19 +1083,120 @@
     configurarFiltros: function() {
         const busqueda = document.getElementById('busqueda-socios');
         const filtroEstado = document.getElementById('filtro-estado');
-        
-        busqueda.addEventListener('keyup', () => {
-            this.dataTable.search(busqueda.value).draw();
-        });
-        
-        filtroEstado.addEventListener('change', () => {
-            this.dataTable.column(6).search(filtroEstado.value).draw();
-        });
+        busqueda.addEventListener('keyup', () => this.dataTable.search(busqueda.value).draw());
+        filtroEstado.addEventListener('change', () => this.dataTable.column(6).search(filtroEstado.value).draw());
+        this.cargarLocalesFiltro();
+
+        // Fechas por defecto del flujo: mes actual
+        const hoy = new Date();
+        const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+        const hoyStr = hoy.toISOString().split('T')[0];
+        document.getElementById('flujo-fecha-inicio').value = primerDia;
+        document.getElementById('flujo-fecha-fin').value = hoyStr;
     },
 
     aplicarFiltros: function() {
         this.dataTable.search(document.getElementById('busqueda-socios').value).draw();
         this.mostrarAlerta('Filtros aplicados correctamente', 'success');
+    },
+
+    cargarLocalesFiltro: async function() {
+        try {
+            const res = await fetch('/api/socios/por-local');
+            if (!res.ok) return;
+            const data = await res.json();
+            const sel = document.getElementById('filtro-local');
+            sel.innerHTML = '<option value="">Todos los locales</option>' +
+                (data.locales || []).map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+        } catch (e) {
+            console.error('Error cargando locales filtro:', e);
+        }
+    },
+
+    cargarFlujoDinero: async function() {
+        const fi = document.getElementById('flujo-fecha-inicio').value;
+        const ff = document.getElementById('flujo-fecha-fin').value;
+        const contenido = document.getElementById('flujo-dinero-contenido');
+        contenido.innerHTML = '<div class="text-center py-6"><div class="loading mx-auto mb-2"></div><p class="text-gray-500">Calculando...</p></div>';
+        try {
+            const res = await fetch(`/api/socios/resumen-financiero?fecha_inicio=${fi}&fecha_fin=${ff}`);
+            if (!res.ok) throw new Error('Error en la respuesta');
+            const data = await res.json();
+            const socios = data.socios || [];
+            if (socios.length === 0) {
+                contenido.innerHTML = '<p class="text-center text-gray-500 py-6">Sin datos para el período seleccionado</p>';
+                return;
+            }
+            const totalParticip = socios.reduce((s, x) => s + (x.participacion || 0), 0);
+            let rows = socios.map(s => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3 px-4 font-medium">${s.socio_nombre}</td>
+                    <td class="py-3 px-4 text-gray-600">${s.codigo_socio}</td>
+                    <td class="py-3 px-4">${(s.locales || []).join(', ') || '—'}</td>
+                    <td class="py-3 px-4 text-right">${this.formatearMoneda(s.inversion_total)}</td>
+                    <td class="py-3 px-4 text-right font-bold text-green-700">${this.formatearMoneda(s.participacion)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="GestionSocios.verDetalleFinanciero(${s.socio_id},'${fi}','${ff}')"
+                                class="text-blue-600 hover:text-blue-800 text-sm">
+                            <i class="fas fa-chart-line mr-1"></i>Detalle
+                        </button>
+                    </td>
+                </tr>`).join('');
+            contenido.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Socio</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Código</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Locales</th>
+                                <th class="py-3 px-4 text-right text-sm font-semibold text-gray-600">Inversión</th>
+                                <th class="py-3 px-4 text-right text-sm font-semibold text-gray-600">Participación</th>
+                                <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                        <tfoot class="bg-gray-50">
+                            <tr>
+                                <td colspan="4" class="py-3 px-4 font-bold text-right text-gray-700">Total período:</td>
+                                <td class="py-3 px-4 text-right font-bold text-green-700">${this.formatearMoneda(totalParticip)}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>`;
+
+            // Actualizar stat card con el total
+            document.getElementById('utilidad-periodo').textContent = this.formatearMoneda(totalParticip);
+        } catch (e) {
+            console.error('Error cargando flujo de dinero:', e);
+            contenido.innerHTML = '<p class="text-center text-red-500 py-6">Error al calcular el flujo</p>';
+        }
+    },
+
+    verDetalleFinanciero: async function(socioId, fi, ff) {
+        const modal = document.getElementById('modalDetalleCompleto');
+        const contenido = document.getElementById('detalle-completo-contenido');
+        contenido.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-4"></div><p class="text-gray-600">Cargando...</p></div>';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        try {
+            const params = fi && ff ? `?fecha_inicio=${fi}&fecha_fin=${ff}` : '';
+            const [finRes, socioRes, maquinasRes, pagosRes] = await Promise.all([
+                fetch(`/api/socios/${socioId}/financiero${params}`),
+                fetch(`/api/socios/${socioId}`),
+                fetch(`/api/socios/${socioId}/inversiones`),
+                fetch(`/api/socios/${socioId}/pagos`),
+            ]);
+            const fin     = finRes.ok     ? await finRes.json()     : null;
+            const socio   = socioRes.ok   ? (await socioRes.json()).socio  : null;
+            const maquinas= maquinasRes.ok? await maquinasRes.json(): [];
+            const pagos   = pagosRes.ok   ? await pagosRes.json()   : [];
+            this.renderizarDetalleFinanciero(fin, socio || fin?.socio, maquinas, pagos);
+        } catch (e) {
+            console.error('Error cargando detalle financiero:', e);
+            contenido.innerHTML = '<p class="text-center text-red-500 py-8">Error al cargar detalles</p>';
+        }
     },
 
     cargarTopSocios: async function() {
@@ -1254,268 +1405,180 @@
         this.cargarEstadisticas();
         this.cargarTopSocios();
         this.cargarSociosRecientes();
+        this.cargarFlujoDinero();
         this.mostrarAlerta('Datos actualizados correctamente', 'success');
     },
 
-    verDetalleCompleto: async function(socioId) {
-        try {
-            const modal = document.getElementById('modalDetalleCompleto');
-            const contenido = document.getElementById('detalle-completo-contenido');
-            
-            // Mostrar loading
-            contenido.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="loading mx-auto mb-4"></div>
-                    <p class="text-gray-600">Cargando detalles del socio...</p>
-                </div>
-            `;
-            
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            // Cargar datos completos
-            const [socioRes, maquinasRes, ingresosRes, pagosRes] = await Promise.all([
-                fetch(`/api/socios/${socioId}`),
-                fetch(`/api/socios/${socioId}/inversiones`),
-                fetch(`/api/socios/${socioId}/ingresos/ultimos`),
-                fetch(`/api/socios/${socioId}/pagos`)
-            ]);
-            
-            const socio = await socioRes.json();
-            const maquinas = await maquinasRes.json();
-            const ingresos = await ingresosRes.json();
-            const pagos = await pagosRes.json();
-            
-            this.renderizarDetalleCompleto(socio, maquinas, ingresos, pagos);
-        } catch (error) {
-            console.error('Error cargando detalles:', error);
-            contenido.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-red-500 mb-4">
-                        <i class="fas fa-exclamation-triangle text-3xl"></i>
-                    </div>
-                    <p class="text-red-600">Error al cargar los detalles</p>
-                </div>
-            `;
-        }
+    verDetalleCompleto: function(socioId) {
+        const fi = document.getElementById('flujo-fecha-inicio').value;
+        const ff = document.getElementById('flujo-fecha-fin').value;
+        this.verDetalleFinanciero(socioId, fi, ff);
     },
 
-    renderizarDetalleCompleto: function(socio, maquinas, ingresos, pagos) {
+    renderizarDetalleFinanciero: function(fin, socio, maquinas, pagos) {
         const contenido = document.getElementById('detalle-completo-contenido');
-        
-        // Calcular estadísticas
-        const totalInvertido = maquinas.reduce((sum, m) => sum + (parseFloat(m.monto_inicial) || 0), 0);
-        const totalIngresos = ingresos.reduce((sum, i) => sum + (parseFloat(i.ganancia_neta) || 0), 0);
-        const roi = totalInvertido > 0 ? (totalIngresos / totalInvertido * 100).toFixed(1) : 0;
+        if (!socio) { contenido.innerHTML = '<p class="text-center text-red-500 py-8">No se pudieron cargar los datos del socio</p>'; return; }
+
+        const f   = fin?.financiero || {};
+        const roi = fin?.roi ?? 0;
         const pagosPendientes = pagos.filter(p => p.estado === 'pendiente').length;
-        
+        const evolucion = fin?.evolucion || [];
+        const porLocal  = fin?.por_local  || [];
+
+        // Actualizar gráfico de evolución financiera
+        if (this.charts.evolucion && evolucion.length) {
+            this.charts.evolucion.data.labels = evolucion.map(e => e.label);
+            this.charts.evolucion.data.datasets[0].data = evolucion.map(e => e.participacion);
+            this.charts.evolucion.update();
+        }
+
+        // ── Dummy placeholder para que el bloque cierre igual que el original ──
+        const totalInvertido = fin?.inversion_total || 0;
+        const totalIngresos  = f.participacion || 0;
+        void totalInvertido; void totalIngresos;
+
         const html = `
-            <div class="space-y-6">
-                <!-- Información básica -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="md:col-span-2">
-                        <div class="bg-gray-50 rounded-lg p-6">
-                            <div class="flex items-center mb-4">
-                                <div class="bg-blue-100 p-3 rounded-full mr-4">
-                                    <i class="fas fa-user-tie text-blue-600 text-xl"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-xl font-bold">${socio.nombre}</h3>
-                                    <p class="text-gray-600">
-                                        ${socio.documento} | ${socio.codigo_socio} | ${socio.tipo_socio}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-sm text-gray-600">Email</p>
-                                    <p class="font-medium">${socio.email || '-'}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Teléfono</p>
-                                    <p class="font-medium">${socio.telefono || '-'}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Inscripción</p>
-                                    <p class="font-medium">${new Date(socio.fecha_inscripcion).toLocaleDateString('es-ES')}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Vencimiento</p>
-                                    <p class="font-medium">${new Date(socio.fecha_vencimiento).toLocaleDateString('es-ES')}</p>
-                                </div>
-                            </div>
+        <div class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="md:col-span-2 bg-gray-50 rounded-lg p-5">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-100 p-3 rounded-full mr-4">
+                            <i class="fas fa-user-tie text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold">${socio.nombre || ''}</h3>
+                            <p class="text-gray-600">${socio.documento || ''} | ${socio.codigo_socio || ''}</p>
                         </div>
                     </div>
-                    
-                    <div>
-                        <div class="bg-gray-50 rounded-lg p-6">
-                            <h4 class="text-lg font-bold mb-4">Estadísticas</h4>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-600">Inversión Total</p>
-                                    <p class="text-xl font-bold">${this.formatearMoneda(totalInvertido)}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Ingresos Totales</p>
-                                    <p class="text-xl font-bold text-green-600">${this.formatearMoneda(totalIngresos)}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">ROI</p>
-                                    <p class="text-xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}">${roi}%</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Pagos Pendientes</p>
-                                    <p class="text-xl font-bold ${pagosPendientes > 0 ? 'text-red-600' : 'text-green-600'}">${pagosPendientes}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><p class="text-gray-500">Email</p><p class="font-medium">${socio.email || '—'}</p></div>
+                        <div><p class="text-gray-500">Teléfono</p><p class="font-medium">${socio.telefono || '—'}</p></div>
+                        <div><p class="text-gray-500">Inscripción</p><p class="font-medium">${socio.fecha_inscripcion ? new Date(socio.fecha_inscripcion).toLocaleDateString('es-ES') : '—'}</p></div>
+                        <div><p class="text-gray-500">Estado</p><p><span class="badge-estado ${socio.estado === 'activo' ? 'badge-activo' : 'badge-pendiente'}">${socio.estado || ''}</span></p></div>
                     </div>
                 </div>
-                
-                <!-- Máquinas -->
-                <div>
-                    <h4 class="text-lg font-bold mb-4">Máquinas en Propiedad</h4>
-                    ${maquinas.length > 0 ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Máquina</th>
-                                        <th class="py-3 px-4 text-left">Porcentaje</th>
-                                        <th class="py-3 px-4 text-left">Inversión</th>
-                                        <th class="py-3 px-4 text-left">Estado</th>
-                                        <th class="py-3 px-4 text-left">Adquisición</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${maquinas.map(m => `
-                                        <tr class="border-b">
-                                            <td class="py-3 px-4">${m.maquina_nombre}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado badge-activo">${parseFloat(m.porcentaje_propiedad).toFixed(1)}%</span>
-                                            </td>
-                                            <td class="py-3 px-4">${this.formatearMoneda(m.monto_inicial)}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado ${m.estado === 'activa' ? 'badge-activo' : 'badge-inactivo'}">
-                                                    ${m.estado}
-                                                </span>
-                                            </td>
-                                            <td class="py-3 px-4">${new Date(m.fecha_inicio).toLocaleDateString('es-ES')}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-gamepad text-3xl mb-2"></i>
-                            <p>No tiene máquinas asignadas</p>
-                        </div>
-                    `}
-                </div>
-                
-                <!-- Últimos ingresos -->
-                <div>
-                    <h4 class="text-lg font-bold mb-4">Últimos Ingresos</h4>
-                    ${ingresos.length > 0 ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Período</th>
-                                        <th class="py-3 px-4 text-left">Máquina</th>
-                                        <th class="py-3 px-4 text-left">Turnos</th>
-                                        <th class="py-3 px-4 text-left">Ingreso Bruto</th>
-                                        <th class="py-3 px-4 text-left">Ganancia</th>
-                                        <th class="py-3 px-4 text-left">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${ingresos.map(i => `
-                                        <tr class="border-b">
-                                            <td class="py-3 px-4">${new Date(i.fecha_periodo).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</td>
-                                            <td class="py-3 px-4">${i.maquina_nombre || 'Todas'}</td>
-                                            <td class="py-3 px-4">${i.turnos_totales || 0}</td>
-                                            <td class="py-3 px-4">${this.formatearMoneda(i.ingresos_brutos || 0)}</td>
-                                            <td class="py-3 px-4 font-bold text-green-600">${this.formatearMoneda(i.ganancia_neta || 0)}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado ${i.liquidado ? 'badge-activo' : 'badge-pendiente'}">
-                                                    ${i.liquidado ? 'Liquidado' : 'Pendiente'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-coins text-3xl mb-2"></i>
-                            <p>No hay ingresos registrados</p>
-                        </div>
-                    `}
-                </div>
-                
-                <!-- Historial de pagos -->
-                <div>
-                    <h4 class="text-lg font-bold mb-4">Historial de Pagos</h4>
-                    ${pagos.length > 0 ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full bg-white rounded-lg overflow-hidden">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th class="py-3 px-4 text-left">Tipo</th>
-                                        <th class="py-3 px-4 text-left">Monto</th>
-                                        <th class="py-3 px-4 text-left">Fecha</th>
-                                        <th class="py-3 px-4 text-left">Vencimiento</th>
-                                        <th class="py-3 px-4 text-left">Método</th>
-                                        <th class="py-3 px-4 text-left">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${pagos.map(p => `
-                                        <tr class="border-b">
-                                            <td class="py-3 px-4">${p.tipo_pago.replace('_', ' ')}</td>
-                                            <td class="py-3 px-4">${this.formatearMoneda(p.monto)}</td>
-                                            <td class="py-3 px-4">${p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString('es-ES') : '-'}</td>
-                                            <td class="py-3 px-4">${new Date(p.fecha_vencimiento).toLocaleDateString('es-ES')}</td>
-                                            <td class="py-3 px-4">${p.metodo_pago || '-'}</td>
-                                            <td class="py-3 px-4">
-                                                <span class="badge-estado ${p.estado === 'pagado' ? 'badge-activo' : p.estado === 'pendiente' ? 'badge-pendiente' : 'badge-inactivo'}">
-                                                    ${p.estado}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-credit-card text-3xl mb-2"></i>
-                            <p>No hay pagos registrados</p>
-                        </div>
-                    `}
-                </div>
-                
-                <!-- Acciones administrativas -->
-                <div class="flex justify-end space-x-3 pt-6 border-t">
-                    <button onclick="GestionSocios.generarReporteSocio(${socio.id})" 
-                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                        <i class="fas fa-file-pdf mr-2"></i>Reporte PDF
-                    </button>
-                    <button onclick="GestionSocios.enviarRecordatorio(${socio.id})" 
-                            class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
-                        <i class="fas fa-envelope mr-2"></i>Enviar Recordatorio
-                    </button>
-                    <button onclick="GestionSocios.agregarInversion(${socio.id})" 
-                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                        <i class="fas fa-plus mr-2"></i>Agregar Inversión
-                    </button>
+                <div class="bg-gray-50 rounded-lg p-5">
+                    <h4 class="font-bold mb-3 text-gray-700">Resumen del Período</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-gray-500">Inversión activa</span><span class="font-bold">${this.formatearMoneda(fin?.inversion_total || 0)}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Ingreso bruto</span><span>${this.formatearMoneda(f.ingreso_bruto || 0)}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Negocio (local)</span><span class="text-red-500">−${this.formatearMoneda(f.negocio || 0)}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Admin</span><span class="text-red-500">−${this.formatearMoneda(f.admin || 0)}</span></div>
+                        <div class="flex justify-between border-t pt-2"><span class="text-gray-500">Utilidad pool</span><span class="text-blue-600">${this.formatearMoneda(f.utilidad_pool || 0)}</span></div>
+                        <div class="flex justify-between"><span class="font-bold">Tu participación</span><span class="font-bold text-green-600 text-base">${this.formatearMoneda(f.participacion || 0)}</span></div>
+                        <div class="flex justify-between border-t pt-2"><span class="text-gray-500">ROI histórico</span><span class="font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}">${(roi || 0).toFixed(2)}%</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Pagos pendientes</span><span class="${pagosPendientes > 0 ? 'text-red-600' : 'text-green-600'} font-bold">${pagosPendientes}</span></div>
+                    </div>
                 </div>
             </div>
-        `;
-        
+
+            ${porLocal.length ? `
+            <div>
+                <h4 class="font-bold mb-3 text-gray-700"><i class="fas fa-store mr-2 text-blue-500"></i>Por Local</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${porLocal.map(loc => `
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <p class="font-semibold text-gray-800">${loc.local_nombre}</p>
+                        <p class="text-sm text-gray-500">Ingreso bruto: ${this.formatearMoneda(loc.ingreso_bruto)}</p>
+                        <p class="text-sm font-bold text-green-700">Participación: ${this.formatearMoneda(loc.participacion)}</p>
+                    </div>`).join('')}
+                </div>
+            </div>` : ''}
+
+            ${(f.detalle_maquinas || []).length ? `
+            <div>
+                <h4 class="font-bold mb-3 text-gray-700"><i class="fas fa-gamepad mr-2 text-purple-500"></i>Detalle por Máquina</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-2 px-3 text-left">Máquina</th>
+                                <th class="py-2 px-3 text-right">Bruto</th>
+                                <th class="py-2 px-3 text-right">Utilidad pool</th>
+                                <th class="py-2 px-3 text-right">% Inv.</th>
+                                <th class="py-2 px-3 text-right">Participación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(f.detalle_maquinas || []).map(m => `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-2 px-3">${m.maquina_nombre}</td>
+                                <td class="py-2 px-3 text-right">${this.formatearMoneda(m.ingreso_bruto)}</td>
+                                <td class="py-2 px-3 text-right">${this.formatearMoneda(m.utilidad)}</td>
+                                <td class="py-2 px-3 text-right">${m.pct_inversion}%</td>
+                                <td class="py-2 px-3 text-right font-bold text-green-700">${this.formatearMoneda(m.participacion)}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+
+            ${maquinas.length ? `
+            <div>
+                <h4 class="font-bold mb-3 text-gray-700"><i class="fas fa-coins mr-2 text-yellow-500"></i>Inversiones Activas</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-2 px-3 text-left">Máquina</th>
+                                <th class="py-2 px-3 text-left">Local</th>
+                                <th class="py-2 px-3 text-right">%</th>
+                                <th class="py-2 px-3 text-right">Monto</th>
+                                <th class="py-2 px-3 text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${maquinas.map(m => `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-2 px-3">${m.maquina_nombre}</td>
+                                <td class="py-2 px-3 text-gray-500">${m.ubicacion || '—'}</td>
+                                <td class="py-2 px-3 text-right">${parseFloat(m.porcentaje_inversion).toFixed(1)}%</td>
+                                <td class="py-2 px-3 text-right">${this.formatearMoneda(m.monto_inicial)}</td>
+                                <td class="py-2 px-3 text-center"><span class="badge-estado ${m.estado === 'activa' ? 'badge-activo' : 'badge-inactivo'}">${m.estado}</span></td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+
+            ${pagos.length ? `
+            <div>
+                <h4 class="font-bold mb-3 text-gray-700"><i class="fas fa-receipt mr-2 text-orange-500"></i>Pagos de Cuota</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-2 px-3 text-left">Año</th>
+                                <th class="py-2 px-3 text-right">Monto</th>
+                                <th class="py-2 px-3 text-left">Método</th>
+                                <th class="py-2 px-3 text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pagos.map(p => `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-2 px-3">${p.anio}</td>
+                                <td class="py-2 px-3 text-right">${this.formatearMoneda(p.monto)}</td>
+                                <td class="py-2 px-3">${p.metodo_pago || '—'}</td>
+                                <td class="py-2 px-3 text-center"><span class="badge-estado ${p.estado === 'pagado' ? 'badge-activo' : 'badge-pendiente'}">${p.estado}</span></td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+
+            <div class="flex justify-end gap-3 pt-4 border-t">
+                <button onclick="GestionSocios.agregarInversion(${socio.id})"
+                        class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm">
+                    <i class="fas fa-plus mr-1"></i>Agregar Inversión
+                </button>
+                <button onclick="GestionSocios.editarSocio(${socio.id})"
+                        class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
+                    <i class="fas fa-edit mr-1"></i>Editar Socio
+                </button>
+            </div>
+        </div>`;
+
         contenido.innerHTML = html;
     },
 

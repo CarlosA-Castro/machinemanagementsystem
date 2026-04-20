@@ -1059,35 +1059,32 @@
 
     cargarDatosSocio: async function() {
         try {
-            // Mostrar estados de carga
             this.mostrarEstadosCarga();
-            
-            // Cargar información básica del socio
-            const [socioRes, estadisticasRes] = await Promise.all([
+
+            const [socioRes, estadisticasRes, financieroRes] = await Promise.all([
                 fetch('/api/socio/actual'),
-                fetch('/api/socio/panel/estadisticas')
+                fetch('/api/socio/panel/estadisticas'),
+                fetch('/api/socio/panel/financiero'),
             ]);
-            
+
             if (socioRes.ok && estadisticasRes.ok) {
-                const socioData = await socioRes.json();
+                const socioData        = await socioRes.json();
                 const estadisticasData = await estadisticasRes.json();
-                
-                this.data.socio = socioData;
+
+                this.data.socio        = socioData;
                 this.data.estadisticas = estadisticasData.estadisticas;
-                
+                this.data.financiero   = financieroRes.ok ? await financieroRes.json() : null;
+
                 this.actualizarInfoSocio();
                 this.actualizarEstadisticasUI();
-                
-                // Cargar datos relacionados
+
                 await Promise.all([
                     this.cargarMaquinasSocio(),
                     this.cargarIngresosSocio(),
-                    this.cargarPagosSocio()
+                    this.cargarPagosSocio(),
                 ]);
-                
-                // Actualizar gráficos
+
                 this.actualizarGraficos();
-                
                 this.mostrarNotificacion('Datos actualizados correctamente', 'success');
             } else {
                 throw new Error('Error al cargar datos');
@@ -1149,74 +1146,49 @@
     },
 
     actualizarEstadisticasUI: function() {
-        if (!this.data.estadisticas) return;
-        
-        const stats = this.data.estadisticas;
-        
-        // Total invertido
-        document.getElementById('totalInvertido').textContent = 
-            this.formatearMoneda(stats.total_invertido || 0);
-        document.getElementById('rentabilidadTotal').textContent = 
-            `${(stats.rentabilidad_total || 0).toFixed(1)}%`;
-        
-        // Ingreso mensual
-        document.getElementById('ingresoMensual').textContent = 
-            this.formatearMoneda(stats.ingreso_mensual || 0);
-        
-        const tendencia = stats.tendencia_mensual || 0;
-        const tendenciaElement = document.getElementById('tendenciaMensualContainer');
-        const tendenciaText = document.getElementById('tendenciaMensual');
-        
-        if (tendencia >= 0) {
-            tendenciaElement.className = 'text-xs flex items-center text-green-400';
-            tendenciaText.textContent = `+${tendencia.toFixed(1)}%`;
-        } else {
-            tendenciaElement.className = 'text-xs flex items-center text-red-400';
-            tendenciaText.textContent = `${tendencia.toFixed(1)}%`;
+        const stats = this.data.estadisticas || {};
+        const fin   = this.data.financiero;
+
+        // Inversión activa (financiero tiene precedencia)
+        const totalInvertido = fin?.inversion_total ?? stats.total_invertido ?? 0;
+        document.getElementById('totalInvertido').textContent = this.formatearMoneda(totalInvertido);
+
+        const rentEl = document.getElementById('rentabilidadTotal');
+        if (rentEl) rentEl.textContent = '—';
+
+        // Participación del período (real)
+        const participacion = fin?.financiero?.participacion ?? stats.ingreso_mensual ?? 0;
+        document.getElementById('ingresoMensual').textContent = this.formatearMoneda(participacion);
+
+        const tendenciaContainer = document.getElementById('tendenciaMensualContainer');
+        const tendenciaText      = document.getElementById('tendenciaMensual');
+        if (tendenciaContainer && tendenciaText) {
+            tendenciaContainer.className = 'text-xs flex items-center text-blue-400';
+            tendenciaText.textContent = 'período actual';
         }
-        
-        // ROI
-        document.getElementById('roiTotal').textContent = 
-            `${(stats.roi_total || 0).toFixed(1)}%`;
-        document.getElementById('rankingROI').textContent = 
-            `Top ${(stats.ranking_roi || 0)}%`;
-        
+
+        // ROI real
+        const roi = fin?.roi ?? stats.roi_total ?? 0;
+        document.getElementById('roiTotal').textContent = `${(+roi).toFixed(1)}%`;
+        const rankingEl = document.getElementById('rankingROI');
+        if (rankingEl) rankingEl.textContent = '';
+
         // Cuota anual
         if (this.data.socio) {
-            document.getElementById('cuotaAnual').textContent = 
+            document.getElementById('cuotaAnual').textContent =
                 this.formatearMoneda(this.data.socio.cuota_anual || 0);
         }
-        
+
         // Estado de cuota
         const estadoCuotaElement = document.getElementById('estadoCuotaContainer');
-        const estadoCuotaTexto = document.getElementById('estadoCuotaTexto');
-        const estadoCuota = stats.estado_cuota || 'al_dia';
-        
-        switch(estadoCuota) {
-            case 'al_dia':
-                estadoCuotaElement.innerHTML = `
-                    <div class="flex items-center text-green-400">
-                        <i class="fas fa-check-circle mr-1"></i>
-                        <span>Al día</span>
-                    </div>
-                `;
-                break;
-            case 'pendiente':
-                estadoCuotaElement.innerHTML = `
-                    <div class="flex items-center text-yellow-400">
-                        <i class="fas fa-clock mr-1"></i>
-                        <span>Pendiente</span>
-                    </div>
-                `;
-                break;
-            case 'vencido':
-                estadoCuotaElement.innerHTML = `
-                    <div class="flex items-center text-red-400">
-                        <i class="fas fa-exclamation-triangle mr-1"></i>
-                        <span>Vencido</span>
-                    </div>
-                `;
-                break;
+        if (estadoCuotaElement) {
+            const estadoCuota = stats.estado_cuota || 'al_dia';
+            const mapaEstado = {
+                al_dia:   `<div class="flex items-center text-green-400"><i class="fas fa-check-circle mr-1"></i><span>Al día</span></div>`,
+                pendiente:`<div class="flex items-center text-yellow-400"><i class="fas fa-clock mr-1"></i><span>Pendiente</span></div>`,
+                vencido:  `<div class="flex items-center text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i><span>Vencido</span></div>`,
+            };
+            estadoCuotaElement.innerHTML = mapaEstado[estadoCuota] || mapaEstado['al_dia'];
         }
     },
 
@@ -1297,8 +1269,8 @@
                             </span>
                         </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-400">Ingreso mensual</span>
-                            <span class="font-medium text-blue-400">${this.formatearMoneda(maquina.ingreso_mensual || 0)}</span>
+                            <span class="text-sm text-gray-400">Local</span>
+                            <span class="font-medium text-blue-400 truncate">${maquina.ubicacion || '—'}</span>
                         </div>
                     </div>
                     
@@ -1501,28 +1473,29 @@
     },
 
     actualizarGraficos: function() {
-        // Actualizar gráfico de ingresos
-        if (this.data.estadisticas && this.data.estadisticas.ingresos_mensuales) {
+        const fin = this.data.financiero;
+
+        // Gráfico de evolución — usa datos reales del financiero
+        const evolucion = fin?.evolucion || [];
+        if (evolucion.length && this.data.charts.ingresos) {
+            this.data.charts.ingresos.data.labels = evolucion.map(e => e.label);
+            this.data.charts.ingresos.data.datasets[0].data = evolucion.map(e => e.participacion);
+            this.data.charts.ingresos.update();
+        } else if (this.data.estadisticas?.ingresos_mensuales && this.data.charts.ingresos) {
             this.data.charts.ingresos.data.datasets[0].data = this.data.estadisticas.ingresos_mensuales;
             this.data.charts.ingresos.update();
         }
-        
-        // Actualizar gráfico de distribución
-        if (this.data.maquinas && this.data.maquinas.length > 0) {
-            const labels = this.data.maquinas.map(m => m.nombre);
-            const data = this.data.maquinas.map(m => m.inversion_inicial || 0);
-            
+
+        // Gráfico de distribución por máquina
+        if (this.data.maquinas?.length && this.data.charts.distribucion) {
             const colores = [
-                'rgba(59, 130, 246, 0.9)',
-                'rgba(16, 185, 129, 0.9)',
-                'rgba(139, 92, 246, 0.9)',
-                'rgba(245, 158, 11, 0.9)',
-                'rgba(239, 68, 68, 0.9)'
+                'rgba(59, 130, 246, 0.9)', 'rgba(16, 185, 129, 0.9)',
+                'rgba(139, 92, 246, 0.9)', 'rgba(245, 158, 11, 0.9)',
+                'rgba(239, 68, 68, 0.9)',
             ];
-            
-            this.data.charts.distribucion.data.labels = labels;
-            this.data.charts.distribucion.data.datasets[0].data = data;
-            this.data.charts.distribucion.data.datasets[0].backgroundColor = colores.slice(0, data.length);
+            this.data.charts.distribucion.data.labels = this.data.maquinas.map(m => m.nombre);
+            this.data.charts.distribucion.data.datasets[0].data = this.data.maquinas.map(m => m.inversion_inicial || 0);
+            this.data.charts.distribucion.data.datasets[0].backgroundColor = colores.slice(0, this.data.maquinas.length);
             this.data.charts.distribucion.update();
         }
     },
@@ -1543,35 +1516,13 @@
         };
         
         this.data.estadisticas = {
-            total_invertido: 5000000,
-            ingreso_mensual: 250000,
-            roi_total: 12.5,
-            rentabilidad_total: 15.2,
-            tendencia_mensual: 2.5,
-            ranking_roi: 25,
-            estado_cuota: 'al_dia'
+            total_invertido: 0,
+            ingreso_mensual: 0,
+            roi_total: 0,
+            estado_cuota: 'al_dia',
         };
-        
-        this.data.maquinas = [
-            {
-                id: 1,
-                nombre: 'Máquina Arcade Pro',
-                tipo: 'Arcade',
-                porcentaje_propiedad: 30,
-                inversion_inicial: 2000000,
-                ingreso_mensual: 120000,
-                rentabilidad: 15.5
-            },
-            {
-                id: 2,
-                nombre: 'Simulador Carreras',
-                tipo: 'Simulador',
-                porcentaje_propiedad: 25,
-                inversion_inicial: 1500000,
-                ingreso_mensual: 80000,
-                rentabilidad: 12.8
-            }
-        ];
+
+        this.data.maquinas = [];
         
         this.actualizarInfoSocio();
         this.actualizarEstadisticasUI();

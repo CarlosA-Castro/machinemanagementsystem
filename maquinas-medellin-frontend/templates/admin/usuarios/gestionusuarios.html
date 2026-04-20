@@ -632,6 +632,10 @@
                 notes: document.getElementById('notas').value
             };
             const password = document.getElementById('password').value;
+            if (!esEdicion && !password) {
+                this.mostrarError('La contraseña es obligatoria para crear un usuario');
+                return;
+            }
             if (password) datos.password = password;
             if (esEdicion) datos.isActive = document.getElementById('isActive').value === 'true';
             fetch(esEdicion ? `/api/usuarios/${usuarioId}` : '/api/usuarios', {
