@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Flask + MySQL (Docker Compose)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build", "web"],
+      "port": 5000
+    },
+    {
+      "name": "Flask App (Python directo)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["maquinas-medellin-frontend/app.py"],
+      "port": 5000
+    }
+  ]
+}
