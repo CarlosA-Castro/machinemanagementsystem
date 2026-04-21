@@ -226,12 +226,174 @@
       border: 1px solid rgba(244,241,235,0.18);
     }
 
-    /* ===== MACHINE CARDS ===== */
+    /* ===== SHOWROOM ===== */
+    .showroom-section {
+      padding: 5rem 1.5rem;
+      position: relative;
+      z-index: 10;
+      overflow: hidden;
+    }
+    /* Atmospheric background */
+    .showroom-bg {
+      position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    }
+    .showroom-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(244,241,235,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(244,241,235,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .showroom-glow {
+      position: absolute; width: 500px; height: 500px;
+      border-radius: 50%; filter: blur(130px); opacity: 0.10;
+    }
+    .showroom-glow--left  { top: 0; left: -15%; background: #C8252A; }
+    .showroom-glow--right { bottom: 0; right: -10%; background: #1a4a8a; }
+
+    /* Header */
+    .showroom-header { text-align: center; margin-bottom: 3.5rem; }
+    .showroom-subtitle {
+      color: rgba(244,241,235,0.5); font-size: 0.88rem;
+      margin-top: 0.75rem; max-width: 500px;
+      margin-left: auto; margin-right: auto; line-height: 1.6;
+    }
+
+    /* Featured hero machine */
+    .showroom-stage { position: relative; margin-bottom: 4rem; }
+    .showroom-spotlight {
+      position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+      width: 700px; height: 320px; pointer-events: none;
+      background: radial-gradient(ellipse, rgba(200,37,42,0.13) 0%, transparent 70%);
+    }
+    .showroom-featured {
+      display: grid; grid-template-columns: 1.15fr 0.85fr;
+      gap: 0; position: relative;
+      background: rgba(244,241,235,0.03);
+      border: 1px solid rgba(244,241,235,0.09);
+      border-radius: 20px; overflow: hidden;
+    }
+    .showroom-featured::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(135deg, rgba(200,37,42,0.05) 0%, transparent 55%);
+    }
+    .showroom-featured__image {
+      position: relative; aspect-ratio: 16/10; overflow: hidden;
+    }
+    .showroom-featured__image img {
+      width: 100%; height: 100%; object-fit: cover;
+      transition: transform 0.55s ease;
+    }
+    .showroom-featured:hover .showroom-featured__image img { transform: scale(1.05); }
+    .showroom-featured__badge {
+      position: absolute; top: 1rem; left: 1rem;
+      background: linear-gradient(135deg, #C8252A, #8B1010);
+      color: #fff; font-size: 0.58rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.28rem 0.65rem; border-radius: 100px;
+      box-shadow: 0 2px 16px rgba(200,37,42,0.45);
+    }
+    .showroom-featured__info {
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 2.5rem;
+    }
+    .showroom-featured__tag {
+      display: inline-block; font-size: 0.58rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: #C8252A; border: 1px solid rgba(200,37,42,0.4);
+      padding: 0.15rem 0.65rem; border-radius: 100px;
+      margin-bottom: 0.85rem; width: fit-content;
+    }
+    .showroom-featured__name {
+      font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 900;
+      color: #fff; margin: 0 0 0.85rem; line-height: 1.1;
+    }
+    .showroom-featured__desc {
+      font-size: 0.82rem; color: rgba(244,241,235,0.58);
+      line-height: 1.65; margin-bottom: 1.75rem;
+    }
+    .showroom-featured__stats { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .stat-pill {
+      background: rgba(244,241,235,0.05);
+      border: 1px solid rgba(244,241,235,0.1);
+      border-radius: 100px; padding: 0.28rem 0.8rem;
+      font-size: 0.68rem; color: rgba(244,241,235,0.65);
+    }
+    .stat-pill span { color: #C8252A; font-weight: 700; }
+
+    /* Experience category cards */
+    .showroom-categories { margin-bottom: 3.5rem; }
+    .showroom-categories__title {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: rgba(244,241,235,0.35);
+      margin-bottom: 1rem;
+    }
+    .showroom-categories__grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem;
+    }
+    .cat-card {
+      background: rgba(244,241,235,0.03);
+      border: 1px solid rgba(244,241,235,0.08);
+      border-radius: 14px; padding: 1.1rem 1.2rem;
+      display: flex; align-items: center; gap: 0.9rem;
+      position: relative; overflow: hidden;
+      transition: background 0.3s, border-color 0.3s, transform 0.3s;
+    }
+    .cat-card::after {
+      content: ''; position: absolute; inset: 0; opacity: 0;
+      background: linear-gradient(135deg, rgba(200,37,42,0.07) 0%, transparent 60%);
+      transition: opacity 0.3s;
+    }
+    .cat-card:hover { transform: translateY(-3px); border-color: rgba(244,241,235,0.16); }
+    .cat-card:hover::after { opacity: 1; }
+    .cat-icon {
+      font-size: 1.6rem; flex-shrink: 0;
+      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+      background: rgba(244,241,235,0.05); border-radius: 11px;
+    }
+    .cat-info { flex: 1; min-width: 0; }
+    .cat-info__name { font-size: 0.82rem; font-weight: 700; color: #fff; margin-bottom: 0.1rem; }
+    .cat-info__sub  { font-size: 0.64rem; color: rgba(244,241,235,0.42); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cat-badge {
+      flex-shrink: 0; font-size: 0.52rem; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 0.12rem 0.5rem; border-radius: 100px;
+    }
+    .cat-badge--active { color: #4ade80; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.22); }
+    .cat-badge--soon   { color: rgba(244,241,235,0.35); background: rgba(244,241,235,0.04); border: 1px solid rgba(244,241,235,0.1); }
+
+    /* Machine carousel */
+    .showroom-carousel__header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.1rem;
+    }
+    .showroom-carousel__header h3 {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: rgba(244,241,235,0.35);
+    }
+    .carousel-nav { display: flex; gap: 0.5rem; }
+    .carousel-btn {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 1px solid rgba(244,241,235,0.14);
+      background: rgba(244,241,235,0.04);
+      color: rgba(244,241,235,0.65); font-size: 1.3rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    }
+    .carousel-btn:hover { background: rgba(244,241,235,0.09); border-color: rgba(244,241,235,0.28); }
+    .showroom-carousel__track {
+      display: flex; gap: 1rem;
+      overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none;
+      padding-bottom: 0.5rem; perspective: 1000px;
+    }
+    .showroom-carousel__track::-webkit-scrollbar { display: none; }
+
+    /* Individual machine card (carousel) */
     .machine-card {
       position: relative; border-radius: 14px; overflow: hidden;
       border: 1px solid rgba(244,241,235,0.08);
-      aspect-ratio: 4/3;
-      transition: transform 0.35s, border-color 0.35s, box-shadow 0.35s;
+      flex-shrink: 0; width: 230px; height: 172px;
+      transition: border-color 0.35s, box-shadow 0.35s;
     }
     .machine-card img {
       width: 100%; height: 100%; object-fit: cover;
@@ -240,28 +402,48 @@
     .machine-overlay {
       position: absolute; inset: 0;
       background: linear-gradient(to top,
-        rgba(15,26,46,0.95) 0%,
-        rgba(15,26,46,0.2) 55%, transparent 100%);
-      display: flex; align-items: flex-end; padding: 1rem;
+        rgba(10,18,36,0.95) 0%, rgba(10,18,36,0.2) 55%, transparent 100%);
+      display: flex; align-items: flex-end; padding: 0.9rem;
     }
     .machine-name {
-      font-size: 0.82rem; font-weight: 700;
-      letter-spacing: 0.03em; color: #fff;
+      font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; color: #fff;
     }
     .machine-tag {
-      display: inline-block; font-size: 0.58rem; font-weight: 600;
+      display: inline-block; font-size: 0.56rem; font-weight: 600;
       letter-spacing: 0.08em; text-transform: uppercase;
-      background: rgba(244,241,235,0.12);
-      border: 1px solid rgba(244,241,235,0.3);
-      color: var(--cream); padding: 0.1rem 0.5rem;
-      border-radius: 100px; margin-top: 0.25rem;
+      background: rgba(244,241,235,0.1); border: 1px solid rgba(244,241,235,0.25);
+      color: var(--cream); padding: 0.08rem 0.45rem;
+      border-radius: 100px; margin-top: 0.2rem;
     }
     .machine-card:hover {
-      transform: scale(1.03);
       border-color: rgba(200,37,42,0.4);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.5);
     }
     .machine-card:hover img { transform: scale(1.08); }
+    /* "Coming soon" placeholder */
+    .machine-card--soon {
+      background: rgba(244,241,235,0.02);
+      border-style: dashed;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.5rem;
+    }
+    .machine-card--soon:hover { border-color: rgba(244,241,235,0.18); box-shadow: none; }
+    .soon-icon  { font-size: 1.6rem; opacity: 0.28; }
+    .soon-label {
+      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(244,241,235,0.28);
+    }
+
+    /* Responsive */
+    @media(max-width: 900px) {
+      .showroom-featured { grid-template-columns: 1fr; }
+      .showroom-featured__info { padding: 1.75rem; }
+      .showroom-categories__grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media(max-width: 540px) {
+      .showroom-categories__grid { grid-template-columns: 1fr; }
+      .machine-card { width: 185px; height: 139px; }
+    }
 
     /* ===== STATS ===== */
     .stat-box {
@@ -925,103 +1107,73 @@
 
 <div class="divider"></div>
 
-<!-- ===================== MACHINES ===================== -->
-<section id="maquinas" style="padding:5rem 1.5rem;position:relative;z-index:10;">
-  <div class="max-w-6xl mx-auto">
+<!-- ===================== SHOWROOM ===================== -->
+<section id="maquinas" class="showroom-section">
 
-    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:3rem;">
-      <div>
-        <span class="s-label reveal">Catálogo</span>
-        <h2 class="s-title reveal d1">Nuestras Máquinas</h2>
-        <div class="s-underline reveal d2"></div>
+  <!-- Atmospheric background: grid + ambient glows -->
+  <div class="showroom-bg" aria-hidden="true">
+    <div class="showroom-grid"></div>
+    <div class="showroom-glow showroom-glow--left"></div>
+    <div class="showroom-glow showroom-glow--right"></div>
+  </div>
+
+  <div class="max-w-6xl mx-auto" style="position:relative;z-index:2;">
+
+    <!-- Section header -->
+    <div class="showroom-header reveal">
+      <span class="s-label">Showroom</span>
+      <h2 class="s-title">Nuestras Experiencias</h2>
+      <div class="s-underline"></div>
+      <p class="showroom-subtitle">Un ecosistema de entretenimiento diseñado para generar rentabilidad desde el primer día.</p>
+    </div>
+
+    <!-- ── FEATURED HERO ── -->
+    <div class="showroom-stage reveal d1">
+      <div class="showroom-spotlight" aria-hidden="true"></div>
+      <div class="showroom-featured">
+        <div class="showroom-featured__image">
+          <!-- Cambia esta imagen para cambiar la máquina destacada -->
+          <img src="{{ url_for('static', filename='img/simulador1.jpg') }}" alt="Simulador Racing" loading="lazy">
+          <div class="showroom-featured__badge">⭐ Destacado</div>
+        </div>
+        <div class="showroom-featured__info">
+          <div class="showroom-featured__tag">Velocidad</div>
+          <!-- Cambia nombre, descripción y stats aquí -->
+          <h3 class="showroom-featured__name">Simulador Racing</h3>
+          <p class="showroom-featured__desc">Cabina de simulación inmersiva con asiento de cuero, pantalla 42", efectos de vibración y sistema de sonido envolvente. La experiencia más solicitada del portafolio.</p>
+          <div class="showroom-featured__stats">
+            <div class="stat-pill"><span>Alta</span> Demanda</div>
+            <div class="stat-pill"><span>Revenue</span> Premium</div>
+            <div class="stat-pill"><span>Top</span> Rentabilidad</div>
+          </div>
+        </div>
       </div>
-      <a href="/login" class="btn-secondary reveal d1" style="font-size:0.82rem;padding:.55rem 1.1rem;">
+    </div>
+
+    <!-- ── EXPERIENCE CATEGORIES ── populated by JS data array below -->
+    <div class="showroom-categories reveal d2">
+      <h3 class="showroom-categories__title">Categorías de Experiencia</h3>
+      <div class="showroom-categories__grid" id="categories-grid"></div>
+    </div>
+
+    <!-- ── MACHINE CAROUSEL ── populated by JS data array below -->
+    <div class="showroom-carousel reveal d3">
+      <div class="showroom-carousel__header">
+        <h3>Portafolio de Máquinas</h3>
+        <div class="carousel-nav">
+          <button class="carousel-btn" id="carousel-prev" aria-label="Anterior">&#8249;</button>
+          <button class="carousel-btn" id="carousel-next" aria-label="Siguiente">&#8250;</button>
+        </div>
+      </div>
+      <div class="showroom-carousel__track" id="carousel-track"></div>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin-top:3rem;" class="reveal d4">
+      <a href="/login" class="btn-secondary" style="font-size:0.82rem;padding:.55rem 1.4rem;">
         <i class="fas fa-sign-in-alt"></i> Ver sistema completo
       </a>
     </div>
-
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.9rem;">
-
-      <!-- Row 1: 4 machines with larger first -->
-      <div class="machine-card reveal d1" style="grid-column:span 1;">
-        <img src="{{ url_for('static', filename='img/basketball.jpg') }}" alt="Basketball" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Basketball</div>
-          <div class="machine-tag">Deporte</div>
-        </div></div>
-      </div>
-
-      <div class="machine-card reveal d2">
-        <img src="{{ url_for('static', filename='img/simulador1.jpg') }}" alt="Simulador Racing" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Simulador Racing</div>
-          <div class="machine-tag">Velocidad</div>
-        </div></div>
-      </div>
-
-      <div class="machine-card reveal d3">
-        <img src="{{ url_for('static', filename='img/mcqueen.jpg') }}" alt="McQueen Racing" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">McQueen Racing</div>
-          <div class="machine-tag">Infantil</div>
-        </div></div>
-      </div>
-
-      <div class="machine-card reveal d4">
-        <img src="{{ url_for('static', filename='img/disco air hockey.jpg') }}" alt="Air Hockey" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Air Hockey</div>
-          <div class="machine-tag">Clásico</div>
-        </div></div>
-      </div>
-
-    </div>
-
-    <!-- Second row: 4 more -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.9rem;margin-top:0.9rem;">
-
-      <div class="machine-card reveal d1">
-        <img src="{{ url_for('static', filename='img/peluches1.jpg') }}" alt="Grúa Peluches" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Grúa Peluches</div>
-          <div class="machine-tag">Destreza</div>
-        </div></div>
-      </div>
-
-      <div class="machine-card reveal d2">
-        <img src="{{ url_for('static', filename='img/tren.jpg') }}" alt="Tren de Paseo" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Tren de Paseo</div>
-          <div class="machine-tag">Infantil</div>
-        </div></div>
-      </div>
-
-      <div class="machine-card reveal d3">
-        <img src="{{ url_for('static', filename='img/pelea.jpg') }}" alt="Lucha Arcade" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Lucha Arcade</div>
-          <div class="machine-tag">Combate</div>
-        </div></div>
-      </div>
-
-      <div class="machine-card reveal d4">
-        <img src="{{ url_for('static', filename='img/caballo.jpg') }}" alt="Caballo Mecánico" loading="lazy">
-        <div class="machine-overlay"><div>
-          <div class="machine-name">Caballo Mecánico</div>
-          <div class="machine-tag">Infantil</div>
-        </div></div>
-      </div>
-
-    </div>
-
-    <!-- Responsive: on mobile second row becomes 2 columns -->
-    <style>
-      @media(max-width:639px){
-        #maquinas [style*="grid-template-columns:repeat(4"]{
-          grid-template-columns:repeat(2,1fr)!important;
-        }
-      }
-    </style>
 
   </div>
 </section>
@@ -1335,19 +1487,103 @@
   })();
 </script>
 
-<!-- 3D tilt on machine cards -->
+<!-- ===== SHOWROOM: data arrays + render ===== -->
 <script>
-  document.querySelectorAll('.machine-card').forEach(function(card) {
-    card.addEventListener('mousemove', function(e) {
-      var r = card.getBoundingClientRect();
-      var x = (e.clientX - r.left) / r.width  - 0.5;
-      var y = (e.clientY - r.top)  / r.height - 0.5;
-      card.style.transform = 'scale(1.04) perspective(700px) rotateY(' + (x * 9) + 'deg) rotateX(' + (-y * 9) + 'deg)';
+(function() {
+
+  // ================================================================
+  // CATEGORÍAS — edita aquí para agregar/quitar categorías
+  // status: 'active' muestra badge verde, 'soon' muestra "Próximamente"
+  // ================================================================
+  var SHOWROOM_CATEGORIES = [
+    { icon: '🏎️', name: 'Velocidad',      sub: 'Simuladores y Racing',     status: 'active' },
+    { icon: '🏀', name: 'Deporte',        sub: 'Baloncesto y más',          status: 'active' },
+    { icon: '🕹️', name: 'Arcade Clásico', sub: 'Air Hockey, Combate',       status: 'active' },
+    { icon: '🧸', name: 'Infantil',       sub: 'Caballitos, Trenes, Racing', status: 'active' },
+    { icon: '🎯', name: 'Destreza',       sub: 'Grúas y Pelucheras',        status: 'active' },
+    { icon: '🥽', name: 'VR / Inmersión', sub: 'Realidad Virtual',          status: 'soon'   },
+  ];
+
+  // ================================================================
+  // MÁQUINAS — edita aquí para agregar/quitar tarjetas del carousel
+  // Para placeholder usa: { soon: true, name: '...', tag: '...', icon: '...' }
+  // ================================================================
+  var SHOWROOM_MACHINES = [
+    { name: 'Basketball',        tag: 'Deporte',   img: "{{ url_for('static', filename='img/basketball.jpg') }}" },
+    { name: 'Simulador Racing',  tag: 'Velocidad', img: "{{ url_for('static', filename='img/simulador1.jpg') }}" },
+    { name: 'McQueen Racing',    tag: 'Infantil',  img: "{{ url_for('static', filename='img/mcqueen.jpg') }}" },
+    { name: 'Air Hockey',        tag: 'Clásico',   img: "{{ url_for('static', filename='img/disco air hockey.jpg') }}" },
+    { name: 'Grúa Peluches',     tag: 'Destreza',  img: "{{ url_for('static', filename='img/peluches1.jpg') }}" },
+    { name: 'Tren de Paseo',     tag: 'Infantil',  img: "{{ url_for('static', filename='img/tren.jpg') }}" },
+    { name: 'Lucha Arcade',      tag: 'Combate',   img: "{{ url_for('static', filename='img/pelea.jpg') }}" },
+    { name: 'Caballo Mecánico',  tag: 'Infantil',  img: "{{ url_for('static', filename='img/caballo.jpg') }}" },
+    { name: 'Simulador PK',      tag: 'Velocidad', img: "{{ url_for('static', filename='img/simulador pk.jpg') }}" },
+    { name: 'Sillas Masaje',     tag: 'Bienestar', img: "{{ url_for('static', filename='img/sillas de masajes.jpg') }}" },
+    { soon: true, name: 'Próximamente',    tag: 'VR / Inmersión', icon: '🥽' },
+    { soon: true, name: 'Más experiencias', tag: 'En camino',     icon: '✨' },
+  ];
+
+  // ── Render categories ──
+  var catGrid = document.getElementById('categories-grid');
+  if (catGrid) {
+    SHOWROOM_CATEGORIES.forEach(function(cat) {
+      var el = document.createElement('div');
+      el.className = 'cat-card';
+      var badgeClass = cat.status === 'active' ? 'cat-badge--active' : 'cat-badge--soon';
+      var badgeText  = cat.status === 'active' ? 'Activo' : 'Próximamente';
+      el.innerHTML =
+        '<div class="cat-icon">' + cat.icon + '</div>' +
+        '<div class="cat-info">' +
+          '<div class="cat-info__name">' + cat.name + '</div>' +
+          '<div class="cat-info__sub">'  + cat.sub  + '</div>' +
+        '</div>' +
+        '<span class="cat-badge ' + badgeClass + '">' + badgeText + '</span>';
+      catGrid.appendChild(el);
     });
-    card.addEventListener('mouseleave', function() {
-      card.style.transform = '';
+  }
+
+  // ── Render carousel cards (with inline 3D tilt) ──
+  var track = document.getElementById('carousel-track');
+  if (track) {
+    SHOWROOM_MACHINES.forEach(function(m) {
+      var el = document.createElement('div');
+      if (m.soon) {
+        el.className = 'machine-card machine-card--soon';
+        el.innerHTML =
+          '<div class="soon-icon">' + m.icon + '</div>' +
+          '<div class="soon-label">' + m.name + '</div>' +
+          '<div class="machine-tag" style="position:relative;margin-top:.3rem;">' + m.tag + '</div>';
+      } else {
+        el.className = 'machine-card';
+        el.innerHTML =
+          '<img src="' + m.img + '" alt="' + m.name + '" loading="lazy">' +
+          '<div class="machine-overlay"><div>' +
+            '<div class="machine-name">' + m.name + '</div>' +
+            '<div class="machine-tag">'  + m.tag  + '</div>' +
+          '</div></div>';
+        // 3D tilt on hover
+        el.addEventListener('mousemove', function(e) {
+          var r = el.getBoundingClientRect();
+          var x = (e.clientX - r.left) / r.width  - 0.5;
+          var y = (e.clientY - r.top)  / r.height - 0.5;
+          el.style.transform = 'perspective(700px) rotateY(' + (x*9) + 'deg) rotateX(' + (-y*9) + 'deg) scale(1.04)';
+        });
+        el.addEventListener('mouseleave', function() { el.style.transform = ''; });
+      }
+      track.appendChild(el);
     });
-  });
+  }
+
+  // ── Carousel prev/next buttons ──
+  var prev  = document.getElementById('carousel-prev');
+  var next  = document.getElementById('carousel-next');
+  var scrollAmt = 250;
+  if (prev && next && track) {
+    prev.addEventListener('click', function() { track.scrollLeft -= scrollAmt; });
+    next.addEventListener('click', function() { track.scrollLeft += scrollAmt; });
+  }
+
+})();
 </script>
 
 <!-- ===== SIMULADOR DE INVERSIÓN ===== -->
