@@ -226,223 +226,187 @@
       border: 1px solid rgba(244,241,235,0.18);
     }
 
-    /* ===== SHOWROOM ===== */
-    .showroom-section {
-      padding: 5rem 1.5rem;
-      position: relative;
-      z-index: 10;
-      overflow: hidden;
+    /* ===== SHOWROOM V2 ===== */
+    .srm-section {
+      padding: 5rem 1.5rem 4rem;
+      position: relative; z-index: 10; overflow: hidden;
     }
-    /* Atmospheric background */
-    .showroom-bg {
-      position: absolute; inset: 0; pointer-events: none; z-index: 0;
-    }
-    .showroom-grid {
+    .srm-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+    .srm-grid {
       position: absolute; inset: 0;
       background-image:
-        linear-gradient(rgba(244,241,235,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(244,241,235,0.025) 1px, transparent 1px);
-      background-size: 60px 60px;
+        linear-gradient(rgba(244,241,235,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(244,241,235,0.02) 1px, transparent 1px);
+      background-size: 64px 64px;
     }
-    .showroom-glow {
-      position: absolute; width: 500px; height: 500px;
-      border-radius: 50%; filter: blur(130px); opacity: 0.10;
+    .srm-ambient {
+      position: absolute; width: 620px; height: 620px;
+      border-radius: 50%; filter: blur(145px); opacity: 0.09;
     }
-    .showroom-glow--left  { top: 0; left: -15%; background: #C8252A; }
-    .showroom-glow--right { bottom: 0; right: -10%; background: #1a4a8a; }
+    .srm-ambient--l { top: -140px; left: -200px; background: #C8252A; }
+    .srm-ambient--r { bottom: -140px; right: -200px; background: #1E3D6B; }
+    .srm-wrap { position: relative; z-index: 2; }
+    .srm-header { text-align: center; margin-bottom: 3rem; }
 
-    /* Header */
-    .showroom-header { text-align: center; margin-bottom: 3.5rem; }
-    .showroom-subtitle {
-      color: rgba(244,241,235,0.5); font-size: 0.88rem;
-      margin-top: 0.75rem; max-width: 500px;
-      margin-left: auto; margin-right: auto; line-height: 1.6;
+    /* ── STAGE ── */
+    .srm-stage {
+      position: relative; height: 520px;
+      border-radius: 24px;
+      border: 1px solid rgba(244,241,235,0.07);
+      overflow: hidden; margin-bottom: 1.25rem;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 65%, rgba(18,28,50,0.95) 0%, transparent 100%),
+        linear-gradient(180deg, #07101f 0%, #0c1525 100%);
     }
-
-    /* Featured hero machine */
-    .showroom-stage { position: relative; margin-bottom: 4rem; }
-    .showroom-spotlight {
-      position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
-      width: 700px; height: 320px; pointer-events: none;
-      background: radial-gradient(ellipse, rgba(200,37,42,0.13) 0%, transparent 70%);
+    /* Spotlight cone from above */
+    .srm-spotlight {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 440px; height: 100%; pointer-events: none;
+      background: linear-gradient(180deg,
+        rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.01) 42%, transparent 72%);
+      clip-path: polygon(30% 0%, 70% 0%, 84% 100%, 16% 100%);
     }
-    .showroom-featured {
-      display: grid; grid-template-columns: 1.15fr 0.85fr;
-      gap: 0; position: relative;
-      background: rgba(244,241,235,0.03);
-      border: 1px solid rgba(244,241,235,0.09);
-      border-radius: 20px; overflow: hidden;
-    }
-    .showroom-featured::before {
-      content: ''; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(135deg, rgba(200,37,42,0.05) 0%, transparent 55%);
-    }
-    .showroom-featured__image {
-      position: relative; aspect-ratio: 16/10; overflow: hidden;
-    }
-    .showroom-featured__image img {
-      width: 100%; height: 100%; object-fit: cover;
-      transition: transform 0.55s ease;
-    }
-    .showroom-featured:hover .showroom-featured__image img { transform: scale(1.05); }
-    .showroom-featured__badge {
-      position: absolute; top: 1rem; left: 1rem;
-      background: linear-gradient(135deg, #C8252A, #8B1010);
-      color: #fff; font-size: 0.58rem; font-weight: 700;
-      letter-spacing: 0.1em; text-transform: uppercase;
-      padding: 0.28rem 0.65rem; border-radius: 100px;
-      box-shadow: 0 2px 16px rgba(200,37,42,0.45);
-    }
-    .showroom-featured__info {
-      display: flex; flex-direction: column; justify-content: center;
-      padding: 2.5rem;
-    }
-    .showroom-featured__tag {
-      display: inline-block; font-size: 0.58rem; font-weight: 700;
-      letter-spacing: 0.12em; text-transform: uppercase;
-      color: #C8252A; border: 1px solid rgba(200,37,42,0.4);
-      padding: 0.15rem 0.65rem; border-radius: 100px;
-      margin-bottom: 0.85rem; width: fit-content;
-    }
-    .showroom-featured__name {
-      font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 900;
-      color: #fff; margin: 0 0 0.85rem; line-height: 1.1;
-    }
-    .showroom-featured__desc {
-      font-size: 0.82rem; color: rgba(244,241,235,0.58);
-      line-height: 1.65; margin-bottom: 1.75rem;
-    }
-    .showroom-featured__stats { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-    .stat-pill {
-      background: rgba(244,241,235,0.05);
-      border: 1px solid rgba(244,241,235,0.1);
-      border-radius: 100px; padding: 0.28rem 0.8rem;
-      font-size: 0.68rem; color: rgba(244,241,235,0.65);
-    }
-    .stat-pill span { color: #C8252A; font-weight: 700; }
-
-    /* Experience category cards */
-    .showroom-categories { margin-bottom: 3.5rem; }
-    .showroom-categories__title {
-      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: rgba(244,241,235,0.35);
-      margin-bottom: 1rem;
-    }
-    .showroom-categories__grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem;
-    }
-    .cat-card {
-      background: rgba(244,241,235,0.03);
-      border: 1px solid rgba(244,241,235,0.08);
-      border-radius: 14px; padding: 1.1rem 1.2rem;
-      display: flex; align-items: center; gap: 0.9rem;
-      position: relative; overflow: hidden;
-      transition: background 0.3s, border-color 0.3s, transform 0.3s;
-    }
-    .cat-card::after {
-      content: ''; position: absolute; inset: 0; opacity: 0;
-      background: linear-gradient(135deg, rgba(200,37,42,0.07) 0%, transparent 60%);
-      transition: opacity 0.3s;
-    }
-    .cat-card:hover { transform: translateY(-3px); border-color: rgba(244,241,235,0.16); }
-    .cat-card:hover::after { opacity: 1; }
-    .cat-icon {
-      font-size: 1.6rem; flex-shrink: 0;
-      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-      background: rgba(244,241,235,0.05); border-radius: 11px;
-    }
-    .cat-info { flex: 1; min-width: 0; }
-    .cat-info__name { font-size: 0.82rem; font-weight: 700; color: #fff; margin-bottom: 0.1rem; }
-    .cat-info__sub  { font-size: 0.64rem; color: rgba(244,241,235,0.42); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cat-badge {
-      flex-shrink: 0; font-size: 0.52rem; font-weight: 600;
-      letter-spacing: 0.06em; text-transform: uppercase;
-      padding: 0.12rem 0.5rem; border-radius: 100px;
-    }
-    .cat-badge--active { color: #4ade80; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.22); }
-    .cat-badge--soon   { color: rgba(244,241,235,0.35); background: rgba(244,241,235,0.04); border: 1px solid rgba(244,241,235,0.1); }
-
-    /* Machine carousel */
-    .showroom-carousel__header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 1.1rem;
-    }
-    .showroom-carousel__header h3 {
-      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: rgba(244,241,235,0.35);
-    }
-    .carousel-nav { display: flex; gap: 0.5rem; }
-    .carousel-btn {
-      width: 34px; height: 34px; border-radius: 50%;
-      border: 1px solid rgba(244,241,235,0.14);
-      background: rgba(244,241,235,0.04);
-      color: rgba(244,241,235,0.65); font-size: 1.3rem;
+    /* Machine image */
+    .srm-machine-wrap {
+      position: absolute; inset: 0; z-index: 2;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: background 0.2s, border-color 0.2s;
+      padding: 2rem 0 7rem;
     }
-    .carousel-btn:hover { background: rgba(244,241,235,0.09); border-color: rgba(244,241,235,0.28); }
-    .showroom-carousel__track {
-      display: flex; gap: 1rem;
-      overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none;
-      padding-bottom: 0.5rem; perspective: 1000px;
+    .srm-machine-img {
+      max-height: 100%; max-width: 50%;
+      object-fit: contain;
+      filter: drop-shadow(0 28px 65px rgba(0,0,0,0.75));
+      animation: srm-float 5.5s ease-in-out infinite;
+      transition: opacity 0.3s ease;
     }
-    .showroom-carousel__track::-webkit-scrollbar { display: none; }
+    .srm-machine-img.fade { opacity: 0; }
+    @keyframes srm-float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-14px); }
+    }
+    /* Floor glow pool */
+    .srm-floor {
+      position: absolute; bottom: 4rem; z-index: 1;
+      left: 50%; transform: translateX(-50%);
+      width: 270px; height: 36px;
+    }
+    .srm-floor-glow {
+      width: 100%; height: 100%; border-radius: 50%;
+      filter: blur(24px); opacity: 0.4;
+      transition: background 0.5s ease;
+    }
+    /* Info overlay */
+    .srm-info {
+      position: absolute; inset: 0; z-index: 4;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 1.5rem 2rem; pointer-events: none;
+    }
+    .srm-counter {
+      align-self: flex-end;
+      font-size: 0.58rem; font-weight: 600; letter-spacing: 0.15em;
+      color: rgba(244,241,235,0.25);
+    }
+    .srm-info__body { max-width: 285px; }
+    .srm-info__tag {
+      display: inline-block; font-size: 0.54rem; font-weight: 700;
+      letter-spacing: 0.13em; text-transform: uppercase;
+      color: #C8252A; border: 1px solid rgba(200,37,42,0.4);
+      padding: 0.13rem 0.6rem; border-radius: 100px; margin-bottom: 0.5rem;
+      transition: color 0.45s ease, border-color 0.45s ease;
+    }
+    .srm-info__name {
+      font-size: clamp(1.4rem, 3.2vw, 2.1rem); font-weight: 900;
+      color: #fff; margin: 0 0 0.42rem; line-height: 1.1;
+      transition: opacity 0.28s ease;
+    }
+    .srm-info__desc {
+      font-size: 0.76rem; color: rgba(244,241,235,0.45);
+      line-height: 1.65; margin: 0;
+      transition: opacity 0.28s ease;
+    }
+    .srm-info__name.fade, .srm-info__desc.fade { opacity: 0; }
+    /* Auto-cycle progress bar */
+    .srm-progress {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2px; background: rgba(244,241,235,0.05); z-index: 5;
+    }
+    .srm-progress__bar {
+      height: 100%; width: 0%; border-radius: 1px;
+    }
+    .srm-progress__bar.running { animation: srm-bar 4s linear; }
+    @keyframes srm-bar { from { width: 0% } to { width: 100% } }
 
-    /* Individual machine card (carousel) */
-    .machine-card {
-      position: relative; border-radius: 14px; overflow: hidden;
-      border: 1px solid rgba(244,241,235,0.08);
-      flex-shrink: 0; width: 230px; height: 172px;
-      transition: border-color 0.35s, box-shadow 0.35s;
+    /* ── CATEGORY SELECTORS ── */
+    .srm-cats {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem; margin-bottom: 2.5rem;
     }
-    .machine-card img {
-      width: 100%; height: 100%; object-fit: cover;
-      display: block; transition: transform 0.45s;
+    .srm-cat {
+      background: rgba(244,241,235,0.025);
+      border: 1px solid rgba(244,241,235,0.07);
+      border-left: 2px solid rgba(244,241,235,0.07);
+      border-radius: 14px; padding: 0.9rem 1rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: background 0.25s, border-color 0.25s, transform 0.25s;
     }
-    .machine-overlay {
-      position: absolute; inset: 0;
-      background: linear-gradient(to top,
-        rgba(10,18,36,0.95) 0%, rgba(10,18,36,0.2) 55%, transparent 100%);
-      display: flex; align-items: flex-end; padding: 0.9rem;
+    .srm-cat::before {
+      content: ''; position: absolute; inset: 0; opacity: 0;
+      background: linear-gradient(135deg, rgba(200,37,42,0.07) 0%, transparent 55%);
+      transition: opacity 0.25s;
     }
-    .machine-name {
-      font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; color: #fff;
+    .srm-cat:hover { transform: translateY(-2px); background: rgba(244,241,235,0.04); }
+    .srm-cat:hover::before { opacity: 1; }
+    .srm-cat.active {
+      border-left-color: var(--srm-color, #C8252A);
+      background: rgba(200,37,42,0.05);
+      border-color: rgba(200,37,42,0.18);
     }
-    .machine-tag {
-      display: inline-block; font-size: 0.56rem; font-weight: 600;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      background: rgba(244,241,235,0.1); border: 1px solid rgba(244,241,235,0.25);
-      color: var(--cream); padding: 0.08rem 0.45rem;
-      border-radius: 100px; margin-top: 0.2rem;
+    .srm-cat.active::before { opacity: 1; }
+    .srm-cat__icon {
+      font-size: 1.35rem; flex-shrink: 0;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(244,241,235,0.05); border-radius: 9px;
+      transition: background 0.25s;
     }
-    .machine-card:hover {
-      border-color: rgba(200,37,42,0.4);
-      box-shadow: 0 14px 36px rgba(0,0,0,0.5);
+    .srm-cat.active .srm-cat__icon { background: rgba(200,37,42,0.1); }
+    .srm-cat__info { flex: 1; min-width: 0; }
+    .srm-cat__name {
+      font-size: 0.77rem; font-weight: 700; color: rgba(244,241,235,0.72);
+      transition: color 0.25s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .machine-card:hover img { transform: scale(1.08); }
-    /* "Coming soon" placeholder */
-    .machine-card--soon {
-      background: rgba(244,241,235,0.02);
-      border-style: dashed;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 0.5rem;
+    .srm-cat.active .srm-cat__name { color: #fff; }
+    .srm-cat__sub {
+      font-size: 0.59rem; color: rgba(244,241,235,0.3); margin-top: 0.06rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .machine-card--soon:hover { border-color: rgba(244,241,235,0.18); box-shadow: none; }
-    .soon-icon  { font-size: 1.6rem; opacity: 0.28; }
-    .soon-label {
-      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em;
-      text-transform: uppercase; color: rgba(244,241,235,0.28);
+    .srm-cat__dot {
+      width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(244,241,235,0.14); transition: background 0.25s;
     }
+    .srm-cat.active .srm-cat__dot { background: var(--srm-color, #C8252A); }
+    .srm-cat__soon {
+      font-size: 0.47rem; font-weight: 600; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 0.09rem 0.4rem; border-radius: 100px;
+      flex-shrink: 0; color: rgba(244,241,235,0.28);
+      background: rgba(244,241,235,0.04); border: 1px solid rgba(244,241,235,0.1);
+    }
+    .srm-cta { text-align: center; }
 
     /* Responsive */
-    @media(max-width: 900px) {
-      .showroom-featured { grid-template-columns: 1fr; }
-      .showroom-featured__info { padding: 1.75rem; }
-      .showroom-categories__grid { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px) {
+      .srm-stage { height: 420px; }
+      .srm-machine-img { max-width: 65%; }
+      .srm-cats { grid-template-columns: repeat(2, 1fr); }
     }
-    @media(max-width: 540px) {
-      .showroom-categories__grid { grid-template-columns: 1fr; }
-      .machine-card { width: 185px; height: 139px; }
+    @media (max-width: 600px) {
+      .srm-stage { height: 300px; border-radius: 16px; }
+      .srm-machine-img { max-width: 76%; }
+      .srm-info { padding: 1rem 1.2rem; }
+      .srm-info__desc { display: none; }
+      .srm-cats { grid-template-columns: repeat(2, 1fr); gap: 0.45rem; }
+      .srm-cat__sub { display: none; }
     }
 
     /* ===== STATS ===== */
@@ -1107,69 +1071,65 @@
 
 <div class="divider"></div>
 
-<!-- ===================== SHOWROOM ===================== -->
-<section id="maquinas" class="showroom-section">
+<!-- ===================== SHOWROOM V2 ===================== -->
+<section id="maquinas" class="srm-section">
 
-  <!-- Atmospheric background: grid + ambient glows -->
-  <div class="showroom-bg" aria-hidden="true">
-    <div class="showroom-grid"></div>
-    <div class="showroom-glow showroom-glow--left"></div>
-    <div class="showroom-glow showroom-glow--right"></div>
+  <!-- Atmospheric background: grid lines + ambient glows -->
+  <div class="srm-bg" aria-hidden="true">
+    <div class="srm-grid"></div>
+    <div class="srm-ambient srm-ambient--l"></div>
+    <div class="srm-ambient srm-ambient--r"></div>
   </div>
 
-  <div class="max-w-6xl mx-auto" style="position:relative;z-index:2;">
+  <div class="max-w-6xl mx-auto srm-wrap">
 
-    <!-- Section header -->
-    <div class="showroom-header reveal">
+    <!-- Header -->
+    <div class="srm-header reveal">
       <span class="s-label">Showroom</span>
       <h2 class="s-title">Nuestras Experiencias</h2>
       <div class="s-underline"></div>
-      <p class="showroom-subtitle">Un ecosistema de entretenimiento diseñado para generar rentabilidad desde el primer día.</p>
     </div>
 
-    <!-- ── FEATURED HERO ── -->
-    <div class="showroom-stage reveal d1">
-      <div class="showroom-spotlight" aria-hidden="true"></div>
-      <div class="showroom-featured">
-        <div class="showroom-featured__image">
-          <!-- Cambia esta imagen para cambiar la máquina destacada -->
-          <img src="{{ url_for('static', filename='img/simulador1.jpg') }}" alt="Simulador Racing" loading="lazy">
-          <div class="showroom-featured__badge">⭐ Destacado</div>
+    <!-- ── STAGE: escena principal, una experiencia a la vez ── -->
+    <div class="srm-stage reveal d1" id="srm-stage">
+
+      <!-- Spotlight cone desde arriba -->
+      <div class="srm-spotlight" aria-hidden="true"></div>
+
+      <!-- Imagen de la máquina activa — JS la actualiza al cambiar experiencia -->
+      <div class="srm-machine-wrap">
+        <img class="srm-machine-img" id="srm-img"
+             src="{{ url_for('static', filename='img/simulador1.jpg') }}"
+             alt="Simulador Racing" loading="eager">
+      </div>
+
+      <!-- Glow de piso debajo de la máquina -->
+      <div class="srm-floor" aria-hidden="true">
+        <div class="srm-floor-glow" id="srm-glow"></div>
+      </div>
+
+      <!-- Info overlay: tag + nombre + descripción (abajo-izquierda) -->
+      <!-- Contador de experiencia (arriba-derecha) -->
+      <div class="srm-info" aria-live="polite">
+        <span class="srm-counter" id="srm-counter">01 / 06</span>
+        <div class="srm-info__body">
+          <div class="srm-info__tag" id="srm-tag">Velocidad</div>
+          <h3 class="srm-info__name" id="srm-name">Simulador Racing</h3>
+          <p class="srm-info__desc" id="srm-desc">Cabina inmersiva con asiento de cuero, pantalla 42" y efectos de vibración. La más solicitada.</p>
         </div>
-        <div class="showroom-featured__info">
-          <div class="showroom-featured__tag">Velocidad</div>
-          <!-- Cambia nombre, descripción y stats aquí -->
-          <h3 class="showroom-featured__name">Simulador Racing</h3>
-          <p class="showroom-featured__desc">Cabina de simulación inmersiva con asiento de cuero, pantalla 42", efectos de vibración y sistema de sonido envolvente. La experiencia más solicitada del portafolio.</p>
-          <div class="showroom-featured__stats">
-            <div class="stat-pill"><span>Alta</span> Demanda</div>
-            <div class="stat-pill"><span>Revenue</span> Premium</div>
-            <div class="stat-pill"><span>Top</span> Rentabilidad</div>
-          </div>
-        </div>
+      </div>
+
+      <!-- Barra de progreso del auto-ciclo -->
+      <div class="srm-progress" aria-hidden="true">
+        <div class="srm-progress__bar" id="srm-bar"></div>
       </div>
     </div>
 
-    <!-- ── EXPERIENCE CATEGORIES ── populated by JS data array below -->
-    <div class="showroom-categories reveal d2">
-      <h3 class="showroom-categories__title">Categorías de Experiencia</h3>
-      <div class="showroom-categories__grid" id="categories-grid"></div>
-    </div>
-
-    <!-- ── MACHINE CAROUSEL ── populated by JS data array below -->
-    <div class="showroom-carousel reveal d3">
-      <div class="showroom-carousel__header">
-        <h3>Portafolio de Máquinas</h3>
-        <div class="carousel-nav">
-          <button class="carousel-btn" id="carousel-prev" aria-label="Anterior">&#8249;</button>
-          <button class="carousel-btn" id="carousel-next" aria-label="Siguiente">&#8250;</button>
-        </div>
-      </div>
-      <div class="showroom-carousel__track" id="carousel-track"></div>
-    </div>
+    <!-- ── CATEGORY SELECTORS: paneles selectores — JS los renderiza desde EXPERIENCES[] ── -->
+    <div class="srm-cats reveal d2" id="srm-cats"></div>
 
     <!-- CTA -->
-    <div style="text-align:center;margin-top:3rem;" class="reveal d4">
+    <div class="srm-cta reveal d3">
       <a href="/login" class="btn-secondary" style="font-size:0.82rem;padding:.55rem 1.4rem;">
         <i class="fas fa-sign-in-alt"></i> Ver sistema completo
       </a>
@@ -1487,101 +1447,202 @@
   })();
 </script>
 
-<!-- ===== SHOWROOM: data arrays + render ===== -->
+<!-- ===== SHOWROOM V2 ===== -->
 <script>
-(function() {
+(function () {
 
   // ================================================================
-  // CATEGORÍAS — edita aquí para agregar/quitar categorías
-  // status: 'active' muestra badge verde, 'soon' muestra "Próximamente"
+  // EXPERIENCES — edita este array para cambiar el showroom
+  // icon: emoji de la categoría
+  // name/tag/sub/desc: textos del stage y del panel selector
+  // img: ruta de la imagen principal que se muestra en el stage
+  // color: color del glow de piso, border-left activo y barra de progreso
+  // soon: true → panel muestra "Próximamente"
   // ================================================================
-  var SHOWROOM_CATEGORIES = [
-    { icon: '🏎️', name: 'Velocidad',      sub: 'Simuladores y Racing',     status: 'active' },
-    { icon: '🏀', name: 'Deporte',        sub: 'Baloncesto y más',          status: 'active' },
-    { icon: '🕹️', name: 'Arcade Clásico', sub: 'Air Hockey, Combate',       status: 'active' },
-    { icon: '🧸', name: 'Infantil',       sub: 'Caballitos, Trenes, Racing', status: 'active' },
-    { icon: '🎯', name: 'Destreza',       sub: 'Grúas y Pelucheras',        status: 'active' },
-    { icon: '🥽', name: 'VR / Inmersión', sub: 'Realidad Virtual',          status: 'soon'   },
+  var EXPERIENCES = [
+    {
+      icon : '🏎️',
+      name : 'Simulador Racing',
+      tag  : 'Velocidad',
+      sub  : 'Simuladores · Racing',
+      desc : 'Cabina inmersiva con asiento de cuero, pantalla 42" y efectos de vibración. La más solicitada del portafolio.',
+      img  : "{{ url_for('static', filename='img/simulador1.jpg') }}",
+      color: '#C8252A',
+    },
+    {
+      icon : '🏀',
+      name : 'Basketball',
+      tag  : 'Deporte',
+      sub  : 'Baloncesto · Deportes',
+      desc : 'Cancha electrónica con contador de puntos, niveles de dificultad y modo multijugador. Alto engagement familiar.',
+      img  : "{{ url_for('static', filename='img/basketball.jpg') }}",
+      color: '#E87722',
+    },
+    {
+      icon : '🕹️',
+      name : 'Air Hockey',
+      tag  : 'Arcade Clásico',
+      sub  : 'Air Hockey · Combate',
+      desc : 'Mesa profesional con superficie de alta velocidad y marcador electrónico. Diversión para todas las edades.',
+      img  : "{{ url_for('static', filename='img/disco air hockey.jpg') }}",
+      color: '#3A7BFF',
+    },
+    {
+      icon : '🧸',
+      name : 'McQueen Racing',
+      tag  : 'Infantil',
+      sub  : 'Caballitos · Trenes · Racing',
+      desc : 'Simulador temático para los más pequeños. Diseño colorido, efectos de sonido y duración ajustable.',
+      img  : "{{ url_for('static', filename='img/mcqueen.jpg') }}",
+      color: '#F5C518',
+    },
+    {
+      icon : '🎯',
+      name : 'Grúa Peluches',
+      tag  : 'Destreza',
+      sub  : 'Grúas · Pelucheras',
+      desc : 'Máquina de destreza con premios reales. Alto engagement y repetición garantizada por el instinto de conquista.',
+      img  : "{{ url_for('static', filename='img/peluches1.jpg') }}",
+      color: '#B44FD8',
+    },
+    {
+      icon : '🥽',
+      name : 'Próximamente',
+      tag  : 'VR / Inmersión',
+      sub  : 'Realidad Virtual',
+      desc : 'Nuevas experiencias de realidad virtual en desarrollo. El entretenimiento del futuro, en tu local.',
+      img  : "{{ url_for('static', filename='img/simulador2.jpg') }}",
+      color: '#00C6FF',
+      soon : true,
+    },
   ];
 
-  // ================================================================
-  // MÁQUINAS — edita aquí para agregar/quitar tarjetas del carousel
-  // Para placeholder usa: { soon: true, name: '...', tag: '...', icon: '...' }
-  // ================================================================
-  var SHOWROOM_MACHINES = [
-    { name: 'Basketball',        tag: 'Deporte',   img: "{{ url_for('static', filename='img/basketball.jpg') }}" },
-    { name: 'Simulador Racing',  tag: 'Velocidad', img: "{{ url_for('static', filename='img/simulador1.jpg') }}" },
-    { name: 'McQueen Racing',    tag: 'Infantil',  img: "{{ url_for('static', filename='img/mcqueen.jpg') }}" },
-    { name: 'Air Hockey',        tag: 'Clásico',   img: "{{ url_for('static', filename='img/disco air hockey.jpg') }}" },
-    { name: 'Grúa Peluches',     tag: 'Destreza',  img: "{{ url_for('static', filename='img/peluches1.jpg') }}" },
-    { name: 'Tren de Paseo',     tag: 'Infantil',  img: "{{ url_for('static', filename='img/tren.jpg') }}" },
-    { name: 'Lucha Arcade',      tag: 'Combate',   img: "{{ url_for('static', filename='img/pelea.jpg') }}" },
-    { name: 'Caballo Mecánico',  tag: 'Infantil',  img: "{{ url_for('static', filename='img/caballo.jpg') }}" },
-    { name: 'Simulador PK',      tag: 'Velocidad', img: "{{ url_for('static', filename='img/simulador pk.jpg') }}" },
-    { name: 'Sillas Masaje',     tag: 'Bienestar', img: "{{ url_for('static', filename='img/sillas de masajes.jpg') }}" },
-    { soon: true, name: 'Próximamente',    tag: 'VR / Inmersión', icon: '🥽' },
-    { soon: true, name: 'Más experiencias', tag: 'En camino',     icon: '✨' },
-  ];
+  // ── DOM refs ──
+  var imgEl     = document.getElementById('srm-img');
+  var tagEl     = document.getElementById('srm-tag');
+  var nameEl    = document.getElementById('srm-name');
+  var descEl    = document.getElementById('srm-desc');
+  var counterEl = document.getElementById('srm-counter');
+  var glowEl    = document.getElementById('srm-glow');
+  var barEl     = document.getElementById('srm-bar');
+  var catsEl    = document.getElementById('srm-cats');
+  var stageEl   = document.getElementById('srm-stage');
 
-  // ── Render categories ──
-  var catGrid = document.getElementById('categories-grid');
-  if (catGrid) {
-    SHOWROOM_CATEGORIES.forEach(function(cat) {
-      var el = document.createElement('div');
-      el.className = 'cat-card';
-      var badgeClass = cat.status === 'active' ? 'cat-badge--active' : 'cat-badge--soon';
-      var badgeText  = cat.status === 'active' ? 'Activo' : 'Próximamente';
-      el.innerHTML =
-        '<div class="cat-icon">' + cat.icon + '</div>' +
-        '<div class="cat-info">' +
-          '<div class="cat-info__name">' + cat.name + '</div>' +
-          '<div class="cat-info__sub">'  + cat.sub  + '</div>' +
-        '</div>' +
-        '<span class="cat-badge ' + badgeClass + '">' + badgeText + '</span>';
-      catGrid.appendChild(el);
+  var current = 0;
+  var timer   = null;
+  var DELAY   = 4000; // ms por experiencia en auto-ciclo
+
+  // ── Render category selector panels ──
+  EXPERIENCES.forEach(function (exp, i) {
+    var el = document.createElement('div');
+    el.className = 'srm-cat' + (i === 0 ? ' active' : '');
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-label', exp.name);
+
+    var right = exp.soon
+      ? '<span class="srm-cat__soon">Próximamente</span>'
+      : '<div class="srm-cat__dot"></div>';
+
+    el.innerHTML =
+      '<div class="srm-cat__icon">' + exp.icon + '</div>' +
+      '<div class="srm-cat__info">' +
+        '<div class="srm-cat__name">' + exp.name + '</div>' +
+        '<div class="srm-cat__sub">'  + exp.sub  + '</div>' +
+      '</div>' + right;
+
+    el.addEventListener('click', function () { stopAuto(); goTo(i); });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { stopAuto(); goTo(i); }
     });
+
+    catsEl.appendChild(el);
+  });
+
+  // ── Transition to experience i ──
+  function goTo(i) {
+    if (i === current) return;
+    var exp = EXPERIENCES[i];
+
+    // Fade out
+    imgEl.classList.add('fade');
+    nameEl.classList.add('fade');
+    descEl.classList.add('fade');
+
+    setTimeout(function () {
+      // Update content
+      imgEl.src             = exp.img;
+      imgEl.alt             = exp.name;
+      tagEl.textContent     = exp.tag;
+      nameEl.textContent    = exp.name;
+      descEl.textContent    = exp.desc;
+      counterEl.textContent = pad(i + 1) + ' / ' + pad(EXPERIENCES.length);
+
+      // Update glow + tag color
+      glowEl.style.background = 'radial-gradient(ellipse, ' + exp.color + ' 0%, transparent 70%)';
+      tagEl.style.color        = exp.color;
+      tagEl.style.borderColor  = exp.color + '55';
+
+      // Update active panel + color CSS var
+      document.querySelectorAll('.srm-cat').forEach(function (p, idx) {
+        p.classList.toggle('active', idx === i);
+        if (idx === i) p.style.setProperty('--srm-color', exp.color);
+      });
+
+      current = i;
+
+      // Fade in
+      imgEl.classList.remove('fade');
+      nameEl.classList.remove('fade');
+      descEl.classList.remove('fade');
+    }, 300);
   }
 
-  // ── Render carousel cards (with inline 3D tilt) ──
-  var track = document.getElementById('carousel-track');
-  if (track) {
-    SHOWROOM_MACHINES.forEach(function(m) {
-      var el = document.createElement('div');
-      if (m.soon) {
-        el.className = 'machine-card machine-card--soon';
-        el.innerHTML =
-          '<div class="soon-icon">' + m.icon + '</div>' +
-          '<div class="soon-label">' + m.name + '</div>' +
-          '<div class="machine-tag" style="position:relative;margin-top:.3rem;">' + m.tag + '</div>';
-      } else {
-        el.className = 'machine-card';
-        el.innerHTML =
-          '<img src="' + m.img + '" alt="' + m.name + '" loading="lazy">' +
-          '<div class="machine-overlay"><div>' +
-            '<div class="machine-name">' + m.name + '</div>' +
-            '<div class="machine-tag">'  + m.tag  + '</div>' +
-          '</div></div>';
-        // 3D tilt on hover
-        el.addEventListener('mousemove', function(e) {
-          var r = el.getBoundingClientRect();
-          var x = (e.clientX - r.left) / r.width  - 0.5;
-          var y = (e.clientY - r.top)  / r.height - 0.5;
-          el.style.transform = 'perspective(700px) rotateY(' + (x*9) + 'deg) rotateX(' + (-y*9) + 'deg) scale(1.04)';
-        });
-        el.addEventListener('mouseleave', function() { el.style.transform = ''; });
-      }
-      track.appendChild(el);
-    });
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  // ── Progress bar ──
+  function startProgress() {
+    if (!barEl) return;
+    var exp = EXPERIENCES[current];
+    barEl.classList.remove('running');
+    void barEl.offsetWidth; // reflow para reiniciar la animación CSS
+    barEl.style.background = 'linear-gradient(90deg, ' + exp.color + ', ' + exp.color + 'bb)';
+    barEl.classList.add('running');
   }
 
-  // ── Carousel prev/next buttons ──
-  var prev  = document.getElementById('carousel-prev');
-  var next  = document.getElementById('carousel-next');
-  var scrollAmt = 250;
-  if (prev && next && track) {
-    prev.addEventListener('click', function() { track.scrollLeft -= scrollAmt; });
-    next.addEventListener('click', function() { track.scrollLeft += scrollAmt; });
+  // ── Auto-ciclo ──
+  function startAuto() {
+    stopAuto();
+    startProgress();
+    timer = setInterval(function () {
+      goTo((current + 1) % EXPERIENCES.length);
+      setTimeout(startProgress, 330);
+    }, DELAY);
   }
+
+  function stopAuto() {
+    clearInterval(timer);
+    timer = null;
+    if (barEl) barEl.classList.remove('running');
+  }
+
+  // Pausar al hacer hover sobre el stage
+  if (stageEl) {
+    stageEl.addEventListener('mouseenter', stopAuto);
+    stageEl.addEventListener('mouseleave', startAuto);
+  }
+
+  // ── Init ──
+  (function init() {
+    var exp = EXPERIENCES[0];
+    glowEl.style.background = 'radial-gradient(ellipse, ' + exp.color + ' 0%, transparent 70%)';
+    tagEl.style.color        = exp.color;
+    tagEl.style.borderColor  = exp.color + '55';
+    counterEl.textContent    = '01 / ' + pad(EXPERIENCES.length);
+    var firstPanel = catsEl.querySelector('.srm-cat');
+    if (firstPanel) firstPanel.style.setProperty('--srm-color', exp.color);
+    startAuto();
+  })();
 
 })();
 </script>
