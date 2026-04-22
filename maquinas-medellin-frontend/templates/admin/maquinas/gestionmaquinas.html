@@ -2574,8 +2574,9 @@
                         const dia  = new Date(f.reported_at || f.reportedAt).toLocaleDateString('es-CO');
                         const stationIdx = f.station_index;
                         const stationNames = Array.isArray(f.station_names) ? f.station_names : [];
+                        const rawSt = stationNames[stationIdx];
                         const stationLabel = (stationIdx !== null && stationIdx !== undefined && stationNames.length > 0)
-                            ? (stationNames[stationIdx] || `Estación ${stationIdx + 1}`)
+                            ? ((rawSt && typeof rawSt === 'object') ? (rawSt.name || `Estación ${stationIdx + 1}`) : (rawSt || `Estación ${stationIdx + 1}`))
                             : null;
                         return `<div class="border-b border-gray-100 last:border-0 py-2">
                             <div class="flex items-center gap-2 flex-wrap">
