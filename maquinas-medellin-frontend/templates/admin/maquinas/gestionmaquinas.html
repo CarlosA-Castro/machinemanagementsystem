@@ -2522,6 +2522,7 @@
         const HistorialManager = {
             juegos: [],
             fallas: [],
+            maquinas: [],
             intervalId: null,
 
             init: function() {
@@ -2536,6 +2537,7 @@
                     const res = await fetch('/api/maquinas');
                     if (!res.ok) return;
                     const maquinas = await res.json();
+                    this.maquinas = maquinas;
                     const sel = document.getElementById('historialMaquina');
                     if (!sel) return;
                     sel.innerHTML = '<option value="todas">Todas las máquinas</option>';
