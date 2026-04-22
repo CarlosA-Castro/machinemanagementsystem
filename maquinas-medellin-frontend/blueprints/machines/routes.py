@@ -512,10 +512,11 @@ def obtener_machinefailures_recientes():
                 COALESCE(mf.forced_by, '') as forced_by,
                 COALESCE(qr.code, '') as qr_code,
                 COALESCE(qr.qr_name, '') as qr_name,
-                m.station_names
+                mt.station_names
             FROM machinefailures mf
             LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
             LEFT JOIN machine m ON mf.machine_id = m.id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
             WHERE 1=1
         """
         params = []
