@@ -2366,6 +2366,24 @@
                             }).join('') : ''}
                         </div>`;
 
+                    // Pre-procesar: marcar juegos que tuvieron falla asociada.
+                    // Un juego "tuvo falla" si existe una falla en la misma estación con
+                    // reported_at entre usedAt del juego y usedAt del siguiente juego (o +10 min).
+                    const juegosOrdenados = [...juegos].sort((a, b) => new Date(a.usedAt||0) - new Date(b.usedAt||0));
+                    const juegosConFalla = new Set();
+                    juegosOrdenados.forEach((j, idx) => {
+                        const inicio = new Date(j.usedAt || 0).getTime();
+                        const siguiente = juegosOrdenados[idx + 1];
+                        const fin = siguiente ? new Date(siguiente.usedAt || 0).getTime() : inicio + 600000;
+                        const stJ = j.station_index ?? 0;
+                        const tuvoPor = fallas.some(f => {
+                            const tF = new Date(f.reported_at || f.reportedAt || 0).getTime();
+                            const stF = f.station_index ?? 0;
+                            return stF === stJ && tF >= inicio && tF < fin;
+                        });
+                        if (tuvoPor) juegosConFalla.add(j.id || idx);
+                    });
+
                     // Lista de eventos
                     let listaHtml = `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">`;
                     eventos.forEach(ev => {
@@ -2374,8 +2392,12 @@
                             const j = ev.datos;
                             const stIdx = j.station_index ?? 0;
                             const stLabel = esMulti ? `<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${stationNames[stIdx] || `Est.${stIdx+1}`}</span>` : '';
+                            const jKey = j.id || juegosOrdenados.indexOf(j);
+                            const tuvoPor = juegosConFalla.has(jKey);
+                            const failBadge = tuvoPor ? `<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium"><i class="fas fa-exclamation-triangle mr-0.5"></i>con falla</span>` : '';
+                            const cardBg = tuvoPor ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-100';
                             listaHtml += `
-                                <div class="flex items-start gap-3 p-3 bg-green-50 border border-green-100 rounded-lg">
+                                <div class="flex items-start gap-3 p-3 ${cardBg} border rounded-lg">
                                     <div class="mt-0.5 w-6 h-6 flex items-center justify-center bg-green-500 rounded-full flex-shrink-0">
                                         <i class="fas fa-play text-white" style="font-size:0.55rem"></i>
                                     </div>
@@ -2383,6 +2405,7 @@
                                         <div class="flex items-center flex-wrap gap-1">
                                             <span class="text-sm font-medium text-green-800">Juego</span>
                                             ${stLabel}
+                                            ${failBadge}
                                             ${j.qr_name ? `<span class="text-xs text-gray-500">${j.qr_name}</span>` : ''}
                                         </div>
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
@@ -2549,10 +2572,16 @@
                     contF.innerHTML = fallas.slice(0, 20).map(f => {
                         const hora = new Date(f.reported_at || f.reportedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
                         const dia  = new Date(f.reported_at || f.reportedAt).toLocaleDateString('es-CO');
+                        const stationIdx = f.station_index;
+                        const stationNames = Array.isArray(f.station_names) ? f.station_names : [];
+                        const stationLabel = (stationIdx !== null && stationIdx !== undefined && stationNames.length > 0)
+                            ? (stationNames[stationIdx] || `Estación ${stationIdx + 1}`)
+                            : null;
                         return `<div class="border-b border-gray-100 last:border-0 py-2">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <i class="fas fa-exclamation-triangle text-red-500 text-xs flex-shrink-0"></i>
                                 <span class="text-sm font-medium text-gray-800">${f.machine_name || '—'}</span>
+                                ${stationLabel ? `<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">${stationLabel}</span>` : ''}
                                 ${f.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${f.qr_name}</span>` : ''}
                                 ${f.is_forced ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Forzada</span>' : ''}
                             </div>

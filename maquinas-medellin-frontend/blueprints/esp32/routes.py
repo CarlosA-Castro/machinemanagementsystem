@@ -303,7 +303,7 @@ def esp32_juego_exitoso():
 
         # Leer consecutive_failures actual
         cursor.execute(
-            "SELECT consecutive_failures FROM machine WHERE id = %s",
+            "SELECT consecutive_failures, stations_in_maintenance FROM machine WHERE id = %s",
             (machine_id,)
         )
         row = cursor.fetchone()
@@ -321,9 +321,17 @@ def esp32_juego_exitoso():
         prev_count = cf.get(key, 0)
         cf[key] = 0  # Reiniciar contador de esa estación
 
+        # También quitar la estación de stations_in_maintenance si estaba ahí
+        try:
+            sim = json.loads(row.get('stations_in_maintenance') or '[]')
+            if not isinstance(sim, list): sim = []
+        except Exception:
+            sim = []
+        sim = [s for s in sim if str(s) != str(station_index)]
+
         cursor.execute(
-            "UPDATE machine SET consecutive_failures = %s WHERE id = %s",
-            (json.dumps(cf), machine_id)
+            "UPDATE machine SET consecutive_failures = %s, stations_in_maintenance = %s WHERE id = %s",
+            (json.dumps(cf), json.dumps(sim), machine_id)
         )
         connection.commit()
 
@@ -590,13 +598,14 @@ def esp32_reportar_falla():
     try:
         data = request.get_json()
 
-        machine_id = data.get('machine_id')
-        machine_name = data.get('machine_name')
-        qr_code = data.get('qr_code')
-        usage_id = data.get('usage_id')
+        machine_id      = data.get('machine_id')
+        machine_name    = data.get('machine_name')
+        qr_code         = data.get('qr_code')
+        usage_id        = data.get('usage_id')
         turnos_devueltos = data.get('turnos_devueltos', 1)
-        is_forced = data.get('is_forced', False)
-        notes = data.get('notes', 'Reporte desde TFT - Botón REPORTAR')
+        is_forced       = data.get('is_forced', False)
+        notes           = data.get('notes', 'Reporte desde TFT - Botón REPORTAR')
+        station_index   = data.get('selected_station', None)  # None = máquina simple (estación 0)
 
         logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}")
 
@@ -656,22 +665,56 @@ def esp32_reportar_falla():
             usage_id = ultimo_uso['id']
             logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
 
-        # Registrar la falla en machinefailures
-        cursor.execute("""
-            INSERT INTO machinefailures
-            (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            qr_id,
-            machine_id,
-            machine_name,
-            turnos_devueltos,
-            notes,
-            0,    # is_forced = FALSE (reporte genuino desde TFT)
-            None  # forced_by = NULL
-        ))
+        # Registrar la falla en machinefailures (con station_index)
+        effective_station = station_index if station_index is not None else 0
+        try:
+            cursor.execute("""
+                INSERT INTO machinefailures
+                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes,
+                 is_forced, forced_by, station_index)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (qr_id, machine_id, machine_name, turnos_devueltos, notes,
+                  0, None, effective_station))
+        except Exception:
+            # Fallback si la columna station_index no existe aún
+            cursor.execute("""
+                INSERT INTO machinefailures
+                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (qr_id, machine_id, machine_name, turnos_devueltos, notes, 0, None))
 
         failure_id = cursor.lastrowid
+
+        # ── Actualizar consecutive_failures y stations_in_maintenance en machine ──
+        try:
+            cursor.execute(
+                "SELECT consecutive_failures, stations_in_maintenance FROM machine WHERE id = %s",
+                (machine_id,)
+            )
+            mrow = cursor.fetchone()
+            if mrow:
+                cf  = json.loads(mrow['consecutive_failures']  or '{}')
+                sim = json.loads(mrow['stations_in_maintenance'] or '[]')
+                if not isinstance(sim, list): sim = []
+
+                key = str(effective_station)
+                cf[key] = int(cf.get(key, 0)) + 1
+                new_count = cf[key]
+
+                # Si llega a 3 fallas consecutivas → marcar estación en mantenimiento
+                if new_count >= 3 and effective_station not in sim and str(effective_station) not in [str(x) for x in sim]:
+                    sim.append(effective_station)
+                    logger.warning(
+                        f"⚠️ [TFT] Estación {effective_station} de máquina {machine_id} "
+                        f"entra en MANTENIMIENTO tras {new_count} fallas consecutivas"
+                    )
+
+                cursor.execute(
+                    "UPDATE machine SET consecutive_failures = %s, stations_in_maintenance = %s WHERE id = %s",
+                    (json.dumps(cf), json.dumps(sim), machine_id)
+                )
+        except Exception as e_cf:
+            logger.warning(f"⚠️ [TFT] No se pudo actualizar consecutive_failures: {e_cf}")
 
         # Devolver el turno automáticamente
         cursor.execute("""

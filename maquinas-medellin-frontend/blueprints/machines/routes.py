@@ -325,6 +325,7 @@ def obtener_maquina(maquina_id):
             'show_station_selection':   bool(maquina.get('show_station_selection', False)),
             'active_failure_stations':  active_failure_stations,
             'machine_level_failures':   machine_level_failures,
+            **get_heartbeat_fields(maquina['id']),
         })
 
     except Exception as e:
@@ -510,9 +511,11 @@ def obtener_machinefailures_recientes():
                 COALESCE(mf.is_forced, 0) as is_forced,
                 COALESCE(mf.forced_by, '') as forced_by,
                 COALESCE(qr.code, '') as qr_code,
-                COALESCE(qr.qr_name, '') as qr_name
+                COALESCE(qr.qr_name, '') as qr_name,
+                m.station_names
             FROM machinefailures mf
             LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
+            LEFT JOIN machine m ON mf.machine_id = m.id
             WHERE 1=1
         """
         params = []
@@ -542,6 +545,7 @@ def obtener_machinefailures_recientes():
             d = dict(f)
             if d.get('reported_at') and hasattr(d['reported_at'], 'isoformat'):
                 d['reported_at'] = d['reported_at'].isoformat()
+            d['station_names'] = parse_json_col(d.get('station_names'), [])
             resultado.append(d)
 
         return jsonify(resultado)
