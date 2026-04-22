@@ -111,7 +111,9 @@ def esp32_registrar_uso():
         data = request.get_json()
         qr_code = data['qr_code']
         machine_id = data['machine_id']
-        station_index = data.get('selected_station', 0)  # Por defecto estación 0
+        # Para multi-estación: station_index = None hasta que el usuario elija.
+        # Para simple: default 0 (única estación).
+        station_index = data.get('selected_station', None)
 
         logger.info(f"ESP32: Registrando uso - QR: {qr_code}, Máquina: {machine_id}, Estación: {station_index}")
 
@@ -212,6 +214,136 @@ def esp32_registrar_uso():
         logger.error(f"Error registrando uso desde ESP32: {e}")
         sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/esp32/actualizar-uso-estacion', methods=['POST'])
+@handle_api_errors
+def esp32_actualizar_uso_estacion():
+    """
+    Actualiza la estación de un uso ya registrado.
+    Llamado por el ESP32 cuando el usuario elige estación en máquinas multi-estación,
+    DESPUÉS de que el turno ya fue descontado en /registrar-uso.
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        usage_id    = data.get('usage_id')
+        machine_id  = data.get('machine_id')
+        station_index = data.get('station_index')
+
+        if usage_id is None or machine_id is None or station_index is None:
+            return api_response('E005', http_status=400, data={
+                'message': 'Faltan datos: usage_id, machine_id y station_index son requeridos'
+            })
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("""
+            UPDATE turnusage
+            SET station_index = %s
+            WHERE id = %s AND machineId = %s
+        """, (station_index, usage_id, machine_id))
+
+        if cursor.rowcount == 0:
+            return api_response('E002', http_status=404, data={
+                'message': f'Usage ID {usage_id} no encontrado para máquina {machine_id}'
+            })
+
+        connection.commit()
+        logger.info(
+            f"✅ [ESP32] Uso {usage_id} actualizado — estación {station_index} (máquina {machine_id})"
+        )
+
+        return api_response('S010', status='success', data={
+            'usage_id': usage_id,
+            'station_index': station_index,
+            'machine_id': machine_id
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [ESP32] Error actualizando estación de uso: {e}", exc_info=True)
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500, data={'error': str(e)})
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/esp32/juego-exitoso', methods=['POST'])
+@handle_api_errors
+def esp32_juego_exitoso():
+    """
+    Notifica al backend que un juego terminó sin falla reportada.
+    Resetea consecutive_failures para la estación indicada en la columna JSON de machine.
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json()
+        machine_id    = data.get('machine_id')
+        station_index = data.get('station_index', 0)
+
+        if not machine_id:
+            return api_response('E005', http_status=400, data={
+                'message': 'Falta machine_id'
+            })
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        # Leer consecutive_failures actual
+        cursor.execute(
+            "SELECT consecutive_failures FROM machine WHERE id = %s",
+            (machine_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return api_response('M001', http_status=404, data={
+                'message': f'Máquina {machine_id} no encontrada'
+            })
+
+        try:
+            cf = json.loads(row['consecutive_failures'] or '{}')
+        except Exception:
+            cf = {}
+
+        key = str(station_index)
+        prev_count = cf.get(key, 0)
+        cf[key] = 0  # Reiniciar contador de esa estación
+
+        cursor.execute(
+            "UPDATE machine SET consecutive_failures = %s WHERE id = %s",
+            (json.dumps(cf), machine_id)
+        )
+        connection.commit()
+
+        logger.info(
+            f"✅ [ESP32] Juego exitoso — Máquina {machine_id}, "
+            f"Estación {station_index}: contador {prev_count} → 0"
+        )
+
+        return api_response('S010', status='success', data={
+            'machine_id': machine_id,
+            'station_index': station_index,
+            'prev_count': prev_count,
+            'new_count': 0
+        })
+
+    except Exception as e:
+        logger.error(f"❌ [ESP32] Error procesando juego exitoso: {e}", exc_info=True)
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500, data={'error': str(e)})
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()
@@ -523,31 +655,6 @@ def esp32_reportar_falla():
 
             usage_id = ultimo_uso['id']
             logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
-
-        # Verificar si ya se reportó esta falla (ventana 5 min)
-        cursor.execute("""
-            SELECT id, reported_at
-            FROM machinefailures
-            WHERE qr_code_id = %s
-              AND machine_id = %s
-              AND ABS(TIMESTAMPDIFF(MINUTE, reported_at, NOW())) < 5
-            ORDER BY reported_at DESC
-            LIMIT 1
-        """, (qr_id, machine_id))
-
-        falla_reciente = cursor.fetchone()
-        if falla_reciente:
-            logger.info(f"⚠️ [TFT] Falla ya reportada hace menos de 5 minutos (ID: {falla_reciente['id']})")
-            return api_response(
-                'W007',
-                status='warning',
-                http_status=200,  # 200 para no generar error en ESP32
-                data={
-                    'message': 'Falla ya reportada recientemente',
-                    'failure_id': falla_reciente['id'],
-                    'already_reported': True
-                }
-            )
 
         # Registrar la falla en machinefailures
         cursor.execute("""
