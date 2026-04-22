@@ -829,6 +829,21 @@
         </div>
     </div>
 
+    <!-- Overlay confirmación turno/reinicio ingresado -->
+    <div id="overlayTurnoIngresado" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-[100] p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <div id="overlayTurnoIcono" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-green-100">
+                <i class="fas fa-play text-green-600 text-2xl"></i>
+            </div>
+            <h3 id="overlayTurnoTitulo" class="text-xl font-bold text-gray-800 mb-1">Turno ingresado</h3>
+            <p id="overlayTurnoMaquina" class="text-sm text-gray-500 mb-1"></p>
+            <p id="overlayTurnoEstacion" class="text-base font-semibold text-indigo-700 mb-6"></p>
+            <button onclick="MaquinaManager.cerrarOverlayTurno()" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition">
+                <i class="fas fa-check mr-2"></i>Listo
+            </button>
+        </div>
+    </div>
+
     <!-- Modal confirmación de eliminación -->
     <div id="modalConfirmarEliminar" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
@@ -1828,8 +1843,9 @@
         if (maquinaInfoResponse.ok) {
             const mInfo = await maquinaInfoResponse.json();
             (mInfo.active_failure_stations || []).forEach(f => {
-                // Guardar desglose cajero/ESP32 por estación
-                activeFailureStations[f.station_index] = {
+                // null station_index → agrupar en estación 0 (fallas sin estación específica)
+                const stIdx = (f.station_index != null) ? f.station_index : 0;
+                activeFailureStations[stIdx] = {
                     count:        f.count        || 0,
                     cajero_count: f.cajero_count || 0,
                     esp32_count:  f.esp32_count  || 0
@@ -1867,7 +1883,8 @@
                 stats: {
                     totalPlays: juegosEstacion.length,
                     lastPlay: ultimoJuego ? new Date(ultimoJuego.usedAt) : null,
-                    failures: activeInfo.count,       // solo fallas activas sin resolver
+                    totalFallas: fallasEstacion.length,   // total histórico por estación
+                    failures: activeInfo.count,           // activas sin resolver (para botón)
                     cajero_count: activeInfo.cajero_count,
                     esp32_count: activeInfo.esp32_count,
                     lastFailure: fallasEstacion.length > 0 ? fallasEstacion[0] : null
@@ -1963,9 +1980,9 @@
                             <div class="text-xl font-bold text-blue-700">${station.stats.totalPlays}</div>
                             <div class="text-xs text-blue-500">Jugadas</div>
                         </div>
-                        <div class="bg-${hasFallas ? 'red' : 'gray'}-50 border border-${hasFallas ? 'red' : 'gray'}-100 rounded-lg p-2 text-center">
-                            <div class="text-xl font-bold text-${hasFallas ? 'red' : 'gray'}-600">${station.stats.failures}</div>
-                            <div class="text-xs text-${hasFallas ? 'red' : 'gray'}-400">Fallas</div>
+                        <div class="bg-${hasFallas ? 'red' : station.stats.totalFallas > 0 ? 'orange' : 'gray'}-50 border border-${hasFallas ? 'red' : station.stats.totalFallas > 0 ? 'orange' : 'gray'}-100 rounded-lg p-2 text-center">
+                            <div class="text-xl font-bold text-${hasFallas ? 'red' : station.stats.totalFallas > 0 ? 'orange' : 'gray'}-600">${station.stats.totalFallas}</div>
+                            <div class="text-xs text-${hasFallas ? 'red' : station.stats.totalFallas > 0 ? 'orange' : 'gray'}-400">Fallas${hasFallas ? ` <span class="font-bold">(${station.stats.failures} activa${station.stats.failures !== 1 ? 's' : ''})</span>` : ''}</div>
                         </div>
                     </div>
 
@@ -2084,7 +2101,13 @@
         const data = await response.json();
         
         if (response.ok) {
-            this.mostrarAlerta(`Reinicio enviado a ${nombreEstacion}`, 'success');
+            document.getElementById('overlayTurnoIcono').className = 'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-amber-100';
+            document.getElementById('overlayTurnoIcono').innerHTML = '<i class="fas fa-power-off text-amber-600 text-2xl"></i>';
+            document.getElementById('overlayTurnoTitulo').textContent = 'Reinicio enviado';
+            document.getElementById('overlayTurnoMaquina').textContent = nombreMaquina;
+            document.getElementById('overlayTurnoEstacion').textContent = nombreEstacion;
+            document.getElementById('overlayTurnoIngresado').classList.remove('hidden');
+            document.getElementById('overlayTurnoIngresado').classList.add('flex');
             
             await fetch('/api/logs/accion', {
                 method: 'POST',
@@ -2134,8 +2157,14 @@
         const data = await response.json();
         
         if (response.ok) {
-            this.mostrarAlerta(`Turno ingresado en ${nombreEstacion}`, 'success');
-            
+            document.getElementById('overlayTurnoIcono').className = 'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-green-100';
+            document.getElementById('overlayTurnoIcono').innerHTML = '<i class="fas fa-play text-green-600 text-2xl"></i>';
+            document.getElementById('overlayTurnoTitulo').textContent = 'Turno ingresado';
+            document.getElementById('overlayTurnoMaquina').textContent = nombreMaquina;
+            document.getElementById('overlayTurnoEstacion').textContent = nombreEstacion;
+            document.getElementById('overlayTurnoIngresado').classList.remove('hidden');
+            document.getElementById('overlayTurnoIngresado').classList.add('flex');
+
             await fetch('/api/logs/accion', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2163,6 +2192,12 @@
                 const m = document.getElementById('modalConfirmarReinicio');
                 m.classList.add('hidden');
                 m.classList.remove('flex');
+            },
+
+            cerrarOverlayTurno: function() {
+                const o = document.getElementById('overlayTurnoIngresado');
+                o.classList.add('hidden');
+                o.classList.remove('flex');
             },
 
             cerrarModalTurno: function() {
@@ -2552,10 +2587,17 @@
                     contJ.innerHTML = juegos.slice(0, 20).map(j => {
                         const hora = new Date(j.usedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
                         const dia  = new Date(j.usedAt).toLocaleDateString('es-CO');
+                        const maqJ = this.maquinas.find(m => m.id == j.machineId);
+                        const esMultiJ = (maqJ?.machine_subtype || maqJ?.technical?.machine_subtype) === 'multi_station';
+                        const rawStJ = esMultiJ ? (maqJ?.station_names?.length ? maqJ.station_names : (maqJ?.technical?.station_names || [])) : [];
+                        const stNamesJ = rawStJ.map((s, i) => (s && typeof s === 'object') ? (s.name || `Est.${i+1}`) : String(s || `Est.${i+1}`));
+                        const stIdxJ = j.station_index;
+                        const stLabelJ = (esMultiJ && stIdxJ != null) ? (stNamesJ[stIdxJ] || `Est.${stIdxJ+1}`) : null;
                         return `<div class="border-b border-gray-100 last:border-0 py-2">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
                                 <i class="fas fa-play text-green-500 text-xs flex-shrink-0"></i>
                                 <span class="text-sm font-medium text-gray-800">${j.machine_name || '—'}</span>
+                                ${stLabelJ ? `<span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${stLabelJ}</span>` : ''}
                                 ${j.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${j.qr_name}</span>` : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}

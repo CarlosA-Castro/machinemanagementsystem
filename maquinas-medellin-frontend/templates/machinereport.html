@@ -648,6 +648,15 @@
           </div>
 
           <div class="modal-body-scroll">
+          <!-- Banner todas las estaciones fuera de servicio -->
+<div id="bannerTodasFuera" class="hidden mb-4 mx-0 px-6 py-5 bg-gray-900 border-y-2 border-gray-700 text-center">
+  <div class="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center mx-auto mb-3">
+    <i class="fas fa-times-circle text-red-400 text-2xl"></i>
+  </div>
+  <p class="text-white font-bold text-base mb-1">Máquina fuera de servicio</p>
+  <p class="text-gray-400 text-sm">Todas las estaciones tienen fallas activas. Por favor avisa al personal.</p>
+</div>
+
           <!-- SELECTOR DE ESTACIÓN (solo visible en máquinas multi-estación) -->
 <div id="selectorEstaciones" class="hidden mb-4 mx-0 px-6 py-4 bg-red-50 border-y-2 border-red-300">
   <p class="text-red-700 font-bold text-sm mb-3 flex items-center">
@@ -919,7 +928,7 @@ function generateCategoryHTML(tipo, machines) {
         // Determinar icono específico
         let icono = iconos[tipo].general;
         const nombreLower = maquina.name.toLowerCase();
-        
+
         if (nombreLower.includes('basketball')) icono = iconos.arcade.basketball;
         else if (nombreLower.includes('pelea')) icono = iconos.arcade.pelea;
         else if (nombreLower.includes('disco')) icono = iconos.arcade.hockey;
@@ -928,10 +937,18 @@ function generateCategoryHTML(tipo, machines) {
         else if (nombreLower.includes('trencito')) icono = iconos.arcade.train;
         else if (nombreLower.includes('connection')) icono = iconos.simulador.connection;
         else if (nombreLower.includes('sillas')) icono = iconos.simulador.masajes;
-        
+
+        const todasFuera = maquina.todas_estaciones_fuera === true;
+
         html += `
-            <div onclick="abrirModal('${maquina.name}', ${maquina.id}, '${tipo}')" 
-                 class="machine-item ${tipo} cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch">
+            <div onclick="abrirModal('${maquina.name}', ${maquina.id}, '${tipo}')"
+                 class="machine-item ${tipo} cursor-pointer p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 border border-white border-opacity-10 btn-touch relative">
+                ${todasFuera ? `
+                <div class="absolute inset-0 rounded-xl z-10 flex flex-col items-center justify-center text-center px-2"
+                     style="background:rgba(10,10,20,0.82);backdrop-filter:blur(2px);">
+                    <i class="fas fa-times-circle text-red-400 text-3xl mb-1"></i>
+                    <span class="text-white font-bold text-sm leading-tight">Fuera de<br>servicio</span>
+                </div>` : ''}
                 <span class="machine-type-badge ${tipo}">${tipo === 'arcade' ? 'Arcade' : tipo === 'simulador' ? 'Simulador' : 'Peluchera'}</span>
                 <div class="machine-icon ${tipo}">
                     <i class="fas ${icono}"></i>
@@ -1168,6 +1185,7 @@ function getGradientColor(tipo) {
       estacionSeleccionada = null;
       estacionesDisponibles = [];
       document.getElementById('selectorEstaciones').classList.add('hidden');
+      document.getElementById('bannerTodasFuera').classList.add('hidden');
       document.getElementById('botonesEstaciones').innerHTML = '';
       document.getElementById("tipoProblema").value = "mantenimiento";
       document.getElementById("descripcionFalla").value = "";
@@ -1272,28 +1290,54 @@ function getGradientColor(tipo) {
 
   const stationsInMaint = infoMaquina.stations_in_maintenance || [];
 
+  // Fallas activas por estación
+  const activeFallas = {};
+  (infoMaquina.active_failure_stations || []).forEach(f => {
+    if (f.station_index != null) activeFallas[f.station_index] = (f.count || 0);
+  });
+
   estacionesDisponibles = nombres;
+
+  // Resetear banner
+  document.getElementById('bannerTodasFuera').classList.add('hidden');
 
   const contenedor = document.getElementById('botonesEstaciones');
   contenedor.innerHTML = '';
 
+  let todasNoDisponibles = true;
+
   nombres.forEach((nombre, index) => {
     const enMant = stationsInMaint.includes(index) || stationsInMaint.includes(String(index));
+    const tieneFallaActiva = (activeFallas[index] || 0) > 0;
+    const noDisponible = enMant || tieneFallaActiva;
+    if (!noDisponible) todasNoDisponibles = false;
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.id = `btn-estacion-${index}`;
+
     if (enMant) {
-      btn.className = 'py-3 px-4 rounded-lg border-2 border-red-400 bg-red-50 text-red-700 font-semibold text-sm transition-all hover:border-red-600 hover:bg-red-100 btn-touch';
-      btn.innerHTML = `<i class="fas fa-wrench mr-2"></i>${nombre} <span class="ml-1 text-xs font-normal opacity-75">(en mantenimiento)</span>`;
+      btn.className = 'py-3 px-4 rounded-lg border-2 border-red-400 bg-red-50 text-red-700 font-semibold text-sm btn-touch opacity-70 cursor-not-allowed';
+      btn.innerHTML = `<i class="fas fa-wrench mr-2"></i>${nombre} <span class="ml-1 text-xs font-normal opacity-75">(mantenimiento)</span>`;
+      btn.onclick = () => {};
+    } else if (tieneFallaActiva) {
+      btn.className = 'py-3 px-4 rounded-lg border-2 border-gray-500 bg-gray-800 text-gray-300 font-semibold text-sm btn-touch opacity-80 cursor-not-allowed';
+      btn.innerHTML = `<i class="fas fa-times-circle mr-2 text-red-400"></i>${nombre} <span class="ml-1 text-xs font-normal text-gray-400">(fuera de servicio)</span>`;
+      btn.onclick = () => {};
     } else {
       btn.className = 'py-3 px-4 rounded-lg border-2 border-orange-300 bg-orange-50 text-orange-800 font-semibold text-sm transition-all hover:border-red-500 hover:bg-red-50 hover:text-red-800 btn-touch';
       btn.innerHTML = `<i class="fas fa-desktop mr-2"></i>${nombre}`;
+      btn.onclick = () => seleccionarEstacion(index, nombre);
     }
-    btn.onclick = () => seleccionarEstacion(index, nombre);
     contenedor.appendChild(btn);
   });
 
-  document.getElementById('selectorEstaciones').classList.remove('hidden');
+  if (todasNoDisponibles) {
+    document.getElementById('bannerTodasFuera').classList.remove('hidden');
+    document.getElementById('selectorEstaciones').classList.add('hidden');
+  } else {
+    document.getElementById('selectorEstaciones').classList.remove('hidden');
+  }
 }
 
 function seleccionarEstacion(index, nombre) {

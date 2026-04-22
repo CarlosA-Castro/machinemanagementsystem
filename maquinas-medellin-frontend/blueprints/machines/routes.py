@@ -175,9 +175,16 @@ def obtener_maquinas_por_tipo():
                 l.name as location_name,
                 COALESCE(m.dailyFailedTurns, 0) as dailyFailedTurns,
                 m.dateLastQRUsed,
-                COALESCE(m.valor_por_turno, 3000.00) as valor_por_turno
+                COALESCE(m.valor_por_turno, 3000.00) as valor_por_turno,
+                COALESCE(mt.machine_subtype, 'simple') as machine_subtype,
+                mt.station_names,
+                (SELECT COUNT(DISTINCT er.station_index)
+                 FROM errorreport er
+                 WHERE er.machineId = m.id AND er.isResolved = 0
+                   AND er.station_index IS NOT NULL) as active_station_failures
             FROM machine m
             LEFT JOIN location l ON m.location_id = l.id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
             WHERE m.status IN ('activa', 'mantenimiento', 'inactiva')
         """
 
@@ -198,17 +205,27 @@ def obtener_maquinas_por_tipo():
         resultado = {'arcade': [], 'simulador': [], 'peluchera': [], 'otros': []}
 
         for m in maquinas:
+            station_names_parsed = parse_json_col(m.get('station_names'), [])
+            station_count = len(station_names_parsed)
+            active_station_failures = int(m.get('active_station_failures') or 0)
+            todas_estaciones_fuera = (
+                m.get('machine_subtype') == 'multi_station'
+                and station_count > 0
+                and active_station_failures >= station_count
+            )
             info = {
-                'id':              m['id'],
-                'name':            m['name'],
-                'type':            m['type'],
-                'status':          m['status'],
-                'location_id':     m['location_id'],
-                'location_name':   m['location_name'],
-                'dailyFailedTurns': m['dailyFailedTurns'],
-                'dateLastQRUsed':  m['dateLastQRUsed'].isoformat() if m['dateLastQRUsed'] else None,
-                'valor_por_turno': float(m['valor_por_turno']),
-                'imagen':          _nombre_imagen(m['name']),
+                'id':                      m['id'],
+                'name':                    m['name'],
+                'type':                    m['type'],
+                'status':                  m['status'],
+                'location_id':             m['location_id'],
+                'location_name':           m['location_name'],
+                'dailyFailedTurns':        m['dailyFailedTurns'],
+                'dateLastQRUsed':          m['dateLastQRUsed'].isoformat() if m['dateLastQRUsed'] else None,
+                'valor_por_turno':         float(m['valor_por_turno']),
+                'imagen':                  _nombre_imagen(m['name']),
+                'machine_subtype':         m.get('machine_subtype') or 'simple',
+                'todas_estaciones_fuera':  todas_estaciones_fuera,
             }
             tipo = (m['type'] or 'otros').lower()
             resultado.setdefault(tipo, resultado['otros']).append(info) if tipo not in resultado else resultado[tipo].append(info)
