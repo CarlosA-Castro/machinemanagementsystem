@@ -585,8 +585,9 @@
                         <div>
                             <h3 class="font-bold text-green-800"><i class="fas fa-check-circle mr-2"></i>Confirmar Cierre de Liquidación</h3>
                             <p class="text-sm text-green-700 mt-1">Registra este período como liquidación oficial. Queda guardado en el histórico.</p>
+                            <div id="estadoCierrePeriodo" class="text-xs text-green-800 mt-2"></div>
                         </div>
-                        <button onclick="abrirModalCierre()" class="btn btn-success">
+                        <button id="btnConfirmarCierre" onclick="abrirModalCierre()" class="btn btn-success">
                             <i class="fas fa-lock mr-1"></i>Confirmar Cierre
                         </button>
                     </div>
@@ -696,6 +697,27 @@ function toast(msg, type = 'success') {
     setTimeout(() => d.remove(), 3500);
 }
 
+function setCierreButtonState(existente) {
+    const estadoEl = document.getElementById('estadoCierrePeriodo');
+    const btn = document.getElementById('btnConfirmarCierre');
+    if (!estadoEl || !btn) return;
+
+    if (existente) {
+        estadoEl.innerHTML = `<span class="badge badge-blue"><i class="fas fa-lock"></i>Cierre ya registrado</span>
+            <span class="ml-2 text-gray-600">Registrado el ${new Date(existente.creado_el).toLocaleDateString('es-CO')} para ${existente.local_nombre}</span>`;
+        btn.disabled = true;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-secondary');
+        btn.title = 'Este periodo ya fue cerrado';
+    } else {
+        estadoEl.innerHTML = '<span class="badge badge-green"><i class="fas fa-unlock"></i>Periodo disponible para cierre</span>';
+        btn.disabled = false;
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-success');
+        btn.title = '';
+    }
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let currentData = null;
 const charts = {};
@@ -754,6 +776,7 @@ async function calcular() {
             renderInversionistas(data);
             renderArcade(data);
             renderDetalleVentas(data.datos_tabla || []);
+            setCierreButtonState(data.cierre_existente || null);
         }
     } catch (e) {
         toast('Error al calcular: ' + e.message, 'error');
@@ -1153,12 +1176,19 @@ async function eliminarGasto(id) {
 // ─── MODAL CIERRE ──────────────────────────────────────────────────────────────
 function abrirModalCierre() {
     if (!currentData) { toast('Primero calcula la liquidación', 'error'); return; }
+    if (currentData.cierre_existente) {
+        toast('Este periodo ya tiene un cierre registrado.', 'error');
+        switchTab('historial');
+        return;
+    }
     const d = currentData.distribucion || {};
     const p = currentData.periodo || {};
 
     document.getElementById('cierreResumen').innerHTML = `
         <div class="flex justify-between"><span class="text-gray-600">Período</span>
             <strong>${p.fecha_inicio} → ${p.fecha_fin}</strong></div>
+        <div class="flex justify-between"><span class="text-gray-600">Alcance</span>
+            <strong>${p.local_nombre || 'Todos los locales'}</strong></div>
         <div class="flex justify-between"><span class="text-gray-600">Ingresos totales</span>
             <strong class="text-blue-700">${fmt(d.total_ingresos)}</strong></div>
         <div class="flex justify-between"><span class="text-gray-600">Negocio (${fmtD((d.negocio||{}).pct)})</span>
@@ -1184,6 +1214,7 @@ async function confirmarCierre() {
             body: JSON.stringify({
                 fecha_inicio:   p.fecha_inicio,
                 fecha_fin:      p.fecha_fin,
+                local_id:       p.local_id,
                 total_ingresos: d.total_ingresos,
                 total_negocio:  (d.negocio || {}).monto,
                 total_admin:    (d.admin   || {}).monto,
@@ -1194,9 +1225,17 @@ async function confirmarCierre() {
             })
         });
         const res = await r.json();
-        if (!res.success) throw new Error('Error al guardar cierre');
+        if (!r.ok || !res.success) throw new Error(res.message || 'Error al guardar cierre');
 
         toast('¡Liquidación cerrada correctamente!');
+        currentData.cierre_existente = {
+            id: res.id,
+            local_nombre: p.local_nombre || 'Todos los locales',
+            fecha_inicio: p.fecha_inicio,
+            fecha_fin: p.fecha_fin,
+            creado_el: new Date().toISOString()
+        };
+        setCierreButtonState(currentData.cierre_existente);
         cerrarModal('modalCierre');
         cargarHistorial();
         switchTab('historial');
@@ -1321,6 +1360,7 @@ function renderTablaHistorial(hist) {
     el.innerHTML = `<div class="tbl-wrap"><table>
         <thead><tr>
             <th>Período</th>
+            <th>Alcance</th>
             <th class="text-right">Ingresos</th>
             <th class="text-right">Negocio</th>
             <th class="text-right">Admin</th>
@@ -1331,6 +1371,7 @@ function renderTablaHistorial(hist) {
             const fecha = new Date(h.creado_el).toLocaleDateString('es-CO');
             return `<tr>
                 <td class="font-semibold">${h.fecha_inicio} → ${h.fecha_fin}</td>
+                <td>${h.local_nombre || 'Todos los locales'}</td>
                 <td class="text-right font-bold text-blue-700">${fmt(h.total_ingresos)}</td>
                 <td class="text-right text-green-700">${fmt(h.total_negocio)}</td>
                 <td class="text-right text-orange-700">${fmt(h.total_admin)}</td>

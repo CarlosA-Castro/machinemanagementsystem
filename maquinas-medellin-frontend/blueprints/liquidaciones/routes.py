@@ -104,6 +104,55 @@ def _tp_location_cond():
     return '', []
 
 
+def _current_closure_scope():
+    active_id = session.get('active_location_id')
+    active_name = session.get('active_location_name')
+    can_view_all = session.get('can_view_all_locations', False)
+
+    if active_id:
+        return active_id, active_name or 'Local actual'
+    if can_view_all:
+        return None, 'Todos los locales'
+    return None, session.get('user_local', 'Local actual')
+
+
+def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
+    if not _table_exists(cursor, 'cierre_liquidacion'):
+        return None
+
+    cursor.execute(
+        """
+        SELECT
+            cl.id,
+            cl.local_id,
+            COALESCE(loc.name, 'Todos los locales') AS local_nombre,
+            cl.fecha_inicio,
+            cl.fecha_fin,
+            cl.creado_el
+        FROM cierre_liquidacion cl
+        LEFT JOIN location loc ON loc.id = cl.local_id
+        WHERE cl.fecha_inicio = %s
+          AND cl.fecha_fin = %s
+          AND IFNULL(cl.local_id, 0) = IFNULL(%s, 0)
+        ORDER BY cl.creado_el DESC
+        LIMIT 1
+        """,
+        (fecha_inicio, fecha_fin, local_id),
+    )
+    existing = cursor.fetchone()
+    if not existing:
+        return None
+
+    return {
+        'id': int(existing['id']),
+        'local_id': existing['local_id'],
+        'local_nombre': existing['local_nombre'],
+        'fecha_inicio': str(existing['fecha_inicio']),
+        'fecha_fin': str(existing['fecha_fin']),
+        'creado_el': str(existing['creado_el']),
+    }
+
+
 # ─── Helpers de consulta ──────────────────────────────────────────────────────
 
 def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
@@ -652,15 +701,44 @@ def _build_period_comparison(cursor, fecha_inicio, fecha_fin):
 def _fetch_historial_cierres(cursor, limite=5):
     if not _table_exists(cursor, 'cierre_liquidacion'):
         return []
-    cursor.execute(
-        """SELECT id, fecha_inicio, fecha_fin, total_ingresos, total_negocio,
-                  total_admin, total_utilidad, pct_negocio, pct_admin, creado_el
-           FROM cierre_liquidacion ORDER BY creado_el DESC LIMIT %s""",
-        (limite,),
+    active_id, _, can_view_all = (
+        session.get('active_location_id'),
+        session.get('active_location_name'),
+        session.get('can_view_all_locations', False),
     )
+
+    if can_view_all and active_id is None:
+        cursor.execute(
+            """
+            SELECT cl.id, cl.local_id, COALESCE(loc.name, 'Todos los locales') AS local_nombre,
+                   cl.fecha_inicio, cl.fecha_fin, cl.total_ingresos, cl.total_negocio,
+                   cl.total_admin, cl.total_utilidad, cl.pct_negocio, cl.pct_admin, cl.creado_el
+            FROM cierre_liquidacion cl
+            LEFT JOIN location loc ON loc.id = cl.local_id
+            ORDER BY cl.creado_el DESC
+            LIMIT %s
+            """,
+            (limite,),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT cl.id, cl.local_id, COALESCE(loc.name, 'Todos los locales') AS local_nombre,
+                   cl.fecha_inicio, cl.fecha_fin, cl.total_ingresos, cl.total_negocio,
+                   cl.total_admin, cl.total_utilidad, cl.pct_negocio, cl.pct_admin, cl.creado_el
+            FROM cierre_liquidacion cl
+            LEFT JOIN location loc ON loc.id = cl.local_id
+            WHERE IFNULL(cl.local_id, 0) = IFNULL(%s, 0)
+            ORDER BY cl.creado_el DESC
+            LIMIT %s
+            """,
+            (active_id, limite),
+        )
     return [
         {
             'id':             r['id'],
+            'local_id':       r.get('local_id'),
+            'local_nombre':   r.get('local_nombre') or 'Todos los locales',
             'fecha_inicio':   str(r['fecha_inicio']),
             'fecha_fin':      str(r['fecha_fin']),
             'total_ingresos': float(r['total_ingresos']),
@@ -718,6 +796,9 @@ def calcular_liquidacion():
         if not connection:
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
+
+        local_id, local_nombre = _current_closure_scope()
+        cierre_existente = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin)
 
         tiene_porcentaje       = _table_exists(cursor, 'maquinaporcentajerestaurante')
         tiene_propietarios     = _table_exists(cursor, 'maquinapropietario')
@@ -860,6 +941,8 @@ def calcular_liquidacion():
             'periodo': {
                 'fecha_inicio':      fecha_inicio.isoformat(),
                 'fecha_fin':         fecha_fin.isoformat(),
+                'local_id':          local_id,
+                'local_nombre':      local_nombre,
                 'total_ventas':      sum(p['paquetes_vendidos'] for p in paquetes_resumen),
                 'total_ingresos':    round(total_ingresos, 2),
                 'maquinas_utilizadas': len(resumen_maquinas),
@@ -875,6 +958,7 @@ def calcular_liquidacion():
             'inversionistas':         inversionistas,
             'datos_tabla':            datos_tabla,
             'historial':              historial,
+            'cierre_existente':       cierre_existente,
             'gastos':                 gastos,
             'ultimas_liquidaciones_maquinas': liquidaciones_maquinas[:5],
             'totales': {
@@ -1116,8 +1200,10 @@ def cerrar_liquidacion():
     cursor = None
     try:
         data           = request.get_json() or {}
-        fecha_inicio   = data.get('fecha_inicio')
-        fecha_fin      = data.get('fecha_fin')
+        fecha_inicio   = _parse_date(data.get('fecha_inicio'), get_colombia_time().date()).isoformat()
+        fecha_fin      = _parse_date(data.get('fecha_fin'),    get_colombia_time().date()).isoformat()
+        if fecha_inicio > fecha_fin:
+            fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
         total_ingresos = _to_float(data.get('total_ingresos'))
         total_negocio  = _to_float(data.get('total_negocio'))
         total_admin    = _to_float(data.get('total_admin'))
@@ -1126,6 +1212,8 @@ def cerrar_liquidacion():
         pct_admin      = _to_float(data.get('pct_admin'),     ADMIN_PERCENTAGE_DEFAULT)
         observaciones  = (data.get('observaciones') or '').strip() or None
         local_id       = data.get('local_id')
+        if local_id in ('', None):
+            local_id = session.get('active_location_id')
 
         if not fecha_inicio or not fecha_fin:
             return api_response('E002', http_status=400)
@@ -1134,6 +1222,17 @@ def cerrar_liquidacion():
         if not connection:
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
+
+        existing_close = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin)
+        if existing_close:
+            return jsonify({
+                'success': False,
+                'message': (
+                    f"Este periodo ya fue cerrado para {existing_close['local_nombre']} "
+                    f"({existing_close['fecha_inicio']} -> {existing_close['fecha_fin']})."
+                ),
+                'existing_close': existing_close,
+            }), 409
 
         cursor.execute(
             """INSERT INTO cierre_liquidacion
@@ -1150,6 +1249,20 @@ def cerrar_liquidacion():
         return jsonify({'success': True, 'id': cierre_id})
 
     except Exception as e:
+        if connection:
+            connection.rollback()
+        if 'Ya existe un cierre de liquidacion' in str(e):
+            existing_close = None
+            if cursor:
+                try:
+                    existing_close = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin)
+                except Exception:
+                    existing_close = None
+            return jsonify({
+                'success': False,
+                'message': 'Este periodo ya tiene un cierre oficial registrado.',
+                'existing_close': existing_close,
+            }), 409
         logger.error(f'Error cerrando liquidación: {e}', exc_info=True)
         return api_response('E001', http_status=500)
     finally:
