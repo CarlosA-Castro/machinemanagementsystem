@@ -2191,6 +2191,52 @@ def obtener_ventas():
                 'valor_total': float(item['valor_total'] or 0),
             })
 
+        cursor.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(qh.user_name), ''), 'Sin vendedor') as vendedor,
+                COUNT(DISTINCT qh.qr_code) as total_ventas,
+                COALESCE(SUM(tp.price), 0) as valor_total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            {loc_clause}
+            GROUP BY COALESCE(NULLIF(TRIM(qh.user_name), ''), 'Sin vendedor')
+            ORDER BY valor_total DESC, total_ventas DESC, vendedor ASC
+        """, (fecha_inicio, fecha_fin, *loc_params))
+
+        resumen_vendedores = []
+        for item in cursor.fetchall():
+            resumen_vendedores.append({
+                'vendedor': item['vendedor'],
+                'total_ventas': int(item['total_ventas'] or 0),
+                'valor_total': float(item['valor_total'] or 0),
+            })
+
+        cursor.execute(f"""
+            SELECT
+                MIN(qh.fecha_hora) as primera_venta,
+                MAX(qh.fecha_hora) as ultima_venta,
+                COUNT(DISTINCT COALESCE(NULLIF(TRIM(qh.user_name), ''), 'Sin vendedor')) as vendedores_activos,
+                COUNT(DISTINCT CASE
+                    WHEN qh.payment_method IS NULL OR TRIM(qh.payment_method) = '' THEN qh.qr_code
+                    ELSE NULL
+                END) as ventas_sin_metodo
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            {loc_clause}
+        """, (fecha_inicio, fecha_fin, *loc_params))
+
+        caja_data = cursor.fetchone() or {}
+
         # Si es el mismo día: agrupar por hora. Si es rango: agrupar por día
         es_mismo_dia = fecha_inicio == fecha_fin
 
@@ -2266,6 +2312,28 @@ def obtener_ventas():
 
         eficiencia = 85
 
+        primera_venta = caja_data.get('primera_venta')
+        ultima_venta = caja_data.get('ultima_venta')
+        primera_venta_str = (
+            parse_db_datetime(primera_venta).strftime('%Y-%m-%d %H:%M:%S')
+            if primera_venta else None
+        )
+        ultima_venta_str = (
+            parse_db_datetime(ultima_venta).strftime('%Y-%m-%d %H:%M:%S')
+            if ultima_venta else None
+        )
+
+        cuadre_caja = {
+            'total_recaudo': total_ventas_hoy,
+            'total_paquetes': int(total_paquetes_hoy or 0),
+            'ticket_promedio': float(estadisticas_data['ticket_promedio'] or 0),
+            'vendedores_activos': int(caja_data.get('vendedores_activos') or 0),
+            'metodos_registrados': len(resumen_metodos),
+            'ventas_sin_metodo': int(caja_data.get('ventas_sin_metodo') or 0),
+            'primera_venta': primera_venta_str,
+            'ultima_venta': ultima_venta_str,
+        }
+
         graficos = {
     'paquetes': {
         'labels': [item['paquete'] for item in ventas_por_paquete],
@@ -2307,6 +2375,8 @@ def obtener_ventas():
             },
             'graficos': graficos,
             'resumen_metodos': resumen_metodos,
+            'resumen_vendedores': resumen_vendedores,
+            'cuadre_caja': cuadre_caja,
             'rango_fechas': {
                 'inicio': fecha_inicio,
                 'fin': fecha_fin
