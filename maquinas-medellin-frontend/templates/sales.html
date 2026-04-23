@@ -346,6 +346,18 @@
                 </div>
                  </div>
 
+            <div class="glass-card mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-wallet mr-2 text-indigo-600"></i>Caja por Método de Pago
+                    </h3>
+                    <span class="text-xs text-gray-400">Solo ventas reales</span>
+                </div>
+                <div id="resumenMetodosPago" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div class="text-sm text-gray-400">Cargando...</div>
+                </div>
+            </div>
+
             <!-- Gráficas y tablas -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <!-- Gráfica de ventas por paquete -->
@@ -382,6 +394,7 @@
                                 <th class="p-3 font-semibold">Hora</th>
                                 <th class="p-3 font-semibold">Paquete</th>
                                 <th class="p-3 font-semibold">Nombre QR</th>
+                                <th class="p-3 font-semibold">Pago</th>
                                 <th class="p-3 font-semibold">Precio</th>
                                 <th class="p-3 font-semibold">Turnos</th>
                                 <th class="p-3 font-semibold">Vendedor</th>
@@ -807,7 +820,7 @@
         document.getElementById('cargandoVentas').classList.add('hidden');
         document.getElementById('tablaVentas').innerHTML = `
             <tr>
-                <td colspan="8" class="p-4 text-center text-red-500">
+                <td colspan="9" class="p-4 text-center text-red-500">
                     ❌ Error: ${error.message}<br>
                     <small>Verifica que la ruta /api/ventas esté implementada en el backend</small>
                 </td>
@@ -831,6 +844,9 @@
         // Actualizar gráficos
         this.actualizarGraficos(data.graficos);
 
+        // Actualizar caja por método
+        this.actualizarResumenMetodos(data.resumen_metodos || []);
+
         // Actualizar tabla CON NOMBRE QR
         this.actualizarTabla(data.ventas);
     },
@@ -843,6 +859,24 @@
         document.getElementById('ticketPromedio').textContent = 
             this.formatearMoneda(estadisticas.ticket_promedio);
         
+    },
+
+    actualizarResumenMetodos: function(metodos) {
+        const contenedor = document.getElementById('resumenMetodosPago');
+        if (!contenedor) return;
+
+        if (!metodos || metodos.length === 0) {
+            contenedor.innerHTML = '<div class="text-sm text-gray-400">No hay ventas registradas para este período.</div>';
+            return;
+        }
+
+        contenedor.innerHTML = metodos.map(item => `
+            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
+                <div class="text-xs uppercase tracking-wide text-gray-500">${item.label}</div>
+                <div class="mt-2 text-2xl font-bold text-gray-800">${this.formatearMoneda(item.valor_total || 0)}</div>
+                <div class="mt-1 text-sm text-gray-500">${item.total_ventas || 0} venta(s)</div>
+            </div>
+        `).join('');
     },
 
     actualizarGraficos: function(graficos) {
@@ -918,7 +952,7 @@
         if (!ventas || ventas.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="p-4 text-center text-gray-500">
+                    <td colspan="9" class="p-4 text-center text-gray-500">
                         No hay ventas registradas para este período
                     </td>
                 </tr>
@@ -936,6 +970,11 @@
                 <td class="p-3 text-sm">
                     <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                         ${venta.qr_nombre || 'Sin nombre'}
+                    </span>
+                </td>
+                <td class="p-3 text-sm">
+                    <span class="inline-flex px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-semibold">
+                        ${venta.payment_method_label || 'Sin registrar'}
                     </span>
                 </td>
                 <td class="p-3 text-sm">${this.formatearMoneda(venta.precio)}</td>
@@ -995,13 +1034,13 @@
         );
 
         // Cabecera de tabla
-        const headers  = ['Fecha',  'Hora',  'QR',   'Paquete',  'Turnos', 'Precio',  'Vendedor', 'Estado'];
-        const colWidths = [28,       20,      30,      60,         18,       30,         35,         26];
+        const headers  = ['Fecha',  'Hora',  'QR',   'Paquete',  'Pago',   'Turnos', 'Precio',  'Vendedor', 'Estado'];
+        const colWidths = [24,       16,      24,      48,         24,       16,       28,         28,         22];
         const startX = 10;
         let y = 46;
 
         doc.setFillColor(37, 99, 235);
-        doc.rect(startX, y - 5, 277, 8, 'F');
+        doc.rect(startX, y - 5, 230, 8, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
@@ -1018,15 +1057,16 @@
             if (y > 195) { doc.addPage(); y = 20; }
             if (idx % 2 === 0) {
                 doc.setFillColor(245, 247, 250);
-                doc.rect(startX, y - 5, 277, 8, 'F');
+                doc.rect(startX, y - 5, 230, 8, 'F');
             }
             x = startX + 2;
             const row = [
                 String(v.fecha || ''), String(v.hora || ''),
                 String(v.qr_nombre || '').substring(0, 14),
-                String(v.paquete || '').substring(0, 28),
+                String(v.paquete || '').substring(0, 20),
+                String(v.payment_method_label || 'Sin registrar').substring(0, 14),
                 String(v.turnos || 0), this.formatearMoneda(v.precio),
-                String(v.vendedor || '').substring(0, 16),
+                String(v.vendedor || '').substring(0, 12),
                 String(v.estado || '')
             ];
             row.forEach((cell, i) => { doc.text(cell, x, y); x += colWidths[i]; });

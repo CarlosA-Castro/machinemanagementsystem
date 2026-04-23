@@ -20,6 +20,28 @@ logger = logging.getLogger(LOGGER_NAME)
 
 qr_bp = Blueprint('qr', __name__)
 
+VALID_PAYMENT_METHODS = {'efectivo', 'transferencia', 'tarjeta', 'mixto'}
+PAYMENT_METHOD_LABELS = {
+    'efectivo': 'Efectivo',
+    'transferencia': 'Transferencia',
+    'tarjeta': 'Tarjeta',
+    'mixto': 'Mixto',
+    'sin_registrar': 'Sin registrar',
+}
+
+
+def _normalize_payment_method(value):
+    """Normaliza el método de pago recibido desde frontend o API."""
+    if value is None:
+        return None
+    method = str(value).strip().lower()
+    return method or None
+
+
+def _payment_method_label(value):
+    """Etiqueta amigable para respuestas JSON y vistas de caja."""
+    return PAYMENT_METHOD_LABELS.get(value or 'sin_registrar', 'Sin registrar')
+
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
@@ -251,7 +273,7 @@ def generar_codigos_qr_lote(cantidad_qr, nombre=""):
             connection.close()
 
 
-def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
+def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, payment_method=None):
     """Generar múltiples códigos QR y asignar paquete desde el inicio (blindado contra duplicados)"""
     connection = None
     cursor = None
@@ -312,6 +334,7 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
         local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
         hora_colombia = get_colombia_time()
         fecha_hora_str = format_datetime_for_db(hora_colombia)
+        payment_method = _normalize_payment_method(payment_method)
 
         codigos_generados = []
 
@@ -331,9 +354,9 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1):
 
             cursor.execute("""
                 INSERT INTO qrhistory
-                (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
-                VALUES (%s, %s, %s, %s, %s, %s, TRUE)
-            """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre))
+                (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real, payment_method)
+                VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s)
+            """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre, payment_method))
 
         connection.commit()
 
@@ -641,6 +664,7 @@ def generar_qr():
         cantidad = int(data['cantidad'])
         nombre = data.get('nombre', '')
         paquete_id = data.get('paquete_id')
+        payment_method = _normalize_payment_method(data.get('payment_method'))
 
         if cantidad <= 0 or cantidad > 1000:
             return api_response(
@@ -656,9 +680,20 @@ def generar_qr():
                 data={'message': 'No se pueden generar más de 9999 códigos a la vez'}
             )
 
-        if paquete_id:
+        if paquete_id and payment_method not in VALID_PAYMENT_METHODS:
+            return api_response(
+                'E005',
+                http_status=400,
+                data={'message': 'Método de pago inválido'}
+            )
 
-            codigos_generados = generar_codigos_qr_lote_con_paquete(cantidad, nombre, paquete_id)
+        if paquete_id:
+            codigos_generados = generar_codigos_qr_lote_con_paquete(
+                cantidad,
+                nombre,
+                paquete_id,
+                payment_method=payment_method,
+            )
 
             if not codigos_generados:
                 return api_response('E001', http_status=500)
@@ -684,6 +719,8 @@ def generar_qr():
                 'paquete_nombre': paquete['name'],
                 'paquete_precio': float(paquete['price']),
                 'paquete_turnos': paquete['turns'],
+                'payment_method': payment_method,
+                'payment_method_label': _payment_method_label(payment_method),
                 'formato': 'QRXXXX (4 dígitos, de QR0001 a QR9999)',
                 'nota': 'El contador se reiniciará automáticamente al llegar a QR9999'
             }
@@ -1735,6 +1772,7 @@ def obtener_historial_completo():
                     h.user_name,
                     h.qr_name,
                     h.fecha_hora,
+                    h.payment_method,
                     qr.turnPackageId,
                     tp.name as package_name,
                     tp.price as precio_paquete,
@@ -1756,6 +1794,7 @@ def obtener_historial_completo():
                     h.user_name,
                     h.qr_name,
                     h.fecha_hora,
+                    h.payment_method,
                     qr.turnPackageId,
                     tp.name as package_name,
                     tp.price as precio_paquete,
@@ -1782,6 +1821,7 @@ def obtener_historial_completo():
                     item['fecha_hora'] = str(item['fecha_hora'])
 
             item['es_venta'] = item['turnPackageId'] is not None and item['turnPackageId'] != 1
+            item['payment_method_label'] = _payment_method_label(item.get('payment_method'))
 
         logger.info(f"Historial obtenido: {len(historial)} registros")
         return jsonify(historial)
@@ -1884,7 +1924,7 @@ def obtener_historial_qr(qr_code):
 @qr_bp.route('/api/registrar-venta', methods=['POST'])
 @handle_api_errors
 @require_login(['admin', 'cajero'])
-@validate_required_fields(['qr_code', 'paquete_id'])
+@validate_required_fields(['qr_code', 'paquete_id', 'payment_method'])
 def registrar_venta():
     """Registrar una venta REAL"""
     connection = None
@@ -1894,12 +1934,16 @@ def registrar_venta():
         qr_code = data['qr_code']
         paquete_id = data['paquete_id']
         precio = data.get('precio')
+        payment_method = _normalize_payment_method(data.get('payment_method'))
 
         user_id = session.get('user_id')
         user_name = session.get('user_name', 'Usuario')
         local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
 
         logger.info(f"REGISTRANDO VENTA REAL: QR={qr_code}, Paquete={paquete_id}")
+
+        if payment_method not in VALID_PAYMENT_METHODS:
+            return api_response('E005', http_status=400, data={'message': 'Método de pago inválido'})
 
         connection = get_db_connection()
         if not connection:
@@ -1910,11 +1954,11 @@ def registrar_venta():
         hora_colombia = get_colombia_time()
 
         cursor.execute("""
-            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real)
+            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real, payment_method)
             VALUES (%s, %s, %s, %s, %s,
                     (SELECT qr_name FROM qrcode WHERE code = %s LIMIT 1),
-                    TRUE)
-        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_code))
+                    TRUE, %s)
+        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_code, payment_method))
 
         connection.commit()
 
@@ -1922,7 +1966,9 @@ def registrar_venta():
             'S007',
             status='success',
             data={
-                'timestamp': hora_colombia.strftime('%Y-%m-%d %H:%M:%S')
+                'timestamp': hora_colombia.strftime('%Y-%m-%d %H:%M:%S'),
+                'payment_method': payment_method,
+                'payment_method_label': _payment_method_label(payment_method),
             }
         )
 
@@ -1959,10 +2005,10 @@ def ventas_dia():
 
         if can_all and active_id is None:
             loc_clause = ""
-            loc_params = (fecha,)
+            loc_params = [fecha]
         else:
             loc_clause = "AND qh.local = %s"
-            loc_params = (fecha, local_actual)
+            loc_params = [fecha, local_actual]
 
         cursor.execute(f"""
             SELECT
@@ -1976,16 +2022,44 @@ def ventas_dia():
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
             {loc_clause}
-        """, loc_params)
+        """, tuple(loc_params))
 
         resultado = cursor.fetchone()
+
+        cursor.execute(f"""
+            SELECT
+                COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
+                COUNT(DISTINCT qh.qr_code) as total_ventas,
+                COALESCE(SUM(tp.price), 0) as valor_total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) = %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            {loc_clause}
+            GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+            ORDER BY valor_total DESC, total_ventas DESC
+        """, tuple(loc_params))
+
+        resumen_metodos = []
+        for row in cursor.fetchall():
+            payment_method = row['payment_method']
+            resumen_metodos.append({
+                'payment_method': payment_method,
+                'label': _payment_method_label(payment_method),
+                'total_ventas': int(row['total_ventas'] or 0),
+                'valor_total': float(row['valor_total'] or 0),
+            })
 
         logger.info(f"Ventas REALES del día {fecha}: {resultado['total_ventas']} ventas")
 
         return jsonify({
             'total_ventas': resultado['total_ventas'] or 0,
             'valor_total': float(resultado['valor_total'] or 0),
-            'fecha': fecha
+            'fecha': fecha,
+            'por_metodo': resumen_metodos,
         })
     except Exception as e:
         logger.error(f"Error obteniendo ventas del día: {e}")
@@ -2015,12 +2089,24 @@ def obtener_ventas():
 
         cursor = get_db_cursor(connection)
 
-        cursor.execute("""
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        local_actual = active_name or session.get('user_local', 'El Mekatiadero')
+
+        if can_all and active_id is None:
+            loc_clause = ""
+            loc_params = []
+        else:
+            loc_clause = "AND qh.local = %s"
+            loc_params = [local_actual]
+
+        cursor.execute(f"""
             SELECT
                 DATE(qh.fecha_hora) as fecha,
                 TIME(qh.fecha_hora) as hora,
                 qh.qr_code,
                 qh.qr_name,
+                qh.payment_method,
                 tp.name as paquete,
                 tp.price as precio,
                 tp.turns as turnos,
@@ -2033,12 +2119,13 @@ def obtener_ventas():
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
+            {loc_clause}
             ORDER BY qh.fecha_hora DESC
-        """, (fecha_inicio, fecha_fin))
+        """, (fecha_inicio, fecha_fin, *loc_params))
 
         ventas = cursor.fetchall()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_paquetes,
                 COALESCE(SUM(tp.price), 0) as total_ventas,
@@ -2054,11 +2141,12 @@ def obtener_ventas():
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
-        """, (fecha_inicio, fecha_fin))
+            {loc_clause}
+        """, (fecha_inicio, fecha_fin, *loc_params))
 
         estadisticas_data = cursor.fetchone()
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 tp.name as paquete,
                 COUNT(DISTINCT qh.qr_code) as cantidad
@@ -2069,17 +2157,45 @@ def obtener_ventas():
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
+            {loc_clause}
             GROUP BY tp.id, tp.name
             ORDER BY cantidad DESC
-        """, (fecha_inicio, fecha_fin))
+        """, (fecha_inicio, fecha_fin, *loc_params))
 
         ventas_por_paquete = cursor.fetchall()
+
+        cursor.execute(f"""
+            SELECT
+                COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
+                COUNT(DISTINCT qh.qr_code) as total_ventas,
+                COALESCE(SUM(tp.price), 0) as valor_total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            AND qr.turnPackageId IS NOT NULL
+            AND qr.turnPackageId != 1
+            AND qh.es_venta_real = TRUE
+            {loc_clause}
+            GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+            ORDER BY valor_total DESC, total_ventas DESC
+        """, (fecha_inicio, fecha_fin, *loc_params))
+
+        resumen_metodos = []
+        for item in cursor.fetchall():
+            payment_method = item['payment_method']
+            resumen_metodos.append({
+                'payment_method': payment_method,
+                'label': _payment_method_label(payment_method),
+                'total_ventas': int(item['total_ventas'] or 0),
+                'valor_total': float(item['valor_total'] or 0),
+            })
 
         # Si es el mismo día: agrupar por hora. Si es rango: agrupar por día
         es_mismo_dia = fecha_inicio == fecha_fin
 
         if es_mismo_dia:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     HOUR(qh.fecha_hora) as periodo,
                     COUNT(DISTINCT qh.qr_code) as cantidad
@@ -2089,14 +2205,15 @@ def obtener_ventas():
                 AND qr.turnPackageId IS NOT NULL
                 AND qr.turnPackageId != 1
                 AND qh.es_venta_real = TRUE
+                {loc_clause}
                 GROUP BY HOUR(qh.fecha_hora)
                 ORDER BY periodo
-            """, (fecha_inicio, fecha_fin))
+            """, (fecha_inicio, fecha_fin, *loc_params))
             ventas_evolucion = cursor.fetchall()
             tipo_evolucion = 'horas'
             labels_evolucion = [f"{item['periodo']}:00" for item in ventas_evolucion]
         else:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     DATE(qh.fecha_hora) as periodo,
                     COUNT(DISTINCT qh.qr_code) as cantidad
@@ -2106,9 +2223,10 @@ def obtener_ventas():
                 AND qr.turnPackageId IS NOT NULL
                 AND qr.turnPackageId != 1
                 AND qh.es_venta_real = TRUE
+                {loc_clause}
                 GROUP BY DATE(qh.fecha_hora)
                 ORDER BY periodo
-            """, (fecha_inicio, fecha_fin))
+            """, (fecha_inicio, fecha_fin, *loc_params))
             ventas_evolucion = cursor.fetchall()
             tipo_evolucion = 'dias'
             labels_evolucion = [str(item['periodo']) for item in ventas_evolucion]
@@ -2116,7 +2234,7 @@ def obtener_ventas():
         fecha_inicio_ayer = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
         fecha_fin_ayer = (datetime.strptime(fecha_fin, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
 
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as paquetes_ayer,
                 COALESCE(SUM(tp.price), 0) as ventas_ayer
@@ -2127,7 +2245,8 @@ def obtener_ventas():
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
             AND qh.es_venta_real = TRUE
-        """, (fecha_inicio_ayer, fecha_fin_ayer))
+            {loc_clause}
+        """, (fecha_inicio_ayer, fecha_fin_ayer, *loc_params))
 
         ayer_data = cursor.fetchone()
 
@@ -2166,6 +2285,8 @@ def obtener_ventas():
                 'hora': str(venta['hora'])[:5] if venta['hora'] else '00:00',
                 'paquete': venta['paquete'],
                 'qr_nombre': venta['qr_name'] or 'Sin nombre',
+                'payment_method': venta['payment_method'] or 'sin_registrar',
+                'payment_method_label': _payment_method_label(venta.get('payment_method')),
                 'precio': float(venta['precio']),
                 'turnos': venta['turnos'],
                 'vendedor': venta['vendedor'],
@@ -2185,6 +2306,7 @@ def obtener_ventas():
                 'eficiencia': eficiencia
             },
             'graficos': graficos,
+            'resumen_metodos': resumen_metodos,
             'rango_fechas': {
                 'inicio': fecha_inicio,
                 'fin': fecha_fin

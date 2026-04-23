@@ -201,6 +201,15 @@
             <div id="fechaActual" class="text-xs text-blue-600 mt-2"><i class="fas fa-calendar-alt mr-1"></i>Cargando...</div>
           </div>
         </div>
+        <div class="mt-4 pt-4 border-t border-gray-100">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-medium text-gray-700"><i class="fas fa-wallet mr-1 text-blue-600"></i>Caja del día por método</p>
+            <span class="text-xs text-gray-400">Solo ventas reales</span>
+          </div>
+          <div id="resumenMetodosDia" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div class="text-sm text-gray-400">Cargando...</div>
+          </div>
+        </div>
         <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
           <div class="flex items-center gap-2 text-xs text-gray-500">
             <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -265,6 +274,7 @@
                 <th class="p-2 lg:p-3">#</th>
                 <th class="p-2 lg:p-3">Código QR</th>
                 <th class="p-2 lg:p-3">Nombre</th>
+                <th class="p-2 lg:p-3">Pago</th>
                 <th class="p-2 lg:p-3">Fecha</th>
                 <th class="p-2 lg:p-3">Hora</th>
                 <th class="p-2 lg:p-3">Acciones</th>
@@ -353,7 +363,18 @@
         </div>
       </div>
       <div class="mb-6">
-        <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 3: Vista previa</h3>
+        <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 3: Método de pago</h3>
+        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-wallet mr-1"></i>Cómo ingresó el dinero</label>
+        <select id="metodoPago" class="w-full border border-gray-300 rounded-lg p-3 text-base">
+          <option value="">Selecciona un método de pago</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="tarjeta">Tarjeta</option>
+          <option value="mixto">Mixto</option>
+        </select>
+      </div>
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-3 text-gray-700">Paso 4: Vista previa</h3>
         <div id="vistaPreviaQR" class="p-4 border-2 border-dashed border-gray-300 rounded-lg hidden">
           <p class="text-sm text-gray-600 mb-3">Vista previa del primer QR:</p>
           <div id="qrPreview" class="mx-auto mb-4"></div>
@@ -490,6 +511,17 @@ fetch('/api/mis-permisos')
         } catch (e) { return fechaString; }
       },
 
+      formatearMetodoPago: function(metodo) {
+        const labels = {
+          efectivo: 'Efectivo',
+          transferencia: 'Transferencia',
+          tarjeta: 'Tarjeta',
+          mixto: 'Mixto',
+          sin_registrar: 'Sin registrar'
+        };
+        return labels[metodo] || 'Sin registrar';
+      },
+
       actualizarContadores: function() {
         const icon = document.getElementById('iconRefresh');
         if (icon) icon.classList.add('fa-spin');
@@ -516,11 +548,28 @@ fetch('/api/mis-permisos')
           const valorFormateado = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(valor);
           const elValor = document.getElementById('valorTotalVentas');
           if (elValor) elValor.innerHTML = `<span class="tabular-nums">${valorFormateado}</span>`;
+          const resumen = document.getElementById('resumenMetodosDia');
+          if (resumen) {
+            const metodos = data.por_metodo || [];
+            if (!metodos.length) {
+              resumen.innerHTML = '<div class="text-sm text-gray-400">Sin ventas registradas hoy.</div>';
+            } else {
+              resumen.innerHTML = metodos.map(item => `
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                  <div class="text-xs uppercase tracking-wide text-gray-500">${item.label}</div>
+                  <div class="mt-1 text-lg font-bold text-gray-800">${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(item.valor_total || 0)}</div>
+                  <div class="text-xs text-gray-500">${item.total_ventas || 0} venta(s)</div>
+                </div>
+              `).join('');
+            }
+          }
         })
         .catch(err => {
           console.error('Error ventas:', err);
           const elVentas = document.getElementById('ventasDia');
           if (elVentas) elVentas.innerHTML = '<span class="text-red-400 text-lg">—</span>';
+          const resumen = document.getElementById('resumenMetodosDia');
+          if (resumen) resumen.innerHTML = '<div class="text-sm text-red-400">No se pudo cargar la caja del día.</div>';
         });
       },
 
@@ -533,12 +582,12 @@ fetch('/api/mis-permisos')
           tabla.innerHTML = "";
           const totalRegistrosSpan = document.getElementById('totalRegistros');
           if (data.error || !Array.isArray(data)) {
-            tabla.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-yellow-600"><i class="fas fa-exclamation-circle mr-2"></i>Formato de datos incorrecto.</td></tr>`;
+            tabla.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-yellow-600"><i class="fas fa-exclamation-circle mr-2"></i>Formato de datos incorrecto.</td></tr>`;
             if (totalRegistrosSpan) totalRegistrosSpan.textContent = '0';
             return;
           }
           if (data.length === 0) {
-            tabla.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500"><i class="fas fa-history mr-2"></i>No hay QR escaneados aún.</td></tr>`;
+            tabla.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500"><i class="fas fa-history mr-2"></i>No hay QR escaneados aún.</td></tr>`;
             if (totalRegistrosSpan) totalRegistrosSpan.textContent = '0';
             return;
           }
@@ -547,6 +596,7 @@ fetch('/api/mis-permisos')
               const qrCode = item.qr_code || 'N/A';
               const qrName = item.qr_name || item.user_name || 'Sin nombre';
               const esVenta = item.es_venta_real || false;
+              const metodoPago = item.payment_method_label || this.formatearMetodoPago(item.payment_method);
               let fechaFormateada = 'N/A', horaFormateada = '';
               if (item.fecha_hora) {
                 try {
@@ -573,6 +623,11 @@ fetch('/api/mis-permisos')
                     <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2">VENTA</span>
                   </div>
                 </td>
+                <td class="p-3">
+                  <span class="inline-flex px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-semibold">
+                    ${metodoPago}
+                  </span>
+                </td>
                 <td class="p-3">${fechaFormateada}</td>
                 <td class="p-3">${horaFormateada}</td>
                 <td class="p-3">
@@ -596,7 +651,7 @@ fetch('/api/mis-permisos')
           console.error("Error cargando historial:", err);
           const tabla = document.getElementById("tablaRegistros");
           if (tabla) {
-            tabla.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">
+            tabla.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">
               <div class="mb-2"><i class="fas fa-times-circle text-xl"></i></div>
               <div class="font-semibold">Error al cargar historial</div>
               <div class="text-sm mt-1">${err.message}</div>
@@ -842,6 +897,7 @@ fetch('/api/mis-permisos')
         document.getElementById('vistaPreviaQR').classList.add('hidden');
         document.getElementById('nombreQR').value = '';
         document.getElementById('cantidadQR').value = '1';
+        document.getElementById('metodoPago').value = '';
         this.deseleccionarPaquete();
       },
 
@@ -853,8 +909,10 @@ fetch('/api/mis-permisos')
       generarVistaPrevia: function() {
         const nombre = document.getElementById('nombreQR').value.trim();
         const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
+        const metodoPago = document.getElementById('metodoPago').value;
         if (!nombre) { this.mostrarAlerta("❌ El nombre es obligatorio", "error"); return; }
         if (!paqueteId) { this.mostrarAlerta("❌ Debes seleccionar un paquete", "error"); return; }
+        if (!metodoPago) { this.mostrarAlerta("❌ Debes seleccionar un método de pago", "error"); return; }
         const paquete = this.paquetesData?.find(p => p.id == paqueteId);
         if (!paquete) { this.mostrarAlerta("❌ Error: Paquete no encontrado", "error"); return; }
         fetch('/api/obtener-siguiente-qr', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -870,6 +928,7 @@ fetch('/api/mis-permisos')
               <div>Paquete: <span class="font-semibold">P${paquete.id} - ${paquete.name}</span></div>
               <div>Precio: <span class="font-semibold text-green-600">$${paquete.price.toLocaleString('es-CO')}</span></div>
               <div>Turnos: <span class="font-semibold text-blue-600">${paquete.turns}</span></div>
+              <div>Pago: <span class="font-semibold text-purple-600">${this.formatearMetodoPago(metodoPago)}</span></div>
             </div>`;
           document.getElementById('vistaPreviaQR').classList.remove('hidden');
         })
@@ -883,8 +942,10 @@ fetch('/api/mis-permisos')
       validarFormulario: function() {
         const nombre = document.getElementById('nombreQR').value.trim();
         const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
+        const metodoPago = document.getElementById('metodoPago').value;
         if (!nombre) { this.mostrarAlerta("❌ El nombre es obligatorio", "error"); return false; }
         if (!paqueteId) { this.mostrarAlerta("❌ Debes seleccionar un paquete", "error"); return false; }
+        if (!metodoPago) { this.mostrarAlerta("❌ Debes seleccionar un método de pago", "error"); return false; }
         return true;
       },
 
@@ -909,6 +970,7 @@ fetch('/api/mis-permisos')
       generarDocumento: function(nombre, tipo, paquete) {
         const { jsPDF } = window.jspdf;
         const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
+        const metodoPago = document.getElementById('metodoPago').value;
         const anchoPapel = 58, altoPapel = 80;
         const loadingMessage = document.createElement('div');
         loadingMessage.innerHTML = `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white rounded-lg p-6 text-center"><div class="loading mx-auto mb-4"></div><p>${tipo === 'pdf' ? 'Generando QR...' : 'Preparando QR para WhatsApp...'}</p></div></div>`;
@@ -916,7 +978,7 @@ fetch('/api/mis-permisos')
         fetch('/api/generar-qr', {
           method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-          body: JSON.stringify({ cantidad, nombre, paquete_id: paquete.id })
+          body: JSON.stringify({ cantidad, nombre, paquete_id: paquete.id, payment_method: metodoPago })
         })
         .then(res => { if (!res.ok) throw new Error('Error generando QR'); return res.json(); })
         .then(data => {
