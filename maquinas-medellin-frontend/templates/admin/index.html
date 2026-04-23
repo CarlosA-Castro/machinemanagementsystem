@@ -481,11 +481,22 @@
         </h3>
         <span id="conteo-ventas-recientes" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">0 ventas</span>
     </div>
+    <div class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-medium text-gray-700">Métodos de pago del rango</p>
+            <span id="estado-metodos-pago" class="text-xs text-gray-500">Cargando...</span>
+        </div>
+        <div id="resumen-metodos-pago" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">Cargando métodos de pago...</div>
+        </div>
+    </div>
+    <div class="border-t border-gray-200 pt-4">
     <div id="ventas-recientes" class="space-y-2 overflow-y-auto" style="max-height: 420px;">
         <div class="text-center py-8">
             <div class="loading mx-auto mb-2"></div>
             <p class="text-gray-600">Cargando ventas recientes...</p>
         </div>
+    </div>
     </div>
 </div>
             </div>
@@ -850,6 +861,14 @@
         document.getElementById('paquetes-vendidos').textContent = '--';
         document.getElementById('maquinas-activas').textContent = '--/--';
         document.getElementById('ticket-promedio').textContent = '--';
+        const resumenMetodos = document.getElementById('resumen-metodos-pago');
+        const estadoMetodos = document.getElementById('estado-metodos-pago');
+        if (resumenMetodos) {
+            resumenMetodos.innerHTML = '<div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">Cargando métodos de pago...</div>';
+        }
+        if (estadoMetodos) {
+            estadoMetodos.textContent = 'Cargando...';
+        }
     },
 
     cargarEstadisticasPrincipales: async function() {
@@ -875,6 +894,7 @@
                 `${data.maquinas_activas || 0}/${data.maquinas_totales || 0}`;
             document.getElementById('ticket-promedio').textContent = 
                 this.formatearMoneda(data.ticket_promedio || 0);
+            this.renderResumenMetodosPago(data.resumen_metodos || [], data.ventas_sin_metodo || 0);
             
             // Actualizar tendencias
             this.actualizarTendencias(data.tendencias || {});
@@ -891,6 +911,42 @@
     } catch (error) {
         console.error('❌ Error cargando estadísticas:', error);
         this.mostrarAlerta('Error de conexión', 'error');
+    }
+},
+
+    renderResumenMetodosPago: function(metodos, ventasSinMetodo) {
+    const container = document.getElementById('resumen-metodos-pago');
+    const estado = document.getElementById('estado-metodos-pago');
+    if (!container || !estado) return;
+
+    if (!metodos || metodos.length === 0) {
+        container.innerHTML = '<div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">No hay ventas con método de pago en este rango.</div>';
+        estado.textContent = 'Sin registros';
+        return;
+    }
+
+    estado.textContent = `${metodos.length} método(s)`;
+    container.innerHTML = metodos.map(item => {
+        const pendiente = item.payment_method === 'sin_registrar';
+        const accent = pendiente
+            ? 'border-red-200 bg-red-50 text-red-700'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+        const detalle = pendiente
+            ? `${item.total_ventas || 0} QR(s) sin método`
+            : `${item.total_ventas || 0} QR(s) registrados`;
+        return `
+            <div class="rounded-lg border px-3 py-2 ${accent}">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-sm font-semibold">${item.label}</span>
+                    <span class="text-xs font-medium">${detalle}</span>
+                </div>
+                <div class="mt-1 text-base font-bold">${this.formatearMoneda(item.valor_total || 0)}</div>
+            </div>
+        `;
+    }).join('');
+
+    if (ventasSinMetodo > 0) {
+        estado.textContent += ` • ${ventasSinMetodo} pendiente(s)`;
     }
 },
 
@@ -1010,7 +1066,11 @@
 
 cargarVentasRecientes: async function() {
     try {
-        const response = await fetch('/api/dashboard/ventas-recientes');
+        const params = new URLSearchParams({
+            fecha_inicio: this.fechaInicio,
+            fecha_fin: this.fechaFin
+        });
+        const response = await fetch(`/api/dashboard/ventas-recientes?${params}`);
         const container = document.getElementById('ventas-recientes');
 
         if (response.ok) {
@@ -1040,6 +1100,9 @@ cargarVentasRecientes: async function() {
                                 <p class="text-xs text-gray-400">
                                     <i class="fas fa-calendar mr-1"></i>${venta.fecha}
                                     <i class="fas fa-clock ml-2 mr-1"></i>${venta.hora}
+                                </p>
+                                <p class="text-xs text-indigo-600 mt-0.5">
+                                    <i class="fas fa-wallet mr-1"></i>${venta.payment_method_label || 'Sin registrar'}
                                 </p>
                                 <p class="text-xs text-blue-600 font-mono mt-0.5">
                                     <i class="fas fa-qrcode mr-1"></i>${venta.qr_code}

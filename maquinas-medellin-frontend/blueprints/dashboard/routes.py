@@ -18,6 +18,14 @@ logger = logging.getLogger(LOGGER_NAME)
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
+PAYMENT_METHOD_LABELS = {
+    'efectivo': 'Efectivo',
+    'transferencia': 'Transferencia',
+    'tarjeta': 'Tarjeta',
+    'mixto': 'Mixto',
+    'sin_registrar': 'Sin registrar',
+}
+
 
 # ── Helpers de scoping por local ──────────────────────────────────────────────
 
@@ -44,6 +52,10 @@ def _loc_and_qrh(alias: str = 'qh') -> tuple:
     if (can_all and active_id is None) or not active_name:
         return "", None
     return f"AND {alias}.local = %s", active_name
+
+
+def _payment_method_label(value):
+    return PAYMENT_METHOD_LABELS.get(value or 'sin_registrar', 'Sin registrar')
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -118,6 +130,35 @@ def obtener_estadisticas_dashboard():
         """, q_ticket_params)
         ticket = cursor.fetchone()
 
+        q_metodos_params = [fecha_inicio, fecha_fin]
+        if loc_name:
+            q_metodos_params.append(loc_name)
+        cursor.execute(f"""
+            SELECT
+                COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
+                COUNT(DISTINCT qh.qr_code) as total_ventas,
+                COALESCE(SUM(tp.price), 0) as valor_total
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+              AND qr.turnPackageId IS NOT NULL
+              AND qr.turnPackageId != 1
+              AND qh.es_venta_real = TRUE
+              {loc_and_qrh}
+            GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+            ORDER BY valor_total DESC, total_ventas DESC
+        """, q_metodos_params)
+        resumen_metodos = [
+            {
+                'payment_method': row['payment_method'],
+                'label': _payment_method_label(row['payment_method']),
+                'total_ventas': int(row['total_ventas'] or 0),
+                'valor_total': float(row['valor_total'] or 0),
+            }
+            for row in cursor.fetchall()
+        ]
+
         fecha_inicio_anterior = (datetime.strptime(fecha_inicio, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
         fecha_fin_anterior    = (datetime.strptime(fecha_fin,    '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
 
@@ -153,6 +194,8 @@ def obtener_estadisticas_dashboard():
             'maquinas_activas':  maquinas['maquinas_activas'] or 0,
             'maquinas_totales':  maquinas['maquinas_totales'] or 0,
             'ticket_promedio':   float(ticket['ticket_promedio'] or 0),
+            'resumen_metodos':   resumen_metodos,
+            'ventas_sin_metodo': sum(item['total_ventas'] for item in resumen_metodos if item['payment_method'] == 'sin_registrar'),
             'tendencias': {
                 'ingresos':  round(tendencia_ingresos, 1),
                 'paquetes':  round(tendencia_paquetes, 1),
@@ -450,21 +493,31 @@ def obtener_ventas_recientes():
     connection = None
     cursor = None
     try:
+        fecha_inicio = request.args.get('fecha_inicio')
+        fecha_fin = request.args.get('fecha_fin')
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
         loc_and_qrh, loc_name = _loc_and_qrh()
-        params_vr = [loc_name] if loc_name else []
+        filtros_fecha = ""
+        params_vr = []
+        if fecha_inicio and fecha_fin:
+            filtros_fecha = "AND DATE(qh.fecha_hora) BETWEEN %s AND %s"
+            params_vr.extend([fecha_inicio, fecha_fin])
+        if loc_name:
+            params_vr.append(loc_name)
         cursor.execute(f"""
             SELECT qh.qr_code, qh.user_name, qh.fecha_hora,
+                   COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
                    tp.name as paquete, tp.price as precio
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE {loc_and_qrh}
+              AND qh.es_venta_real = TRUE
+              {filtros_fecha} {loc_and_qrh}
             ORDER BY qh.fecha_hora DESC LIMIT 50
         """, params_vr)
 
@@ -482,6 +535,8 @@ def obtener_ventas_recientes():
                 'qr_code': v['qr_code'],
                 'usuario': v['user_name'],
                 'paquete': v['paquete'] or 'Sin paquete',
+                'payment_method': v['payment_method'],
+                'payment_method_label': _payment_method_label(v['payment_method']),
                 'precio':  float(v['precio'] or 0),
                 'hora':    hora_f,
                 'fecha':   fecha_f,

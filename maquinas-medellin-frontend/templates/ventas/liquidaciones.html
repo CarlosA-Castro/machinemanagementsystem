@@ -412,6 +412,16 @@
                     </div>
                 </div>
 
+                <div class="glass-card mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-700"><i class="fas fa-wallet mr-2 text-emerald-500"></i>Métodos de Pago del Período</h3>
+                        <span id="estadoMetodosPagoLiq" class="text-xs text-gray-500">Sin calcular</span>
+                    </div>
+                    <div id="resumenMetodosPagoLiq" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                        <div class="text-sm text-gray-400">Calcula una liquidación para ver los métodos de pago.</div>
+                    </div>
+                </div>
+
                 <!-- Detalle individual de ventas -->
                 <div class="glass-card mb-4">
                     <div class="flex items-center justify-between mb-3">
@@ -428,6 +438,7 @@
                                     <tr>
                                         <th>Fecha</th>
                                         <th>Vendedor</th>
+                                        <th>Pago</th>
                                         <th>Paquete</th>
                                         <th class="text-right">Precio</th>
                                         <th class="text-right">
@@ -704,11 +715,11 @@ function setCierreButtonState(existente) {
 
     if (existente) {
         estadoEl.innerHTML = `<span class="badge badge-blue"><i class="fas fa-lock"></i>Cierre ya registrado</span>
-            <span class="ml-2 text-gray-600">Registrado el ${new Date(existente.creado_el).toLocaleDateString('es-CO')} para ${existente.local_nombre}</span>`;
+            <span class="ml-2 text-gray-600">Cubre fechas entre ${existente.fecha_inicio} y ${existente.fecha_fin} para ${existente.local_nombre}</span>`;
         btn.disabled = true;
         btn.classList.remove('btn-success');
         btn.classList.add('btn-secondary');
-        btn.title = 'Este periodo ya fue cerrado';
+        btn.title = 'Este periodo se cruza con un cierre ya registrado';
     } else {
         estadoEl.innerHTML = '<span class="badge badge-green"><i class="fas fa-unlock"></i>Periodo disponible para cierre</span>';
         btn.disabled = false;
@@ -775,6 +786,7 @@ async function calcular() {
             renderNegocio(data);
             renderInversionistas(data);
             renderArcade(data);
+            renderMetodosPago(data.resumen_metodos || [], data.ventas_sin_metodo || 0);
             renderDetalleVentas(data.datos_tabla || []);
             setCierreButtonState(data.cierre_existente || null);
         }
@@ -842,6 +854,40 @@ function renderNegocio(data) {
     document.getElementById('turnosUsados').textContent    = fmtN(t.usados);
     document.getElementById('turnosRestantes').textContent = fmtN(t.restantes);
     document.getElementById('valorRestantes').textContent  = fmt(t.valor_restantes);
+}
+
+function renderMetodosPago(metodos, ventasSinMetodo) {
+    const container = document.getElementById('resumenMetodosPagoLiq');
+    const estado = document.getElementById('estadoMetodosPagoLiq');
+    if (!container || !estado) return;
+
+    if (!metodos || !metodos.length) {
+        container.innerHTML = '<div class="text-sm text-gray-400">No hay ventas con método de pago en este período.</div>';
+        estado.textContent = 'Sin registros';
+        return;
+    }
+
+    estado.textContent = `${metodos.length} método(s)`;
+    if (ventasSinMetodo > 0) {
+        estado.textContent += ` • ${ventasSinMetodo} pendiente(s)`;
+    }
+
+    container.innerHTML = metodos.map(item => {
+        const pending = item.payment_method === 'sin_registrar';
+        const cls = pending
+            ? 'border-red-200 bg-red-50 text-red-700'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+        const detail = pending
+            ? `${item.total_ventas || 0} QR(s) sin método`
+            : `${item.total_ventas || 0} QR(s) registrados`;
+        return `<div class="rounded-xl border px-4 py-3 ${cls}">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-semibold">${item.label}</span>
+                <span class="text-xs font-medium">${detail}</span>
+            </div>
+            <div class="mt-2 text-xl font-black">${fmt(item.valor_total || 0)}</div>
+        </div>`;
+    }).join('');
 }
 
 function renderChartHistorial(hist, actualIngresos) {
@@ -1177,7 +1223,8 @@ async function eliminarGasto(id) {
 function abrirModalCierre() {
     if (!currentData) { toast('Primero calcula la liquidación', 'error'); return; }
     if (currentData.cierre_existente) {
-        toast('Este periodo ya tiene un cierre registrado.', 'error');
+        const cierre = currentData.cierre_existente;
+        toast(`Este rango se cruza con el cierre ${cierre.fecha_inicio} → ${cierre.fecha_fin}.`, 'error');
         switchTab('historial');
         return;
     }
@@ -1462,12 +1509,14 @@ function renderDetalleVentas(datos) {
     tbody.innerHTML = datos.map(v => {
         const fecha = v.fecha ? v.fecha.slice(0, 10) : '—';
         const vendedor = v.vendedor || '—';
-        const pctNeg = v.porcentaje_restaurante ? parseFloat(v.porcentaje_restaurante).toFixed(1) + '%' : '—';
+        const metodo = v.payment_method_label || 'Sin registrar';
+        const pctNeg = v.porcentaje_restaurante ? parseFloat(v.porcentaje_restaurante).toFixed(1) + '%' : '--';
         const ingRest = v.ingresos_restaurante != null ? fmt(v.ingresos_restaurante) : '—';
         return `<tr>
             <td class="text-xs text-gray-500">${fecha}</td>
             <td class="font-medium">${vendedor}</td>
-            <td>${v.paquete_nombre || '—'}</td>
+            <td><span class="badge ${metodo === 'Sin registrar' ? 'badge-red' : 'badge-blue'}">${metodo}</span></td>
+            <td>${v.paquete_nombre || 'Sin paquete'}</td>
             <td class="text-right font-semibold">${fmt(v.ingresos_totales)}</td>
             <td class="text-right text-xs text-green-700">${pctNeg}</td>
             <td class="text-right text-green-700">${ingRest}</td>

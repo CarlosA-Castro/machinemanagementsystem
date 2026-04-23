@@ -20,6 +20,14 @@ liquidaciones_bp = Blueprint('liquidaciones', __name__)
 ADMIN_PERCENTAGE_DEFAULT = 25.0
 RESTAURANT_PERCENTAGE_DEFAULT = 35.0
 
+PAYMENT_METHOD_LABELS = {
+    'efectivo': 'Efectivo',
+    'transferencia': 'Transferencia',
+    'tarjeta': 'Tarjeta',
+    'mixto': 'Mixto',
+    'sin_registrar': 'Sin registrar',
+}
+
 
 # ─── Helpers básicos ──────────────────────────────────────────────────────────
 
@@ -116,6 +124,10 @@ def _current_closure_scope():
     return None, session.get('user_local', 'Local actual')
 
 
+def _payment_method_label(value):
+    return PAYMENT_METHOD_LABELS.get(value or 'sin_registrar', 'Sin registrar')
+
+
 def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
     if not _table_exists(cursor, 'cierre_liquidacion'):
         return None
@@ -131,13 +143,17 @@ def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
             cl.creado_el
         FROM cierre_liquidacion cl
         LEFT JOIN location loc ON loc.id = cl.local_id
-        WHERE cl.fecha_inicio = %s
-          AND cl.fecha_fin = %s
-          AND IFNULL(cl.local_id, 0) = IFNULL(%s, 0)
+        WHERE cl.fecha_inicio <= %s
+          AND cl.fecha_fin >= %s
+          AND (
+                cl.local_id IS NULL
+                OR %s IS NULL
+                OR cl.local_id = %s
+          )
         ORDER BY cl.creado_el DESC
         LIMIT 1
         """,
-        (fecha_inicio, fecha_fin, local_id),
+        (fecha_fin, fecha_inicio, local_id, local_id),
     )
     existing = cursor.fetchone()
     if not existing:
@@ -863,6 +879,7 @@ def calcular_liquidacion():
                     DATE(qh.fecha_hora) AS fecha,
                     qh.user_name AS vendedor,
                     qh.qr_code,
+                    COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
                     tp.name AS paquete_nombre,
                     tp.turns AS turnos_usados,
                     COALESCE(m.name, 'No especificada') AS maquina_nombre,
@@ -894,6 +911,7 @@ def calcular_liquidacion():
                     DATE(qh.fecha_hora) AS fecha,
                     qh.user_name AS vendedor,
                     qh.qr_code,
+                    COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
                     tp.name AS paquete_nombre,
                     tp.turns AS turnos_usados,
                     'No especificada' AS maquina_nombre,
@@ -919,10 +937,62 @@ def calcular_liquidacion():
             {
                 'fecha':                  str(row['fecha'])[:10] if row.get('fecha') else None,
                 'vendedor':               str(row.get('vendedor') or ''),
+                'payment_method':         str(row.get('payment_method') or 'sin_registrar'),
+                'payment_method_label':   _payment_method_label(row.get('payment_method')),
                 'paquete_nombre':         str(row.get('paquete_nombre') or ''),
                 'ingresos_totales':       float(row.get('ingresos_totales') or 0),
                 'porcentaje_restaurante': float(row.get('porcentaje_restaurante') or 0),
                 'ingresos_restaurante':   float(row.get('ingresos_restaurante') or 0),
+            }
+            for row in cursor.fetchall()
+        ]
+
+        if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
+            loc_cond, loc_params = _tp_location_cond()
+            metodos_sql = f"""
+                SELECT
+                    COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
+                    COUNT(DISTINCT qh.qr_code) AS total_ventas,
+                    COALESCE(SUM(tp.price), 0) AS valor_total
+                FROM qrhistory qh
+                JOIN qrcode qr ON qr.code = qh.qr_code
+                JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                  AND qr.turnPackageId IS NOT NULL
+                  AND qr.turnPackageId != 1
+                  AND qh.es_venta_real = TRUE
+                  {loc_cond}
+                GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+                ORDER BY valor_total DESC, total_ventas DESC
+            """
+            metodos_params = [fecha_inicio, fecha_fin] + loc_params
+        else:
+            metodos_sql, metodos_params = apply_location_filter(
+                """
+                SELECT
+                    COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
+                    COUNT(DISTINCT qh.qr_code) AS total_ventas,
+                    COALESCE(SUM(tp.price), 0) AS valor_total
+                FROM qrhistory qh
+                JOIN qrcode qr ON qr.code = qh.qr_code
+                JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                  AND qr.turnPackageId IS NOT NULL
+                  AND qr.turnPackageId != 1
+                  AND qh.es_venta_real = TRUE
+                GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+                ORDER BY valor_total DESC, total_ventas DESC
+                """,
+                [fecha_inicio, fecha_fin],
+                column='location_id', table_alias='tp',
+            )
+        cursor.execute(metodos_sql, metodos_params)
+        resumen_metodos = [
+            {
+                'payment_method': row['payment_method'],
+                'label': _payment_method_label(row['payment_method']),
+                'total_ventas': int(row['total_ventas'] or 0),
+                'valor_total': float(row['valor_total'] or 0),
             }
             for row in cursor.fetchall()
         ]
@@ -957,6 +1027,8 @@ def calcular_liquidacion():
             'resumen_maquinas':       resumen_maquinas,
             'inversionistas':         inversionistas,
             'datos_tabla':            datos_tabla,
+            'resumen_metodos':        resumen_metodos,
+            'ventas_sin_metodo':      sum(item['total_ventas'] for item in resumen_metodos if item['payment_method'] == 'sin_registrar'),
             'historial':              historial,
             'cierre_existente':       cierre_existente,
             'gastos':                 gastos,
@@ -1228,8 +1300,8 @@ def cerrar_liquidacion():
             return jsonify({
                 'success': False,
                 'message': (
-                    f"Este periodo ya fue cerrado para {existing_close['local_nombre']} "
-                    f"({existing_close['fecha_inicio']} -> {existing_close['fecha_fin']})."
+                    f"Ya existe un cierre para {existing_close['local_nombre']} "
+                    f"que cubre fechas entre {existing_close['fecha_inicio']} y {existing_close['fecha_fin']}."
                 ),
                 'existing_close': existing_close,
             }), 409
@@ -1260,7 +1332,7 @@ def cerrar_liquidacion():
                     existing_close = None
             return jsonify({
                 'success': False,
-                'message': 'Este periodo ya tiene un cierre oficial registrado.',
+                'message': 'Este periodo se cruza con un cierre oficial ya registrado.',
                 'existing_close': existing_close,
             }), 409
         logger.error(f'Error cerrando liquidación: {e}', exc_info=True)
