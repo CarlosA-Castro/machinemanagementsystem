@@ -286,6 +286,14 @@
       0%,100% { transform: translate(-50%,-58%) translateY(0px); }
       50%     { transform: translate(-50%,-58%) translateY(-13px); }
     }
+    @keyframes srm-img-float {
+      0%,100% { transform: translateY(0px); }
+      50%     { transform: translateY(-14px); }
+    }
+    @keyframes srm-spin360 {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
     @keyframes srm-particle {
       0%,100% { opacity: 0.5; transform: translate(0,0); }
       50%     { opacity: 0.18; transform: translate(4px,-7px); }
@@ -1461,9 +1469,29 @@
     return 'rgba('+r+','+g+','+b+','+a+')';
   }
 
-  // ── Shared scene structure: glow + 3 rings + extras + floating icon ──
-  function baseScene(icon, color, bg, extras) {
-    var c = color;
+  // ── Shared scene structure: glow + 3 rings + extras + floating machine ──
+  function baseScene(exp, bg, extras) {
+    var c = exp.color;
+    var centerEl;
+    if (exp.img) {
+      centerEl =
+        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);z-index:3;">' +
+          '<div style="animation:srm-img-float 5s ease-in-out infinite;">' +
+            '<img class="srm-spin-img" src="' + exp.img + '" ' +
+              'style="width:230px;max-width:68vw;display:block;' +
+              '-webkit-mask-image:radial-gradient(ellipse 90% 88% at center,black 38%,transparent 78%);' +
+              'mask-image:radial-gradient(ellipse 90% 88% at center,black 38%,transparent 78%);' +
+              'filter:drop-shadow(0 0 34px ' + rgba(c,0.72) + ') brightness(1.08);' +
+              'animation:srm-spin360 4s ease-in-out forwards;">' +
+          '</div>' +
+        '</div>';
+    } else {
+      centerEl =
+        '<div style="position:absolute;top:50%;left:50%;font-size:5.5rem;line-height:1;' +
+          'filter:drop-shadow(0 0 22px ' + rgba(c,0.65) + ');' +
+          'animation:srm-icon-float 5s ease-in-out infinite;' +
+          'user-select:none;transform:translate(-50%,-58%);">' + exp.icon + '</div>';
+    }
     return (
       '<div style="position:absolute;inset:0;overflow:hidden;">' +
       '<div style="position:absolute;inset:0;' + bg + '"></div>' +
@@ -1472,7 +1500,7 @@
       '<div style="position:absolute;top:50%;left:50%;width:204px;height:204px;border-radius:50%;border:1px solid '+c+';opacity:0.25;animation:srm-ring-spin 20s linear infinite reverse;"></div>' +
       '<div style="position:absolute;top:50%;left:50%;width:120px;height:120px;border-radius:50%;border:2px solid '+c+';opacity:0.48;animation:srm-pulse-op 3s ease-in-out infinite;"></div>' +
       (extras || '') +
-      '<div style="position:absolute;top:50%;left:50%;font-size:5.5rem;line-height:1;filter:drop-shadow(0 0 22px '+rgba(c,0.65)+');animation:srm-icon-float 5s ease-in-out infinite;user-select:none;transform:translate(-50%,-58%);">'+icon+'</div>' +
+      centerEl +
       '</div>'
     );
   }
@@ -1488,64 +1516,65 @@
   // ================================================================
   var EXPERIENCES = [
     {
-      icon:'🏎️', name:'Simulador Racing', tag:'Velocidad',
+      icon:'🏎️',
+      img:'{{ url_for("static", filename="img/simulador1.jpg") }}',
+      name:'Simulador Racing', tag:'Velocidad',
       sub:'Simuladores · Racing', color:'#C8252A',
       desc:'Cabina inmersiva con asiento de cuero, pantalla 42" y efectos de vibración. La más solicitada del portafolio.',
       buildScene: function() {
         var c = this.color;
-        // Fondo: líneas diagonales de velocidad
         var bg = 'background:repeating-linear-gradient(-55deg,transparent,transparent 28px,'+rgba(c,0.04)+' 28px,'+rgba(c,0.04)+' 30px);';
-        return baseScene(this.icon, c, bg,
+        return baseScene(this, bg,
           dot(27,17,c,4,3.5,0) + dot(21,80,c,3,4,0.6) + dot(75,22,c,5,3,1.1) + dot(71,83,c,3,4.5,0.3)
         );
       }
     },
     {
-      icon:'🏀', name:'Basketball', tag:'Deporte',
+      icon:'🏀',
+      img:'{{ url_for("static", filename="img/basketball.jpg") }}',
+      name:'Basketball', tag:'Deporte',
       sub:'Baloncesto · Deportes', color:'#E87722',
       desc:'Cancha electrónica con contador de puntos, niveles de dificultad y modo multijugador. Alto engagement familiar.',
       buildScene: function() {
         var c = this.color;
         var bg = 'background:radial-gradient(circle at 50% 50%,'+rgba(c,0.05)+' 1px,transparent 1px);background-size:40px 40px;';
-        return baseScene(this.icon, c, bg,
-          // Arco del aro
+        return baseScene(this, bg,
           '<div style="position:absolute;top:11%;left:50%;transform:translateX(-50%);width:76px;height:38px;border:2px solid '+c+';border-bottom:none;border-radius:38px 38px 0 0;opacity:0.55;"></div>' +
-          // Red debajo del aro
           '<div style="position:absolute;top:calc(11% + 38px);left:calc(50% - 38px);width:76px;height:22px;opacity:0.3;background:repeating-linear-gradient(90deg,transparent,transparent 8px,'+c+' 8px,'+c+' 9.5px);"></div>' +
           dot(30,15,c,5,3.5,0) + dot(24,83,c,3,4,0.6) + dot(76,20,c,4,3.2,1.1)
         );
       }
     },
     {
-      icon:'🕹️', name:'Air Hockey', tag:'Arcade Clásico',
+      icon:'🕹️',
+      img:'{{ url_for("static", filename="img/disco air hockey.jpg") }}',
+      name:'Air Hockey', tag:'Arcade Clásico',
       sub:'Air Hockey · Combate', color:'#3A7BFF',
       desc:'Mesa profesional con superficie de alta velocidad y marcador electrónico. Diversión para todas las edades.',
       buildScene: function() {
         var c = this.color;
         var bg = 'background-image:radial-gradient(circle,'+rgba(c,0.14)+' 1px,transparent 1px);background-size:28px 28px;';
-        return baseScene(this.icon, c, bg,
-          // Círculo de la mesa
+        return baseScene(this, bg,
           '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:240px;height:240px;border-radius:50%;border:1px solid '+c+';opacity:0.17;"></div>' +
-          // Línea central
           '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:240px;height:1px;background:'+c+';opacity:0.1;"></div>' +
-          // Disco con glow animado
           '<div style="position:absolute;top:41%;left:62%;width:18px;height:18px;border-radius:50%;background:'+rgba(c,0.55)+';box-shadow:0 0 14px '+c+';animation:srm-particle 2.8s ease-in-out infinite;"></div>' +
           dot(24,17,c,3,3.5,0.4) + dot(73,81,c,4,4,0.8)
         );
       }
     },
     {
-      icon:'🧸', name:'Infantil', tag:'Infantil',
+      icon:'🧸',
+      img:'{{ url_for("static", filename="img/mcqueen.jpg") }}',
+      name:'Infantil', tag:'Infantil',
       sub:'Caballitos · Trenes · Racing', color:'#F5C518',
       desc:'Simuladores temáticos para los más pequeños: McQueen, caballitos, tren de paseo. Diseño colorido y duración ajustable.',
       buildScene: function() {
         var c = this.color;
         var bg = 'background:transparent;';
-        // Estrellas dispersas
         var star = function(t,l,s,d) {
           return '<div style="position:absolute;top:'+t+'%;left:'+l+'%;font-size:'+s+'rem;color:'+c+';opacity:0.38;user-select:none;animation:srm-particle '+((s*1.2)+2.5).toFixed(1)+'s ease-in-out '+d+'s infinite;">✦</div>';
         };
-        return baseScene(this.icon, c, bg,
+        return baseScene(this, bg,
           star(13,11,1.2,0) + star(17,84,0.85,0.5) + star(79,10,0.9,1) +
           star(82,88,1.1,0.3) + star(9,50,0.6,0.8) + star(89,47,0.7,1.2) +
           star(45,7,0.55,0.2) + star(48,93,0.6,0.7) +
@@ -1554,17 +1583,17 @@
       }
     },
     {
-      icon:'🎯', name:'Grúa Peluches', tag:'Destreza',
+      icon:'🎯',
+      img:'{{ url_for("static", filename="img/peluches1.jpg") }}',
+      name:'Grúa Peluches', tag:'Destreza',
       sub:'Grúas · Pelucheras', color:'#B44FD8',
       desc:'Máquina de destreza con premios reales. Alto engagement y repetición garantizada por el instinto de conquista.',
       buildScene: function() {
         var c = this.color;
         var bg = 'background:repeating-linear-gradient(45deg,transparent,transparent 20px,'+rgba(c,0.03)+' 20px,'+rgba(c,0.03)+' 21.5px);';
-        return baseScene(this.icon, c, bg,
-          // Diamantes (cuadrados rotados)
+        return baseScene(this, bg,
           '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:170px;height:170px;border:1px solid '+c+';opacity:0.13;"></div>' +
           '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:96px;height:96px;border:1px solid '+c+';opacity:0.25;"></div>' +
-          // Estrellas de premio
           '<div style="position:absolute;top:15%;left:24%;font-size:1.1rem;color:'+c+';opacity:0.38;user-select:none;animation:srm-particle 3s ease-in-out 0s infinite;">★</div>' +
           '<div style="position:absolute;top:19%;left:74%;font-size:0.85rem;color:'+c+';opacity:0.32;user-select:none;animation:srm-particle 3.5s ease-in-out 0.5s infinite;">★</div>' +
           '<div style="position:absolute;top:79%;left:28%;font-size:0.75rem;color:'+c+';opacity:0.28;user-select:none;animation:srm-particle 4s ease-in-out 1s infinite;">★</div>' +
@@ -1573,23 +1602,20 @@
       }
     },
     {
-      icon:'🥽', name:'Próximamente', tag:'VR / Inmersión',
+      icon:'🥽',
+      name:'Próximamente', tag:'VR / Inmersión',
       sub:'Realidad Virtual', color:'#00C6FF', soon:true,
       desc:'Nuevas experiencias de realidad virtual en desarrollo. El entretenimiento del futuro, en tu local.',
       buildScene: function() {
         var c = this.color;
         var bg = 'background-image:linear-gradient('+rgba(c,0.07)+' 1px,transparent 1px),linear-gradient(90deg,'+rgba(c,0.07)+' 1px,transparent 1px);background-size:32px 32px;';
-        return baseScene(this.icon, c, bg,
-          // Anillo extra exterior
+        return baseScene(this, bg,
           '<div style="position:absolute;top:50%;left:50%;width:344px;height:344px;border-radius:50%;border:1px solid '+c+';opacity:0.07;animation:srm-ring-spin 45s linear infinite;"></div>' +
-          // Cuadrado rotado (feel hexagonal)
           '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(30deg);width:208px;height:208px;border:1px solid '+c+';opacity:0.1;animation:srm-ring-spin 35s linear infinite reverse;"></div>' +
-          // Diamantes flotantes
           '<div style="position:absolute;top:21%;left:20%;width:8px;height:8px;transform:rotate(45deg);border:1.5px solid '+c+';opacity:0.4;animation:srm-particle 3s ease-in-out 0s infinite;"></div>' +
           '<div style="position:absolute;top:23%;left:78%;width:6px;height:6px;transform:rotate(45deg);border:1.5px solid '+c+';opacity:0.35;animation:srm-particle 3.5s ease-in-out 0.5s infinite;"></div>' +
           '<div style="position:absolute;top:75%;left:18%;width:5px;height:5px;transform:rotate(45deg);border:1.5px solid '+c+';opacity:0.3;animation:srm-particle 4s ease-in-out 1s infinite;"></div>' +
           '<div style="position:absolute;top:73%;left:81%;width:7px;height:7px;transform:rotate(45deg);border:1.5px solid '+c+';opacity:0.35;animation:srm-particle 3.2s ease-in-out 0.3s infinite;"></div>' +
-          // Punto central brillante
           '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:'+c+';opacity:0.9;box-shadow:0 0 14px '+c+';"></div>'
         );
       }
@@ -1607,7 +1633,26 @@
   var catsEl    = document.getElementById('srm-cats');
   var stageEl   = document.getElementById('srm-stage');
 
-  var current = 0, timer = null, DELAY = 4200;
+  var current = 0, nextTimer = null, DELAY = 4800;
+
+  // ── Avance automático: espera fin del giro (o timer para emoji) ──
+  function scheduleNext() {
+    clearTimeout(nextTimer);
+    var img = sceneEl.querySelector('.srm-spin-img');
+    if (img) {
+      img.addEventListener('animationend', function fn(e) {
+        if (e.animationName !== 'srm-spin360') return;
+        img.removeEventListener('animationend', fn);
+        nextTimer = setTimeout(function() {
+          goTo((current + 1) % EXPERIENCES.length);
+        }, 350);
+      });
+    } else {
+      nextTimer = setTimeout(function() {
+        goTo((current + 1) % EXPERIENCES.length);
+      }, DELAY);
+    }
+  }
 
   // ── Render category selector panels ──
   EXPERIENCES.forEach(function (exp, i) {
@@ -1635,6 +1680,7 @@
   // ── Transition to experience i ──
   function goTo(i) {
     if (i === current) return;
+    clearTimeout(nextTimer);
     var exp = EXPERIENCES[i];
     sceneEl.classList.add('fade');
     nameEl.classList.add('fade');
@@ -1656,36 +1702,21 @@
       sceneEl.classList.remove('fade');
       nameEl.classList.remove('fade');
       descEl.classList.remove('fade');
+      startProgress();
+      scheduleNext();
     }, 300);
   }
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
-  // ── Progress bar ──
+  // ── Progress bar (duración sincronizada con el giro: 4s) ──
   function startProgress() {
     if (!barEl) return;
     barEl.classList.remove('running');
-    void barEl.offsetWidth; // reflow para reiniciar animación CSS
+    void barEl.offsetWidth;
     barEl.style.background = 'linear-gradient(90deg,' + EXPERIENCES[current].color + ',' + EXPERIENCES[current].color + 'bb)';
+    barEl.style.animationDuration = '4s';
     barEl.classList.add('running');
-  }
-
-  function startAuto() {
-    stopAuto(); startProgress();
-    timer = setInterval(function () {
-      goTo((current + 1) % EXPERIENCES.length);
-      setTimeout(startProgress, 330);
-    }, DELAY);
-  }
-
-  function stopAuto() {
-    clearInterval(timer); timer = null;
-    if (barEl) barEl.classList.remove('running');
-  }
-
-  if (stageEl) {
-    stageEl.addEventListener('mouseenter', stopAuto);
-    stageEl.addEventListener('mouseleave', startAuto);
   }
 
   // ── Init ──
@@ -1698,7 +1729,8 @@
     counterEl.textContent    = '01 / ' + pad(EXPERIENCES.length);
     var fp = catsEl.querySelector('.srm-cat');
     if (fp) fp.style.setProperty('--srm-color', exp.color);
-    startAuto();
+    startProgress();
+    scheduleNext();
   })();
 
 })();
