@@ -20,12 +20,14 @@ logger = logging.getLogger(LOGGER_NAME)
 
 qr_bp = Blueprint('qr', __name__)
 
-VALID_PAYMENT_METHODS = {'efectivo', 'transferencia', 'tarjeta', 'mixto'}
+VALID_PAYMENT_METHODS = {'efectivo', 'transferencia', 'tarjeta', 'mixto', 'cortesia', 'ajuste'}
 PAYMENT_METHOD_LABELS = {
     'efectivo': 'Efectivo',
     'transferencia': 'Transferencia',
     'tarjeta': 'Tarjeta',
     'mixto': 'Mixto',
+    'cortesia': 'Cortesia',
+    'ajuste': 'Ajuste',
     'sin_registrar': 'Sin registrar',
 }
 
@@ -41,6 +43,20 @@ def _normalize_payment_method(value):
 def _payment_method_label(value):
     """Etiqueta amigable para respuestas JSON y vistas de caja."""
     return PAYMENT_METHOD_LABELS.get(value or 'sin_registrar', 'Sin registrar')
+
+
+def _serialize_payment_method_audit(row):
+    return {
+        'payment_method': row.get('payment_method') or 'sin_registrar',
+        'payment_method_label': _payment_method_label(row.get('payment_method')),
+        'payment_method_updated_at': (
+            parse_db_datetime(row['payment_method_updated_at']).strftime('%Y-%m-%d %H:%M:%S')
+            if row.get('payment_method_updated_at') else None
+        ),
+        'payment_method_updated_by': row.get('payment_method_updated_by'),
+        'payment_method_updated_by_name': row.get('payment_method_updated_by_name'),
+        'payment_method_update_reason': row.get('payment_method_update_reason'),
+    }
 
 
 # ── Helper functions ──────────────────────────────────────────────────────────
@@ -2073,6 +2089,154 @@ def ventas_dia():
             connection.close()
 
 
+@qr_bp.route('/api/ventas/<int:venta_id>/payment-method', methods=['PUT'])
+@handle_api_errors
+@require_login(['admin', 'cajero'])
+@validate_required_fields(['payment_method', 'reason'])
+def actualizar_metodo_pago_venta(venta_id):
+    """Actualizar método de pago de una venta real con auditoría obligatoria."""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json() or {}
+        nuevo_metodo = _normalize_payment_method(data.get('payment_method'))
+        motivo = (data.get('reason') or '').strip()
+
+        if nuevo_metodo not in VALID_PAYMENT_METHODS:
+            return api_response('E005', http_status=400, data={'message': 'Método de pago inválido'})
+
+        if len(motivo) < 5:
+            return api_response(
+                'E005',
+                http_status=400,
+                data={'message': 'Debes indicar un motivo de al menos 5 caracteres'}
+            )
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        active_id, active_name = get_active_location()
+        can_all = user_can_view_all()
+        local_actual = active_name or session.get('user_local', 'El Mekatiadero')
+        user_id = session.get('user_id')
+        user_name = session.get('user_name', 'Usuario')
+        now_db = format_datetime_for_db(get_colombia_time())
+
+        if can_all and active_id is None:
+            loc_clause = ""
+            params = [venta_id]
+        else:
+            loc_clause = "AND qh.local = %s"
+            params = [venta_id, local_actual]
+
+        cursor.execute(f"""
+            SELECT
+                qh.id,
+                qh.qr_code,
+                qh.qr_name,
+                qh.local,
+                qh.user_name,
+                qh.payment_method,
+                qh.payment_method_updated_at,
+                qh.payment_method_updated_by,
+                qh.payment_method_update_reason,
+                tp.name AS package_name,
+                tp.price AS precio_paquete
+            FROM qrhistory qh
+            LEFT JOIN qrcode qr ON qr.code = qh.qr_code
+            LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            WHERE qh.id = %s
+              AND qh.es_venta_real = TRUE
+              {loc_clause}
+            LIMIT 1
+        """, tuple(params))
+
+        venta = cursor.fetchone()
+        if not venta:
+            return api_response(
+                'I001',
+                status='info',
+                http_status=404,
+                data={'message': 'La venta no existe o no pertenece al alcance actual'}
+            )
+
+        metodo_anterior = _normalize_payment_method(venta.get('payment_method'))
+        if metodo_anterior == nuevo_metodo:
+            return api_response(
+                'E005',
+                http_status=400,
+                data={'message': 'El nuevo método debe ser diferente al actual'}
+            )
+
+        cursor.execute(
+            """
+            UPDATE qrhistory
+            SET payment_method = %s,
+                payment_method_updated_at = %s,
+                payment_method_updated_by = %s,
+                payment_method_update_reason = %s
+            WHERE id = %s
+            """,
+            (nuevo_metodo, now_db, user_id, motivo, venta_id),
+        )
+
+        connection.commit()
+
+        log_transaccion(
+            tipo='editar_metodo_pago',
+            categoria='financiero',
+            descripcion=(
+                f"Método de pago actualizado para venta {venta['qr_code']} "
+                f"de {_payment_method_label(metodo_anterior)} a {_payment_method_label(nuevo_metodo)}"
+            ),
+            usuario=user_name,
+            usuario_id=user_id,
+            entidad='qrhistory',
+            entidad_id=venta_id,
+            monto=float(venta.get('precio_paquete') or 0),
+            datos_extra={
+                'qr_code': venta['qr_code'],
+                'local': venta.get('local'),
+                'motivo': motivo,
+                'valor_anterior': metodo_anterior,
+                'valor_nuevo': nuevo_metodo,
+                'vendedor_original': venta.get('user_name'),
+            },
+        )
+
+        return jsonify({
+            'success': True,
+            'venta': {
+                'id': venta_id,
+                'qr_code': venta['qr_code'],
+                'qr_nombre': venta.get('qr_name') or 'Sin nombre',
+                'paquete': venta.get('package_name'),
+                'precio': float(venta.get('precio_paquete') or 0),
+                'vendedor': venta.get('user_name'),
+                'valor_anterior': metodo_anterior or 'sin_registrar',
+                'valor_anterior_label': _payment_method_label(metodo_anterior),
+                'valor_nuevo': nuevo_metodo,
+                'valor_nuevo_label': _payment_method_label(nuevo_metodo),
+                'motivo': motivo,
+                'responsable': user_name,
+                'updated_at': parse_db_datetime(now_db).strftime('%Y-%m-%d %H:%M:%S'),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error actualizando método de pago: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
 @qr_bp.route('/api/ventas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin', 'cajero', 'admin_restaurante'])
@@ -2103,11 +2267,16 @@ def obtener_ventas():
 
         cursor.execute(f"""
             SELECT
+                qh.id,
                 DATE(qh.fecha_hora) as fecha,
                 TIME(qh.fecha_hora) as hora,
                 qh.qr_code,
                 qh.qr_name,
                 qh.payment_method,
+                qh.payment_method_updated_at,
+                qh.payment_method_updated_by,
+                qh.payment_method_update_reason,
+                COALESCE(NULLIF(u.name, ''), '') AS payment_method_updated_by_name,
                 tp.name as paquete,
                 tp.price as precio,
                 tp.turns as turnos,
@@ -2116,6 +2285,7 @@ def obtener_ventas():
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN users u ON u.id = qh.payment_method_updated_by
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2349,13 +2519,15 @@ def obtener_ventas():
 
         ventas_formateadas = []
         for venta in ventas:
+            audit_data = _serialize_payment_method_audit(venta)
             ventas_formateadas.append({
+                'id': int(venta['id']),
                 'fecha': str(venta['fecha']),
                 'hora': str(venta['hora'])[:5] if venta['hora'] else '00:00',
                 'paquete': venta['paquete'],
+                'qr_code': venta['qr_code'],
                 'qr_nombre': venta['qr_name'] or 'Sin nombre',
-                'payment_method': venta['payment_method'] or 'sin_registrar',
-                'payment_method_label': _payment_method_label(venta.get('payment_method')),
+                **audit_data,
                 'precio': float(venta['precio']),
                 'turnos': venta['turnos'],
                 'vendedor': venta['vendedor'],

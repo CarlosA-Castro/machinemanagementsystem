@@ -425,6 +425,7 @@
                                 <th class="p-3 font-semibold">Turnos</th>
                                 <th class="p-3 font-semibold">Vendedor</th>
                                 <th class="p-3 font-semibold">Estado</th>
+                                <th class="p-3 font-semibold">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaVentas" class="text-gray-700">
@@ -438,6 +439,49 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <div id="modalEditarMetodoPago" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/60 px-4">
+        <div class="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-pen-to-square mr-2 text-indigo-600"></i>Editar método de pago
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500">Este cambio quedará auditado con usuario, motivo y fecha.</p>
+                </div>
+                <button type="button" onclick="VentasApp.cerrarModalMetodoPago()" class="text-gray-400 hover:text-gray-700">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-4 px-6 py-5">
+                <div id="resumenVentaMetodoPago" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700"></div>
+                <div>
+                    <label for="nuevoMetodoPago" class="mb-2 block text-sm font-medium text-gray-700">Nuevo método de pago</label>
+                    <select id="nuevoMetodoPago" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="tarjeta">Tarjeta</option>
+                        <option value="mixto">Mixto</option>
+                        <option value="cortesia">Cortesia</option>
+                        <option value="ajuste">Ajuste</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="motivoCambioMetodoPago" class="mb-2 block text-sm font-medium text-gray-700">Motivo del cambio</label>
+                    <textarea id="motivoCambioMetodoPago" rows="4" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Ejemplo: el cajero registró transferencia, pero el cliente pagó en efectivo."></textarea>
+                    <p class="mt-2 text-xs text-gray-500">Mínimo 5 caracteres. Se guardará junto con el usuario responsable.</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                <button type="button" onclick="VentasApp.cerrarModalMetodoPago()" class="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancelar
+                </button>
+                <button id="btnGuardarMetodoPago" type="button" onclick="VentasApp.guardarMetodoPago()" class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                    Guardar cambio
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- ============================================ -->
@@ -459,6 +503,8 @@
     <script>
         const VentasApp = {
     charts: {},
+    ventaEditando: null,
+    canEditPaymentMethod: {{ 'true' if session.get('user_role') in ['admin', 'cajero'] else 'false' }},
 
     init: function() {
         // Configurar partículas
@@ -846,7 +892,7 @@
         document.getElementById('cargandoVentas').classList.add('hidden');
         document.getElementById('tablaVentas').innerHTML = `
             <tr>
-                <td colspan="9" class="p-4 text-center text-red-500">
+                <td colspan="10" class="p-4 text-center text-red-500">
                     ❌ Error: ${error.message}<br>
                     <small>Verifica que la ruta /api/ventas esté implementada en el backend</small>
                 </td>
@@ -1060,7 +1106,7 @@
         if (!ventas || ventas.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="p-4 text-center text-gray-500">
+                    <td colspan="10" class="p-4 text-center text-gray-500">
                         No hay ventas registradas para este período
                     </td>
                 </tr>
@@ -1069,6 +1115,23 @@
         }
 
         ventas.forEach(venta => {
+            const badgeClass = venta.payment_method === 'sin_registrar'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-purple-100 text-purple-800';
+            const auditHtml = venta.payment_method_updated_at
+                ? `<div class="mt-1 text-[11px] leading-4 text-gray-500">
+                        Ajustado por <span class="font-medium">${this.escapeHtml(venta.payment_method_updated_by_name || 'usuario')}</span><br>
+                        ${this.escapeHtml(venta.payment_method_updated_at)}<br>
+                        Motivo: ${this.escapeHtml(venta.payment_method_update_reason || 'Sin detalle')}
+                    </div>`
+                : '';
+            const actionHtml = this.canEditPaymentMethod
+                ? `<button type="button"
+                        class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                        onclick="VentasApp.abrirModalMetodoPago(${venta.id})">
+                        <i class="fas fa-pen"></i>Editar
+                   </button>`
+                : '<span class="text-xs text-gray-400">Solo admin/cajero</span>';
             const fila = document.createElement('tr');
             fila.className = 'border-b border-gray-200 hover:bg-gray-50';
             fila.innerHTML = `
@@ -1081,9 +1144,10 @@
                     </span>
                 </td>
                 <td class="p-3 text-sm">
-                    <span class="inline-flex px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-semibold">
+                    <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold ${badgeClass}">
                         ${venta.payment_method_label || 'Sin registrar'}
                     </span>
+                    ${auditHtml}
                 </td>
                 <td class="p-3 text-sm">${this.formatearMoneda(venta.precio)}</td>
                 <td class="p-3 text-center text-sm">${venta.turnos}</td>
@@ -1093,8 +1157,112 @@
                         ${venta.estado}
                     </span>
                 </td>
+                <td class="p-3 text-sm">${actionHtml}</td>
             `;
             tbody.appendChild(fila);
+        });
+    },
+
+    escapeHtml: function(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, match => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[match]));
+    },
+
+    abrirModalMetodoPago: function(ventaId) {
+        if (!this.canEditPaymentMethod) {
+            this.mostrarAlerta('Solo admin y cajero pueden editar el método de pago', 'error');
+            return;
+        }
+
+        const ventas = (this.datosVentas && this.datosVentas.ventas) || [];
+        const venta = ventas.find(item => Number(item.id) === Number(ventaId));
+        if (!venta) {
+            this.mostrarAlerta('No se encontró la venta seleccionada', 'error');
+            return;
+        }
+
+        this.ventaEditando = venta;
+        const modal = document.getElementById('modalEditarMetodoPago');
+        const resumen = document.getElementById('resumenVentaMetodoPago');
+        const select = document.getElementById('nuevoMetodoPago');
+        const motivo = document.getElementById('motivoCambioMetodoPago');
+
+        resumen.innerHTML = `
+            <div class="flex justify-between gap-4"><span class="text-gray-500">QR</span><strong>${this.escapeHtml(venta.qr_code || '—')}</strong></div>
+            <div class="mt-2 flex justify-between gap-4"><span class="text-gray-500">Paquete</span><strong>${this.escapeHtml(venta.paquete || '—')}</strong></div>
+            <div class="mt-2 flex justify-between gap-4"><span class="text-gray-500">Método actual</span><strong>${this.escapeHtml(venta.payment_method_label || 'Sin registrar')}</strong></div>
+            <div class="mt-2 flex justify-between gap-4"><span class="text-gray-500">Vendedor</span><strong>${this.escapeHtml(venta.vendedor || '—')}</strong></div>
+        `;
+        select.value = venta.payment_method && venta.payment_method !== 'sin_registrar'
+            ? venta.payment_method
+            : 'efectivo';
+        motivo.value = '';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        motivo.focus();
+    },
+
+    cerrarModalMetodoPago: function() {
+        const modal = document.getElementById('modalEditarMetodoPago');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        this.ventaEditando = null;
+        document.getElementById('motivoCambioMetodoPago').value = '';
+    },
+
+    guardarMetodoPago: function() {
+        if (!this.ventaEditando) return;
+
+        const nuevoMetodo = document.getElementById('nuevoMetodoPago').value;
+        const motivo = document.getElementById('motivoCambioMetodoPago').value.trim();
+        const boton = document.getElementById('btnGuardarMetodoPago');
+
+        if (motivo.length < 5) {
+            this.mostrarAlerta('Escribe un motivo de al menos 5 caracteres', 'error');
+            return;
+        }
+
+        boton.disabled = true;
+        boton.textContent = 'Guardando...';
+
+        fetch(`/api/ventas/${this.ventaEditando.id}/payment-method`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                payment_method: nuevoMetodo,
+                reason: motivo
+            })
+        })
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok || (data.status && data.status === 'error') || data.success === false) {
+                throw new Error((data.data && data.data.message) || data.message || 'No se pudo actualizar el método de pago');
+            }
+            return data;
+        })
+        .then(data => {
+            const venta = data.venta || {};
+            this.cerrarModalMetodoPago();
+            this.cargarDatosVentas();
+            this.mostrarAlerta(
+                `Método actualizado: ${venta.valor_anterior_label || 'Sin registrar'} → ${venta.valor_nuevo_label || 'Sin registrar'}`,
+                'success'
+            );
+        })
+        .catch(error => {
+            this.mostrarAlerta(error.message, 'error');
+        })
+        .finally(() => {
+            boton.disabled = false;
+            boton.textContent = 'Guardar cambio';
         });
     },
 
