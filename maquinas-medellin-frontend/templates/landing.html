@@ -291,8 +291,8 @@
       50%     { transform: translateY(-14px); }
     }
     @keyframes srm-spin360 {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
+      from { transform: rotateY(0deg); }
+      to   { transform: rotateY(360deg); }
     }
     @keyframes srm-particle {
       0%,100% { opacity: 0.5; transform: translate(0,0); }
@@ -1475,14 +1475,14 @@
     var centerEl;
     if (exp.img) {
       centerEl =
-        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);z-index:3;">' +
+        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);z-index:3;perspective:900px;">' +
           '<div style="animation:srm-img-float 5s ease-in-out infinite;">' +
             '<img class="srm-spin-img" src="' + exp.img + '" ' +
-              'style="width:230px;max-width:68vw;display:block;' +
+              'style="width:230px;max-width:68vw;display:block;transform-style:preserve-3d;' +
               '-webkit-mask-image:radial-gradient(ellipse 90% 88% at center,black 38%,transparent 78%);' +
               'mask-image:radial-gradient(ellipse 90% 88% at center,black 38%,transparent 78%);' +
               'filter:drop-shadow(0 0 34px ' + rgba(c,0.72) + ') brightness(1.08);' +
-              'animation:srm-spin360 4s ease-in-out forwards;">' +
+              'animation:srm-spin360 5s linear forwards;">' +
           '</div>' +
         '</div>';
     } else {
