@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import date
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, json
@@ -123,13 +124,17 @@ def esp32_registrar_uso():
 
         cursor = get_db_cursor(connection)
 
-        cursor.execute("SELECT id, qr_name FROM qrcode WHERE code = %s", (qr_code,))
+        cursor.execute("SELECT id, qr_name, expiration_date FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
 
         qr_id = qr_data['id']
         qr_name = qr_data['qr_name']
+
+        if qr_data.get('expiration_date') and qr_data['expiration_date'] < date.today():
+            logger.warning(f"ESP32: QR vencido — {qr_code}, expiró el {qr_data['expiration_date']}")
+            return jsonify({'status': 'error', 'code': 'Q007', 'message': 'QR vencido'}), 400
 
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()

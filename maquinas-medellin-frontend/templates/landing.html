@@ -1634,23 +1634,12 @@
 
   var current = 0, nextTimer = null, DELAY = 4800;
 
-  // ── Avance automático: espera fin del giro (o timer para emoji) ──
+  // ── Avance automático por timer ──
   function scheduleNext() {
     clearTimeout(nextTimer);
-    var img = sceneEl.querySelector('.srm-spin-img');
-    if (img) {
-      img.addEventListener('animationend', function fn(e) {
-        if (e.animationName !== 'srm-spin360') return;
-        img.removeEventListener('animationend', fn);
-        nextTimer = setTimeout(function() {
-          goTo((current + 1) % EXPERIENCES.length);
-        }, 350);
-      });
-    } else {
-      nextTimer = setTimeout(function() {
-        goTo((current + 1) % EXPERIENCES.length);
-      }, DELAY);
-    }
+    nextTimer = setTimeout(function() {
+      goTo((current + 1) % EXPERIENCES.length);
+    }, DELAY);
   }
 
   // ── Render category selector panels ──

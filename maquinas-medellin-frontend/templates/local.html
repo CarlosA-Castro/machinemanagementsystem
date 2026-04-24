@@ -921,6 +921,8 @@ fetch('/api/mis-permisos')
           const codigoEjemplo = data.data?.siguiente_codigo || data.siguiente_codigo || 'QR0001';
           document.getElementById('qrPreview').innerHTML = '';
           new QRCode(document.getElementById('qrPreview'), { text: codigoEjemplo, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.H });
+          const hoyPrev = new Date(); hoyPrev.setDate(hoyPrev.getDate() + 15);
+          const expPrev = hoyPrev.toLocaleDateString('es-CO', {day:'2-digit', month:'2-digit', year:'numeric'});
           document.getElementById('previewText').innerHTML = `
             <div class="font-bold text-gray-800">${nombre}</div>
             <div class="text-gray-600 font-mono">${codigoEjemplo}</div>
@@ -929,6 +931,7 @@ fetch('/api/mis-permisos')
               <div>Precio: <span class="font-semibold text-green-600">$${paquete.price.toLocaleString('es-CO')}</span></div>
               <div>Turnos: <span class="font-semibold text-blue-600">${paquete.turns}</span></div>
               <div>Pago: <span class="font-semibold text-purple-600">${this.formatearMetodoPago(metodoPago)}</span></div>
+              <div class="mt-1 text-orange-600 font-semibold text-xs">⏰ Vence: ${expPrev} (15 días)</div>
             </div>`;
           document.getElementById('vistaPreviaQR').classList.remove('hidden');
         })
@@ -984,6 +987,8 @@ fetch('/api/mis-permisos')
         .then(data => {
           if (data.status === 'error') throw new Error(data.message || 'Error generando QR');
           const codigosGenerados = data.data?.codigos || [];
+          const expiracionQR = data.data?.expiration_date || '';
+          this._expiracionQR = expiracionQR;
           if (codigosGenerados.length === 0) throw new Error('No se generaron códigos QR');
           const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [anchoPapel, altoPapel] });
           const generarPaginaRecursiva = (i = 0) => {
@@ -1026,7 +1031,7 @@ fetch('/api/mis-permisos')
                 doc.setLineWidth(0.5);
                 doc.line(5, yQR + altoQR + 30, anchoPapel - 5, yQR + altoQR + 30);
                 doc.setFontSize(6); doc.setFont(undefined, 'normal');
-                const textoInfo = "Tiene 3 días para redimirse - Presentar para canjear";
+                const textoInfo = `Vence: ${expiracionQR || '+15 dias'} - Presentar para canjear`;
                 doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 34);
               }
               setTimeout(() => generarPaginaRecursiva(i + 1), 100);
@@ -1077,7 +1082,8 @@ fetch('/api/mis-permisos')
                   <strong>QR para: ${nombre}</strong><br>
                   <strong>Paquete: P${paquete.id} - ${paquete.name}</strong><br>
                   <strong>Precio: $${paquete.price.toLocaleString('es-CO')}</strong><br>
-                  <strong>Turnos: ${paquete.turns}</strong>
+                  <strong>Turnos: ${paquete.turns}</strong><br>
+                  <span style="color:#ea580c;font-size:0.8rem;">⏰ Vence: ${this._expiracionQR || '15 días desde hoy'}</span>
                 </p>
                 <img src="${qrDataUrl}" alt="QR Code" class="mx-auto w-40 h-40 border-2 border-green-400 rounded-lg">
                 <p class="text-center font-mono text-lg font-bold mt-2">${codigo}</p>
@@ -1124,7 +1130,7 @@ fetch('/api/mis-permisos')
           const numeroLimpio = numero.replace(/[\s+()-]/g, '');
           if (!/^[0-9]{10,15}$/.test(numeroLimpio)) { this.mostrarAlerta("❌ Número inválido.", "error"); return; }
         }
-        const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${d.nombre}\n• Código: ${d.codigo}\n• ID: ${d.codigo.replace('QR','')}\n• Paquete: P${d.paquete.id} - ${d.paquete.name}\n• Precio: $${d.paquete.price.toLocaleString('es-CO')}\n• Turnos: ${d.paquete.turns}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
+        const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${d.nombre}\n• Código: ${d.codigo}\n• ID: ${d.codigo.replace('QR','')}\n• Paquete: P${d.paquete.id} - ${d.paquete.name}\n• Precio: $${d.paquete.price.toLocaleString('es-CO')}\n• Turnos: ${d.paquete.turns}\n• ⏰ Válido hasta: ${this._expiracionQR || '15 días desde hoy'}\n\n⚠️ Este QR expira en 15 días. Turnos no usados no son válidos después de esa fecha.\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
         const esMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const textoEncoded = encodeURIComponent(mensaje);
         const numeroLimpio = numero ? numero.replace(/[\s+()-]/g, '') : '';

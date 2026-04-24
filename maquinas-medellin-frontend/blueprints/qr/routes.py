@@ -343,8 +343,8 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
             codigos_generados.append(nuevo_codigo)
 
             cursor.execute("""
-                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name, expiration_date)
+                VALUES (%s, %s, %s, %s, %s, DATE_ADD(CURDATE(), INTERVAL 15 DAY))
             """, (nuevo_codigo, turns_paquete, 1, paquete_id, nombre))
 
             cursor.execute("""
@@ -721,6 +721,7 @@ def generar_qr():
                 'paquete_turnos': paquete['turns'],
                 'payment_method': payment_method,
                 'payment_method_label': _payment_method_label(payment_method),
+                'expiration_date': (get_colombia_time() + timedelta(days=15)).strftime('%d/%m/%Y'),
                 'formato': 'QRXXXX (4 dígitos, de QR0001 a QR9999)',
                 'nota': 'El contador se reiniciará automáticamente al llegar a QR9999'
             }
