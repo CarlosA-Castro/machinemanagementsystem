@@ -128,6 +128,28 @@ def _payment_method_label(value):
     return PAYMENT_METHOD_LABELS.get(value or 'sin_registrar', 'Sin registrar')
 
 
+def _serialize_cierre(row):
+    if not row:
+        return None
+
+    usuario_id = row.get('usuario_id')
+    responsable = (row.get('responsable_nombre') or '').strip()
+    if not responsable:
+        responsable = f'Usuario #{usuario_id}' if usuario_id else 'Administrador'
+
+    return {
+        'id': int(row['id']),
+        'local_id': row.get('local_id'),
+        'local_nombre': row.get('local_nombre') or 'Todos los locales',
+        'fecha_inicio': str(row['fecha_inicio']),
+        'fecha_fin': str(row['fecha_fin']),
+        'creado_el': str(row['creado_el']),
+        'observaciones': (row.get('observaciones') or '').strip(),
+        'usuario_id': usuario_id,
+        'responsable': responsable,
+    }
+
+
 def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
     if not _table_exists(cursor, 'cierre_liquidacion'):
         return None
@@ -140,9 +162,13 @@ def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
             COALESCE(loc.name, 'Todos los locales') AS local_nombre,
             cl.fecha_inicio,
             cl.fecha_fin,
-            cl.creado_el
+            cl.creado_el,
+            cl.observaciones,
+            cl.usuario_id,
+            COALESCE(NULLIF(u.name, ''), '') AS responsable_nombre
         FROM cierre_liquidacion cl
         LEFT JOIN location loc ON loc.id = cl.local_id
+        LEFT JOIN users u ON u.id = cl.usuario_id
         WHERE cl.fecha_inicio <= %s
           AND cl.fecha_fin >= %s
           AND (
@@ -159,14 +185,13 @@ def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
     if not existing:
         return None
 
-    return {
-        'id': int(existing['id']),
-        'local_id': existing['local_id'],
-        'local_nombre': existing['local_nombre'],
-        'fecha_inicio': str(existing['fecha_inicio']),
-        'fecha_fin': str(existing['fecha_fin']),
-        'creado_el': str(existing['creado_el']),
-    }
+    cierre = _serialize_cierre(existing)
+    cierre['es_mismo_periodo'] = (
+        cierre['local_id'] == local_id
+        and cierre['fecha_inicio'] == str(fecha_inicio)
+        and cierre['fecha_fin'] == str(fecha_fin)
+    )
+    return cierre
 
 
 # ─── Helpers de consulta ──────────────────────────────────────────────────────
@@ -728,9 +753,12 @@ def _fetch_historial_cierres(cursor, limite=5):
             """
             SELECT cl.id, cl.local_id, COALESCE(loc.name, 'Todos los locales') AS local_nombre,
                    cl.fecha_inicio, cl.fecha_fin, cl.total_ingresos, cl.total_negocio,
-                   cl.total_admin, cl.total_utilidad, cl.pct_negocio, cl.pct_admin, cl.creado_el
+                   cl.total_admin, cl.total_utilidad, cl.pct_negocio, cl.pct_admin, cl.creado_el,
+                   cl.observaciones, cl.usuario_id,
+                   COALESCE(NULLIF(u.name, ''), '') AS responsable_nombre
             FROM cierre_liquidacion cl
             LEFT JOIN location loc ON loc.id = cl.local_id
+            LEFT JOIN users u ON u.id = cl.usuario_id
             ORDER BY cl.creado_el DESC
             LIMIT %s
             """,
@@ -741,9 +769,12 @@ def _fetch_historial_cierres(cursor, limite=5):
             """
             SELECT cl.id, cl.local_id, COALESCE(loc.name, 'Todos los locales') AS local_nombre,
                    cl.fecha_inicio, cl.fecha_fin, cl.total_ingresos, cl.total_negocio,
-                   cl.total_admin, cl.total_utilidad, cl.pct_negocio, cl.pct_admin, cl.creado_el
+                   cl.total_admin, cl.total_utilidad, cl.pct_negocio, cl.pct_admin, cl.creado_el,
+                   cl.observaciones, cl.usuario_id,
+                   COALESCE(NULLIF(u.name, ''), '') AS responsable_nombre
             FROM cierre_liquidacion cl
             LEFT JOIN location loc ON loc.id = cl.local_id
+            LEFT JOIN users u ON u.id = cl.usuario_id
             WHERE IFNULL(cl.local_id, 0) = IFNULL(%s, 0)
             ORDER BY cl.creado_el DESC
             LIMIT %s
@@ -752,18 +783,13 @@ def _fetch_historial_cierres(cursor, limite=5):
         )
     return [
         {
-            'id':             r['id'],
-            'local_id':       r.get('local_id'),
-            'local_nombre':   r.get('local_nombre') or 'Todos los locales',
-            'fecha_inicio':   str(r['fecha_inicio']),
-            'fecha_fin':      str(r['fecha_fin']),
+            **_serialize_cierre(r),
             'total_ingresos': float(r['total_ingresos']),
             'total_negocio':  float(r['total_negocio']),
             'total_admin':    float(r['total_admin']),
             'total_utilidad': float(r['total_utilidad']),
             'pct_negocio':    float(r['pct_negocio']),
             'pct_admin':      float(r['pct_admin']),
-            'creado_el':      str(r['creado_el']),
         }
         for r in cursor.fetchall()
     ]
@@ -1313,8 +1339,23 @@ def cerrar_liquidacion():
         )
         connection.commit()
         cierre_id = cursor.lastrowid
+        cierre_data = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin) or {
+            'id': cierre_id,
+            'local_id': local_id,
+            'local_nombre': _current_closure_scope()[1],
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'creado_el': str(get_colombia_time()),
+            'observaciones': observaciones or '',
+            'usuario_id': session.get('user_id'),
+            'responsable': session.get('user_name', 'Administrador'),
+            'es_mismo_periodo': True,
+        }
+        cierre_data['responsable'] = session.get('user_name', cierre_data.get('responsable', 'Administrador'))
+        cierre_data['observaciones'] = observaciones or ''
+        cierre_data['es_mismo_periodo'] = True
         logger.info(f'Cierre liquidación registrado: id={cierre_id}, {fecha_inicio}→{fecha_fin}')
-        return jsonify({'success': True, 'id': cierre_id})
+        return jsonify({'success': True, 'id': cierre_id, 'cierre': cierre_data})
 
     except Exception as e:
         if connection:

@@ -262,10 +262,10 @@
                         <button onclick="calcular()" class="btn btn-primary">
                             <i class="fas fa-calculator"></i>Calcular
                         </button>
-                        <button onclick="generarPDFNegocio()" id="btnPDFNegocio" disabled class="btn btn-secondary btn-sm" title="PDF para el restaurante">
+                        <button onclick="generarPDFNegocio()" id="btnPDFNegocio" disabled class="btn btn-secondary btn-sm" title="Disponible al confirmar el cierre oficial">
                             <i class="fas fa-file-pdf" style="color:#059669"></i>PDF Negocio
                         </button>
-                        <button onclick="generarPDFInversionistas()" id="btnPDFInv" disabled class="btn btn-secondary btn-sm" title="PDF para inversionistas">
+                        <button onclick="generarPDFInversionistas()" id="btnPDFInv" disabled class="btn btn-secondary btn-sm" title="Disponible al confirmar el cierre oficial">
                             <i class="fas fa-file-pdf" style="color:#7c3aed"></i>PDF Inversión
                         </button>
                         <button onclick="abrirModalConfig()" class="btn btn-secondary btn-sm" title="Configurar porcentajes por máquina">
@@ -714,6 +714,37 @@ function toast(msg, type = 'success') {
     setTimeout(() => d.remove(), 3500);
 }
 
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+}[char]));
+
+function formatCierreFecha(value) {
+    if (!value) return 'Sin registro';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function setPdfButtonState(existente) {
+    const btnNegocio = document.getElementById('btnPDFNegocio');
+    const btnInv = document.getElementById('btnPDFInv');
+    const habilitado = !!(existente && existente.es_mismo_periodo);
+
+    [btnNegocio, btnInv].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = !habilitado;
+        btn.title = habilitado
+            ? 'Comprobante oficial del cierre confirmado'
+            : existente
+                ? 'Hay un cierre oficial que se cruza con este rango; usa el período exacto para regenerar su PDF'
+            : 'Disponible al confirmar el cierre oficial';
+    });
+}
+
 function setCierreButtonState(existente) {
     const estadoEl = document.getElementById('estadoCierrePeriodo');
     const btn = document.getElementById('btnConfirmarCierre');
@@ -733,6 +764,8 @@ function setCierreButtonState(existente) {
         btn.classList.add('btn-success');
         btn.title = '';
     }
+
+    setPdfButtonState(existente);
 }
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -795,8 +828,6 @@ async function calcular() {
             renderMetodosPago(data.resumen_metodos || [], data.ventas_sin_metodo || 0);
             renderDetalleVentas(data.datos_tabla || []);
             setCierreButtonState(data.cierre_existente || null);
-            document.getElementById('btnPDFNegocio').disabled = false;
-            document.getElementById('btnPDFInv').disabled = false;
         }
     } catch (e) {
         toast('Error al calcular: ' + e.message, 'error');
@@ -1283,12 +1314,14 @@ async function confirmarCierre() {
         if (!r.ok || !res.success) throw new Error(res.message || 'Error al guardar cierre');
 
         toast('¡Liquidación cerrada correctamente!');
-        currentData.cierre_existente = {
+        currentData.cierre_existente = res.cierre || {
             id: res.id,
             local_nombre: p.local_nombre || 'Todos los locales',
             fecha_inicio: p.fecha_inicio,
             fecha_fin: p.fecha_fin,
-            creado_el: new Date().toISOString()
+            creado_el: new Date().toISOString(),
+            observaciones: obs,
+            responsable: 'Administrador'
         };
         setCierreButtonState(currentData.cierre_existente);
         cerrarModal('modalCierre');
@@ -1576,16 +1609,33 @@ function _abrirVentanaPDF(html) {
     setTimeout(() => w.print(), 500);
 }
 
+function _getCierreOficial() {
+    const cierre = currentData && currentData.cierre_existente;
+    if (!cierre) {
+        toast('Confirma el cierre para generar el comprobante oficial', 'error');
+        return null;
+    }
+    if (!cierre.es_mismo_periodo) {
+        toast('Este rango se cruza con otro cierre. Usa el período exacto para regenerar su comprobante.', 'error');
+        return null;
+    }
+    return cierre;
+}
+
 function generarPDFNegocio() {
     if (!currentData) { toast('Calcula primero una liquidación', 'error'); return; }
+    const cierre  = _getCierreOficial();
+    if (!cierre) return;
     const d       = currentData;
     const dist    = d.distribucion || {};
     const periodo = d.periodo || {};
     const paq     = d.paquetes_resumen || [];
     const metodos = d.resumen_metodos || [];
-    const today   = new Date().toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'});
+    const today   = formatCierreFecha(cierre.creado_el);
     const fmtP    = n => '$' + Math.round(+n || 0).toLocaleString('es-CO');
     const fmtNP   = n => Math.round(+n || 0).toLocaleString('es-CO');
+    const responsable = escapeHtml(cierre.responsable || 'Administrador');
+    const observaciones = escapeHtml(cierre.observaciones || '');
 
     const paqRows = paq.map(p => `<tr>
         <td>${p.paquete_nombre}</td>
@@ -1601,6 +1651,8 @@ function generarPDFNegocio() {
     </tr>`).join('');
 
     const neg = dist.negocio || {};
+    const adm = dist.admin || {};
+    const util = dist.utilidad || {};
 
     _abrirVentanaPDF(`<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
@@ -1609,9 +1661,11 @@ function generarPDFNegocio() {
 </head><body>
 <h1>Inversiones Arcade &mdash; Liquidación para ${periodo.local_nombre || 'el Negocio'}</h1>
 <div class="meta">
+  <strong>Comprobante oficial:</strong> Cierre #${cierre.id} &nbsp;&middot;&nbsp;
+  <strong>Responsable:</strong> ${responsable} &nbsp;&middot;&nbsp;
+  <strong>Confirmado:</strong> ${today}<br>
   <strong>Período:</strong> ${periodo.fecha_inicio} al ${periodo.fecha_fin} &nbsp;&middot;&nbsp;
-  <strong>Total ventas:</strong> ${fmtNP(periodo.total_ventas)} QR(s) &nbsp;&middot;&nbsp;
-  <strong>Generado:</strong> ${today}
+  <strong>Total ventas:</strong> ${fmtNP(periodo.total_ventas)} QR(s)
 </div>
 
 <div class="kpi-grid">
@@ -1634,6 +1688,16 @@ function generarPDFNegocio() {
   <div class="highlight-value">${fmtP(neg.monto)}</div>
 </div>
 
+<h2>Distribución Oficial del Cierre</h2>
+<table>
+  <thead><tr><th>Concepto</th><th>Porcentaje</th><th>Total</th></tr></thead>
+  <tbody>
+    <tr><td>Negocio</td><td class="r">${(+neg.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(neg.monto)}</strong></td></tr>
+    <tr><td>Administración</td><td class="r">${(+adm.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(adm.monto)}</strong></td></tr>
+    <tr><td>Utilidad</td><td class="r">${(+util.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(util.monto)}</strong></td></tr>
+  </tbody>
+</table>
+
 <h2>Detalle de Paquetes Vendidos</h2>
 <table>
   <thead><tr><th>Paquete</th><th>Cant. vendidos</th><th>Precio unit.</th><th>Total cobrado</th></tr></thead>
@@ -1650,19 +1714,31 @@ ${metodos.length ? `<h2>Métodos de Pago Recibidos</h2>
   <tbody>${metRows}</tbody>
 </table>` : ''}
 
-<div class="footer">Inversiones Arcade &mdash; Documento generado el ${today} &mdash; Solo para uso interno</div>
+${observaciones ? `<h2>Observaciones del Cierre</h2><div class="inv-block">${observaciones}</div>` : ''}
+
+<div class="inv-block" style="margin-top:1.4rem">
+  <div class="kpi-label">Responsable del cierre</div>
+  <div style="font-size:1rem;font-weight:800;color:#065f46;margin-top:.35rem">${responsable}</div>
+  <div class="meta" style="margin:0.35rem 0 0 0">Cierre #${cierre.id} confirmado el ${today}</div>
+</div>
+
+<div class="footer">Inversiones Arcade &mdash; Comprobante oficial de cierre &mdash; Solo para uso interno</div>
 </body></html>`);
 }
 
 function generarPDFInversionistas() {
     if (!currentData) { toast('Calcula primero una liquidación', 'error'); return; }
+    const cierre  = _getCierreOficial();
+    if (!cierre) return;
     const d       = currentData;
     const dist    = d.distribucion || {};
     const periodo = d.periodo || {};
     const inv     = d.inversionistas || [];
-    const today   = new Date().toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'});
+    const today   = formatCierreFecha(cierre.creado_el);
     const fmtP    = n => '$' + Math.round(+n || 0).toLocaleString('es-CO');
     const fmtNP   = n => Math.round(+n || 0).toLocaleString('es-CO');
+    const responsable = escapeHtml(cierre.responsable || 'Administrador');
+    const observaciones = escapeHtml(cierre.observaciones || '');
 
     if (!inv.length) { toast('No hay inversionistas configurados en este período', 'error'); return; }
 
@@ -1698,9 +1774,11 @@ function generarPDFInversionistas() {
 </head><body>
 <h1>Inversiones Arcade &mdash; Liquidación de Inversionistas</h1>
 <div class="meta">
+  <strong>Comprobante oficial:</strong> Cierre #${cierre.id} &nbsp;&middot;&nbsp;
+  <strong>Responsable:</strong> ${responsable} &nbsp;&middot;&nbsp;
+  <strong>Confirmado:</strong> ${today}<br>
   <strong>Local:</strong> ${periodo.local_nombre || '—'} &nbsp;&middot;&nbsp;
-  <strong>Período:</strong> ${periodo.fecha_inicio} al ${periodo.fecha_fin} &nbsp;&middot;&nbsp;
-  <strong>Generado:</strong> ${today}
+  <strong>Período:</strong> ${periodo.fecha_inicio} al ${periodo.fecha_fin}
 </div>
 
 <div class="kpi-grid">
@@ -1718,10 +1796,18 @@ function generarPDFInversionistas() {
   </div>
 </div>
 
-<h2>Participación por Inversionista</h2>
+<h2>Pagos Sugeridos por Inversionista</h2>
 ${invHtml}
 
-<div class="footer">Inversiones Arcade &mdash; Documento generado el ${today} &mdash; Confidencial</div>
+${observaciones ? `<h2>Observaciones del Cierre</h2><div class="inv-block">${observaciones}</div>` : ''}
+
+<div class="inv-block" style="margin-top:1.4rem">
+  <div class="kpi-label">Responsable del cierre</div>
+  <div style="font-size:1rem;font-weight:800;color:#5b21b6;margin-top:.35rem">${responsable}</div>
+  <div class="meta" style="margin:0.35rem 0 0 0">Cierre #${cierre.id} confirmado el ${today}</div>
+</div>
+
+<div class="footer">Inversiones Arcade &mdash; Comprobante oficial de cierre &mdash; Confidencial</div>
 </body></html>`);
 }
 
