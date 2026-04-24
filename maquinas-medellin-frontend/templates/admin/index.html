@@ -203,23 +203,6 @@
         }
         aside .nav-link:hover { background: rgba(255,255,255,0.12) !important; color: white !important; transform: translateX(3px); }
         aside .nav-link.active { background: rgba(59,130,246,0.22); color: white; font-weight: 600; border-left: 3px solid #3b82f6; padding-left: calc(0.75rem - 3px); }
-
-        /* Gradient fade between sidebar and content */
-        aside {
-            position: relative;
-            overflow: visible !important;
-        }
-        aside::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: -52px;
-            width: 52px;
-            height: 100%;
-            background: linear-gradient(to right, #111827 0%, rgba(17,24,39,0.55) 50%, transparent 100%);
-            pointer-events: none;
-            z-index: 20;
-        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -230,7 +213,7 @@
     <!-- Barra lateral y contenido -->
     <div class="flex flex-col lg:flex-row min-h-screen">
         <!-- Barra lateral - MODIFICADA CON INDICADOR ACTIVO -->
-        <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh">
+        <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh;box-shadow:6px 0 28px rgba(17,24,39,0.55),2px 0 6px rgba(17,24,39,0.35)">
             <div class="p-4 border-b border-gray-700">
                 <div class="flex items-center gap-3">
                     <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">

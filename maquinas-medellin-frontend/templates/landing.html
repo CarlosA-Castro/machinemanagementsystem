@@ -1475,14 +1475,13 @@
     var centerEl;
     if (exp.img) {
       centerEl =
-        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);z-index:3;perspective:900px;">' +
+        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);z-index:3;">' +
           '<div style="animation:srm-img-float 5s ease-in-out infinite;">' +
             '<img class="srm-spin-img" src="' + exp.img + '" ' +
-              'style="width:230px;max-width:68vw;display:block;transform-style:preserve-3d;' +
+              'style="width:230px;max-width:68vw;display:block;' +
               '-webkit-mask-image:radial-gradient(ellipse 90% 88% at center,black 38%,transparent 78%);' +
               'mask-image:radial-gradient(ellipse 90% 88% at center,black 38%,transparent 78%);' +
-              'filter:drop-shadow(0 0 34px ' + rgba(c,0.72) + ') brightness(1.08);' +
-              'animation:srm-spin360 5s linear forwards;">' +
+              'filter:drop-shadow(0 0 34px ' + rgba(c,0.72) + ') brightness(1.08);">' +
           '</div>' +
         '</div>';
     } else {
