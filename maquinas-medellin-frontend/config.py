@@ -18,6 +18,13 @@ SENTRY_DSN = (
     "@o4510071013310464.ingest.us.sentry.io/4510071047454720"
 )
 
+# ── Alertas (CallMeBot WhatsApp + Gmail SMTP) ─────────────────────────────────
+ALERT_PHONE          = os.getenv("ALERT_PHONE",          "")
+CALLMEBOT_APIKEY     = os.getenv("CALLMEBOT_APIKEY",     "")
+ALERT_EMAIL_FROM     = os.getenv("ALERT_EMAIL_FROM",     "")
+ALERT_EMAIL_PASSWORD = os.getenv("ALERT_EMAIL_PASSWORD", "")
+ALERT_EMAIL_TO       = os.getenv("ALERT_EMAIL_TO",       "")
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOG_FILE         = 'logs/maquinas.log'
 LOG_MAX_BYTES    = 10 * 1024 * 1024   # 10 MB

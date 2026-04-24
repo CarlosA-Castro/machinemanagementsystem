@@ -58,6 +58,51 @@ def _configure_logging(app: Flask) -> None:
     app.logger.setLevel(logging.INFO)
 
 
+def _start_heartbeat_monitor() -> None:
+    """Thread de fondo: detecta máquinas offline y notifica al admin."""
+    import time
+    import threading
+    from blueprints.esp32.state import check_offline_machines, pop_newly_online
+    from utils.notifications import notify_offline, notify_online
+    from database import get_db_connection, get_db_cursor
+
+    def _machine_info(machine_id: int) -> tuple:
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return f'Máquina {machine_id}', 'Sin local'
+            cur = get_db_cursor(conn)
+            cur.execute(
+                "SELECT m.name, COALESCE(l.name, 'Sin local') AS local_nombre "
+                "FROM machine m LEFT JOIN location l ON m.location_id = l.id "
+                "WHERE m.id = %s", (machine_id,)
+            )
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row:
+                return row['name'], row['local_nombre']
+        except Exception:
+            pass
+        return f'Máquina {machine_id}', 'Sin local'
+
+    def _monitor():
+        time.sleep(15)  # esperar a que la app arranque completamente
+        while True:
+            try:
+                for mid, segundos in check_offline_machines():
+                    name, local = _machine_info(mid)
+                    notify_offline(name, local, segundos)
+                for mid in pop_newly_online():
+                    name, local = _machine_info(mid)
+                    notify_online(name, local)
+            except Exception:
+                pass
+            time.sleep(60)
+
+    threading.Thread(target=_monitor, daemon=True, name='heartbeat-monitor').start()
+
+
 def create_app() -> Flask:
     """
     Application factory.
@@ -135,6 +180,8 @@ def create_app() -> Flask:
         devoluciones_bp,
     ):
         app.register_blueprint(blueprint)
+
+    _start_heartbeat_monitor()
 
     return app
 

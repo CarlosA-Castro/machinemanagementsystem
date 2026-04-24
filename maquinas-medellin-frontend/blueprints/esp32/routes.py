@@ -14,6 +14,7 @@ from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
 from blueprints.esp32.state import set_heartbeat
+from utils.notifications import notify_falla
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -764,6 +765,19 @@ def esp32_reportar_falla():
                 'origen': 'esp32_tft'
             }
         )
+
+        # Notificación al admin (no bloquea la respuesta al ESP32)
+        try:
+            cursor.execute(
+                "SELECT COALESCE(l.name, 'Sin local') AS local_nombre "
+                "FROM machine m LEFT JOIN location l ON m.location_id = l.id "
+                "WHERE m.id = %s", (machine_id,)
+            )
+            loc_row = cursor.fetchone()
+            local_nombre = loc_row['local_nombre'] if loc_row else 'Sin local'
+        except Exception:
+            local_nombre = 'Sin local'
+        notify_falla(machine_name or f'Máquina {machine_id}', local_nombre, notes or '')
 
         return api_response(
             'S012',

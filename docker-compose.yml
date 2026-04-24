@@ -50,6 +50,11 @@ services:
       DB_USER: myuser
       DB_PASSWORD: mypassword
       DB_NAME: maquinasmedellin
+      ALERT_PHONE: "573218001092"
+      CALLMEBOT_APIKEY: "4191841"
+      ALERT_EMAIL_FROM: "maquinasmedellin1@gmail.com"
+      ALERT_EMAIL_PASSWORD: "aqtdwzfgiiufxggv"
+      ALERT_EMAIL_TO: "maquinasmedellin1@gmail.com"
     restart: always
 
 volumes:
