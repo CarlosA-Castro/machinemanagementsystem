@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -12,21 +12,31 @@
     <style>
       
         :root {
-            --panel-bg: rgba(255, 255, 255, 0.12);
-            --panel-border: rgba(255, 255, 255, 0.15);
-            --text-soft: rgba(255, 255, 255, 0.68);
-            --accent-blue: #60a5fa;
-            --accent-cyan: #22d3ee;
-            --accent-violet: #8b5cf6;
+            --navy: #1c2b4a;
+            --navy-d: #0f1a2e;
+            --navy-m: #243555;
+            --blueg: #445d75;
+            --cream: #f4f1eb;
+            --cream-d: #ede9e0;
+            --panel-bg: rgba(15, 26, 46, 0.82);
+            --panel-border: rgba(244, 241, 235, 0.14);
+            --text-soft: rgba(244, 241, 235, 0.72);
+            --accent-blue: #a8c4d8;
+            --accent-cyan: #d5e2eb;
+            --accent-violet: #6b7f98;
             --accent-green: #34d399;
             --accent-orange: #fb923c;
+            --accent-red: #c8252a;
         }
 
         body {
+            margin: 0;
             background:
-                radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 32%),
-                radial-gradient(circle at top right, rgba(139, 92, 246, 0.14), transparent 28%),
-                linear-gradient(135deg, #061226 0%, #0b1830 45%, #111d3f 100%);
+                radial-gradient(circle at 18% 0%, rgba(68, 93, 117, 0.18), transparent 26%),
+                radial-gradient(circle at 82% 10%, rgba(200, 37, 42, 0.14), transparent 22%),
+                linear-gradient(180deg, #09111f 0%, var(--navy-d) 46%, #16243b 100%);
+            color: #fff;
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
         }
 
         .scene-backdrop {
@@ -119,14 +129,15 @@
         
         /* Tarjetas ultra modernas con efecto vidrio mejorado */
         .glass-card {
-            background: var(--panel-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background:
+                linear-gradient(180deg, rgba(28, 43, 74, 0.82) 0%, rgba(15, 26, 46, 0.88) 100%);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
             border-radius: 24px;
             border: 1px solid var(--panel-border);
-            box-shadow: 
-                0 20px 60px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow:
+                0 24px 64px rgba(0, 0, 0, 0.34),
+                inset 0 1px 0 rgba(244, 241, 235, 0.08);
             padding: 2rem;
             position: relative;
             overflow: hidden;
@@ -165,12 +176,12 @@
         
         /* Tarjetas de estadísticas premium */
         .stat-card {
-            background: linear-gradient(145deg, 
-                rgba(59, 130, 246, 0.15), 
-                rgba(30, 64, 175, 0.1));
+            background: linear-gradient(145deg,
+                rgba(36, 53, 85, 0.86),
+                rgba(20, 33, 56, 0.92));
             border-radius: 20px;
             padding: 1.75rem;
-            border: 1px solid rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(244, 241, 235, 0.11);
             position: relative;
             overflow: hidden;
             transition: all 0.3s ease;
@@ -233,9 +244,9 @@
         
         /* Botones modernos */
         .btn-modern {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, var(--navy-m), #2d4470);
             color: white;
-            border: none;
+            border: 1px solid rgba(244, 241, 235, 0.16);
             padding: 1rem 2rem;
             border-radius: 12px;
             font-weight: 600;
@@ -243,7 +254,7 @@
             position: relative;
             overflow: hidden;
             transition: all 0.3s ease;
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 12px 30px rgba(15, 26, 46, 0.34);
         }
         
         .btn-modern::before {
@@ -292,10 +303,10 @@
         
         /* Tarjetas de máquinas ultra modernas */
         .machine-card {
-            background: rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(18, 30, 52, 0.9) 0%, rgba(10, 20, 37, 0.96) 100%);
             border-radius: 20px;
             padding: 1.75rem;
-            border: 1px solid rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(244, 241, 235, 0.1);
             position: relative;
             overflow: hidden;
             transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
@@ -470,8 +481,8 @@
             margin-bottom: 1.5rem;
             padding: 0.75rem;
             border-radius: 999px;
-            background: rgba(5, 15, 33, 0.58);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 26, 46, 0.78);
+            border: 1px solid rgba(244, 241, 235, 0.09);
             backdrop-filter: blur(18px);
             box-shadow: 0 12px 38px rgba(2, 8, 23, 0.35);
         }
@@ -507,9 +518,9 @@
         .top-nav-link:hover,
         .top-nav-link.active {
             color: white;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.24), rgba(14, 165, 233, 0.12));
-            border-color: rgba(96, 165, 250, 0.24);
-            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.18);
+            background: linear-gradient(135deg, rgba(68, 93, 117, 0.42), rgba(244, 241, 235, 0.08));
+            border-color: rgba(244, 241, 235, 0.16);
+            box-shadow: 0 8px 24px rgba(15, 26, 46, 0.18);
         }
 
         .nav-pulse {
@@ -891,7 +902,7 @@
                     </div>
                     <div class="text-xs text-gray-400 flex items-center gap-2">
                         <span class="nav-pulse"></span>
-                        Panel en tiempo real
+                        Portal privado del inversionista
                     </div>
                 </div>
             </div>
@@ -970,9 +981,9 @@
                             <i class="fas fa-trophy text-white"></i>
                         </div>
                         <div>
-                            <div class="text-sm text-gray-400">Nivel</div>
-                            <div class="text-lg font-bold text-blue-400" id="nivelSocio">Premium</div>
-                            <div class="text-xs text-gray-500 mt-1" id="rankingSocio">Top 10%</div>
+                            <div class="text-sm text-gray-400">Acceso</div>
+                            <div class="text-lg font-bold text-amber-100" id="nivelSocio">Portal privado</div>
+                            <div class="text-xs text-gray-500 mt-1" id="rankingSocio">Solo ves tu información financiera</div>
                         </div>
                     </div>
                 </div>
@@ -1004,9 +1015,9 @@
                                 <i class="fas fa-hand-holding-usd text-blue-400"></i>
                             </div>
                         </div>
-                        <div class="text-xs text-green-400 flex items-center">
-                            <i class="fas fa-arrow-up mr-1 text-xs"></i>
-                            <span id="rentabilidadTotal">0%</span> rentabilidad
+                        <div class="text-xs text-amber-100/80 flex items-center">
+                            <i class="fas fa-layer-group mr-1 text-xs text-amber-200"></i>
+                            <span id="rentabilidadTotal">0 inversiones activas</span>
                         </div>
                         <div class="stat-progress">
                             <div class="stat-progress-track">
@@ -1023,16 +1034,16 @@
                     <div class="stat-card border-l-green-500" style="animation-delay: 0.2s">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <div class="text-sm text-gray-400 mb-1">Ingreso Mensual</div>
+                                <div class="text-sm text-gray-400 mb-1">Participación del período</div>
                                 <div class="text-2xl lg:text-3xl font-bold text-white" id="ingresoMensual">$0</div>
                             </div>
                             <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
                                 <i class="fas fa-money-bill-wave text-green-400"></i>
                             </div>
                         </div>
-                        <div class="text-xs flex items-center" id="tendenciaMensualContainer">
-                            <i class="fas fa-arrow-up mr-1 text-xs text-green-400"></i>
-                            <span class="text-green-400" id="tendenciaMensual">+0%</span> vs mes anterior
+                        <div class="text-xs flex items-center text-blue-100/80" id="tendenciaMensualContainer">
+                            <i class="fas fa-calendar-range mr-1 text-xs text-blue-200"></i>
+                            <span class="text-blue-100/90" id="tendenciaMensual">Período actual</span>
                         </div>
                         <div class="stat-progress">
                             <div class="stat-progress-track">
@@ -1056,9 +1067,9 @@
                                 <i class="fas fa-percentage text-purple-400"></i>
                             </div>
                         </div>
-                        <div class="text-xs text-gray-400">
-                            <i class="fas fa-trophy mr-1 text-yellow-400"></i>
-                            <span id="rankingROI">Top 0%</span> de socios
+                        <div class="text-xs text-gray-300/80">
+                            <i class="fas fa-briefcase mr-1 text-amber-200"></i>
+                            <span id="rankingROI">Rendimiento acumulado de tu portafolio</span>
                         </div>
                         <div class="stat-progress">
                             <div class="stat-progress-track">
@@ -1250,9 +1261,9 @@
                             </h2>
                             <p class="text-gray-400">Próximos vencimientos y pagos pendientes</p>
                         </div>
-                        <button onclick="SocioPanel.realizarPago()" class="btn-modern wave-effect">
-                            <i class="fas fa-wallet mr-2"></i>Realizar Pago
-                        </button>
+                        <div class="badge-modern">
+                            <i class="fas fa-circle-info mr-2"></i>Pagos coordinados por administración
+                        </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="lista-pagos">
@@ -1272,9 +1283,9 @@
                             </h2>
                             <p class="text-gray-400">Contratos y documentos legales</p>
                         </div>
-                        <button class="btn-modern wave-effect">
-                            <i class="fas fa-print mr-2"></i>Imprimir Resumen
-                        </button>
+                        <div class="badge-modern">
+                            <i class="fas fa-folder-open mr-2"></i>Centro documental en preparación
+                        </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1289,9 +1300,9 @@
                                     <p class="text-sm text-gray-400">Documento principal</p>
                                 </div>
                             </div>
-                            <button class="w-full py-3 rounded-lg border border-gray-700 hover:border-blue-400 hover:bg-blue-400/10 transition flex items-center justify-center">
-                                <i class="fas fa-eye mr-2"></i>Ver Documento
-                            </button>
+                            <div class="w-full py-3 rounded-lg border border-gray-800 bg-white/5 text-gray-500 flex items-center justify-center">
+                                <i class="fas fa-hourglass-half mr-2"></i>Disponible próximamente
+                            </div>
                         </div>
                         
                         <!-- Estado de cuenta -->
@@ -1305,9 +1316,9 @@
                                     <p class="text-sm text-gray-400">Resumen financiero</p>
                                 </div>
                             </div>
-                            <button class="w-full py-3 rounded-lg border border-gray-700 hover:border-green-400 hover:bg-green-400/10 transition flex items-center justify-center">
-                                <i class="fas fa-download mr-2"></i>Descargar
-                            </button>
+                            <div class="w-full py-3 rounded-lg border border-gray-800 bg-white/5 text-gray-500 flex items-center justify-center">
+                                <i class="fas fa-hourglass-half mr-2"></i>Disponible próximamente
+                            </div>
                         </div>
                         
                         <!-- Certificado de propiedad -->
@@ -1321,9 +1332,9 @@
                                     <p class="text-sm text-gray-400">Porcentajes de propiedad</p>
                                 </div>
                             </div>
-                            <button class="w-full py-3 rounded-lg border border-gray-700 hover:border-purple-400 hover:bg-purple-400/10 transition flex items-center justify-center">
-                                <i class="fas fa-print mr-2"></i>Imprimir
-                            </button>
+                            <div class="w-full py-3 rounded-lg border border-gray-800 bg-white/5 text-gray-500 flex items-center justify-center">
+                                <i class="fas fa-hourglass-half mr-2"></i>Disponible próximamente
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1507,9 +1518,10 @@
                 const socioData        = await socioRes.json();
                 const estadisticasData = await estadisticasRes.json();
 
-                this.data.socio        = socioData;
-                this.data.estadisticas = estadisticasData.estadisticas;
-                this.data.financiero   = financieroRes.ok ? await financieroRes.json() : null;
+                this.data.socio = socioData;
+                this.data.estadisticas = estadisticasData.estadisticas || {};
+                this.data.ingresosMensuales = estadisticasData.ingresos_mensuales || [];
+                this.data.financiero = financieroRes.ok ? await financieroRes.json() : null;
 
                 this.actualizarInfoSocio();
                 this.actualizarEstadisticasUI();
@@ -1527,8 +1539,7 @@
             }
         } catch (error) {
             console.error('❌ Error cargando datos socio:', error);
-            this.mostrarNotificacion('Error al cargar los datos', 'error');
-            this.mostrarDatosDeEjemplo();
+            this.mostrarEstadoSinDatos(error.message || 'No pudimos cargar tu panel en este momento');
         }
     },
 
@@ -1583,46 +1594,60 @@
 
     actualizarEstadisticasUI: function() {
         const stats = this.data.estadisticas || {};
-        const fin   = this.data.financiero;
+        const fin = this.data.financiero;
+        const socio = this.data.socio || {};
 
-        // Inversión activa (financiero tiene precedencia)
         const totalInvertido = fin?.inversion_total ?? stats.total_invertido ?? 0;
+        const inversionesActivas = fin?.financiero?.maquinas ?? stats.inversiones_activas ?? 0;
+        const participacion = fin?.financiero?.participacion ?? stats.ingreso_mensual ?? 0;
+        const roi = fin?.roi ?? stats.roi_total ?? 0;
+
         document.getElementById('totalInvertido').textContent = this.formatearMoneda(totalInvertido);
+        document.getElementById('ingresoMensual').textContent = this.formatearMoneda(participacion);
+        document.getElementById('roiTotal').textContent = `${(+roi).toFixed(1)}%`;
 
         const rentEl = document.getElementById('rentabilidadTotal');
-        if (rentEl) rentEl.textContent = '—';
-
-        // Participación del período (real)
-        const participacion = fin?.financiero?.participacion ?? stats.ingreso_mensual ?? 0;
-        document.getElementById('ingresoMensual').textContent = this.formatearMoneda(participacion);
+        if (rentEl) {
+            rentEl.textContent = `${inversionesActivas} inversion${inversionesActivas === 1 ? '' : 'es'} activa${inversionesActivas === 1 ? '' : 's'}`;
+        }
 
         const tendenciaContainer = document.getElementById('tendenciaMensualContainer');
-        const tendenciaText      = document.getElementById('tendenciaMensual');
+        const tendenciaText = document.getElementById('tendenciaMensual');
         if (tendenciaContainer && tendenciaText) {
-            tendenciaContainer.className = 'text-xs flex items-center text-blue-400';
-            tendenciaText.textContent = 'período actual';
+            tendenciaContainer.className = 'text-xs flex items-center text-blue-100/80';
+            tendenciaText.textContent = fin?.periodo ? `${fin.periodo.fecha_inicio} a ${fin.periodo.fecha_fin}` : 'Período actual';
         }
 
-        // ROI real
-        const roi = fin?.roi ?? stats.roi_total ?? 0;
-        document.getElementById('roiTotal').textContent = `${(+roi).toFixed(1)}%`;
         const rankingEl = document.getElementById('rankingROI');
-        if (rankingEl) rankingEl.textContent = '';
-
-        // Cuota anual
-        if (this.data.socio) {
-            document.getElementById('cuotaAnual').textContent =
-                this.formatearMoneda(this.data.socio.cuota_anual || 0);
+        if (rankingEl) {
+            rankingEl.textContent = inversionesActivas > 0
+                ? `${inversionesActivas} máquina${inversionesActivas === 1 ? '' : 's'} activa${inversionesActivas === 1 ? '' : 's'}`
+                : 'Rendimiento acumulado de tu portafolio';
         }
 
-        // Estado de cuota
+        document.getElementById('cuotaAnual').textContent = this.formatearMoneda(socio.cuota_anual || 0);
+
+        const tipoSocio = document.getElementById('tipoSocio');
+        if (tipoSocio) {
+            tipoSocio.textContent = 'Portal privado para inversionistas';
+        }
+
+        const nivelSocio = document.getElementById('nivelSocio');
+        const rankingSocio = document.getElementById('rankingSocio');
+        if (nivelSocio) {
+            nivelSocio.textContent = socio.estado === 'pendiente_pago' ? 'Portal con seguimiento' : 'Portal activo';
+        }
+        if (rankingSocio) {
+            rankingSocio.textContent = 'Solo ves tu información financiera y pagos';
+        }
+
         const estadoCuotaElement = document.getElementById('estadoCuotaContainer');
         if (estadoCuotaElement) {
             const estadoCuota = stats.estado_cuota || 'al_dia';
             const mapaEstado = {
-                al_dia:   `<div class="flex items-center text-green-400"><i class="fas fa-check-circle mr-1"></i><span>Al día</span></div>`,
-                pendiente:`<div class="flex items-center text-yellow-400"><i class="fas fa-clock mr-1"></i><span>Pendiente</span></div>`,
-                vencido:  `<div class="flex items-center text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i><span>Vencido</span></div>`,
+                al_dia: `<div class="flex items-center text-green-400"><i class="fas fa-check-circle mr-1"></i><span>Al día</span></div>`,
+                pendiente: `<div class="flex items-center text-yellow-400"><i class="fas fa-clock mr-1"></i><span>Pendiente</span></div>`,
+                vencido: `<div class="flex items-center text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i><span>Vencido</span></div>`,
             };
             estadoCuotaElement.innerHTML = mapaEstado[estadoCuota] || mapaEstado['al_dia'];
         }
@@ -1722,13 +1747,11 @@
     },
 
     verDetalleMaquina: function(maquinaId) {
-        this.mostrarNotificacion('Cargando detalles de la máquina...', 'info');
-        // Implementar lógica para mostrar detalles
+        this.mostrarNotificacion('El detalle completo ya está reflejado en el resumen financiero e ingresos.', 'info');
     },
 
     solicitarInversion: function() {
-        this.mostrarNotificacion('Redirigiendo a formulario de inversión...', 'info');
-        // Implementar lógica para solicitar inversión
+        this.mostrarNotificacion('Las nuevas inversiones se coordinan con administración.', 'info');
     },
 
     cargarIngresosSocio: async function() {
@@ -1828,7 +1851,7 @@
 
     renderizarPagos: function() {
         const container = document.getElementById('lista-pagos');
-        
+
         if (!this.data.pagos || this.data.pagos.length === 0) {
             container.innerHTML = `
                 <div class="col-span-full">
@@ -1837,23 +1860,23 @@
                             <i class="fas fa-check-circle text-2xl text-green-400"></i>
                         </div>
                         <h3 class="text-lg font-bold mb-2">No hay pagos pendientes</h3>
-                        <p class="text-gray-400">¡Tu cuenta está al día!</p>
+                        <p class="text-gray-400">Tu cuenta está al día y no tiene vencimientos abiertos.</p>
                     </div>
                 </div>
             `;
             return;
         }
-        
+
         let html = '';
         this.data.pagos.forEach((pago, index) => {
             const fechaVencimiento = new Date(pago.fecha_vencimiento);
             const hoy = new Date();
             const diasRestantes = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
-            
+
             let estadoColor = 'text-green-400';
             let estadoIcon = 'fa-check-circle';
             let estadoBg = 'from-green-500/20 to-teal-500/20';
-            
+
             if (diasRestantes < 0) {
                 estadoColor = 'text-red-400';
                 estadoIcon = 'fa-exclamation-triangle';
@@ -1863,7 +1886,7 @@
                 estadoIcon = 'fa-clock';
                 estadoBg = 'from-yellow-500/20 to-orange-500/20';
             }
-            
+
             html += `
                 <div class="machine-card" style="animation-delay: ${index * 0.1}s">
                     <div class="flex items-center justify-between mb-4">
@@ -1876,36 +1899,35 @@
                                 <p class="text-sm text-gray-400">Vence: ${fechaVencimiento.toLocaleDateString('es-ES')}</p>
                             </div>
                         </div>
+                        <span class="badge-modern text-xs">${pago.estado || 'pendiente'}</span>
                     </div>
-                    
-                    <div class="mb-6">
-                        <div class="text-2xl font-bold text-blue-400 mb-2">${this.formatearMoneda(pago.monto)}</div>
+
+                    <div class="mb-5 space-y-2">
+                        <div class="text-2xl font-bold text-blue-200">${this.formatearMoneda(pago.monto)}</div>
                         <div class="text-sm ${estadoColor}">
                             <i class="fas ${estadoIcon} mr-1"></i>
                             ${diasRestantes < 0 ? 'Vencido' : diasRestantes < 7 ? `Vence en ${diasRestantes} días` : 'Al día'}
                         </div>
+                        <div class="text-xs text-gray-400">${pago.comprobante ? 'Comprobante registrado' : 'Pendiente de comprobante'}</div>
                     </div>
-                    
-                    <button onclick="SocioPanel.realizarPagoEspecifico(${pago.id})" 
-                            class="w-full py-3 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white font-medium hover:opacity-90 transition">
-                        <i class="fas fa-wallet mr-2"></i>
-                        ${diasRestantes < 0 ? 'PAGAR AHORA' : 'PAGAR'}
-                    </button>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
+                        <i class="fas fa-circle-info mr-2 text-blue-200"></i>
+                        Este pago se coordina con administración y luego se refleja aquí con su comprobante.
+                    </div>
                 </div>
             `;
         });
-        
+
         container.innerHTML = html;
     },
 
     realizarPagoEspecifico: function(pagoId) {
-        this.mostrarNotificacion('Redirigiendo a plataforma de pago...', 'info');
-        // Implementar lógica de pago
+        this.mostrarNotificacion('Por ahora los pagos se coordinan con administración.', 'info');
     },
 
     realizarPago: function() {
-        this.mostrarNotificacion('Redirigiendo a plataforma de pago...', 'info');
-        // Implementar lógica de pago
+        this.mostrarNotificacion('Por ahora los pagos se coordinan con administración.', 'info');
     },
 
     actualizarGraficos: function() {
@@ -1917,8 +1939,8 @@
             this.data.charts.ingresos.data.labels = evolucion.map(e => e.label);
             this.data.charts.ingresos.data.datasets[0].data = evolucion.map(e => e.participacion);
             this.data.charts.ingresos.update();
-        } else if (this.data.estadisticas?.ingresos_mensuales && this.data.charts.ingresos) {
-            this.data.charts.ingresos.data.datasets[0].data = this.data.estadisticas.ingresos_mensuales;
+        } else if (this.data.ingresosMensuales?.length && this.data.charts.ingresos) {
+            this.data.charts.ingresos.data.datasets[0].data = this.data.ingresosMensuales;
             this.data.charts.ingresos.update();
         }
 
@@ -1941,31 +1963,38 @@
         this.cargarDatosSocio();
     },
 
-    mostrarDatosDeEjemplo: function() {
-        // Datos de ejemplo para demo
-        this.data.socio = {
-            codigo_socio: 'SOC-0001',
-            nombre: 'Juan Socio',
-            estado: 'activo',
-            fecha_inscripcion: '2024-01-15',
-            cuota_anual: 1000000
-        };
-        
-        this.data.estadisticas = {
-            total_invertido: 0,
-            ingreso_mensual: 0,
-            roi_total: 0,
-            estado_cuota: 'al_dia',
-        };
-
+    mostrarEstadoSinDatos: function(mensaje) {
+        this.data.socio = null;
+        this.data.estadisticas = {};
+        this.data.financiero = null;
         this.data.maquinas = [];
-        
-        this.actualizarInfoSocio();
+        this.data.ingresos = [];
+        this.data.pagos = [];
+
+        document.getElementById('nombreSocio').textContent = 'Portal de socio';
+        document.getElementById('nombreSocioInfo').textContent = 'Cuenta pendiente de validación';
+        document.getElementById('nombreUsuario').textContent = 'Acceso restringido';
+        document.getElementById('codigoSocio').textContent = 'Sin vínculo';
+        document.getElementById('fechaRegistro').textContent = '--/--/----';
+        document.getElementById('diasMiembro').textContent = 'Sin información';
+        document.getElementById('tipoSocio').textContent = 'Solicita a administración vincular tu usuario de socio';
+
+        const estadoElement = document.getElementById('estadoCuenta');
+        estadoElement.className = 'text-xl font-bold text-amber-200';
+        estadoElement.textContent = 'Revisar acceso';
+
         this.actualizarEstadisticasUI();
         this.renderizarMaquinas();
-        this.actualizarGraficos();
-        
-        this.mostrarNotificacion('Mostrando datos de ejemplo', 'warning');
+        this.renderizarPagos();
+        document.getElementById('tabla-ingresos').innerHTML = `
+            <tr>
+                <td colspan="7" class="py-12 text-center text-gray-400">
+                    <i class="fas fa-circle-info mr-2 text-blue-200"></i>${mensaje}
+                </td>
+            </tr>
+        `;
+
+        this.mostrarNotificacion(mensaje, 'warning');
     },
 
     formatearMoneda: function(valor) {
@@ -2203,11 +2232,16 @@ document.addEventListener('DOMContentLoaded', function() {
             baseActualizarEstadisticasUI();
 
             const stats = this.data.estadisticas || {};
+            const fin = this.data.financiero;
+            const totalInvertido = fin?.inversion_total ?? stats.total_invertido ?? 0;
+            const participacion = fin?.financiero?.participacion ?? stats.ingreso_mensual ?? 0;
+            const roi = fin?.roi ?? stats.roi_total ?? 0;
+            const inversionesActivas = fin?.financiero?.maquinas ?? stats.inversiones_activas ?? 0;
             const cuotaEstado = stats.estado_cuota || 'al_dia';
             const progressMap = [
-                { bar: 'progressInvertido', label: 'progressInvertidoLabel', value: Math.min((stats.total_invertido || 0) / 10000000 * 100, 100) },
-                { bar: 'progressIngreso', label: 'progressIngresoLabel', value: Math.min(Math.abs(stats.tendencia_mensual || 0) * 8, 100) },
-                { bar: 'progressRoi', label: 'progressRoiLabel', value: Math.min(Math.abs(stats.roi_total || 0) * 3, 100) },
+                { bar: 'progressInvertido', label: 'progressInvertidoLabel', value: inversionesActivas > 0 ? Math.min(inversionesActivas * 22, 100) : 0 },
+                { bar: 'progressIngreso', label: 'progressIngresoLabel', value: totalInvertido > 0 ? Math.min((participacion / totalInvertido) * 1000, 100) : 0 },
+                { bar: 'progressRoi', label: 'progressRoiLabel', value: Math.min(Math.abs(roi) * 3, 100) },
                 { bar: 'progressCuota', label: 'progressCuotaLabel', value: cuotaEstado === 'al_dia' ? 100 : cuotaEstado === 'pendiente' ? 58 : 22 }
             ];
 
@@ -2224,11 +2258,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const rankingText = document.getElementById('rankingSocio');
             const nivelText = document.getElementById('nivelSocio');
-            if (rankingText) rankingText.textContent = `Top ${stats.ranking_roi || 0}%`;
-            if (nivelText) {
-                const roi = stats.roi_total || 0;
-                nivelText.textContent = roi >= 20 ? 'Elite' : roi >= 10 ? 'Premium' : 'Base';
-            }
+            if (rankingText) rankingText.textContent = 'Solo ves tu portafolio, ingresos y pagos';
+            if (nivelText) nivelText.textContent = cuotaEstado === 'al_dia' ? 'Portal activo' : 'Portal con seguimiento';
         };
 
         SocioPanel.crearAnilloPorcentaje = function(valor) {
@@ -2269,10 +2300,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <i class="fas fa-cube text-2xl text-blue-400"></i>
                             </div>
                             <h3 class="text-lg font-bold mb-2">No tienes inversiones activas</h3>
-                            <p class="text-gray-400 mb-4">Comienza tu primera inversión hoy mismo</p>
-                            <button class="btn-modern" onclick="SocioPanel.solicitarInversion()">
-                                <i class="fas fa-plus mr-2"></i>Solicitar Inversión
-                            </button>
+                            <p class="text-gray-400 mb-4">Cuando administración te asigne una participación, la verás aquí con su desempeño real.</p>
                         </div>
                     </div>
                 `;
@@ -2283,6 +2311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rentabilidad = maquina.rentabilidad || 0;
                 const colorRentabilidad = rentabilidad >= 0 ? 'text-green-400' : 'text-red-400';
                 const iconoRentabilidad = rentabilidad >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+                const estado = (maquina.estado || 'activa').replace('_', ' ');
 
                 return `
                     <div class="machine-card section-reveal" style="animation-delay:${index * 0.06}s">
@@ -2302,28 +2331,33 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="font-medium">${this.formatearMoneda(maquina.inversion_inicial || 0)}</span>
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-400">Rentabilidad</span>
+                                <span class="text-sm text-gray-400">Participación del mes</span>
+                                <span class="font-medium text-cyan-200">${this.formatearMoneda(maquina.ingreso_mensual || 0)}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-400">Rentabilidad mensual</span>
                                 <span class="font-medium ${colorRentabilidad}">
                                     <i class="fas ${iconoRentabilidad} mr-1 text-xs"></i>${Math.abs(rentabilidad).toFixed(1)}%
                                 </span>
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-400">Ingreso mensual</span>
-                                <span class="font-medium text-cyan-300">${this.formatearMoneda(maquina.ingreso_mensual || 0)}</span>
+                                <span class="text-sm text-gray-400">Turnos jugados</span>
+                                <span class="font-medium text-amber-100">${maquina.turnos_jugados || 0}</span>
                             </div>
                         </div>
                         <div class="stat-progress mb-5">
                             <div class="stat-progress-track">
-                                <div class="stat-progress-bar" style="width:${Math.min(Math.abs(rentabilidad) * 3.5, 100)}%; background:linear-gradient(90deg, rgba(34,211,238,0.95), rgba(59,130,246,0.85));"></div>
+                                <div class="stat-progress-bar" style="width:${Math.min(Math.abs(rentabilidad) * 3.5, 100)}%; background:linear-gradient(90deg, rgba(168,196,216,0.95), rgba(68,93,117,0.92));"></div>
                             </div>
                             <div class="stat-progress-meta">
-                                <span>Momentum de la máquina</span>
+                                <span>Desempeño relativo de la inversión</span>
                                 <span>${Math.min(Math.abs(rentabilidad) * 3.5, 100).toFixed(0)}%</span>
                             </div>
                         </div>
-                        <button onclick="SocioPanel.verDetalleMaquina(${maquina.id})" class="w-full py-3 rounded-xl border border-gray-700 hover:border-blue-400 hover:bg-blue-400/10 transition flex items-center justify-center">
-                            <i class="fas fa-chart-bar mr-2"></i>Ver Detalles
-                        </button>
+                        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                            <span class="text-gray-400">Estado de la inversión</span>
+                            <span class="badge-modern text-xs">${estado}</span>
+                        </div>
                     </div>
                 `;
             }).join('');

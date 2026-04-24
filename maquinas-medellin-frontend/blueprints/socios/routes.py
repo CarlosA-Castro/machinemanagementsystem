@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, render_template, session
@@ -43,6 +43,15 @@ def _resolve_socio_by_session(cursor):
     user_name = session.get('user_name')
 
     if user_role == 'socio':
+        if user_id:
+            try:
+                cursor.execute("SELECT * FROM socios WHERE user_id = %s LIMIT 1", (user_id,))
+                socio = cursor.fetchone()
+                if socio:
+                    return socio
+            except Exception:
+                logger.warning("No fue posible resolver socio por user_id=%s", user_id, exc_info=True)
+
         cursor.execute(
             """
             SELECT * FROM socios
@@ -56,20 +65,7 @@ def _resolve_socio_by_session(cursor):
         if socio:
             return socio
 
-        return {
-            'id': 0,
-            'codigo_socio': 'TEMP-' + (user_name or 'SOCIO')[:10].upper(),
-            'nombre': user_name,
-            'documento': 'PENDIENTE',
-            'email': '',
-            'telefono': '',
-            'fecha_inscripcion': datetime.now().date(),
-            'fecha_vencimiento': (datetime.now() + timedelta(days=365)).date(),
-            'estado': 'activo',
-            'cuota_anual': 0,
-            'porcentaje_global': 0,
-            'notas': 'Socio temporal creado automáticamente',
-        }
+        return None
 
     socio_id = request.args.get('socio_id') or session.get('socio_id')
     if socio_id:
@@ -805,6 +801,11 @@ def obtener_maquinas_socio_panel():
             return jsonify([])
         socio_id = socio['id']
 
+        hoy = get_colombia_time().date()
+        inicio_mes = hoy.replace(day=1)
+        detalle_financiero = calcular_detalle_por_maquina(cursor, socio_id, inicio_mes, hoy)
+        detalle_por_maquina = {item['maquina_id']: item for item in detalle_financiero}
+
         cursor.execute(
             """
             SELECT
@@ -816,21 +817,7 @@ def obtener_maquinas_socio_panel():
                 m.id as maquina_id,
                 m.name as maquina_nombre,
                 m.type as maquina_tipo,
-                l.name as ubicacion,
-                ROUND(
-                    (i.monto_inicial * i.porcentaje_inversion / 100) *
-                    (SELECT COALESCE(SUM(tp.price * i2.porcentaje_inversion / 100), 0)
-                     FROM qrhistory qh
-                     JOIN qrcode qr ON qr.code = qh.qr_code
-                     JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                     JOIN turnusage tu ON qr.id = tu.qrCodeId
-                     JOIN inversiones i2 ON i2.maquina_id = tu.machineId
-                     WHERE i2.socio_id = %s
-                       AND MONTH(qh.fecha_hora) = MONTH(CURDATE())
-                       AND YEAR(qh.fecha_hora) = YEAR(CURDATE())
-                    ) / NULLIF(SUM(i.monto_inicial * i.porcentaje_inversion / 100) OVER(), 0) * 100,
-                    2
-                ) as rentabilidad_mensual
+                l.name as ubicacion
             FROM inversiones i
             JOIN machine m ON i.maquina_id = m.id
             LEFT JOIN location l ON m.location_id = l.id
@@ -838,11 +825,15 @@ def obtener_maquinas_socio_panel():
               AND i.estado = 'activa'
             ORDER BY i.fecha_inicio DESC
             """,
-            (socio_id, socio_id),
+            (socio_id,),
         )
         maquinas = cursor.fetchall()
         maquinas_formateadas = []
         for maquina in maquinas:
+            detalle = detalle_por_maquina.get(maquina['maquina_id'], {})
+            inversion_inicial = float(maquina['monto_inicial'] or 0)
+            participacion = float(detalle.get('participacion') or 0)
+            rentabilidad = round((participacion / inversion_inicial) * 100, 2) if inversion_inicial > 0 else 0.0
             maquinas_formateadas.append(
                 {
                     'id': maquina['maquina_id'],
@@ -850,8 +841,11 @@ def obtener_maquinas_socio_panel():
                     'tipo': maquina['maquina_tipo'],
                     'ubicacion': maquina['ubicacion'],
                     'porcentaje_propiedad': float(maquina['porcentaje_inversion']),
-                    'inversion_inicial': float(maquina['monto_inicial'] or 0),
-                    'rentabilidad': float(maquina['rentabilidad_mensual'] or 0),
+                    'inversion_inicial': inversion_inicial,
+                    'ingreso_mensual': participacion,
+                    'ingreso_bruto': float(detalle.get('ingreso_bruto') or 0),
+                    'turnos_jugados': int(detalle.get('turnos_jugados') or 0),
+                    'rentabilidad': rentabilidad,
                     'fecha_adquisicion': _serialize_value(maquina['fecha_inicio']) if maquina.get('fecha_inicio') else None,
                     'estado': maquina['estado'],
                 }
