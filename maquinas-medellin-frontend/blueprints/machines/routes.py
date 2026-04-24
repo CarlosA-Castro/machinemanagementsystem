@@ -281,25 +281,42 @@ def obtener_maquina(maquina_id):
         """, (maquina_id,))
         propietarios = cursor.fetchall()
 
-        # Fallas activas por estación
+        # Fallas activas por estación (errorreport = cajero, machinefailures = ESP32)
         cursor.execute("""
-            SELECT station_index, COUNT(*) as count
+            SELECT station_index, COUNT(*) as count, COUNT(*) as cajero_count, 0 as esp32_count
             FROM errorreport
             WHERE machineId = %s AND isResolved = 0
             GROUP BY station_index
         """, (maquina_id,))
-        failure_rows = cursor.fetchall()
+        errorreport_rows = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT station_index, COUNT(*) as count, 0 as cajero_count, COUNT(*) as esp32_count
+            FROM machinefailures
+            WHERE machine_id = %s AND resolved = 0
+            GROUP BY station_index
+        """, (maquina_id,))
+        mf_rows = cursor.fetchall()
+
+        # Agrupar ambas fuentes por station_index
+        aggregated = {}
+        for row in list(errorreport_rows) + list(mf_rows):
+            idx = row['station_index']
+            if idx not in aggregated:
+                aggregated[idx] = {'count': 0, 'cajero_count': 0, 'esp32_count': 0}
+            aggregated[idx]['count']        += row['count']
+            aggregated[idx]['cajero_count'] += row['cajero_count']
+            aggregated[idx]['esp32_count']  += row['esp32_count']
+
         active_failure_stations = []
         machine_level_failures = 0
-        for row in failure_rows:
-            if row['station_index'] is None:
-                machine_level_failures += row['count']
+        for idx, vals in aggregated.items():
+            if idx is None:
+                machine_level_failures += vals['count']
             else:
                 active_failure_stations.append({
-                    'station_index': row['station_index'],
-                    'count':         row['count'],
-                    'cajero_count':  row['count'],
-                    'esp32_count':   0,
+                    'station_index': idx,
+                    **vals,
                 })
 
         # Tiempo desde último uso
@@ -342,6 +359,7 @@ def obtener_maquina(maquina_id):
             'show_station_selection':   bool(maquina.get('show_station_selection', False)),
             'active_failure_stations':  active_failure_stations,
             'machine_level_failures':   machine_level_failures,
+            'stations_in_maintenance':  parse_json_col(maquina.get('stations_in_maintenance'), []),
             **get_heartbeat_fields(maquina['id']),
         })
 

@@ -1840,6 +1840,7 @@
             todasFallas = await fallasResponse.json();
         }
         let machineLevelFailures = 0;
+        let stationsInMaintenance = [];
         if (maquinaInfoResponse.ok) {
             const mInfo = await maquinaInfoResponse.json();
             (mInfo.active_failure_stations || []).forEach(f => {
@@ -1852,6 +1853,7 @@
                 };
             });
             machineLevelFailures = mInfo.machine_level_failures || 0;
+            stationsInMaintenance = (mInfo.stations_in_maintenance || []).map(s => parseInt(s));
         }
         
         // 5. Procesar estadísticas POR ESTACIÓN
@@ -1962,7 +1964,7 @@
                 }
             }
             
-            const hasFallas = station.stats.failures > 0;
+            const hasFallas = station.stats.failures > 0 || stationsInMaintenance.includes(station.index);
             html += `
                 <div class="bg-white border ${hasFallas ? 'border-red-200' : 'border-gray-200'} rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-3">

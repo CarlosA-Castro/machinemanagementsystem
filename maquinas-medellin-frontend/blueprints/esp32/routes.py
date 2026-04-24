@@ -715,10 +715,16 @@ def esp32_reportar_falla():
                         f"entra en MANTENIMIENTO tras {new_count} fallas consecutivas"
                     )
 
-                cursor.execute(
-                    "UPDATE machine SET consecutive_failures = %s, stations_in_maintenance = %s WHERE id = %s",
-                    (json.dumps(cf), json.dumps(sim), machine_id)
-                )
+                if new_count >= 3 and effective_station in sim:
+                    cursor.execute(
+                        "UPDATE machine SET consecutive_failures = %s, stations_in_maintenance = %s, status = 'mantenimiento' WHERE id = %s",
+                        (json.dumps(cf), json.dumps(sim), machine_id)
+                    )
+                else:
+                    cursor.execute(
+                        "UPDATE machine SET consecutive_failures = %s, stations_in_maintenance = %s WHERE id = %s",
+                        (json.dumps(cf), json.dumps(sim), machine_id)
+                    )
         except Exception as e_cf:
             logger.warning(f"⚠️ [TFT] No se pudo actualizar consecutive_failures: {e_cf}")
 

@@ -377,7 +377,10 @@ def resolver_falla_maquina(maquina_id):
             return api_response('E005', http_status=404, data={'message': 'Máquina no encontrada'})
 
         cursor.execute("""
-            UPDATE machine SET errorNote = NULL, status = 'activa' WHERE id = %s
+            UPDATE machine
+            SET errorNote = NULL, status = 'activa',
+                consecutive_failures = '{}', stations_in_maintenance = '[]'
+            WHERE id = %s
         """, (maquina_id,))
 
         if estacion_index is not None:
