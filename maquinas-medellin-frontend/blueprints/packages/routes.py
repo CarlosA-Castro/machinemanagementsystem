@@ -6,12 +6,49 @@ from flask import Blueprint, request, jsonify
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
 
 logger = logging.getLogger(LOGGER_NAME)
 
 packages_bp = Blueprint('packages', __name__)
+
+
+@packages_bp.route('/api/paquetes', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def listar_paquetes():
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+        active_id, _ = get_active_location()
+
+        if user_can_view_all() and active_id is None:
+            cursor.execute(
+                "SELECT * FROM turnpackage ORDER BY isActive DESC, name"
+            )
+        else:
+            eff = active_id if active_id is not None else -1
+            cursor.execute(
+                "SELECT * FROM turnpackage WHERE location_id = %s ORDER BY isActive DESC, name",
+                (eff,),
+            )
+
+        return jsonify(cursor.fetchall())
+
+    except Exception as e:
+        logger.error(f"Error listando paquetes: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:  cursor.close()
+        if connection: connection.close()
 
 
 @packages_bp.route('/api/paquetes/<int:paquete_id>', methods=['GET'])
@@ -70,18 +107,24 @@ def crear_paquete():
 
         cursor = get_db_cursor(connection)
 
-        cursor.execute("SELECT id FROM turnpackage WHERE name = %s", (name,))
+        active_id, _ = get_active_location()
+        location_id = active_id if active_id is not None else None
+
+        cursor.execute(
+            "SELECT id FROM turnpackage WHERE name = %s AND (location_id <=> %s)",
+            (name, location_id),
+        )
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Paquete ya existe'})
+            return api_response('E007', http_status=400, data={'message': 'Paquete ya existe en este local'})
 
         cursor.execute("""
-            INSERT INTO turnpackage (name, turns, price, isActive)
-            VALUES (%s, %s, %s, %s)
-        """, (name, turns, price, isActive))
+            INSERT INTO turnpackage (name, turns, price, isActive, location_id)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (name, turns, price, isActive, location_id))
 
         connection.commit()
 
-        logger.info(f"Paquete creado: {name} (Turnos: {turns}, Precio: {price})")
+        logger.info(f"Paquete creado: {name} (Turnos: {turns}, Precio: {price}, Local: {location_id})")
 
         return api_response('S002', status='success', data={'paquete_id': cursor.lastrowid})
 
