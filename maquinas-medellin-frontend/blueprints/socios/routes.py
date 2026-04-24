@@ -18,6 +18,7 @@ from utils.socios_finance import (
     calcular_roi,
     calcular_resumen_todos_socios,
 )
+from blueprints.esp32.state import get_heartbeat_fields
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -1259,3 +1260,137 @@ def panel_financiero_socio_actual():
             cursor.close()
         if connection:
             connection.close()
+
+
+@socios_bp.route('/api/socio/panel/actividad-reciente', methods=['GET'])
+@handle_api_errors
+@require_login(['socio'])
+def actividad_reciente_socio():
+    """
+    Feed en tiempo real: últimos turnos jugados en máquinas del socio.
+    Soporta ?since_id=N para polling incremental (solo devuelve filas nuevas).
+    También devuelve ganado_hoy y estado online de cada máquina.
+    """
+    connection = None
+    cursor = None
+    try:
+        since_id = int(request.args.get('since_id', 0))
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        socio = _resolve_socio_by_session(cursor)
+        if not socio or not socio.get('id'):
+            return jsonify({'actividad': [], 'ganado_hoy': 0, 'maquinas_status': {}})
+
+        socio_id = socio['id']
+
+        # IDs de máquinas activas del socio
+        cursor.execute(
+            """SELECT maquina_id, porcentaje_inversion
+               FROM inversiones WHERE socio_id = %s AND estado = 'activa'""",
+            (socio_id,),
+        )
+        inversiones = {r['maquina_id']: float(r['porcentaje_inversion']) for r in cursor.fetchall()}
+        if not inversiones:
+            return jsonify({'actividad': [], 'ganado_hoy': 0, 'maquinas_status': {}})
+
+        maquina_ids = list(inversiones.keys())
+        placeholders = ','.join(['%s'] * len(maquina_ids))
+
+        # Últimos turnos (incremental si since_id > 0)
+        id_cond = 'AND tu.id > %s' if since_id else ''
+        cursor.execute(
+            f"""
+            SELECT
+                tu.id,
+                tu.usedAt,
+                m.id  AS maquina_id,
+                m.name AS maquina_nombre,
+                COALESCE(tp.price / NULLIF(tp.turns, 0), 0) AS ingreso_bruto_turno,
+                COALESCE(mpr.porcentaje_restaurante, 35.0)  AS pct_rest,
+                COALESCE(mpr.porcentaje_admin,        25.0) AS pct_admin
+            FROM turnusage tu
+            JOIN machine m   ON m.id  = tu.machineId
+            JOIN qrcode  qr  ON qr.id = tu.qrCodeId
+            JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
+            WHERE tu.machineId IN ({placeholders}) {id_cond}
+            ORDER BY tu.id DESC
+            LIMIT 30
+            """,
+            maquina_ids + ([since_id] if since_id else []),
+        )
+        rows = cursor.fetchall()
+
+        actividad = []
+        for r in rows:
+            mid = r['maquina_id']
+            pct_inv = inversiones.get(mid, 0)
+            bruto = float(r['ingreso_bruto_turno'])
+            utilidad = bruto * (1 - float(r['pct_rest']) / 100 - float(r['pct_admin']) / 100)
+            participacion = round(utilidad * pct_inv / 100, 0)
+            actividad.append({
+                'id':              r['id'],
+                'hora':            get_colombia_time().strftime('%H:%M') if not r.get('usedAt') else '',
+                'usedAt':          r['usedAt'].isoformat() if r.get('usedAt') else None,
+                'maquina_id':      mid,
+                'maquina_nombre':  r['maquina_nombre'],
+                'participacion':   participacion,
+            })
+
+        # Ganado hoy (Colombia)
+        hoy = get_colombia_time().date()
+        cursor.execute(
+            f"""
+            SELECT
+                m.id AS maquina_id,
+                COALESCE(SUM(tp.price / NULLIF(tp.turns, 0)), 0) AS bruto_hoy,
+                COALESCE(mpr.porcentaje_restaurante, 35.0) AS pct_rest,
+                COALESCE(mpr.porcentaje_admin,        25.0) AS pct_admin
+            FROM turnusage tu
+            JOIN machine m  ON m.id  = tu.machineId
+            JOIN qrcode  qr ON qr.id = tu.qrCodeId
+            JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
+            WHERE tu.machineId IN ({placeholders})
+              AND DATE(tu.usedAt) = %s
+            GROUP BY m.id, mpr.porcentaje_restaurante, mpr.porcentaje_admin
+            """,
+            maquina_ids + [hoy],
+        )
+        ganado_hoy = 0.0
+        ganado_por_maquina = {}
+        for r in cursor.fetchall():
+            mid = r['maquina_id']
+            pct_inv = inversiones.get(mid, 0)
+            bruto = float(r['bruto_hoy'])
+            utilidad = bruto * (1 - float(r['pct_rest']) / 100 - float(r['pct_admin']) / 100)
+            part = round(utilidad * pct_inv / 100, 0)
+            ganado_hoy += part
+            ganado_por_maquina[mid] = part
+
+        # Estado online de cada máquina
+        maquinas_status = {}
+        for mid in maquina_ids:
+            hb = get_heartbeat_fields(mid)
+            maquinas_status[mid] = {
+                'online': hb['esp32_online'],
+                'ganado_hoy': ganado_por_maquina.get(mid, 0),
+            }
+
+        return jsonify({
+            'actividad':       actividad,
+            'ganado_hoy':      round(ganado_hoy, 0),
+            'maquinas_status': maquinas_status,
+            'last_id':         actividad[0]['id'] if actividad else since_id,
+        })
+
+    except Exception as e:
+        logger.error(f"Error actividad reciente socio: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()

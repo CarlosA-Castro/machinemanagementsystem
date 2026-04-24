@@ -1,2435 +1,590 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mi Panel - Socio</title>
-    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-      
-        :root {
-            --navy: #1c2b4a;
-            --navy-d: #0f1a2e;
-            --navy-m: #243555;
-            --blueg: #445d75;
-            --cream: #f4f1eb;
-            --cream-d: #ede9e0;
-            --panel-bg: rgba(15, 26, 46, 0.82);
-            --panel-border: rgba(244, 241, 235, 0.14);
-            --text-soft: rgba(244, 241, 235, 0.72);
-            --accent-blue: #a8c4d8;
-            --accent-cyan: #d5e2eb;
-            --accent-violet: #6b7f98;
-            --accent-green: #34d399;
-            --accent-orange: #fb923c;
-            --accent-red: #c8252a;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Inversor — Inversiones Arcade</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg:        #070b14;
+    --surface:   #0d1117;
+    --surface2:  #131a24;
+    --border:    #1e2d3d;
+    --blue:      #3b82f6;
+    --blue-dim:  #1d4ed8;
+    --green:     #10b981;
+    --red:       #ef4444;
+    --amber:     #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --card-glow: 0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
 
-        body {
-            margin: 0;
-            background:
-                radial-gradient(circle at 18% 0%, rgba(68, 93, 117, 0.18), transparent 26%),
-                radial-gradient(circle at 82% 10%, rgba(200, 37, 42, 0.14), transparent 22%),
-                linear-gradient(180deg, #09111f 0%, var(--navy-d) 46%, #16243b 100%);
-            color: #fff;
-            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
-        }
+  /* ── Topbar ── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 56px;
+    background: rgba(7,11,20,.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 10px; }
+  .topbar-brand .logo { width: 28px; height: 28px; background: var(--blue); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .topbar-brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.3px; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-chip { display: flex; align-items: center; gap: 8px; padding: 5px 12px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; font-size: 13px; }
+  .user-chip .code { color: var(--muted); font-size: 11px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    animation: pulse-dot 2s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .clock { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .btn-logout { background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 5px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: .2s; }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
 
-        .scene-backdrop {
-            position: fixed;
-            inset: 0;
-            overflow: hidden;
-            pointer-events: none;
-            z-index: -3;
-        }
+  /* ── Layout ── */
+  .page { margin-top: 56px; padding: 28px 24px; max-width: 1400px; margin-left: auto; margin-right: auto; }
 
-        .scene-grid {
-            position: absolute;
-            inset: -10%;
-            background-image:
-                linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-            background-size: 52px 52px;
-            mask-image: radial-gradient(circle at center, black 35%, transparent 90%);
-            transform: perspective(900px) rotateX(72deg) translateY(34%);
-            transform-origin: center;
-            opacity: 0.28;
-        }
+  /* ── KPI row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px;
+    box-shadow: var(--card-glow); position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent,#3b82f6), transparent);
+  }
+  .kpi-card.green { --accent: var(--green); }
+  .kpi-card.amber { --accent: var(--amber); }
+  .kpi-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
+  .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .kpi-icon { position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+    font-size: 28px; opacity: .08; }
+  .badge-live { display: inline-flex; align-items: center; gap: 5px; font-size: 10px;
+    background: rgba(16,185,129,.12); color: var(--green); border: 1px solid rgba(16,185,129,.25);
+    border-radius: 10px; padding: 2px 8px; margin-left: 8px; vertical-align: middle; }
 
-        .orb {
-            position: absolute;
-            border-radius: 999px;
-            filter: blur(10px);
-            opacity: 0.75;
-            mix-blend-mode: screen;
-            animation: drift 18s ease-in-out infinite;
-        }
+  /* ── Main grid ── */
+  .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
 
-        .orb::after {
-            content: '';
-            position: absolute;
-            inset: 14%;
-            border-radius: inherit;
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            opacity: 0.55;
-        }
+  /* ── Section header ── */
+  .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content:''; flex:1; height:1px; background: var(--border); }
 
-        .orb-1 {
-            width: 340px;
-            height: 340px;
-            top: -80px;
-            left: -40px;
-            background: radial-gradient(circle at 30% 30%, rgba(96, 165, 250, 0.95), rgba(59, 130, 246, 0.18) 55%, transparent 75%);
-        }
+  /* ── Machine cards ── */
+  .machines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 14px; margin-bottom: 28px; }
+  .machine-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; position: relative;
+    transition: border-color .2s;
+  }
+  .machine-card:hover { border-color: #2d3f52; }
+  .machine-card.online { border-left: 2px solid var(--green); }
+  .machine-card.offline { border-left: 2px solid var(--red); }
+  .mc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .mc-name { font-weight: 600; font-size: 15px; }
+  .mc-location { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .status-pill { display: flex; align-items: center; gap: 5px; font-size: 11px;
+    padding: 3px 9px; border-radius: 10px; font-weight: 500; }
+  .status-pill.online { background: rgba(16,185,129,.12); color: var(--green); }
+  .status-pill.offline { background: rgba(239,68,68,.1); color: var(--red); }
+  .status-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .mc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mc-stat { background: var(--surface2); border-radius: 8px; padding: 10px 12px; }
+  .mc-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  .mc-stat-value { font-size: 17px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .mc-stat-value.green { color: var(--green); }
+  .mc-pct { font-size: 11px; color: var(--muted); margin-top: 10px; }
 
-        .orb-2 {
-            width: 280px;
-            height: 280px;
-            right: 8%;
-            top: 10%;
-            background: radial-gradient(circle at 40% 40%, rgba(34, 211, 238, 0.9), rgba(14, 165, 233, 0.14) 58%, transparent 78%);
-            animation-delay: -6s;
-        }
+  /* ── Live feed ── */
+  .feed-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 20px;
+  }
+  .feed-header { padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; }
+  .feed-header-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .feed-count { font-size: 11px; color: var(--muted); }
+  .feed-list { max-height: 380px; overflow-y: auto; }
+  .feed-list::-webkit-scrollbar { width: 4px; }
+  .feed-list::-webkit-scrollbar-track { background: transparent; }
+  .feed-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .feed-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid rgba(30,45,61,.5);
+    animation: slide-in .3s ease;
+  }
+  @keyframes slide-in { from { opacity:0; transform:translateX(-8px) } to { opacity:1; transform:none } }
+  .feed-icon { width: 32px; height: 32px; background: rgba(59,130,246,.1);
+    border: 1px solid rgba(59,130,246,.2); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .feed-body { flex: 1; min-width: 0; }
+  .feed-machine { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .feed-time { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .feed-amount { font-size: 14px; font-weight: 700; color: var(--green);
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feed-empty { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
 
-        .orb-3 {
-            width: 420px;
-            height: 420px;
-            bottom: -120px;
-            right: -90px;
-            background: radial-gradient(circle at 40% 35%, rgba(139, 92, 246, 0.92), rgba(99, 102, 241, 0.15) 60%, transparent 80%);
-            animation-delay: -11s;
-        }
+  /* ── Chart panel ── */
+  .chart-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; }
 
-        .orb-4 {
-            width: 240px;
-            height: 240px;
-            left: 18%;
-            bottom: 8%;
-            background: radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.75), rgba(16, 185, 129, 0.12) 62%, transparent 82%);
-            animation-delay: -4s;
-        }
+  /* ── Bottom section ── */
+  .bottom-section { margin-top: 24px; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .detail-table th { text-align: left; padding: 10px 14px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+    border-bottom: 1px solid var(--border); }
+  .detail-table td { padding: 12px 14px; border-bottom: 1px solid rgba(30,45,61,.5); }
+  .detail-table tr:last-child td { border-bottom: none; }
+  .detail-table tbody tr:hover td { background: var(--surface2); }
 
-        @keyframes drift {
-            0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-            33% { transform: translate3d(24px, -28px, 0) scale(1.06) rotate(6deg); }
-            66% { transform: translate3d(-18px, 22px, 0) scale(0.96) rotate(-7deg); }
-        }
-        
-        /* Efecto de gradiente dinámico */
-        .gradient-bg {
-            background: linear-gradient(135deg, 
-                rgba(30, 60, 114, 0.95) 0%, 
-                rgba(12, 26, 58, 0.95) 50%, 
-                rgba(26, 35, 126, 0.95) 100%);
-        }
-        
-        /* Tarjetas ultra modernas con efecto vidrio mejorado */
-        .glass-card {
-            background:
-                linear-gradient(180deg, rgba(28, 43, 74, 0.82) 0%, rgba(15, 26, 46, 0.88) 100%);
-            backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px);
-            border-radius: 24px;
-            border: 1px solid var(--panel-border);
-            box-shadow:
-                0 24px 64px rgba(0, 0, 0, 0.34),
-                inset 0 1px 0 rgba(244, 241, 235, 0.08);
-            padding: 2rem;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+  /* ── Toast ── */
+  .toast-stack { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; font-size: 13px; display: flex; align-items: center; gap: 10px;
+    animation: toast-in .25s ease; min-width: 240px; }
+  @keyframes toast-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error   { border-left: 3px solid var(--red); }
 
-        .glass-card[data-tilt-panel],
-        .stat-card,
-        .machine-card,
-        .hero-sculpture {
-            will-change: transform;
-            backface-visibility: hidden;
-            transform-origin: center;
-        }
-        
-        .glass-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(59, 130, 246, 0.6), 
-                transparent);
-        }
-        
-        .glass-card:hover {
-            transform: translateY(-8px) rotateX(3deg);
-            box-shadow: 
-                0 35px 80px rgba(0, 0, 0, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15);
-            border-color: rgba(59, 130, 246, 0.4);
-        }
-        
-        /* Tarjetas de estadísticas premium */
-        .stat-card {
-            background: linear-gradient(145deg,
-                rgba(36, 53, 85, 0.86),
-                rgba(20, 33, 56, 0.92));
-            border-radius: 20px;
-            padding: 1.75rem;
-            border: 1px solid rgba(244, 241, 235, 0.11);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            transform-style: preserve-3d;
-        }
-        
-        .stat-card::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, 
-                transparent 0%, 
-                rgba(255, 255, 255, 0.05) 50%, 
-                transparent 100%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-6px) rotateX(5deg) rotateY(-4deg);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-        }
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .kpi-row .kpi-card:last-child { grid-column: span 2; }
+    .topbar-right .clock { display: none; }
+  }
+  @media (max-width: 500px) {
+    .kpi-row { grid-template-columns: 1fr; }
+    .kpi-row .kpi-card:last-child { grid-column: span 1; }
+    .page { padding: 16px 14px; }
+  }
 
-        .stat-progress {
-            margin-top: 1rem;
-        }
+  /* ── Skeleton loader ── */
+  .skeleton { background: linear-gradient(90deg, var(--surface2) 25%, #1a2535 50%, var(--surface2) 75%);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-        .stat-progress-track {
-            width: 100%;
-            height: 8px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-        }
-
-        .stat-progress-bar {
-            height: 100%;
-            width: 0;
-            border-radius: inherit;
-            transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-            box-shadow: 0 0 16px currentColor;
-        }
-
-        .stat-progress-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 0.5rem;
-            font-size: 0.72rem;
-            color: var(--text-soft);
-        }
-        
-        .stat-card:hover::after {
-            opacity: 1;
-        }
-        
-        /* Botones modernos */
-        .btn-modern {
-            background: linear-gradient(135deg, var(--navy-m), #2d4470);
-            color: white;
-            border: 1px solid rgba(244, 241, 235, 0.16);
-            padding: 1rem 2rem;
-            border-radius: 12px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            box-shadow: 0 12px 30px rgba(15, 26, 46, 0.34);
-        }
-        
-        .btn-modern::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.2), 
-                transparent);
-            transition: left 0.6s ease;
-        }
-        
-        .btn-modern:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
-        }
-        
-        .btn-modern:hover::before {
-            left: 100%;
-        }
-        
-        /* Badges elegantes */
-        .badge-modern {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-        
-        .badge-modern:hover {
-            transform: translateY(-1px);
-            background: rgba(255, 255, 255, 0.15);
-        }
-        
-        /* Tarjetas de máquinas ultra modernas */
-        .machine-card {
-            background: linear-gradient(180deg, rgba(18, 30, 52, 0.9) 0%, rgba(10, 20, 37, 0.96) 100%);
-            border-radius: 20px;
-            padding: 1.75rem;
-            border: 1px solid rgba(244, 241, 235, 0.1);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
-            transform-style: preserve-3d;
-        }
-        
-        .machine-card:hover {
-            transform: translateY(-10px) rotateX(7deg) rotateY(-7deg);
-            border-color: rgba(59, 130, 246, 0.4);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-        }
-
-        .tilt-active {
-            transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-        }
-        
-        .machine-ring {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            width: 74px;
-            height: 74px;
-            display: grid;
-            place-items: center;
-            transform: translateZ(18px);
-        }
-
-        .machine-ring svg {
-            width: 100%;
-            height: 100%;
-            transform: rotate(-90deg);
-            filter: drop-shadow(0 10px 20px rgba(59, 130, 246, 0.28));
-        }
-
-        .machine-ring-track {
-            fill: none;
-            stroke: rgba(255, 255, 255, 0.08);
-            stroke-width: 8;
-        }
-
-        .machine-ring-value {
-            fill: none;
-            stroke: url(#ringGradient);
-            stroke-width: 8;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.9s ease;
-        }
-
-        .machine-ring-label {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            color: white;
-            font-weight: 700;
-            font-size: 0.85rem;
-        }
-
-        .machine-ring-label small {
-            font-size: 0.58rem;
-            color: rgba(255, 255, 255, 0.6);
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-        }
-        
-        /* Animaciones mejoradas */
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
-            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); }
-        }
-        
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        .animate-glow {
-            animation: glow 2s ease-in-out infinite;
-        }
-        
-        /* Tablas elegantes */
-        .table-modern {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .table-modern th {
-            background: rgba(59, 130, 246, 0.1);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1.25rem;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 1px;
-        }
-        
-        .table-modern td {
-            padding: 1.25rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.8);
-            transition: all 0.3s ease;
-        }
-        
-        .table-modern tr:hover td {
-            background: rgba(59, 130, 246, 0.08);
-            color: white;
-        }
-        
-        /* Iconos premium */
-        .icon-premium {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.75rem;
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
-            margin-right: 1.5rem;
-        }
-        
-        /* Efecto de texto brillante */
-        .text-glow {
-            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-        }
-        
-        /* Líneas decorativas */
-        .decorative-line {
-            height: 2px;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(59, 130, 246, 0.6), 
-                transparent);
-            margin: 2rem 0;
-        }
-        
-        /* Cargador elegante */
-        .loader-modern {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(59, 130, 246, 0.1);
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-icon-spin {
-            display: inline-block;
-            transition: transform 0.25s ease;
-        }
-
-        .btn-icon-spin.spinning {
-            animation: spin 0.8s linear infinite;
-        }
-
-        .top-navbar {
-            position: sticky;
-            top: 1rem;
-            z-index: 25;
-            margin-bottom: 1.5rem;
-            padding: 0.75rem;
-            border-radius: 999px;
-            background: rgba(15, 26, 46, 0.78);
-            border: 1px solid rgba(244, 241, 235, 0.09);
-            backdrop-filter: blur(18px);
-            box-shadow: 0 12px 38px rgba(2, 8, 23, 0.35);
-        }
-
-        .top-navbar-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .top-nav-links {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .top-nav-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45rem;
-            padding: 0.75rem 1.1rem;
-            border-radius: 999px;
-            color: rgba(255, 255, 255, 0.68);
-            font-size: 0.84rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            border: 1px solid transparent;
-        }
-
-        .top-nav-link:hover,
-        .top-nav-link.active {
-            color: white;
-            background: linear-gradient(135deg, rgba(68, 93, 117, 0.42), rgba(244, 241, 235, 0.08));
-            border-color: rgba(244, 241, 235, 0.16);
-            box-shadow: 0 8px 24px rgba(15, 26, 46, 0.18);
-        }
-
-        .nav-pulse {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
-            box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45);
-            animation: pulseDot 2.2s infinite;
-        }
-
-        @keyframes pulseDot {
-            0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45); }
-            70% { box-shadow: 0 0 0 12px rgba(34, 211, 238, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
-        }
-
-        .hero-sculpture {
-            width: 180px;
-            height: 180px;
-            position: relative;
-            perspective: 1200px;
-            flex-shrink: 0;
-        }
-
-        .hero-cube {
-            position: absolute;
-            inset: 0;
-            transform-style: preserve-3d;
-            animation: spinCube 15s linear infinite;
-        }
-
-        .hero-face {
-            position: absolute;
-            inset: 24px;
-            border-radius: 28px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.08));
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(14px);
-        }
-
-        .hero-face:nth-child(1) { transform: translateZ(36px); }
-        .hero-face:nth-child(2) { transform: rotateY(90deg) translateZ(36px); }
-        .hero-face:nth-child(3) { transform: rotateX(90deg) translateZ(36px); }
-
-        .hero-core {
-            position: absolute;
-            inset: 58px;
-            border-radius: 999px;
-            background: radial-gradient(circle, rgba(96, 165, 250, 0.95), rgba(59, 130, 246, 0.15) 62%, transparent 75%);
-            filter: blur(2px);
-            box-shadow: 0 0 34px rgba(59, 130, 246, 0.5);
-        }
-
-        .hero-ring {
-            position: absolute;
-            inset: 22px;
-            border-radius: 999px;
-            border: 1px solid rgba(96, 165, 250, 0.24);
-            animation: rotateRing 12s linear infinite;
-        }
-
-        .hero-ring::before,
-        .hero-ring::after {
-            content: '';
-            position: absolute;
-            inset: 20%;
-            border-radius: inherit;
-            border: 1px dashed rgba(34, 211, 238, 0.24);
-        }
-
-        .hero-ring::after {
-            inset: 34%;
-            border-style: solid;
-            border-color: rgba(139, 92, 246, 0.22);
-            animation: rotateRing 9s linear infinite reverse;
-        }
-
-        @keyframes spinCube {
-            0% { transform: rotateX(-16deg) rotateY(0deg); }
-            100% { transform: rotateX(-16deg) rotateY(360deg); }
-        }
-
-        @keyframes rotateRing {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .section-reveal {
-            opacity: 0;
-            transform: translateY(24px) scale(0.985);
-            transition: opacity 0.7s ease, transform 0.7s ease;
-        }
-
-        .section-reveal.is-visible {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-
-        .skeleton {
-            position: relative;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 18px;
-        }
-
-        .skeleton::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            transform: translateX(-100%);
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
-            animation: skeletonShimmer 1.6s infinite;
-        }
-
-        @keyframes skeletonShimmer {
-            100% { transform: translateX(100%); }
-        }
-
-        .skeleton-line {
-            height: 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .toast-stack {
-            position: fixed;
-            top: 1.25rem;
-            right: 1.25rem;
-            z-index: 70;
-            display: flex;
-            flex-direction: column;
-            gap: 0.85rem;
-            pointer-events: none;
-        }
-
-        .toast-card {
-            min-width: 300px;
-            max-width: 360px;
-            padding: 1rem 1.1rem;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(7, 16, 35, 0.78);
-            box-shadow: 0 16px 44px rgba(2, 8, 23, 0.35);
-            backdrop-filter: blur(20px);
-            pointer-events: auto;
-            transform: translateX(18px) scale(0.96);
-            opacity: 0;
-            transition: opacity 0.35s ease, transform 0.35s ease;
-        }
-
-        .toast-card.show {
-            opacity: 1;
-            transform: translateX(0) scale(1);
-        }
-
-        .toast-card.hide {
-            opacity: 0;
-            transform: translateX(22px) scale(0.94);
-        }
-
-        .toast-accent {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
-            display: grid;
-            place-items: center;
-            flex-shrink: 0;
-        }
-        
-        /* Scrollbar moderno */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            border-radius: 10px;
-            transition: all 0.3s ease;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        }
-        
-        /* Responsive mejorado */
-        @media (max-width: 768px) {
-            .glass-card {
-                padding: 1.5rem;
-                border-radius: 20px;
-            }
-            
-            .stat-card {
-                padding: 1.25rem;
-            }
-            
-            .icon-premium {
-                width: 48px;
-                height: 48px;
-                font-size: 1.25rem;
-                margin-right: 1rem;
-            }
-
-            .top-navbar {
-                top: 0.5rem;
-                border-radius: 24px;
-            }
-
-            .hero-sculpture {
-                width: 140px;
-                height: 140px;
-                margin: 0 auto;
-            }
-        }
-        
-        /* Efecto de onda en botones */
-        .wave-effect {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .wave-effect::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 5px;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.4);
-            opacity: 0;
-            border-radius: 100%;
-            transform: scale(1, 1) translate(-50%);
-            transform-origin: 50% 50%;
-        }
-        
-        .wave-effect:focus:not(:active)::after {
-            animation: ripple 1s ease-out;
-        }
-        
-        @keyframes ripple {
-            0% {
-                transform: scale(0, 0);
-                opacity: 0.5;
-            }
-            100% {
-                transform: scale(50, 50);
-                opacity: 0;
-            }
-        }
-        
-        /* Efecto de brillo en bordes */
-        .border-glow {
-            position: relative;
-        }
-        
-        .border-glow::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(45deg, #3b82f6, #2563eb, #3b82f6);
-            border-radius: inherit;
-            z-index: -1;
-            filter: blur(10px);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .border-glow:hover::before {
-            opacity: 0.4;
-        }
-    </style>
+  /* ── Counter animation ── */
+  .counting { animation: flash .4s ease; }
+  @keyframes flash { 0%,100%{color:inherit} 50%{color:var(--green)} }
+</style>
 </head>
-<body class="text-white min-h-screen overflow-x-hidden">
-    <div class="scene-backdrop">
-        <div class="scene-grid"></div>
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-        <div class="orb orb-4"></div>
+<body>
+
+<!-- ── Topbar ───────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="logo"><i class="fas fa-gamepad" style="color:#fff;font-size:13px"></i></div>
+    <span class="name">Inversiones Arcade</span>
+    <span style="color:var(--muted);font-size:13px;margin-left:4px">/ Portal Inversor</span>
+  </div>
+  <div class="topbar-right">
+    <div class="live-dot" title="Actualización en tiempo real activa"></div>
+    <span class="clock" id="clock">--:--:--</span>
+    <div class="user-chip">
+      <i class="fas fa-user-circle" style="color:var(--blue)"></i>
+      <span id="topbar-nombre">Cargando...</span>
+      <span class="code" id="topbar-codigo"></span>
     </div>
-    <div id="toastStack" class="toast-stack"></div>
-    
-    <!-- Fondo de partículas MUCHO MÁS VISIBLE -->
-    
-    <!-- Fondo de gradiente sutil -->
-    <div class="fixed inset-0 gradient-bg opacity-95 z-[-2]"></div>
-    
-    <!-- Layout elegante -->
-    <div class="flex min-h-screen">
-        
-        <!-- Sidebar moderna -->
-        <aside class="w-20 lg:w-64 bg-gray-900/80 backdrop-blur-xl flex flex-col py-8 lg:flex" style="box-shadow:6px 0 28px rgba(17,24,39,0.55),2px 0 6px rgba(17,24,39,0.35)">
-            <!-- Logo premium -->
-            <div class="px-4 lg:px-6 mb-10">
-                <div class="glass-card w-16 h-16 lg:w-20 lg:h-20 mx-auto lg:mx-0 flex items-center justify-center border-glow animate-glow">
-                    <div class="text-2xl lg:text-3xl">
-                        <i class="fas fa-user-tie text-blue-400"></i>
-                    </div>
-                </div>
-                <div class="hidden lg:block mt-4 text-center lg:text-left">
-                    <p class="text-sm text-gray-400">Panel Socio</p>
-                </div>
-            </div>
-            
-            <!-- Navegación principal -->
-            <nav class="flex-1 px-2 lg:px-4 space-y-2">
-                <a href="#dashboard" class="flex items-center p-3 lg:p-4 rounded-lg hover:bg-white/5 transition group">
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        <i class="fas fa-chart-pie text-lg group-hover:text-blue-400 text-gray-400"></i>
-                    </div>
-                    <span class="hidden lg:block ml-3 text-sm font-medium">Dashboard</span>
-                </a>
-                
-                <a href="#maquinas" class="flex items-center p-3 lg:p-4 rounded-lg hover:bg-white/5 transition group">
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        <i class="fas fa-cube text-lg group-hover:text-blue-400 text-gray-400"></i>
-                    </div>
-                    <span class="hidden lg:block ml-3 text-sm font-medium">Mis Inversiones</span>
-                </a>
-                
-                <a href="#ingresos" class="flex items-center p-3 lg:p-4 rounded-lg hover:bg-white/5 transition group">
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        <i class="fas fa-coins text-lg group-hover:text-blue-400 text-gray-400"></i>
-                    </div>
-                    <span class="hidden lg:block ml-3 text-sm font-medium">Ingresos</span>
-                </a>
-                
-                <a href="#pagos" class="flex items-center p-3 lg:p-4 rounded-lg hover:bg-white/5 transition group">
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        <i class="fas fa-credit-card text-lg group-hover:text-blue-400 text-gray-400"></i>
-                    </div>
-                    <span class="hidden lg:block ml-3 text-sm font-medium">Pagos</span>
-                </a>
-                
-                <a href="#documentos" class="flex items-center p-3 lg:p-4 rounded-lg hover:bg-white/5 transition group">
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        <i class="fas fa-file-contract text-lg group-hover:text-blue-400 text-gray-400"></i>
-                    </div>
-                    <span class="hidden lg:block ml-3 text-sm font-medium">Documentos</span>
-                </a>
-            </nav>
-            
-            <!-- Usuario y salir -->
-            <div class="px-4 lg:px-6 mt-auto space-y-4">
-                <div class="hidden lg:block">
-                    <div class="text-xs text-gray-400 mb-1">Conectado como</div>
-                    <div class="font-medium truncate" id="nombreUsuario">Cargando...</div>
-                </div>
-                
-                <a href="/logout" class="flex items-center p-3 lg:p-4 rounded-lg hover:bg-red-500/10 transition group">
-                    <div class="w-8 h-8 flex items-center justify-center">
-                        <i class="fas fa-sign-out-alt text-lg group-hover:text-red-400 text-gray-400"></i>
-                    </div>
-                    <span class="hidden lg:block ml-3 text-sm font-medium">Salir</span>
-                </a>
-            </div>
-        </aside>
-        
-        <!-- Contenido principal -->
-        <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
-            <div class="top-navbar">
-                <div class="top-navbar-inner">
-                    <div class="top-nav-links">
-                        <a href="#dashboard" class="top-nav-link active" data-section="dashboard"><span class="nav-pulse"></span>Resumen</a>
-                        <a href="#maquinas" class="top-nav-link" data-section="maquinas"><i class="fas fa-cube"></i>Inversiones</a>
-                        <a href="#ingresos" class="top-nav-link" data-section="ingresos"><i class="fas fa-chart-line"></i>Ingresos</a>
-                        <a href="#pagos" class="top-nav-link" data-section="pagos"><i class="fas fa-credit-card"></i>Pagos</a>
-                        <a href="#documentos" class="top-nav-link" data-section="documentos"><i class="fas fa-file-contract"></i>Documentos</a>
-                    </div>
-                    <div class="text-xs text-gray-400 flex items-center gap-2">
-                        <span class="nav-pulse"></span>
-                        Portal privado del inversionista
-                    </div>
-                </div>
-            </div>
+    <button class="btn-logout" onclick="location.href='/logout'">
+      <i class="fas fa-sign-out-alt"></i>
+    </button>
+  </div>
+</header>
 
-            <!-- Header ultra moderno -->
-                <div class="glass-card mb-8 animate-float section-reveal" data-tilt-panel="hero">
-                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
-                    <div class="mb-6 lg:mb-0">
-                        <div class="flex items-center mb-4">
-                            <div class="icon-premium">
-                                <i class="fas fa-user-tie"></i>
-                            </div>
-                            <div>
-                                <h1 class="text-3xl lg:text-4xl font-bold mb-2 text-glow">
-                                    Mi Panel de Socio
-                                </h1>
-                                <p class="text-gray-300">
-                                    <i class="fas fa-user mr-2 text-blue-400"></i>
-                                    Bienvenido, <strong class="text-white" id="nombreSocio">Cargando...</strong>
-                                    <span class="mx-4">•</span>
-                                    <i class="fas fa-id-card mr-2 text-blue-400"></i>
-                                    <span class="badge-modern" id="codigoSocio">SOC00000</span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center space-x-4">
-                        <div class="text-right hidden lg:block">
-                            <p class="text-sm text-gray-400">Estado de cuenta</p>
-                            <p class="text-xl font-bold text-green-400" id="estadoCuenta">Activo</p>
-                        </div>
-                        <button id="refreshButton" onclick="SocioPanel.actualizarTodo()" class="btn-modern wave-effect">
-                            <span id="refreshIcon" class="btn-icon-spin"><i class="fas fa-sync-alt mr-2"></i></span>Actualizar Todo
-                        </button>
-                    </div>
-                    <div class="hero-sculpture">
-                        <div class="hero-ring"></div>
-                        <div class="hero-cube">
-                            <div class="hero-face"></div>
-                            <div class="hero-face"></div>
-                            <div class="hero-face"></div>
-                            <div class="hero-core"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Información del socio -->
-            <div class="glass-card mb-8 section-reveal" data-tilt-panel="summary">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mr-4">
-                            <i class="fas fa-user text-white"></i>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-400">Socio</div>
-                            <div class="text-lg font-bold" id="nombreSocioInfo">Cargando...</div>
-                            <div class="text-xs text-gray-500 mt-1" id="tipoSocio">Inversionista</div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mr-4">
-                            <i class="fas fa-calendar text-white"></i>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-400">Miembro desde</div>
-                            <div class="text-lg font-bold" id="fechaRegistro">--/--/----</div>
-                            <div class="text-xs text-gray-500 mt-1" id="diasMiembro">0 días</div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center mr-4">
-                            <i class="fas fa-trophy text-white"></i>
-                        </div>
-                        <div>
-                            <div class="text-sm text-gray-400">Acceso</div>
-                            <div class="text-lg font-bold text-amber-100" id="nivelSocio">Portal privado</div>
-                            <div class="text-xs text-gray-500 mt-1" id="rankingSocio">Solo ves tu información financiera</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Estadísticas principales -->
-            <section id="dashboard" class="mb-8 section-reveal">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl lg:text-2xl font-bold">
-                        <i class="fas fa-chart-line mr-3 text-blue-400"></i>
-                        Resumen Financiero
-                    </h2>
-                    <select class="bg-transparent border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-400">
-                        <option value="mes">Este mes</option>
-                        <option value="trimestre">Este trimestre</option>
-                        <option value="anio">Este año</option>
-                    </select>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <!-- Total invertido -->
-                    <div class="stat-card border-l-blue-500" style="animation-delay: 0.1s">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <div class="text-sm text-gray-400 mb-1">Inversión Total</div>
-                                <div class="text-2xl lg:text-3xl font-bold text-white" id="totalInvertido">$0</div>
-                            </div>
-                            <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                <i class="fas fa-hand-holding-usd text-blue-400"></i>
-                            </div>
-                        </div>
-                        <div class="text-xs text-amber-100/80 flex items-center">
-                            <i class="fas fa-layer-group mr-1 text-xs text-amber-200"></i>
-                            <span id="rentabilidadTotal">0 inversiones activas</span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-progress-track">
-                                <div id="progressInvertido" class="stat-progress-bar text-blue-400" style="background: linear-gradient(90deg, rgba(96,165,250,0.95), rgba(34,211,238,0.85));"></div>
-                            </div>
-                            <div class="stat-progress-meta">
-                                <span>Capital activo</span>
-                                <span id="progressInvertidoLabel">0%</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Ingreso mensual -->
-                    <div class="stat-card border-l-green-500" style="animation-delay: 0.2s">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <div class="text-sm text-gray-400 mb-1">Participación del período</div>
-                                <div class="text-2xl lg:text-3xl font-bold text-white" id="ingresoMensual">$0</div>
-                            </div>
-                            <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                <i class="fas fa-money-bill-wave text-green-400"></i>
-                            </div>
-                        </div>
-                        <div class="text-xs flex items-center text-blue-100/80" id="tendenciaMensualContainer">
-                            <i class="fas fa-calendar-range mr-1 text-xs text-blue-200"></i>
-                            <span class="text-blue-100/90" id="tendenciaMensual">Período actual</span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-progress-track">
-                                <div id="progressIngreso" class="stat-progress-bar text-green-400" style="background: linear-gradient(90deg, rgba(52,211,153,0.95), rgba(16,185,129,0.82));"></div>
-                            </div>
-                            <div class="stat-progress-meta">
-                                <span>Momento mensual</span>
-                                <span id="progressIngresoLabel">0%</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- ROI -->
-                    <div class="stat-card border-l-purple-500" style="animation-delay: 0.3s">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <div class="text-sm text-gray-400 mb-1">ROI Anual</div>
-                                <div class="text-2xl lg:text-3xl font-bold text-white" id="roiTotal">0%</div>
-                            </div>
-                            <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                <i class="fas fa-percentage text-purple-400"></i>
-                            </div>
-                        </div>
-                        <div class="text-xs text-gray-300/80">
-                            <i class="fas fa-briefcase mr-1 text-amber-200"></i>
-                            <span id="rankingROI">Rendimiento acumulado de tu portafolio</span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-progress-track">
-                                <div id="progressRoi" class="stat-progress-bar text-purple-400" style="background: linear-gradient(90deg, rgba(167,139,250,0.96), rgba(139,92,246,0.82));"></div>
-                            </div>
-                            <div class="stat-progress-meta">
-                                <span>Rendimiento</span>
-                                <span id="progressRoiLabel">0%</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Cuota anual -->
-                    <div class="stat-card border-l-orange-500" style="animation-delay: 0.4s">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <div class="text-sm text-gray-400 mb-1">Cuota Anual</div>
-                                <div class="text-2xl lg:text-3xl font-bold text-white" id="cuotaAnual">$0</div>
-                            </div>
-                            <div class="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                                <i class="fas fa-calendar-alt text-orange-400"></i>
-                            </div>
-                        </div>
-                        <div class="text-xs" id="estadoCuotaContainer">
-                            <div class="flex items-center text-green-400">
-                                <i class="fas fa-check-circle mr-1"></i>
-                                <span id="estadoCuotaTexto">Al día</span>
-                            </div>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-progress-track">
-                                <div id="progressCuota" class="stat-progress-bar text-orange-400" style="background: linear-gradient(90deg, rgba(251,146,60,0.96), rgba(249,115,22,0.82));"></div>
-                            </div>
-                            <div class="stat-progress-meta">
-                                <span>Cobertura anual</span>
-                                <span id="progressCuotaLabel">0%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Gráficos -->
-            <section class="mb-8 section-reveal">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Evolución de ingresos -->
-                    <div class="glass-card">
-                        <div class="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 class="text-lg font-bold mb-2">
-                                    <i class="fas fa-chart-line mr-2 text-blue-400"></i>
-                                    Evolución de Ingresos
-                                </h3>
-                                <p class="text-sm text-gray-400">Últimos 12 meses</p>
-                            </div>
-                            <span class="badge-modern">Mensual</span>
-                        </div>
-                        <div class="chart-container" style="height: 300px;">
-                            <canvas id="chartIngresos"></canvas>
-                        </div>
-                    </div>
-                    
-                    <!-- Distribución por máquina -->
-                    <div class="glass-card">
-                        <div class="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 class="text-lg font-bold mb-2">
-                                    <i class="fas fa-pie-chart mr-2 text-green-400"></i>
-                                    Distribución de Inversión
-                                </h3>
-                                <p class="text-sm text-gray-400">Por máquina</p>
-                            </div>
-                            <span class="badge-modern" id="totalMaquinas">0 máquinas</span>
-                        </div>
-                        <div class="chart-container" style="height: 300px;">
-                            <canvas id="chartDistribucion"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Mis Inversiones -->
-            <section id="maquinas" class="mb-8 section-reveal">
-                <div class="glass-card">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8">
-                        <div class="mb-4 lg:mb-0">
-                            <h2 class="text-2xl font-bold mb-2">
-                                <i class="fas fa-cube mr-3 text-blue-400"></i>
-                                Mis Inversiones
-                            </h2>
-                            <p class="text-gray-400">Gestión de tus máquinas en propiedad</p>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <span class="badge-modern animate-glow">
-                                <i class="fas fa-percentage mr-2"></i>
-                                <span id="totalPropiedad">0%</span> propiedad total
-                            </span>
-                            <button class="btn-modern wave-effect">
-                                <i class="fas fa-plus mr-2"></i>Nueva Inversión
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="lista-maquinas">
-                        <!-- Las máquinas se cargarán aquí -->
-                        <div class="col-span-full">
-                            <div class="text-center py-12">
-                                <div class="loader-modern mx-auto mb-6"></div>
-                                <p class="text-gray-400">Cargando tus inversiones...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Historial de Ingresos -->
-            <section id="ingresos" class="mb-8 section-reveal">
-                <div class="glass-card">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8">
-                        <div class="mb-4 lg:mb-0">
-                            <h2 class="text-2xl font-bold mb-2">
-                                <i class="fas fa-history mr-3 text-purple-400"></i>
-                                Historial de Ingresos
-                            </h2>
-                            <p class="text-gray-400">Registro detallado de tus ganancias</p>
-                        </div>
-                        <div class="flex space-x-3">
-                            <input type="month" id="filtroMes" 
-                                   class="bg-transparent border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-400">
-                            <button class="btn-modern wave-effect text-sm px-4 py-2">
-                                <i class="fas fa-download mr-2"></i>Exportar
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="table-modern overflow-x-auto">
-                        <table class="w-full">
-                            <thead>
-                                <tr>
-                                    <th>Período</th>
-                                    <th>Máquina</th>
-                                    <th>Turnos</th>
-                                    <th>Ingreso Bruto</th>
-                                    <th>Tu Porcentaje</th>
-                                    <th>Ganancia Neta</th>
-                                    <th>Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabla-ingresos">
-                                <tr>
-                                    <td colspan="7" class="py-12 text-center">
-                                        <div class="loader-modern mx-auto mb-4"></div>
-                                        <p class="text-gray-400">Cargando historial de ingresos...</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="decorative-line"></div>
-                    
-                    <div class="flex flex-col lg:flex-row justify-between items-center">
-                        <div class="text-sm text-gray-400 mb-4 lg:mb-0">
-                            Mostrando <span class="text-white" id="ingresos-mostrados">0</span> de 
-                            <span class="text-white" id="ingresos-totales">0</span> registros
-                        </div>
-                        <div class="flex space-x-2">
-                            <button onclick="SocioPanel.cambiarPagina('ingresos', -1)" 
-                                    class="w-10 h-10 rounded-lg border border-gray-700 flex items-center justify-center hover:border-blue-400 hover:bg-blue-400/10 transition">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <button onclick="SocioPanel.cambiarPagina('ingresos', 1)" 
-                                    class="w-10 h-10 rounded-lg border border-gray-700 flex items-center justify-center hover:border-blue-400 hover:bg-blue-400/10 transition">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Próximos Pagos -->
-            <section id="pagos" class="mb-8 section-reveal">
-                <div class="glass-card">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8">
-                        <div class="mb-4 lg:mb-0">
-                            <h2 class="text-2xl font-bold mb-2">
-                                <i class="fas fa-credit-card mr-3 text-orange-400"></i>
-                                Estado de Pagos
-                            </h2>
-                            <p class="text-gray-400">Próximos vencimientos y pagos pendientes</p>
-                        </div>
-                        <div class="badge-modern">
-                            <i class="fas fa-circle-info mr-2"></i>Pagos coordinados por administración
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="lista-pagos">
-                        <!-- Los pagos se cargarán aquí -->
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Documentos -->
-            <section id="documentos" class="mb-8 section-reveal">
-                <div class="glass-card">
-                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8">
-                        <div class="mb-4 lg:mb-0">
-                            <h2 class="text-2xl font-bold mb-2">
-                                <i class="fas fa-file-contract mr-3 text-purple-400"></i>
-                                Documentos
-                            </h2>
-                            <p class="text-gray-400">Contratos y documentos legales</p>
-                        </div>
-                        <div class="badge-modern">
-                            <i class="fas fa-folder-open mr-2"></i>Centro documental en preparación
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Contrato de inversión -->
-                        <div class="machine-card">
-                            <div class="flex items-center mb-4">
-                                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mr-3">
-                                    <i class="fas fa-file-signature text-blue-400"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold">Contrato de Inversión</h4>
-                                    <p class="text-sm text-gray-400">Documento principal</p>
-                                </div>
-                            </div>
-                            <div class="w-full py-3 rounded-lg border border-gray-800 bg-white/5 text-gray-500 flex items-center justify-center">
-                                <i class="fas fa-hourglass-half mr-2"></i>Disponible próximamente
-                            </div>
-                        </div>
-                        
-                        <!-- Estado de cuenta -->
-                        <div class="machine-card">
-                            <div class="flex items-center mb-4">
-                                <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center mr-3">
-                                    <i class="fas fa-chart-pie text-green-400"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold">Estado de Cuenta</h4>
-                                    <p class="text-sm text-gray-400">Resumen financiero</p>
-                                </div>
-                            </div>
-                            <div class="w-full py-3 rounded-lg border border-gray-800 bg-white/5 text-gray-500 flex items-center justify-center">
-                                <i class="fas fa-hourglass-half mr-2"></i>Disponible próximamente
-                            </div>
-                        </div>
-                        
-                        <!-- Certificado de propiedad -->
-                        <div class="machine-card">
-                            <div class="flex items-center mb-4">
-                                <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mr-3">
-                                    <i class="fas fa-certificate text-purple-400"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold">Certificado de Propiedad</h4>
-                                    <p class="text-sm text-gray-400">Porcentajes de propiedad</p>
-                                </div>
-                            </div>
-                            <div class="w-full py-3 rounded-lg border border-gray-800 bg-white/5 text-gray-500 flex items-center justify-center">
-                                <i class="fas fa-hourglass-half mr-2"></i>Disponible próximamente
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Footer -->
-            <footer class="mt-12">
-                <div class="glass-card text-center">
-                    <p class="text-gray-400 mb-2">
-                        <i class="fas fa-shield-alt mr-2 text-blue-400"></i>
-                        Sistema de Gestión de Socios
-                    </p>
-                    <p class="text-sm text-gray-500">
-                        © Inversiones Arcade. Todos los derechos reservados.
-                        <span class="mx-2">•</span>
-                        Última actualización: <span id="ultimaActualizacion">--:--</span>
-                    </p>
-                </div>
-            </footer>
-        </main>
+<!-- ── Toast stack ──────────────────────────────────────────── -->
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- ── Page content ─────────────────────────────────────────── -->
+<div class="page" style="margin-top:84px">
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Capital Invertido</div>
+      <div class="kpi-value" id="kpi-capital">—</div>
+      <div class="kpi-sub" id="kpi-inversiones">— inversiones activas</div>
+      <i class="fas fa-coins kpi-icon"></i>
     </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">
+        Ganado Hoy
+        <span class="badge-live"><span class="live-dot" style="width:5px;height:5px"></span>EN VIVO</span>
+      </div>
+      <div class="kpi-value" id="kpi-hoy">—</div>
+      <div class="kpi-sub" id="kpi-hoy-sub">Actualizando cada 10s</div>
+      <i class="fas fa-bolt kpi-icon"></i>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">ROI Total</div>
+      <div class="kpi-value" id="kpi-roi">—</div>
+      <div class="kpi-sub" id="kpi-roi-sub">Desde inicio de inversión</div>
+      <i class="fas fa-chart-line kpi-icon"></i>
+    </div>
+  </div>
 
-    <script>
-        const SocioPanel = {
-    data: {
-        socio: null,
-        estadisticas: null,
-        maquinas: [],
-        ingresos: [],
-        pagos: [],
-        charts: {},
-        paginaIngresos: 1,
-        itemsPorPagina: 10
-    },
+  <!-- Main grid -->
+  <div class="main-grid">
 
-    init: function() {
-        console.log('🌟 Iniciando panel de socio premium...');
-        
-        // Configurar partículas
-        this.configurarParticulas();
-        
-        // Configurar fecha y hora
-        this.actualizarReloj();
-        setInterval(() => this.actualizarReloj(), 60000);
-        
-        // Inicializar gráficos
-        this.inicializarGraficos();
-        
-        // Cargar datos del socio
-        this.cargarDatosSocio();
-        
-        // Configurar navegación suave
-        this.configurarNavegacion();
-        
-        console.log('✅ Panel de socio inicializado');
-    },
+    <!-- Left: machines + history table -->
+    <div>
+      <div class="section-title"><i class="fas fa-cube" style="color:var(--blue)"></i> Mis Máquinas</div>
+      <div class="machines-grid" id="machinesGrid">
+        <div class="machine-card"><div class="skeleton" style="height:90px"></div></div>
+        <div class="machine-card"><div class="skeleton" style="height:90px"></div></div>
+      </div>
 
-    configurarParticulas: function() {
-        // El fondo ahora se resuelve con CSS animado.
-        return;
-    },
-
-    actualizarReloj: function() {
-        const ahora = new Date();
-        const fecha = ahora.toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
-        const hora = ahora.toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-        
-        document.getElementById('ultimaActualizacion').textContent = `${fecha} ${hora}`;
-    },
-
-    inicializarGraficos: function() {
-        // Gráfico de ingresos
-        const ctxIngresos = document.getElementById('chartIngresos').getContext('2d');
-        this.data.charts.ingresos = new Chart(ctxIngresos, {
-            type: 'line',
-            data: {
-                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-                datasets: [{
-                    label: 'Ingresos',
-                    data: Array(12).fill(0),
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#3b82f6',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: {
-                            color: 'rgba(255, 255, 255, 0.7)',
-                            callback: function(value) { return '$' + value.toLocaleString(); }
-                        }
-                    },
-                    x: {
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { color: 'rgba(255, 255, 255, 0.7)' }
-                    }
-                }
-            }
-        });
-
-        // Gráfico de distribución
-        const ctxDistribucion = document.getElementById('chartDistribucion').getContext('2d');
-        this.data.charts.distribucion = new Chart(ctxDistribucion, {
-            type: 'doughnut',
-            data: {
-                labels: ['Cargando...'],
-                datasets: [{
-                    data: [100],
-                    backgroundColor: ['rgba(59, 130, 246, 0.9)'],
-                    borderColor: ['rgba(59, 130, 246, 1)'],
-                    borderWidth: 2,
-                    hoverOffset: 20
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: 'rgba(255, 255, 255, 0.8)',
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    }
-                }
-            }
-        });
-    },
-
-    configurarNavegacion: function() {
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = this.getAttribute('href').substring(1);
-                const targetElement = document.getElementById(targetId);
-                
-                if (targetElement) {
-                    window.scrollTo({
-                        top: targetElement.offsetTop - 100,
-                        behavior: 'smooth'
-                    });
-                }
-            });
-        });
-    },
-
-    cargarDatosSocio: async function() {
-        try {
-            this.mostrarEstadosCarga();
-
-            const [socioRes, estadisticasRes, financieroRes] = await Promise.all([
-                fetch('/api/socio/actual'),
-                fetch('/api/socio/panel/estadisticas'),
-                fetch('/api/socio/panel/financiero'),
-            ]);
-
-            if (socioRes.ok && estadisticasRes.ok) {
-                const socioData        = await socioRes.json();
-                const estadisticasData = await estadisticasRes.json();
-
-                this.data.socio = socioData;
-                this.data.estadisticas = estadisticasData.estadisticas || {};
-                this.data.ingresosMensuales = estadisticasData.ingresos_mensuales || [];
-                this.data.financiero = financieroRes.ok ? await financieroRes.json() : null;
-
-                this.actualizarInfoSocio();
-                this.actualizarEstadisticasUI();
-
-                await Promise.all([
-                    this.cargarMaquinasSocio(),
-                    this.cargarIngresosSocio(),
-                    this.cargarPagosSocio(),
-                ]);
-
-                this.actualizarGraficos();
-                this.mostrarNotificacion('Datos actualizados correctamente', 'success');
-            } else {
-                throw new Error('Error al cargar datos');
-            }
-        } catch (error) {
-            console.error('❌ Error cargando datos socio:', error);
-            this.mostrarEstadoSinDatos(error.message || 'No pudimos cargar tu panel en este momento');
-        }
-    },
-
-    mostrarEstadosCarga: function() {
-        document.getElementById('totalInvertido').textContent = '--';
-        document.getElementById('ingresoMensual').textContent = '--';
-        document.getElementById('roiTotal').textContent = '--';
-        document.getElementById('cuotaAnual').textContent = '--';
-    },
-
-    actualizarInfoSocio: function() {
-        if (!this.data.socio) return;
-        
-        const socio = this.data.socio;
-        
-        // Actualizar información principal
-        document.getElementById('nombreSocio').textContent = socio.nombre || 'Socio';
-        document.getElementById('nombreSocioInfo').textContent = socio.nombre || 'Socio';
-        document.getElementById('nombreUsuario').textContent = socio.nombre || 'Socio';
-        document.getElementById('codigoSocio').textContent = socio.codigo_socio || 'SOC00000';
-        
-        // Fecha de registro
-        if (socio.fecha_inscripcion) {
-            const fechaRegistro = new Date(socio.fecha_inscripcion);
-            document.getElementById('fechaRegistro').textContent = 
-                fechaRegistro.toLocaleDateString('es-ES');
-            
-            const hoy = new Date();
-            const dias = Math.floor((hoy - fechaRegistro) / (1000 * 60 * 60 * 24));
-            document.getElementById('diasMiembro').textContent = `${dias} días`;
-        }
-        
-        // Estado de cuenta
-        const estadoElement = document.getElementById('estadoCuenta');
-        const estado = socio.estado || 'activo';
-        
-        switch(estado) {
-            case 'activo':
-                estadoElement.className = 'text-xl font-bold text-green-400';
-                estadoElement.textContent = 'Activo';
-                break;
-            case 'pendiente_pago':
-                estadoElement.className = 'text-xl font-bold text-yellow-400';
-                estadoElement.textContent = 'Pendiente';
-                break;
-            default:
-                estadoElement.className = 'text-xl font-bold text-red-400';
-                estadoElement.textContent = 'Inactivo';
-                break;
-        }
-    },
-
-    actualizarEstadisticasUI: function() {
-        const stats = this.data.estadisticas || {};
-        const fin = this.data.financiero;
-        const socio = this.data.socio || {};
-
-        const totalInvertido = fin?.inversion_total ?? stats.total_invertido ?? 0;
-        const inversionesActivas = fin?.financiero?.maquinas ?? stats.inversiones_activas ?? 0;
-        const participacion = fin?.financiero?.participacion ?? stats.ingreso_mensual ?? 0;
-        const roi = fin?.roi ?? stats.roi_total ?? 0;
-
-        document.getElementById('totalInvertido').textContent = this.formatearMoneda(totalInvertido);
-        document.getElementById('ingresoMensual').textContent = this.formatearMoneda(participacion);
-        document.getElementById('roiTotal').textContent = `${(+roi).toFixed(1)}%`;
-
-        const rentEl = document.getElementById('rentabilidadTotal');
-        if (rentEl) {
-            rentEl.textContent = `${inversionesActivas} inversion${inversionesActivas === 1 ? '' : 'es'} activa${inversionesActivas === 1 ? '' : 's'}`;
-        }
-
-        const tendenciaContainer = document.getElementById('tendenciaMensualContainer');
-        const tendenciaText = document.getElementById('tendenciaMensual');
-        if (tendenciaContainer && tendenciaText) {
-            tendenciaContainer.className = 'text-xs flex items-center text-blue-100/80';
-            tendenciaText.textContent = fin?.periodo ? `${fin.periodo.fecha_inicio} a ${fin.periodo.fecha_fin}` : 'Período actual';
-        }
-
-        const rankingEl = document.getElementById('rankingROI');
-        if (rankingEl) {
-            rankingEl.textContent = inversionesActivas > 0
-                ? `${inversionesActivas} máquina${inversionesActivas === 1 ? '' : 's'} activa${inversionesActivas === 1 ? '' : 's'}`
-                : 'Rendimiento acumulado de tu portafolio';
-        }
-
-        document.getElementById('cuotaAnual').textContent = this.formatearMoneda(socio.cuota_anual || 0);
-
-        const tipoSocio = document.getElementById('tipoSocio');
-        if (tipoSocio) {
-            tipoSocio.textContent = 'Portal privado para inversionistas';
-        }
-
-        const nivelSocio = document.getElementById('nivelSocio');
-        const rankingSocio = document.getElementById('rankingSocio');
-        if (nivelSocio) {
-            nivelSocio.textContent = socio.estado === 'pendiente_pago' ? 'Portal con seguimiento' : 'Portal activo';
-        }
-        if (rankingSocio) {
-            rankingSocio.textContent = 'Solo ves tu información financiera y pagos';
-        }
-
-        const estadoCuotaElement = document.getElementById('estadoCuotaContainer');
-        if (estadoCuotaElement) {
-            const estadoCuota = stats.estado_cuota || 'al_dia';
-            const mapaEstado = {
-                al_dia: `<div class="flex items-center text-green-400"><i class="fas fa-check-circle mr-1"></i><span>Al día</span></div>`,
-                pendiente: `<div class="flex items-center text-yellow-400"><i class="fas fa-clock mr-1"></i><span>Pendiente</span></div>`,
-                vencido: `<div class="flex items-center text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i><span>Vencido</span></div>`,
-            };
-            estadoCuotaElement.innerHTML = mapaEstado[estadoCuota] || mapaEstado['al_dia'];
-        }
-    },
-
-    cargarMaquinasSocio: async function() {
-        try {
-            const response = await fetch('/api/socio/panel/maquinas');
-            
-            if (response.ok) {
-                this.data.maquinas = await response.json();
-                this.renderizarMaquinas();
-                
-                // Actualizar total de propiedad
-                const totalPropiedad = this.data.maquinas.reduce((sum, maquina) => 
-                    sum + (parseFloat(maquina.porcentaje_propiedad) || 0), 0);
-                document.getElementById('totalPropiedad').textContent = 
-                    `${totalPropiedad.toFixed(1)}%`;
-                document.getElementById('totalMaquinas').textContent = 
-                    `${this.data.maquinas.length} máquina${this.data.maquinas.length !== 1 ? 's' : ''}`;
-            }
-        } catch (error) {
-            console.error('Error cargando máquinas:', error);
-        }
-    },
-
-    renderizarMaquinas: function() {
-        const container = document.getElementById('lista-maquinas');
-        
-        if (!this.data.maquinas || this.data.maquinas.length === 0) {
-            container.innerHTML = `
-                <div class="col-span-full">
-                    <div class="text-center py-12">
-                        <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <i class="fas fa-cube text-2xl text-blue-400"></i>
-                        </div>
-                        <h3 class="text-lg font-bold mb-2">No tienes inversiones activas</h3>
-                        <p class="text-gray-400 mb-4">Comienza tu primera inversión hoy mismo</p>
-                        <button class="btn-modern" onclick="SocioPanel.solicitarInversion()">
-                            <i class="fas fa-plus mr-2"></i>Solicitar Inversión
-                        </button>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-        
-        let html = '';
-        this.data.maquinas.forEach((maquina, index) => {
-            const rentabilidad = maquina.rentabilidad || 0;
-            const colorRentabilidad = rentabilidad >= 0 ? 'text-green-400' : 'text-red-400';
-            const iconoRentabilidad = rentabilidad >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
-            
-            html += `
-                <div class="machine-card" style="animation-delay: ${index * 0.1}s">
-                    <div class="machine-percentage">
-                        ${parseFloat(maquina.porcentaje_propiedad).toFixed(1)}%
-                    </div>
-                    
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mr-3">
-                            <i class="fas fa-cube text-blue-400"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-bold truncate">${maquina.nombre}</h4>
-                            <p class="text-sm text-gray-400 truncate">${maquina.tipo || 'Máquina'}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-3 mb-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-400">Inversión</span>
-                            <span class="font-medium">${this.formatearMoneda(maquina.inversion_inicial || 0)}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-400">Rentabilidad</span>
-                            <span class="font-medium ${colorRentabilidad}">
-                                <i class="fas ${iconoRentabilidad} mr-1 text-xs"></i>
-                                ${Math.abs(rentabilidad).toFixed(1)}%
-                            </span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-400">Local</span>
-                            <span class="font-medium text-blue-400 truncate">${maquina.ubicacion || '—'}</span>
-                        </div>
-                    </div>
-                    
-                    <button onclick="SocioPanel.verDetalleMaquina(${maquina.id})" 
-                            class="w-full py-2 rounded-lg border border-gray-700 hover:border-blue-400 hover:bg-blue-400/10 transition flex items-center justify-center">
-                        <i class="fas fa-chart-bar mr-2"></i>Ver Detalles
-                    </button>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-    },
-
-    verDetalleMaquina: function(maquinaId) {
-        this.mostrarNotificacion('El detalle completo ya está reflejado en el resumen financiero e ingresos.', 'info');
-    },
-
-    solicitarInversion: function() {
-        this.mostrarNotificacion('Las nuevas inversiones se coordinan con administración.', 'info');
-    },
-
-    cargarIngresosSocio: async function() {
-        try {
-            const response = await fetch(`/api/socio/panel/ingresos?pagina=${this.data.paginaIngresos}&por_pagina=${this.data.itemsPorPagina}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.data.ingresos = data.ingresos || [];
-                this.renderizarIngresos();
-                
-                document.getElementById('ingresos-mostrados').textContent = this.data.ingresos.length;
-                document.getElementById('ingresos-totales').textContent = data.total || 0;
-            }
-        } catch (error) {
-            console.error('Error cargando ingresos:', error);
-        }
-    },
-
-    renderizarIngresos: function() {
-        const container = document.getElementById('tabla-ingresos');
-        
-        if (!this.data.ingresos || this.data.ingresos.length === 0) {
-            container.innerHTML = `
-                <tr>
-                    <td colspan="7" class="py-12 text-center">
-                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <i class="fas fa-coins text-xl text-blue-400"></i>
-                        </div>
-                        <p class="text-gray-400">No hay ingresos registrados este período</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        let html = '';
-        this.data.ingresos.forEach((ingreso) => {
-            const fecha = new Date(ingreso.periodo + '-01');
-            const mes = fecha.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-            const estado = ingreso.liquidado ? 'Liquidado' : 'Pendiente';
-            const estadoClass = ingreso.liquidado ? 'text-green-400' : 'text-yellow-400';
-            
-            html += `
-                <tr class="hover:bg-white/5 transition">
-                    <td class="py-4">
-                        <div class="font-medium">${mes}</div>
-                        <div class="text-xs text-gray-400">${fecha.toLocaleDateString('es-ES')}</div>
-                    </td>
-                    <td class="py-4">
-                        ${ingreso.maquina_nombre || 'Todas'}
-                    </td>
-                    <td class="py-4">
-                        <span class="badge-modern text-xs">${ingreso.turnos_totales || 0}</span>
-                    </td>
-                    <td class="py-4 font-medium">
-                        ${this.formatearMoneda(ingreso.ingresos_brutos || 0)}
-                    </td>
-                    <td class="py-4">
-                        <span class="badge-modern text-xs">${parseFloat(ingreso.porcentaje_propiedad || 0).toFixed(1)}%</span>
-                    </td>
-                    <td class="py-4 font-bold text-blue-400">
-                        ${this.formatearMoneda(ingreso.ganancia_neta || 0)}
-                    </td>
-                    <td class="py-4">
-                        <span class="${estadoClass} text-sm">
-                            ${estado}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        container.innerHTML = html;
-    },
-
-    cambiarPagina: function(tipo, direccion) {
-        if (tipo === 'ingresos') {
-            this.data.paginaIngresos += direccion;
-            if (this.data.paginaIngresos < 1) this.data.paginaIngresos = 1;
-            this.cargarIngresosSocio();
-        }
-    },
-
-    cargarPagosSocio: async function() {
-        try {
-            const response = await fetch('/api/socio/panel/pagos');
-            
-            if (response.ok) {
-                this.data.pagos = await response.json();
-                this.renderizarPagos();
-            }
-        } catch (error) {
-            console.error('Error cargando pagos:', error);
-        }
-    },
-
-    renderizarPagos: function() {
-        const container = document.getElementById('lista-pagos');
-
-        if (!this.data.pagos || this.data.pagos.length === 0) {
-            container.innerHTML = `
-                <div class="col-span-full">
-                    <div class="text-center py-12">
-                        <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center">
-                            <i class="fas fa-check-circle text-2xl text-green-400"></i>
-                        </div>
-                        <h3 class="text-lg font-bold mb-2">No hay pagos pendientes</h3>
-                        <p class="text-gray-400">Tu cuenta está al día y no tiene vencimientos abiertos.</p>
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        let html = '';
-        this.data.pagos.forEach((pago, index) => {
-            const fechaVencimiento = new Date(pago.fecha_vencimiento);
-            const hoy = new Date();
-            const diasRestantes = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
-
-            let estadoColor = 'text-green-400';
-            let estadoIcon = 'fa-check-circle';
-            let estadoBg = 'from-green-500/20 to-teal-500/20';
-
-            if (diasRestantes < 0) {
-                estadoColor = 'text-red-400';
-                estadoIcon = 'fa-exclamation-triangle';
-                estadoBg = 'from-red-500/20 to-orange-500/20';
-            } else if (diasRestantes < 7) {
-                estadoColor = 'text-yellow-400';
-                estadoIcon = 'fa-clock';
-                estadoBg = 'from-yellow-500/20 to-orange-500/20';
-            }
-
-            html += `
-                <div class="machine-card" style="animation-delay: ${index * 0.1}s">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br ${estadoBg} flex items-center justify-center mr-3">
-                                <i class="fas ${estadoIcon} ${estadoColor}"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold">${pago.tipo_pago.replace('_', ' ')}</h4>
-                                <p class="text-sm text-gray-400">Vence: ${fechaVencimiento.toLocaleDateString('es-ES')}</p>
-                            </div>
-                        </div>
-                        <span class="badge-modern text-xs">${pago.estado || 'pendiente'}</span>
-                    </div>
-
-                    <div class="mb-5 space-y-2">
-                        <div class="text-2xl font-bold text-blue-200">${this.formatearMoneda(pago.monto)}</div>
-                        <div class="text-sm ${estadoColor}">
-                            <i class="fas ${estadoIcon} mr-1"></i>
-                            ${diasRestantes < 0 ? 'Vencido' : diasRestantes < 7 ? `Vence en ${diasRestantes} días` : 'Al día'}
-                        </div>
-                        <div class="text-xs text-gray-400">${pago.comprobante ? 'Comprobante registrado' : 'Pendiente de comprobante'}</div>
-                    </div>
-
-                    <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
-                        <i class="fas fa-circle-info mr-2 text-blue-200"></i>
-                        Este pago se coordina con administración y luego se refleja aquí con su comprobante.
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-    },
-
-    realizarPagoEspecifico: function(pagoId) {
-        this.mostrarNotificacion('Por ahora los pagos se coordinan con administración.', 'info');
-    },
-
-    realizarPago: function() {
-        this.mostrarNotificacion('Por ahora los pagos se coordinan con administración.', 'info');
-    },
-
-    actualizarGraficos: function() {
-        const fin = this.data.financiero;
-
-        // Gráfico de evolución — usa datos reales del financiero
-        const evolucion = fin?.evolucion || [];
-        if (evolucion.length && this.data.charts.ingresos) {
-            this.data.charts.ingresos.data.labels = evolucion.map(e => e.label);
-            this.data.charts.ingresos.data.datasets[0].data = evolucion.map(e => e.participacion);
-            this.data.charts.ingresos.update();
-        } else if (this.data.ingresosMensuales?.length && this.data.charts.ingresos) {
-            this.data.charts.ingresos.data.datasets[0].data = this.data.ingresosMensuales;
-            this.data.charts.ingresos.update();
-        }
-
-        // Gráfico de distribución por máquina
-        if (this.data.maquinas?.length && this.data.charts.distribucion) {
-            const colores = [
-                'rgba(59, 130, 246, 0.9)', 'rgba(16, 185, 129, 0.9)',
-                'rgba(139, 92, 246, 0.9)', 'rgba(245, 158, 11, 0.9)',
-                'rgba(239, 68, 68, 0.9)',
-            ];
-            this.data.charts.distribucion.data.labels = this.data.maquinas.map(m => m.nombre);
-            this.data.charts.distribucion.data.datasets[0].data = this.data.maquinas.map(m => m.inversion_inicial || 0);
-            this.data.charts.distribucion.data.datasets[0].backgroundColor = colores.slice(0, this.data.maquinas.length);
-            this.data.charts.distribucion.update();
-        }
-    },
-
-    actualizarTodo: function() {
-        this.mostrarNotificacion('Actualizando datos...', 'info');
-        this.cargarDatosSocio();
-    },
-
-    mostrarEstadoSinDatos: function(mensaje) {
-        this.data.socio = null;
-        this.data.estadisticas = {};
-        this.data.financiero = null;
-        this.data.maquinas = [];
-        this.data.ingresos = [];
-        this.data.pagos = [];
-
-        document.getElementById('nombreSocio').textContent = 'Portal de socio';
-        document.getElementById('nombreSocioInfo').textContent = 'Cuenta pendiente de validación';
-        document.getElementById('nombreUsuario').textContent = 'Acceso restringido';
-        document.getElementById('codigoSocio').textContent = 'Sin vínculo';
-        document.getElementById('fechaRegistro').textContent = '--/--/----';
-        document.getElementById('diasMiembro').textContent = 'Sin información';
-        document.getElementById('tipoSocio').textContent = 'Solicita a administración vincular tu usuario de socio';
-
-        const estadoElement = document.getElementById('estadoCuenta');
-        estadoElement.className = 'text-xl font-bold text-amber-200';
-        estadoElement.textContent = 'Revisar acceso';
-
-        this.actualizarEstadisticasUI();
-        this.renderizarMaquinas();
-        this.renderizarPagos();
-        document.getElementById('tabla-ingresos').innerHTML = `
+      <div class="section-title" style="margin-top:8px"><i class="fas fa-table" style="color:var(--blue)"></i> Resumen del Mes</div>
+      <div class="chart-panel" style="padding:0;overflow:hidden">
+        <table class="detail-table" id="detailTable">
+          <thead>
             <tr>
-                <td colspan="7" class="py-12 text-center text-gray-400">
-                    <i class="fas fa-circle-info mr-2 text-blue-200"></i>${mensaje}
-                </td>
+              <th>Máquina</th>
+              <th>Local</th>
+              <th>Turnos</th>
+              <th>Ingreso bruto</th>
+              <th>Tu parte</th>
+              <th>Propiedad</th>
             </tr>
-        `;
+          </thead>
+          <tbody id="detailBody">
+            <tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted)">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-        this.mostrarNotificacion(mensaje, 'warning');
-    },
+    <!-- Right: live feed + chart -->
+    <div>
+      <div class="section-title"><i class="fas fa-satellite-dish" style="color:var(--green)"></i> Actividad en Vivo</div>
+      <div class="feed-panel">
+        <div class="feed-header">
+          <span class="feed-header-title">
+            <i class="fas fa-circle" style="color:var(--green);font-size:8px"></i>
+            Feed en tiempo real
+          </span>
+          <span class="feed-count" id="feedCount">0 eventos hoy</span>
+        </div>
+        <div class="feed-list" id="feedList">
+          <div class="feed-empty"><i class="fas fa-satellite-dish" style="font-size:24px;margin-bottom:8px;display:block;opacity:.3"></i>Esperando actividad...</div>
+        </div>
+      </div>
 
-    formatearMoneda: function(valor) {
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(valor || 0);
-    },
+      <div class="section-title" style="margin-top:20px"><i class="fas fa-chart-bar" style="color:var(--amber)"></i> Últimos 6 Meses</div>
+      <div class="chart-panel">
+        <canvas id="chartIngresos" height="180"></canvas>
+      </div>
+    </div>
 
-    mostrarNotificacion: function(mensaje, tipo = 'info') {
-        const iconos = {
-            success: 'fa-check-circle',
-            error: 'fa-exclamation-triangle',
-            info: 'fa-info-circle',
-            warning: 'fa-exclamation-circle'
-        };
-        
-        const colores = {
-            success: 'border-green-500/30 bg-green-500/10',
-            error: 'border-red-500/30 bg-red-500/10',
-            info: 'border-blue-500/30 bg-blue-500/10',
-            warning: 'border-yellow-500/30 bg-yellow-500/10'
-        };
-        
-        const notificacion = document.createElement('div');
-        notificacion.className = `fixed top-4 right-4 z-50 animate-fade-in-up`;
-        notificacion.innerHTML = `
-            <div class="glass-card border-l-4 ${colores[tipo]} max-w-md">
-                <div class="flex items-center">
-                    <i class="fas ${iconos[tipo]} text-xl mr-3 ${tipo === 'success' ? 'text-green-400' : tipo === 'error' ? 'text-red-400' : tipo === 'warning' ? 'text-yellow-400' : 'text-blue-400'}"></i>
-                    <div>
-                        <p class="font-medium">${mensaje}</p>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(notificacion);
-        
-        setTimeout(() => {
-            notificacion.style.opacity = '0';
-            notificacion.style.transform = 'translateY(-10px)';
-            setTimeout(() => notificacion.remove(), 300);
-        }, 4000);
-    }
+  </div>
+</div>
+
+<script>
+// ── Estado global ────────────────────────────────────────────
+const S = {
+  lastId: 0,
+  feedCount: 0,
+  ganadoHoy: 0,
+  machines: {},   // id → {nombre, ubicacion, porcentaje}
+  chart: null,
+  pollTimer: null,
 };
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    SocioPanel.init();
-});
-    </script>
-    <script>
-    (function() {
-        const baseActualizarEstadisticasUI = SocioPanel.actualizarEstadisticasUI.bind(SocioPanel);
-        const baseCargarDatosSocio = SocioPanel.cargarDatosSocio.bind(SocioPanel);
+// ── Utilidades ───────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(n);
+const fmtPct = n => `${(+n).toFixed(1)}%`;
 
-        SocioPanel.setRefreshing = function(isRefreshing) {
-            const icon = document.getElementById('refreshIcon');
-            const button = document.getElementById('refreshButton');
-            if (!icon || !button) return;
-            icon.classList.toggle('spinning', isRefreshing);
-            button.disabled = isRefreshing;
-            button.classList.toggle('opacity-70', isRefreshing);
-        };
+function showToast(msg, type='info') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}" style="color:var(--${type==='success'?'green':'amber'})"></i> ${msg}`;
+  $('toastStack').prepend(t);
+  setTimeout(() => t.remove(), 4000);
+}
 
-        SocioPanel.configurarRevealObserver = function() {
-            if (this._revealObserver) {
-                this._revealObserver.disconnect();
-            }
+// ── Reloj ────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    const now = new Date();
+    $('clock').textContent = now.toLocaleTimeString('es-CO', {hour12:false});
+  }
+  tick();
+  setInterval(tick, 1000);
+}
 
-            this._revealObserver = new IntersectionObserver((entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('is-visible');
-                    }
-                });
-            }, { threshold: 0.14, rootMargin: '0px 0px -42px 0px' });
+// ── Animación de contador ─────────────────────────────────────
+function animateValue(el, from, to, duration=600) {
+  const start = performance.now();
+  const diff = to - from;
+  function step(ts) {
+    const p = Math.min((ts - start) / duration, 1);
+    const ease = p < .5 ? 2*p*p : -1+(4-2*p)*p;
+    el.textContent = fmt(from + diff * ease);
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = fmt(to);
+  }
+  requestAnimationFrame(step);
+}
 
-            document.querySelectorAll('.section-reveal').forEach((section) => {
-                this._revealObserver.observe(section);
-            });
-        };
+// ── Carga inicial de estadísticas ─────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch('/api/socio/panel/estadisticas');
+    if (!r.ok) return;
+    const d = await r.json();
 
-        SocioPanel.configurarScrollSpy = function() {
-            const links = Array.from(document.querySelectorAll('.top-nav-link'));
-            const sections = links
-                .map((link) => document.getElementById(link.dataset.section))
-                .filter(Boolean);
+    $('topbar-nombre').textContent = d.socio?.nombre || 'Socio';
+    $('topbar-codigo').textContent = d.socio?.codigo_socio || '';
 
-            if (this._scrollSpyObserver) {
-                this._scrollSpyObserver.disconnect();
-            }
+    $('kpi-capital').textContent = fmt(d.estadisticas?.total_invertido || 0);
+    $('kpi-inversiones').textContent = `${d.estadisticas?.inversiones_activas || 0} inversiones activas`;
 
-            const activate = (id) => {
-                links.forEach((link) => link.classList.toggle('active', link.dataset.section === id));
-            };
+    const roi = +(d.estadisticas?.roi_total || 0);
+    $('kpi-roi').textContent = fmtPct(roi);
+    $('kpi-roi').style.color = roi >= 0 ? 'var(--green)' : 'var(--red)';
+    $('kpi-roi-sub').textContent = roi >= 0 ? 'Retorno positivo ↑' : 'En recuperación';
+  } catch(e) { console.warn('stats error', e); }
+}
 
-            this._scrollSpyObserver = new IntersectionObserver((entries) => {
-                const activeEntry = entries
-                    .filter((entry) => entry.isIntersecting)
-                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+// ── Carga de máquinas ─────────────────────────────────────────
+async function loadMachines() {
+  try {
+    const r = await fetch('/api/socio/panel/maquinas');
+    if (!r.ok) return;
+    const maquinas = await r.json();
 
-                if (activeEntry) {
-                    activate(activeEntry.target.id);
-                }
-            }, { threshold: [0.22, 0.45, 0.65], rootMargin: '-18% 0px -45% 0px' });
+    maquinas.forEach(m => {
+      S.machines[m.id] = { nombre: m.nombre, ubicacion: m.ubicacion, porcentaje: m.porcentaje_propiedad };
+    });
 
-            sections.forEach((section) => this._scrollSpyObserver.observe(section));
-        };
+    renderMachines(maquinas, {});
 
-        SocioPanel.configurarNavegacion = function() {
-            document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-                anchor.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href').substring(1);
-                    const targetElement = document.getElementById(targetId);
-                    if (!targetElement) return;
+    // Cargar tabla de detalle
+    renderDetailTable(maquinas);
+  } catch(e) { console.warn('machines error', e); }
+}
 
-                    const offset = window.innerWidth < 1024 ? 84 : 108;
-                    window.scrollTo({
-                        top: targetElement.offsetTop - offset,
-                        behavior: 'smooth'
-                    });
-                });
-            });
-        };
+function renderMachines(maquinas, statusMap) {
+  if (!maquinas.length) {
+    $('machinesGrid').innerHTML = '<p style="color:var(--muted);font-size:13px">No hay máquinas registradas.</p>';
+    return;
+  }
+  $('machinesGrid').innerHTML = maquinas.map(m => {
+    const st = statusMap[m.id] || {};
+    const online = st.online ?? false;
+    const ganadoHoy = st.ganado_hoy ?? m.ingreso_mensual ?? 0;
+    return `
+    <div class="machine-card ${online ? 'online' : 'offline'}">
+      <div class="mc-header">
+        <div>
+          <div class="mc-name">${m.nombre}</div>
+          <div class="mc-location"><i class="fas fa-map-marker-alt" style="font-size:10px"></i> ${m.ubicacion || 'Sin local'}</div>
+        </div>
+        <div class="status-pill ${online ? 'online' : 'offline'}">
+          <span class="dot"></span>${online ? 'Online' : 'Offline'}
+        </div>
+      </div>
+      <div class="mc-stats">
+        <div class="mc-stat">
+          <div class="mc-stat-label">Hoy</div>
+          <div class="mc-stat-value green" id="mc-hoy-${m.id}">${fmt(ganadoHoy)}</div>
+        </div>
+        <div class="mc-stat">
+          <div class="mc-stat-label">Este mes</div>
+          <div class="mc-stat-value">${fmt(m.ingreso_mensual || 0)}</div>
+        </div>
+      </div>
+      <div class="mc-pct">Tu participación: ${fmtPct(m.porcentaje_propiedad)} · ${m.turnos_jugados || 0} turnos este mes</div>
+    </div>`;
+  }).join('');
+}
 
-        SocioPanel.configurarTilt3D = function() {
-            if (window.matchMedia('(pointer: coarse)').matches) return;
+function renderDetailTable(maquinas) {
+  if (!maquinas.length) {
+    $('detailBody').innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted)">Sin datos</td></tr>';
+    return;
+  }
+  $('detailBody').innerHTML = maquinas.map(m => `
+    <tr>
+      <td><strong>${m.nombre}</strong></td>
+      <td style="color:var(--muted)">${m.ubicacion || '—'}</td>
+      <td>${m.turnos_jugados || 0}</td>
+      <td>${fmt(m.ingreso_bruto || 0)}</td>
+      <td style="color:var(--green);font-weight:600">${fmt(m.ingreso_mensual || 0)}</td>
+      <td style="color:var(--muted)">${fmtPct(m.porcentaje_propiedad)}</td>
+    </tr>
+  `).join('');
+}
 
-            const surfaces = document.querySelectorAll('.stat-card, .machine-card, .hero-sculpture, .glass-card[data-tilt-panel]');
-            surfaces.forEach((surface) => {
-                if (surface.dataset.tiltBound === 'true') return;
-                surface.dataset.tiltBound = 'true';
+// ── Carga de gráfico ──────────────────────────────────────────
+async function loadChart() {
+  try {
+    const r2 = await fetch('/api/socio/panel/ingresos');
+    if (!r2.ok) return;
+    const d = await r2.json();
 
-                const getIntensity = () => {
-                    if (surface.classList.contains('hero-sculpture')) return 12;
-                    if (surface.classList.contains('machine-card')) return 10;
-                    if (surface.classList.contains('stat-card')) return 8;
-                    return 6;
-                };
+    const labels = d.map ? d.map(x => x.periodo || x.label || '') : [];
+    const values = d.map ? d.map(x => +(x.participacion || x.total || 0)) : [];
 
-                surface.addEventListener('pointermove', (event) => {
-                    const rect = surface.getBoundingClientRect();
-                    const px = (event.clientX - rect.left) / rect.width;
-                    const py = (event.clientY - rect.top) / rect.height;
-                    const intensity = getIntensity();
-                    const rotateY = (px - 0.5) * intensity;
-                    const rotateX = (0.5 - py) * intensity;
-                    const depth = surface.classList.contains('hero-sculpture') ? 18 : 12;
+    if (S.chart) S.chart.destroy();
+    S.chart = new Chart($('chartIngresos').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Tu participación',
+          data: values,
+          backgroundColor: 'rgba(59,130,246,.25)',
+          borderColor: 'rgba(59,130,246,.8)',
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: ctx => fmt(ctx.raw) }
+        }},
+        scales: {
+          x: { grid: { color: 'rgba(30,45,61,.6)' }, ticks: { color: '#64748b', font:{size:11} } },
+          y: { grid: { color: 'rgba(30,45,61,.6)' }, ticks: { color: '#64748b', font:{size:11},
+            callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0)+'K' : v)
+          }}
+        }
+      }
+    });
+  } catch(e) { console.warn('chart error', e); }
+}
 
-                    surface.classList.add('tilt-active');
-                    surface.style.transform = `perspective(1400px) translateY(-8px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(${depth}px)`;
-                    surface.style.boxShadow = `0 28px 60px rgba(8, 15, 38, 0.34), ${(px - 0.5) * -18}px ${(py - 0.5) * -18}px 46px rgba(96, 165, 250, 0.12)`;
-                });
+// ── Polling de actividad ──────────────────────────────────────
+async function pollActividad() {
+  try {
+    const url = '/api/socio/panel/actividad-reciente' + (S.lastId ? `?since_id=${S.lastId}` : '');
+    const r = await fetch(url);
+    if (!r.ok) return;
+    const d = await r.json();
 
-                surface.addEventListener('pointerleave', () => {
-                    surface.style.transform = '';
-                    surface.style.boxShadow = '';
-                    surface.classList.remove('tilt-active');
-                });
-            });
-        };
+    // Actualizar ganado hoy con animación
+    const nuevo = +(d.ganado_hoy || 0);
+    if (nuevo !== S.ganadoHoy) {
+      const el = $('kpi-hoy');
+      animateValue(el, S.ganadoHoy, nuevo);
+      S.ganadoHoy = nuevo;
+      el.classList.add('counting');
+      setTimeout(() => el.classList.remove('counting'), 500);
+    } else if (S.ganadoHoy === 0) {
+      $('kpi-hoy').textContent = fmt(0);
+    }
 
-        SocioPanel.crearSkeletonMaquinas = function() {
-            return Array.from({ length: 4 }, () => `
-                <div class="machine-card skeleton">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-2xl bg-white/5"></div>
-                            <div class="space-y-2">
-                                <div class="skeleton-line w-28"></div>
-                                <div class="skeleton-line w-20"></div>
-                            </div>
-                        </div>
-                        <div class="w-16 h-16 rounded-full bg-white/5"></div>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="skeleton-line w-full"></div>
-                        <div class="skeleton-line w-4/5"></div>
-                        <div class="skeleton-line w-3/5"></div>
-                    </div>
-                    <div class="mt-6 h-11 rounded-xl bg-white/5"></div>
-                </div>
-            `).join('');
-        };
+    // Actualizar estado online de máquinas y ganado hoy por máquina
+    if (d.maquinas_status) {
+      Object.entries(d.maquinas_status).forEach(([mid, st]) => {
+        const el = $(`mc-hoy-${mid}`);
+        if (el) el.textContent = fmt(st.ganado_hoy || 0);
+        // Actualizar dot de status
+        const card = el?.closest('.machine-card');
+        if (card) {
+          card.classList.toggle('online', !!st.online);
+          card.classList.toggle('offline', !st.online);
+          const pill = card.querySelector('.status-pill');
+          if (pill) {
+            pill.className = `status-pill ${st.online ? 'online':'offline'}`;
+            pill.innerHTML = `<span class="dot"></span>${st.online ? 'Online':'Offline'}`;
+          }
+        }
+      });
+    }
 
-        SocioPanel.crearSkeletonIngresos = function() {
-            return Array.from({ length: 5 }, () => `
-                <tr>
-                    <td colspan="7" class="py-3">
-                        <div class="skeleton h-14 rounded-2xl"></div>
-                    </td>
-                </tr>
-            `).join('');
-        };
+    // Agregar nuevos eventos al feed
+    if (d.actividad && d.actividad.length > 0) {
+      if (S.lastId === 0) {
+        // Primera carga: poblar feed con últimos eventos
+        renderFeedFull(d.actividad);
+      } else {
+        // Nuevos eventos: insertar al inicio
+        d.actividad.forEach(ev => prependFeedItem(ev));
+      }
+      S.lastId = d.last_id || S.lastId;
+      S.feedCount += (S.lastId === 0 ? 0 : d.actividad.length);
+      $('feedCount').textContent = `${countTodayEvents()} eventos hoy`;
+    } else if (S.lastId === 0) {
+      $('feedCount').textContent = '0 eventos hoy';
+    }
 
-        SocioPanel.crearSkeletonPagos = function() {
-            return Array.from({ length: 3 }, () => `
-                <div class="machine-card skeleton">
-                    <div class="space-y-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-2xl bg-white/5"></div>
-                            <div class="space-y-2 flex-1">
-                                <div class="skeleton-line w-32"></div>
-                                <div class="skeleton-line w-24"></div>
-                            </div>
-                        </div>
-                        <div class="skeleton-line w-28"></div>
-                        <div class="h-11 rounded-xl bg-white/5"></div>
-                    </div>
-                </div>
-            `).join('');
-        };
+  } catch(e) { console.warn('poll error', e); }
+}
 
-        SocioPanel.mostrarEstadosCarga = function() {
-            document.getElementById('totalInvertido').textContent = '--';
-            document.getElementById('ingresoMensual').textContent = '--';
-            document.getElementById('roiTotal').textContent = '--';
-            document.getElementById('cuotaAnual').textContent = '--';
-            document.getElementById('lista-maquinas').innerHTML = this.crearSkeletonMaquinas();
-            document.getElementById('tabla-ingresos').innerHTML = this.crearSkeletonIngresos();
-            document.getElementById('lista-pagos').innerHTML = this.crearSkeletonPagos();
+function countTodayEvents() {
+  return $('feedList').querySelectorAll('.feed-item').length;
+}
 
-            ['progressInvertido', 'progressIngreso', 'progressRoi', 'progressCuota'].forEach((id) => {
-                const el = document.getElementById(id);
-                if (el) el.style.width = '0%';
-            });
-        };
+function renderFeedFull(items) {
+  if (!items.length) return;
+  const list = $('feedList');
+  list.innerHTML = '';
+  items.forEach(ev => {
+    const el = makeFeedItem(ev);
+    list.appendChild(el);
+  });
+  S.lastId = items[0].id;
+}
 
-        SocioPanel.actualizarEstadisticasUI = function() {
-            baseActualizarEstadisticasUI();
+function prependFeedItem(ev) {
+  const list = $('feedList');
+  // Quitar empty state si existe
+  const empty = list.querySelector('.feed-empty');
+  if (empty) empty.remove();
+  list.prepend(makeFeedItem(ev));
+  // Limitar a 50 items
+  const items = list.querySelectorAll('.feed-item');
+  if (items.length > 50) items[items.length-1].remove();
+  showToast(`Turno en ${ev.maquina_nombre} — ${fmt(ev.participacion)}`, 'success');
+}
 
-            const stats = this.data.estadisticas || {};
-            const fin = this.data.financiero;
-            const totalInvertido = fin?.inversion_total ?? stats.total_invertido ?? 0;
-            const participacion = fin?.financiero?.participacion ?? stats.ingreso_mensual ?? 0;
-            const roi = fin?.roi ?? stats.roi_total ?? 0;
-            const inversionesActivas = fin?.financiero?.maquinas ?? stats.inversiones_activas ?? 0;
-            const cuotaEstado = stats.estado_cuota || 'al_dia';
-            const progressMap = [
-                { bar: 'progressInvertido', label: 'progressInvertidoLabel', value: inversionesActivas > 0 ? Math.min(inversionesActivas * 22, 100) : 0 },
-                { bar: 'progressIngreso', label: 'progressIngresoLabel', value: totalInvertido > 0 ? Math.min((participacion / totalInvertido) * 1000, 100) : 0 },
-                { bar: 'progressRoi', label: 'progressRoiLabel', value: Math.min(Math.abs(roi) * 3, 100) },
-                { bar: 'progressCuota', label: 'progressCuotaLabel', value: cuotaEstado === 'al_dia' ? 100 : cuotaEstado === 'pendiente' ? 58 : 22 }
-            ];
+function makeFeedItem(ev) {
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+  const hora = ev.usedAt ? new Date(ev.usedAt).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit',hour12:false}) : '--:--';
+  el.innerHTML = `
+    <div class="feed-icon"><i class="fas fa-gamepad" style="color:var(--blue)"></i></div>
+    <div class="feed-body">
+      <div class="feed-machine">${ev.maquina_nombre}</div>
+      <div class="feed-time">${hora}</div>
+    </div>
+    <div class="feed-amount">+${fmt(ev.participacion)}</div>
+  `;
+  return el;
+}
 
-            progressMap.forEach(({ bar, label, value }) => {
-                const barEl = document.getElementById(bar);
-                const labelEl = document.getElementById(label);
-                if (labelEl) labelEl.textContent = `${Math.round(value)}%`;
-                if (barEl) {
-                    requestAnimationFrame(() => {
-                        barEl.style.width = `${value}%`;
-                    });
-                }
-            });
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  startClock();
+  await Promise.all([loadStats(), loadMachines()]);
+  await pollActividad();  // primera carga
+  loadChart();
 
-            const rankingText = document.getElementById('rankingSocio');
-            const nivelText = document.getElementById('nivelSocio');
-            if (rankingText) rankingText.textContent = 'Solo ves tu portafolio, ingresos y pagos';
-            if (nivelText) nivelText.textContent = cuotaEstado === 'al_dia' ? 'Portal activo' : 'Portal con seguimiento';
-        };
+  // Poll cada 10 segundos
+  S.pollTimer = setInterval(pollActividad, 10_000);
+}
 
-        SocioPanel.crearAnilloPorcentaje = function(valor) {
-            const porcentaje = Math.max(0, Math.min(100, parseFloat(valor) || 0));
-            const radius = 30;
-            const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (porcentaje / 100) * circumference;
-
-            return `
-                <div class="machine-ring">
-                    <svg viewBox="0 0 80 80" aria-hidden="true">
-                        <defs>
-                            <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#67e8f9"></stop>
-                                <stop offset="45%" stop-color="#60a5fa"></stop>
-                                <stop offset="100%" stop-color="#8b5cf6"></stop>
-                            </linearGradient>
-                        </defs>
-                        <circle class="machine-ring-track" cx="40" cy="40" r="${radius}"></circle>
-                        <circle class="machine-ring-value" cx="40" cy="40" r="${radius}" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>
-                    </svg>
-                    <div class="machine-ring-label">
-                        <span>${porcentaje.toFixed(1)}%</span>
-                        <small>share</small>
-                    </div>
-                </div>
-            `;
-        };
-
-        SocioPanel.renderizarMaquinas = function() {
-            const container = document.getElementById('lista-maquinas');
-
-            if (!this.data.maquinas || this.data.maquinas.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full">
-                        <div class="text-center py-12">
-                            <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-blue-500/20 flex items-center justify-center">
-                                <i class="fas fa-cube text-2xl text-blue-400"></i>
-                            </div>
-                            <h3 class="text-lg font-bold mb-2">No tienes inversiones activas</h3>
-                            <p class="text-gray-400 mb-4">Cuando administración te asigne una participación, la verás aquí con su desempeño real.</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = this.data.maquinas.map((maquina, index) => {
-                const rentabilidad = maquina.rentabilidad || 0;
-                const colorRentabilidad = rentabilidad >= 0 ? 'text-green-400' : 'text-red-400';
-                const iconoRentabilidad = rentabilidad >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
-                const estado = (maquina.estado || 'activa').replace('_', ' ');
-
-                return `
-                    <div class="machine-card section-reveal" style="animation-delay:${index * 0.06}s">
-                        ${this.crearAnilloPorcentaje(maquina.porcentaje_propiedad)}
-                        <div class="flex items-center mb-5">
-                            <div class="w-11 h-11 rounded-2xl bg-blue-500/20 flex items-center justify-center mr-3">
-                                <i class="fas fa-cube text-blue-300"></i>
-                            </div>
-                            <div class="pr-16">
-                                <h4 class="font-bold truncate">${maquina.nombre}</h4>
-                                <p class="text-sm text-gray-400 truncate">${maquina.tipo || 'Máquina'} · ${maquina.ubicacion || 'Sin local'}</p>
-                            </div>
-                        </div>
-                        <div class="space-y-3 mb-5">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-400">Inversión</span>
-                                <span class="font-medium">${this.formatearMoneda(maquina.inversion_inicial || 0)}</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-400">Participación del mes</span>
-                                <span class="font-medium text-cyan-200">${this.formatearMoneda(maquina.ingreso_mensual || 0)}</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-400">Rentabilidad mensual</span>
-                                <span class="font-medium ${colorRentabilidad}">
-                                    <i class="fas ${iconoRentabilidad} mr-1 text-xs"></i>${Math.abs(rentabilidad).toFixed(1)}%
-                                </span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-400">Turnos jugados</span>
-                                <span class="font-medium text-amber-100">${maquina.turnos_jugados || 0}</span>
-                            </div>
-                        </div>
-                        <div class="stat-progress mb-5">
-                            <div class="stat-progress-track">
-                                <div class="stat-progress-bar" style="width:${Math.min(Math.abs(rentabilidad) * 3.5, 100)}%; background:linear-gradient(90deg, rgba(168,196,216,0.95), rgba(68,93,117,0.92));"></div>
-                            </div>
-                            <div class="stat-progress-meta">
-                                <span>Desempeño relativo de la inversión</span>
-                                <span>${Math.min(Math.abs(rentabilidad) * 3.5, 100).toFixed(0)}%</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-                            <span class="text-gray-400">Estado de la inversión</span>
-                            <span class="badge-modern text-xs">${estado}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            this.configurarRevealObserver();
-            this.configurarTilt3D();
-        };
-
-        SocioPanel.mostrarNotificacion = function(mensaje, tipo = 'info') {
-            const stack = document.getElementById('toastStack');
-            if (!stack) return;
-
-            const styles = {
-                success: { icon: 'fa-check', accent: 'from-green-400/30 to-emerald-500/20', color: 'text-green-300' },
-                error: { icon: 'fa-xmark', accent: 'from-red-400/30 to-orange-500/20', color: 'text-red-300' },
-                info: { icon: 'fa-wave-square', accent: 'from-blue-400/30 to-cyan-500/20', color: 'text-cyan-300' },
-                warning: { icon: 'fa-bolt', accent: 'from-yellow-400/30 to-orange-500/20', color: 'text-yellow-300' }
-            };
-
-            const style = styles[tipo] || styles.info;
-            const toast = document.createElement('div');
-            toast.className = 'toast-card';
-            toast.innerHTML = `
-                <div class="flex items-start gap-3">
-                    <div class="toast-accent bg-gradient-to-br ${style.accent}">
-                        <i class="fas ${style.icon} ${style.color}"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-semibold text-white">${mensaje}</p>
-                        <p class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                </div>
-            `;
-
-            stack.appendChild(toast);
-            requestAnimationFrame(() => toast.classList.add('show'));
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-                toast.classList.add('hide');
-                setTimeout(() => toast.remove(), 320);
-            }, 3600);
-        };
-
-        SocioPanel.actualizarTodo = function() {
-            this.mostrarNotificacion('Actualizando panel...', 'info');
-            this.cargarDatosSocio();
-        };
-
-        SocioPanel.cargarDatosSocio = async function() {
-            this.setRefreshing(true);
-            try {
-                await baseCargarDatosSocio();
-            } finally {
-                this.setRefreshing(false);
-                this.configurarRevealObserver();
-                this.configurarTilt3D();
-            }
-        };
-
-        SocioPanel.init = function() {
-            this.actualizarReloj();
-            setInterval(() => this.actualizarReloj(), 60000);
-            this.inicializarGraficos();
-            this.configurarNavegacion();
-            this.configurarScrollSpy();
-            this.configurarRevealObserver();
-            this.configurarTilt3D();
-            this.mostrarEstadosCarga();
-            this.cargarDatosSocio();
-        };
-    })();
-    </script>
+document.addEventListener('DOMContentLoaded', init);
+</script>
 </body>
 </html>
