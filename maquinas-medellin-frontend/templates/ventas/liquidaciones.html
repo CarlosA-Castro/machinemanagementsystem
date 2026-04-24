@@ -262,6 +262,12 @@
                         <button onclick="calcular()" class="btn btn-primary">
                             <i class="fas fa-calculator"></i>Calcular
                         </button>
+                        <button onclick="generarPDFNegocio()" id="btnPDFNegocio" disabled class="btn btn-secondary btn-sm" title="PDF para el restaurante">
+                            <i class="fas fa-file-pdf" style="color:#059669"></i>PDF Negocio
+                        </button>
+                        <button onclick="generarPDFInversionistas()" id="btnPDFInv" disabled class="btn btn-secondary btn-sm" title="PDF para inversionistas">
+                            <i class="fas fa-file-pdf" style="color:#7c3aed"></i>PDF Inversión
+                        </button>
                         <button onclick="abrirModalConfig()" class="btn btn-secondary btn-sm" title="Configurar porcentajes por máquina">
                             <i class="fas fa-cog"></i>
                         </button>
@@ -789,6 +795,8 @@ async function calcular() {
             renderMetodosPago(data.resumen_metodos || [], data.ventas_sin_metodo || 0);
             renderDetalleVentas(data.datos_tabla || []);
             setCierreButtonState(data.cierre_existente || null);
+            document.getElementById('btnPDFNegocio').disabled = false;
+            document.getElementById('btnPDFInv').disabled = false;
         }
     } catch (e) {
         toast('Error al calcular: ' + e.message, 'error');
@@ -1531,6 +1539,190 @@ function toggleDetalleVentas() {
     const open = wrap.classList.toggle('hidden') === false;
     icon.className = open ? 'fas fa-chevron-up mr-1' : 'fas fa-chevron-down mr-1';
     btn.querySelector('span') && (btn.lastChild.textContent = open ? ' Ocultar' : ' Ver detalle');
+}
+
+// ─── Generar PDFs ─────────────────────────────────────────────────────────────
+const _pdfStyles = `
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,sans-serif;font-size:12px;color:#1f2937;padding:2rem}
+  h1{font-size:1.3rem;padding-bottom:.5rem;margin-bottom:.4rem;border-bottom:3px solid}
+  h2{font-size:.85rem;color:#374151;margin:1.25rem 0 .4rem;border-left:4px solid;padding-left:.5rem;text-transform:uppercase;letter-spacing:.04em}
+  .meta{font-size:.78rem;color:#6b7280;margin-bottom:1.25rem}
+  .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.25rem}
+  .kpi{padding:.65rem .75rem;border-radius:8px;border-left:4px solid}
+  .kpi-label{font-size:.63rem;font-weight:700;text-transform:uppercase;color:#6b7280}
+  .kpi-value{font-size:1.2rem;font-weight:800;margin-top:.15rem}
+  .highlight{background:#f0fdf4;border:2px solid #059669;border-radius:10px;padding:1rem;margin:1rem 0;text-align:center}
+  .highlight-label{font-size:.75rem;font-weight:700;text-transform:uppercase;color:#065f46;margin-bottom:.25rem}
+  .highlight-value{font-size:1.8rem;font-weight:900;color:#059669}
+  table{width:100%;border-collapse:collapse;margin-bottom:.4rem;font-size:11px}
+  th{background:#f3f4f6;padding:.35rem .6rem;text-align:left;font-weight:700;font-size:.63rem;text-transform:uppercase;color:#4b5563}
+  td{padding:.35rem .6rem;border-bottom:1px solid #e5e7eb}
+  .r{text-align:right}
+  tfoot td{background:#f9fafb;font-weight:700;border-top:2px solid #d1d5db}
+  .inv-block{border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;margin-bottom:1rem}
+  .inv-name{font-size:1rem;font-weight:800;color:#5b21b6;margin-bottom:.5rem}
+  .inv-total{font-size:1.4rem;font-weight:900;color:#5b21b6}
+  .footer{margin-top:1.5rem;padding-top:.75rem;border-top:1px solid #e5e7eb;font-size:.72rem;color:#9ca3af;text-align:center}
+  @media print{body{padding:.75rem}}
+`;
+
+function _abrirVentanaPDF(html) {
+    const w = window.open('', '_blank');
+    if (!w) { toast('Permite ventanas emergentes para generar el PDF', 'error'); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 500);
+}
+
+function generarPDFNegocio() {
+    if (!currentData) { toast('Calcula primero una liquidación', 'error'); return; }
+    const d       = currentData;
+    const dist    = d.distribucion || {};
+    const periodo = d.periodo || {};
+    const paq     = d.paquetes_resumen || [];
+    const metodos = d.resumen_metodos || [];
+    const today   = new Date().toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'});
+    const fmtP    = n => '$' + Math.round(+n || 0).toLocaleString('es-CO');
+    const fmtNP   = n => Math.round(+n || 0).toLocaleString('es-CO');
+
+    const paqRows = paq.map(p => `<tr>
+        <td>${p.paquete_nombre}</td>
+        <td class="r">${fmtNP(p.paquetes_vendidos)}</td>
+        <td class="r">${fmtP(p.precio_unitario)}</td>
+        <td class="r"><strong>${fmtP(p.ingresos_totales)}</strong></td>
+    </tr>`).join('');
+
+    const metRows = metodos.map(m => `<tr>
+        <td>${m.label}</td>
+        <td class="r">${fmtNP(m.total_ventas)} QR(s)</td>
+        <td class="r"><strong>${fmtP(m.valor_total)}</strong></td>
+    </tr>`).join('');
+
+    const neg = dist.negocio || {};
+
+    _abrirVentanaPDF(`<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8">
+<title>Liquidación Negocio — ${periodo.fecha_inicio} al ${periodo.fecha_fin}</title>
+<style>${_pdfStyles} h1{color:#065f46;border-color:#059669} h2{border-color:#059669}</style>
+</head><body>
+<h1>Inversiones Arcade &mdash; Liquidación para ${periodo.local_nombre || 'el Negocio'}</h1>
+<div class="meta">
+  <strong>Período:</strong> ${periodo.fecha_inicio} al ${periodo.fecha_fin} &nbsp;&middot;&nbsp;
+  <strong>Total ventas:</strong> ${fmtNP(periodo.total_ventas)} QR(s) &nbsp;&middot;&nbsp;
+  <strong>Generado:</strong> ${today}
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi" style="border-color:#2563eb;background:#eff6ff">
+    <div class="kpi-label">Ingresos Totales del Período</div>
+    <div class="kpi-value">${fmtP(dist.total_ingresos)}</div>
+  </div>
+  <div class="kpi" style="border-color:#059669;background:#f0fdf4">
+    <div class="kpi-label">% Negocio aplicado</div>
+    <div class="kpi-value">${(+neg.pct||0).toFixed(1)}%</div>
+  </div>
+  <div class="kpi" style="border-color:#059669;background:#f0fdf4">
+    <div class="kpi-label">Corresponde al Negocio</div>
+    <div class="kpi-value">${fmtP(neg.monto)}</div>
+  </div>
+</div>
+
+<div class="highlight">
+  <div class="highlight-label">Total a recibir — ${periodo.local_nombre || 'Negocio'}</div>
+  <div class="highlight-value">${fmtP(neg.monto)}</div>
+</div>
+
+<h2>Detalle de Paquetes Vendidos</h2>
+<table>
+  <thead><tr><th>Paquete</th><th>Cant. vendidos</th><th>Precio unit.</th><th>Total cobrado</th></tr></thead>
+  <tbody>${paqRows}</tbody>
+  <tfoot><tr>
+    <td colspan="3"><strong>TOTAL</strong></td>
+    <td class="r"><strong>${fmtP(dist.total_ingresos)}</strong></td>
+  </tr></tfoot>
+</table>
+
+${metodos.length ? `<h2>Métodos de Pago Recibidos</h2>
+<table>
+  <thead><tr><th>Método</th><th>Transacciones</th><th>Total</th></tr></thead>
+  <tbody>${metRows}</tbody>
+</table>` : ''}
+
+<div class="footer">Inversiones Arcade &mdash; Documento generado el ${today} &mdash; Solo para uso interno</div>
+</body></html>`);
+}
+
+function generarPDFInversionistas() {
+    if (!currentData) { toast('Calcula primero una liquidación', 'error'); return; }
+    const d       = currentData;
+    const dist    = d.distribucion || {};
+    const periodo = d.periodo || {};
+    const inv     = d.inversionistas || [];
+    const today   = new Date().toLocaleDateString('es-CO', {day:'2-digit', month:'long', year:'numeric'});
+    const fmtP    = n => '$' + Math.round(+n || 0).toLocaleString('es-CO');
+    const fmtNP   = n => Math.round(+n || 0).toLocaleString('es-CO');
+
+    if (!inv.length) { toast('No hay inversionistas configurados en este período', 'error'); return; }
+
+    const invHtml = inv.map(i => {
+        const maqRows = i.maquinas.map(m => `<tr>
+            <td>${m.nombre}</td>
+            <td class="r">${(+m.porcentaje_propiedad).toFixed(1)}%</td>
+            <td class="r">${(+m.pct_utilidad).toFixed(1)}%</td>
+            <td class="r">${fmtP(m.ingresos_maquina)}</td>
+            <td class="r">${fmtP(m.utilidad_maquina)}</td>
+            <td class="r"><strong>${fmtP(m.ingreso_participacion)}</strong></td>
+        </tr>`).join('');
+
+        return `<div class="inv-block">
+            <div class="inv-name">${i.nombre}</div>
+            <table>
+                <thead><tr><th>Máquina</th><th>% Propiedad</th><th>% Utilidad</th><th>Ingresos máquina</th><th>Utilidad máquina</th><th>Mi participación</th></tr></thead>
+                <tbody>${maqRows}</tbody>
+                <tfoot><tr>
+                    <td colspan="5"><strong>TOTAL A RECIBIR</strong></td>
+                    <td class="r inv-total">${fmtP(i.total_participacion)}</td>
+                </tr></tfoot>
+            </table>
+        </div>`;
+    }).join('');
+
+    const util = dist.utilidad || {};
+
+    _abrirVentanaPDF(`<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8">
+<title>Liquidación Inversionistas — ${periodo.fecha_inicio} al ${periodo.fecha_fin}</title>
+<style>${_pdfStyles} h1{color:#4c1d95;border-color:#7c3aed} h2{border-color:#7c3aed}</style>
+</head><body>
+<h1>Inversiones Arcade &mdash; Liquidación de Inversionistas</h1>
+<div class="meta">
+  <strong>Local:</strong> ${periodo.local_nombre || '—'} &nbsp;&middot;&nbsp;
+  <strong>Período:</strong> ${periodo.fecha_inicio} al ${periodo.fecha_fin} &nbsp;&middot;&nbsp;
+  <strong>Generado:</strong> ${today}
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi" style="border-color:#2563eb;background:#eff6ff">
+    <div class="kpi-label">Ingresos Totales</div>
+    <div class="kpi-value">${fmtP(dist.total_ingresos)}</div>
+  </div>
+  <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
+    <div class="kpi-label">% Utilidad (${(+util.pct||0).toFixed(1)}%)</div>
+    <div class="kpi-value">${fmtP(util.monto)}</div>
+  </div>
+  <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
+    <div class="kpi-label">Total distribuido</div>
+    <div class="kpi-value">${fmtP(inv.reduce((s,i) => s + i.total_participacion, 0))}</div>
+  </div>
+</div>
+
+<h2>Participación por Inversionista</h2>
+${invHtml}
+
+<div class="footer">Inversiones Arcade &mdash; Documento generado el ${today} &mdash; Confidencial</div>
+</body></html>`);
 }
 
 // ─── Modal helpers ────────────────────────────────────────────────────────────

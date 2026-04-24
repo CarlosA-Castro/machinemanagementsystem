@@ -840,18 +840,9 @@ def calcular_liquidacion():
         inversionistas = _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fin)
         comparativos   = _build_period_comparison(cursor, fecha_inicio, fecha_fin)
 
-        # Porcentajes globales promedio para el resumen
-        if resumen_maquinas:
-            total_negocio_v  = sum(_to_float(m['ingresos_restaurante']) for m in resumen_maquinas.values())
-            total_admin_v    = sum(_to_float(m['ingresos_admin'])       for m in resumen_maquinas.values())
-            total_utilidad_v = sum(_to_float(m['ingresos_utilidad'])    for m in resumen_maquinas.values())
-        else:
-            total_negocio_v  = total_ingresos * RESTAURANT_PERCENTAGE_DEFAULT / 100
-            total_admin_v    = total_ingresos * ADMIN_PERCENTAGE_DEFAULT / 100
-            total_utilidad_v = total_ingresos - total_negocio_v - total_admin_v
-
-        pct_negocio  = RESTAURANT_PERCENTAGE_DEFAULT
-        pct_admin    = ADMIN_PERCENTAGE_DEFAULT
+        # Porcentajes promedio configurados por máquina (o defaults si no hay config)
+        pct_negocio = RESTAURANT_PERCENTAGE_DEFAULT
+        pct_admin   = ADMIN_PERCENTAGE_DEFAULT
         if tiene_porcentaje:
             admin_col = 'COALESCE(porcentaje_admin, 25.00)' if tiene_admin else '25.00'
             cursor.execute(
@@ -863,6 +854,11 @@ def calcular_liquidacion():
             if row_pct and row_pct['avg_neg']:
                 pct_negocio = float(row_pct['avg_neg'])
                 pct_admin   = float(row_pct['avg_adm'])
+
+        # Distribución siempre sobre ingresos reales (QR vendidos), no sobre turnos jugados
+        total_negocio_v  = total_ingresos * pct_negocio / 100
+        total_admin_v    = total_ingresos * pct_admin   / 100
+        total_utilidad_v = total_ingresos - total_negocio_v - total_admin_v
 
         distribucion = {
             'total_ingresos': total_ingresos,
