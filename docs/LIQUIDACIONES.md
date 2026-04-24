@@ -170,6 +170,7 @@ El botón **"Confirmar Cierre"** es la acción más importante del módulo. Al e
 1. El sistema guarda un registro oficial del cierre con todos los totales.
 2. El período queda bloqueado como cerrado.
 3. El cierre aparece en el historial y en los gráficos comparativos futuros.
+4. Desde ese cierre confirmado se pueden generar los comprobantes PDF oficiales para negocio e inversionistas.
 
 > **Este es el único mecanismo para registrar un período como cerrado.** Sin este paso, el período simplemente no existirá en el historial, aunque se haya calculado múltiples veces.
 
@@ -272,7 +273,7 @@ Para referencia técnica y auditoría:
 ## 10. Preguntas Frecuentes
 
 **¿Qué pasa si calculo varias veces el mismo período sin confirmar?**  
-Nada. El cálculo es de solo lectura. Solo el último "Confirmar Cierre" crea el registro oficial. Si se confirma el mismo período dos veces, se generarán dos registros de cierre, lo cual puede distorsionar el historial — por eso se recomienda confirmar una sola vez por período.
+Nada. El cálculo es de solo lectura. El período solo queda registrado cuando se usa **"Confirmar Cierre"**. Si ya existe un cierre oficial para ese local y ese rango, o si el nuevo rango se cruza con uno ya confirmado, el sistema rechaza el cierre para proteger el historial contable.
 
 ---
 

@@ -340,13 +340,13 @@ Huecos:
 
 ### 7.1 Metodo de pago en ventas
 
-Hueco:
+Estado actual:
 
-No hay metodo de pago formal en ventas.
+Implementado en backend y panel de ventas.
 
-Propuesta:
+Cobertura actual:
 
-Agregar metodo de pago a la venta:
+El sistema ya registra metodo de pago en la venta con:
 
 - `efectivo`
 - `transferencia`
@@ -355,7 +355,7 @@ Agregar metodo de pago a la venta:
 - `cortesia`
 - `ajuste`
 
-Debe incluir:
+Tambien incluye:
 
 - Reporte ventas del dia por metodo.
 - Edicion posterior con auditoria.
@@ -363,19 +363,23 @@ Debe incluir:
 - Usuario responsable.
 - Valor anterior y valor nuevo.
 
+Resultado:
+
+El cuadre diario de caja ya puede apoyarse en el sistema sin depender de memoria del cajero.
+
 Impacto operacional:
 
 Permite cuadre de caja diario y reduce discusiones con el restaurante.
 
 ### 7.2 PDF de liquidacion
 
-Hueco:
+Estado actual:
 
-El cierre necesita comprobante exportable y compartible.
+Implementado como comprobante oficial de cierre.
 
-Propuesta:
+Cobertura actual:
 
-Generar PDF con:
+El modulo ya genera PDF para negocio e inversionistas a partir de un cierre confirmado, con:
 
 - Local.
 - Periodo.
@@ -391,23 +395,30 @@ Generar PDF con:
 - Observaciones.
 - Firma/responsable.
 
+Regla operativa actual:
+
+- El PDF oficial solo se habilita cuando existe cierre confirmado para ese periodo exacto.
+- Un calculo preliminar no se presenta como comprobante final.
+
 Impacto operacional:
 
 Da confianza al restaurante y al inversionista.
 
 ### 7.3 Cierre unico por periodo
 
-Hueco:
+Estado actual:
 
-Riesgo de liquidar dos veces el mismo periodo/local.
+Implementado en aplicacion.
 
-Propuesta:
-
-Agregar regla:
+Regla activa:
 
 - Un cierre confirmado por `local_id + fecha_inicio + fecha_fin`.
-- Si se necesita corregir, crear anulacion o version corregida.
-- Nunca sobrescribir cierre confirmado sin auditoria.
+- El sistema rechaza cierres que se crucen con un cierre oficial existente.
+- Nunca se sobrescribe un cierre confirmado desde el flujo normal.
+
+Siguiente mejora sugerida:
+
+- Si se necesita corregir, crear anulacion o version corregida con auditoria explicita.
 
 Impacto operacional:
 
@@ -592,13 +603,13 @@ Cerrar el piloto con calidad operacional.
 
 Prioridades:
 
-1. Metodo de pago en ventas.
-2. Reporte de ventas del dia por metodo de pago.
-3. PDF de liquidacion.
-4. Validar cierre unico por periodo/local.
-5. Completar/verificar `socios.html` para que el socio vea estado real.
-6. Revisar filtros por local en blueprints pendientes.
-7. Documentar checklist de cierre diario y cierre mensual.
+1. Completar/verificar `socios.html` para que el socio vea estado real.
+2. Revisar filtros por local en blueprints pendientes.
+3. Documentar checklist de cierre diario y cierre mensual.
+4. Actualizar manuales operativos para reflejar cierre unico y PDF oficial.
+5. Definir flujo formal de anulacion o version corregida de cierres.
+6. Verificar en operacion real el uso de `cortesia` y `ajuste`.
+7. Consolidar reporte mensual para restaurante y socios.
 
 Criterio de exito:
 
