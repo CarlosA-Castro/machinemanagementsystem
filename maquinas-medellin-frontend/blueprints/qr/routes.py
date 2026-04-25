@@ -893,10 +893,9 @@ def asignar_paquete():
             qr_id = qr_existente['id']
             cursor.execute("""
                 UPDATE qrcode
-                SET remainingTurns = remainingTurns + %s,
-                    turnPackageId = %s
+                SET turnPackageId = %s
                 WHERE id = %s
-            """, (turns, paquete_id, qr_id))
+            """, (paquete_id, qr_id))
             connection.commit()
 
         cursor.execute("""
@@ -1538,9 +1537,9 @@ def guardar_multiples_qr_con_paquete():
 
                 cursor.execute("""
                     UPDATE qrcode
-                    SET remainingTurns = %s, turnPackageId = %s, qr_name = %s
+                    SET turnPackageId = %s, qr_name = %s
                     WHERE id = %s
-                """, (paquete_turns, paquete_id, nombre, qr_id))
+                """, (paquete_id, nombre, qr_id))
 
                 cursor.execute("SELECT id FROM userturns WHERE qr_code_id = %s", (qr_id,))
                 user_turns_existente = cursor.fetchone()

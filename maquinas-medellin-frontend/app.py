@@ -2420,20 +2420,11 @@ def procesar_devolucion_unica():
         # 5. DEVOLVER EL TURNO
         # ==========================================
         cursor.execute("""
-            UPDATE userturns 
+            UPDATE userturns
             SET turns_remaining = turns_remaining + 1
             WHERE qr_code_id = %s
         """, (qr_id,))
-        
-        # ==========================================
-        # 6. ACTUALIZAR TURNOS EN QRCODE
-        # ==========================================
-        cursor.execute("""
-            UPDATE qrcode 
-            SET remainingTurns = remainingTurns + 1
-            WHERE id = %s
-        """, (qr_id,))
-        
+
         connection.commit()
         
         # ==========================================

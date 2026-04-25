@@ -740,12 +740,6 @@ def esp32_reportar_falla():
             WHERE qr_code_id = %s
         """, (turnos_devueltos, qr_id))
 
-        cursor.execute("""
-            UPDATE qrcode
-            SET remainingTurns = remainingTurns + %s
-            WHERE id = %s
-        """, (turnos_devueltos, qr_id))
-
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         nuevos_turnos = cursor.fetchone()['turns_remaining']
 

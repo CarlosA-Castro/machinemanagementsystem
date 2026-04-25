@@ -426,14 +426,6 @@ def procesar_devolucion_unica():
             """,
             (qr_id,),
         )
-        cursor.execute(
-            """
-            UPDATE qrcode
-            SET remainingTurns = remainingTurns + 1
-            WHERE id = %s
-            """,
-            (qr_id,),
-        )
         connection.commit()
 
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
