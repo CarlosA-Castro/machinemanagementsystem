@@ -1,6 +1,7 @@
+import calendar
 import logging
 import time
-from datetime import date
+from datetime import date, datetime
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, json
@@ -202,6 +203,9 @@ def esp32_registrar_uso():
             }
         )
 
+        exp_date = qr_data.get('expiration_date')
+        exp_epoch = int(calendar.timegm(exp_date.timetuple())) if exp_date else 0
+
         return api_response(
             'S010',
             status='success',
@@ -212,7 +216,8 @@ def esp32_registrar_uso():
                 'qr_code': qr_code,
                 'machine_id': machine_id,
                 'usage_id': usage_id,
-                'station_index': station_index
+                'station_index': station_index,
+                'expiration_epoch': exp_epoch,
             }
         )
 
@@ -980,6 +985,102 @@ def esp32_machine_reset():
 
     except Exception as e:
         logger.error(f"❌ Error registrando reinicio de máquina: {e}")
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+# ── Sincronización de transacciones offline ───────────────────────────────────
+
+@esp32_bp.route('/api/esp32/sync-offline', methods=['POST'])
+@handle_api_errors
+@validate_required_fields(['machine_id', 'transactions'])
+def esp32_sync_offline():
+    """Recibe lote de transacciones jugadas offline y las aplica al backend."""
+    connection = None
+    cursor = None
+    try:
+        data       = request.get_json()
+        machine_id = data['machine_id']
+        txs        = data['transactions']
+
+        if not isinstance(txs, list) or len(txs) == 0:
+            return api_response('E003', http_status=400)
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        results = []
+        for tx in txs:
+            qr_code       = tx.get('qr_code', '')
+            station_index = tx.get('station_index', 0)
+            played_at_ts  = tx.get('played_at', 0)
+            played_at     = datetime.fromtimestamp(played_at_ts) if played_at_ts else get_colombia_time()
+
+            cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
+            qr_row = cursor.fetchone()
+            if not qr_row:
+                results.append({'qr_code': qr_code, 'status': 'qr_not_found'})
+                continue
+
+            qr_id = qr_row['id']
+
+            # Validar y descontar atómicamente
+            cursor.execute(
+                "SELECT turns_remaining FROM userturns WHERE qr_code_id = %s FOR UPDATE",
+                (qr_id,)
+            )
+            ut = cursor.fetchone()
+
+            if not ut or ut['turns_remaining'] <= 0:
+                # Anomalía: turno ya consumido o QR sin saldo
+                log_transaccion(
+                    tipo='offline_conflict',
+                    categoria='auditoria',
+                    descripcion=f"Conflicto offline: QR {qr_code} sin turnos al sincronizar",
+                    maquina_id=machine_id,
+                    entidad='qr',
+                    entidad_id=qr_id,
+                    datos_extra={
+                        'qr_code': qr_code,
+                        'station_index': station_index,
+                        'played_at': played_at.isoformat(),
+                        'turns_at_sync': ut['turns_remaining'] if ut else None,
+                    }
+                )
+                results.append({'qr_code': qr_code, 'status': 'conflict'})
+                continue
+
+            turns_after = ut['turns_remaining'] - 1
+            cursor.execute(
+                "UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s",
+                (qr_id,)
+            )
+            cursor.execute(
+                """
+                INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, usedAt)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (qr_id, machine_id, station_index, turns_after, played_at),
+            )
+            results.append({'qr_code': qr_code, 'status': 'ok', 'turns_remaining': turns_after})
+
+        connection.commit()
+
+        ok_count       = sum(1 for r in results if r['status'] == 'ok')
+        conflict_count = sum(1 for r in results if r['status'] == 'conflict')
+        logger.info(
+            f"sync-offline máquina {machine_id}: {ok_count} ok, "
+            f"{conflict_count} conflictos de {len(txs)} total"
+        )
+        return api_response('S003', status='success', data={'results': results})
+
+    except Exception as e:
+        logger.error(f"Error en sync-offline: {e}")
+        sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
     finally:
         if cursor:     cursor.close()
