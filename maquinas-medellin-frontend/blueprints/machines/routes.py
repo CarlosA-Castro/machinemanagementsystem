@@ -594,6 +594,251 @@ def obtener_machinefailures_recientes():
         if connection: connection.close()
 
 
+@machines_bp.route('/api/mantenimiento/tickets', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_tickets_mantenimiento():
+    """Retorna tickets de mantenimiento activos agrupados por máquina/estación."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'tickets': [], 'resumen': {}})
+
+        cursor = get_db_cursor(connection)
+        if not cursor:
+            return jsonify({'tickets': [], 'resumen': {}})
+
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        machine_filter = ""
+        machine_params = []
+        if not (can_all and active_id is None):
+            eff_id = active_id if active_id is not None else -1
+            machine_filter = "WHERE m.location_id = %s"
+            machine_params.append(eff_id)
+
+        cursor.execute(f"""
+            SELECT
+                m.id,
+                m.name,
+                m.status,
+                m.location_id,
+                COALESCE(l.name, 'Sin local') AS location_name,
+                mt.station_names,
+                m.stations_in_maintenance
+            FROM machine m
+            LEFT JOIN location l ON l.id = m.location_id
+            LEFT JOIN machinetechnical mt ON mt.machine_id = m.id
+            {machine_filter}
+            ORDER BY m.name
+        """, machine_params)
+        machines = cursor.fetchall()
+
+        machine_map = {}
+        for row in machines:
+            machine_map[row['id']] = {
+                'id': row['id'],
+                'name': row['name'],
+                'status': row['status'],
+                'location_id': row['location_id'],
+                'location_name': row['location_name'],
+                'station_names': parse_json_col(row.get('station_names'), []),
+                'stations_in_maintenance': parse_json_col(row.get('stations_in_maintenance'), []),
+                **get_heartbeat_fields(row['id']),
+            }
+
+        if not machine_map:
+            return jsonify({
+                'tickets': [],
+                'resumen': {
+                    'total': 0,
+                    'alta': 0,
+                    'media': 0,
+                    'offline': 0,
+                    'por_origen': {'cajero': 0, 'esp32': 0},
+                }
+            })
+
+        machine_ids = list(machine_map.keys())
+        placeholders = ','.join(['%s'] * len(machine_ids))
+
+        cursor.execute(f"""
+            SELECT
+                er.machineId AS machine_id,
+                er.station_index,
+                COUNT(*) AS cnt,
+                MAX(er.reportedAt) AS last_reported_at,
+                SUBSTRING_INDEX(
+                    GROUP_CONCAT(COALESCE(er.description, '') ORDER BY er.reportedAt DESC SEPARATOR ' || '),
+                    ' || ', 1
+                ) AS latest_note
+            FROM errorreport er
+            WHERE er.isResolved = 0
+              AND er.machineId IN ({placeholders})
+            GROUP BY er.machineId, er.station_index
+        """, machine_ids)
+        error_rows = cursor.fetchall()
+
+        cursor.execute(f"""
+            SELECT
+                mf.machine_id,
+                mf.station_index,
+                COUNT(*) AS cnt,
+                MAX(mf.reported_at) AS last_reported_at,
+                SUBSTRING_INDEX(
+                    GROUP_CONCAT(COALESCE(mf.notes, '') ORDER BY mf.reported_at DESC SEPARATOR ' || '),
+                    ' || ', 1
+                ) AS latest_note
+            FROM machinefailures mf
+            WHERE COALESCE(mf.resolved, 0) = 0
+              AND mf.machine_id IN ({placeholders})
+            GROUP BY mf.machine_id, mf.station_index
+        """, machine_ids)
+        esp32_rows = cursor.fetchall()
+
+        tickets = {}
+
+        def _ticket_key(machine_id, station_index):
+            return f"{machine_id}:{'' if station_index is None else station_index}"
+
+        def _station_label(meta, station_index):
+            if station_index is None:
+                return None
+            if station_index < len(meta['station_names']):
+                raw = meta['station_names'][station_index]
+                if isinstance(raw, dict):
+                    return raw.get('name') or f"Estación {station_index + 1}"
+                return raw or f"Estación {station_index + 1}"
+            return f"Estación {station_index + 1}"
+
+        def _ensure_ticket(machine_id, station_index):
+            meta = machine_map.get(machine_id)
+            if not meta:
+                return None
+            key = _ticket_key(machine_id, station_index)
+            if key not in tickets:
+                tickets[key] = {
+                    'ticket_id': key,
+                    'machine_id': machine_id,
+                    'machine_name': meta['name'],
+                    'machine_status': meta['status'],
+                    'location_id': meta['location_id'],
+                    'location_name': meta['location_name'],
+                    'station_index': station_index,
+                    'station_label': _station_label(meta, station_index),
+                    'stations_in_maintenance': meta['stations_in_maintenance'],
+                    'online': meta['online'],
+                    'wifi_connected': meta['wifi_connected'],
+                    'server_online': meta['server_online'],
+                    'rssi': meta['rssi'],
+                    'cajero_count': 0,
+                    'esp32_count': 0,
+                    'total_reportes': 0,
+                    'latest_note': '',
+                    'last_reported_at': None,
+                }
+            return tickets[key]
+
+        def _merge(source, row):
+            ticket = _ensure_ticket(row['machine_id'], row.get('station_index'))
+            if not ticket:
+                return
+            count = int(row.get('cnt') or 0)
+            if source == 'cajero':
+                ticket['cajero_count'] += count
+            else:
+                ticket['esp32_count'] += count
+            ticket['total_reportes'] += count
+
+            row_dt = row.get('last_reported_at')
+            if row_dt and (ticket['last_reported_at'] is None or row_dt > ticket['last_reported_at']):
+                ticket['last_reported_at'] = row_dt
+                ticket['latest_note'] = row.get('latest_note') or ''
+
+        for row in error_rows:
+            _merge('cajero', row)
+        for row in esp32_rows:
+            _merge('esp32', row)
+
+        now = get_colombia_time()
+        resultado = []
+        resumen = {
+            'total': 0,
+            'alta': 0,
+            'media': 0,
+            'offline': 0,
+            'por_origen': {'cajero': 0, 'esp32': 0},
+        }
+
+        for ticket in tickets.values():
+            last_dt = ticket['last_reported_at']
+            age_minutes = None
+            if last_dt:
+                try:
+                    parsed_dt = parse_db_datetime(last_dt) if isinstance(last_dt, str) else last_dt
+                    age_minutes = max(0, int((now - parsed_dt).total_seconds() // 60))
+                except Exception:
+                    age_minutes = None
+
+            station_in_maintenance = (
+                ticket['station_index'] is not None and
+                str(ticket['station_index']) in [str(x) for x in ticket['stations_in_maintenance']]
+            )
+            is_machine_scope = ticket['station_index'] is None
+            is_offline = not bool(ticket['online'])
+            priority = 'alta' if (
+                ticket['machine_status'] == 'mantenimiento' or
+                station_in_maintenance or
+                is_machine_scope or
+                ticket['total_reportes'] >= 3 or
+                is_offline
+            ) else 'media'
+
+            serializable = {
+                **ticket,
+                'scope': 'maquina' if is_machine_scope else 'estacion',
+                'station_in_maintenance': station_in_maintenance,
+                'priority': priority,
+                'age_minutes': age_minutes,
+                'last_reported_at': last_dt.isoformat() if hasattr(last_dt, 'isoformat') else None,
+            }
+            resultado.append(serializable)
+
+            resumen['total'] += 1
+            resumen[priority] += 1
+            if ticket['cajero_count'] > 0:
+                resumen['por_origen']['cajero'] += 1
+            if ticket['esp32_count'] > 0:
+                resumen['por_origen']['esp32'] += 1
+            if is_offline:
+                resumen['offline'] += 1
+
+        resultado.sort(
+            key=lambda t: (
+                0 if t['priority'] == 'alta' else 1,
+                0 if t['machine_status'] == 'mantenimiento' else 1,
+                -(t['age_minutes'] or 0),
+                t['machine_name'].lower(),
+            )
+        )
+
+        return jsonify({
+            'tickets': resultado,
+            'resumen': resumen,
+            'timestamp': now.isoformat(),
+        })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo tickets de mantenimiento: {e}")
+        sentry_sdk.capture_exception(e)
+        return jsonify({'tickets': [], 'resumen': {}, 'error': str(e)}), 500
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 # ── Imágenes ──────────────────────────────────────────────────────────────────
 
 @machines_bp.route('/api/imagenes/maquinas', methods=['GET'])

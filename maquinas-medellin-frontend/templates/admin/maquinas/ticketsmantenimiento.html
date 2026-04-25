@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tickets de Mantenimiento - Inversiones Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            color: #374151;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { background: #f3f4f6; color: #111827; }
+        .nav-link.active { background: #111827; color: #fff; }
+        .glass-card {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 0 12px 32px rgba(15,23,42,0.08);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-900">
+    <div class="min-h-screen flex">
+        <aside class="hidden lg:flex w-72 bg-white border-r border-slate-200 flex-col">
+            <div class="p-5 border-b border-slate-200">
+                <div class="text-xs uppercase tracking-[0.25em] text-slate-500 font-semibold">Inversiones Arcade</div>
+                <div class="mt-2 text-xl font-bold text-slate-900">Tickets de Mantenimiento</div>
+                <div class="mt-3 text-sm text-slate-500">
+                    <div><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
+                    <div class="mt-1"><i class="fas fa-store mr-2"></i>{{ local_usuario }}</div>
+                    <div class="mt-1"><i class="fas fa-clock mr-2"></i>{{ fecha_actual }} {{ hora_actual }}</div>
+                </div>
+            </div>
+            <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+                <a href="/admin" class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+                <a href="/admin/maquinas/gestionmaquinas" class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Maquinas</a>
+                <a href="/admin/maquinas/tickets-mantenimiento" class="nav-link" id="nav-tickets"><i class="fas fa-tools mr-2"></i>Tickets</a>
+                <a href="/admin/logs/transaccionales" class="nav-link" id="nav-logs"><i class="fas fa-receipt mr-2"></i>Logs</a>
+                <a href="/local" class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-4 lg:p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <section class="glass-card rounded-3xl p-6 lg:p-8">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs uppercase tracking-[0.25em] text-slate-500 font-semibold">Fase 4</div>
+                            <h1 class="text-3xl font-black text-slate-900 mt-2">Tablero de Tickets Activos</h1>
+                            <p class="text-slate-600 mt-2 max-w-3xl">
+                                Vista unificada de incidencias activas reportadas por cajero y ESP32,
+                                agrupadas por maquina y estacion para priorizar soporte y mantener control multi-local.
+                            </p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="TicketsManager.cargarTickets()" class="bg-slate-900 text-white px-4 py-3 rounded-xl hover:bg-slate-800">
+                                <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    <div class="glass-card rounded-2xl p-5 border-l-4 border-l-slate-900">
+                        <div class="text-sm text-slate-500">Tickets activos</div>
+                        <div class="text-3xl font-black mt-2" id="kpi-total">0</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 border-l-4 border-l-red-500">
+                        <div class="text-sm text-slate-500">Prioridad alta</div>
+                        <div class="text-3xl font-black mt-2 text-red-600" id="kpi-alta">0</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-500">
+                        <div class="text-sm text-slate-500">Prioridad media</div>
+                        <div class="text-3xl font-black mt-2 text-amber-600" id="kpi-media">0</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 border-l-4 border-l-blue-500">
+                        <div class="text-sm text-slate-500">Con origen cajero</div>
+                        <div class="text-3xl font-black mt-2 text-blue-600" id="kpi-cajero">0</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 border-l-4 border-l-violet-500">
+                        <div class="text-sm text-slate-500">Maquinas offline</div>
+                        <div class="text-3xl font-black mt-2 text-violet-600" id="kpi-offline">0</div>
+                    </div>
+                </section>
+
+                <section class="glass-card rounded-3xl p-5">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Buscar</label>
+                            <input id="filtroTexto" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-3"
+                                   placeholder="Maquina, local, estacion o nota..." oninput="TicketsManager.render()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Prioridad</label>
+                            <select id="filtroPrioridad" class="w-full border border-slate-300 rounded-xl px-4 py-3" onchange="TicketsManager.render()">
+                                <option value="todas">Todas</option>
+                                <option value="alta">Alta</option>
+                                <option value="media">Media</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Origen</label>
+                            <select id="filtroOrigen" class="w-full border border-slate-300 rounded-xl px-4 py-3" onchange="TicketsManager.render()">
+                                <option value="todos">Todos</option>
+                                <option value="cajero">Solo cajero</option>
+                                <option value="esp32">Solo ESP32</option>
+                                <option value="mixto">Mixto</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="tickets-lista" class="space-y-4">
+                    <div class="glass-card rounded-3xl p-8 text-center text-slate-500">
+                        <div class="animate-spin inline-block w-8 h-8 border-4 border-slate-300 border-t-slate-900 rounded-full mb-4"></div>
+                        <div>Cargando tickets de mantenimiento...</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const TicketsManager = {
+            tickets: [],
+            resumen: {},
+
+            init() {
+                document.getElementById('nav-tickets')?.classList.add('active');
+                this.cargarTickets();
+            },
+
+            async cargarTickets() {
+                const container = document.getElementById('tickets-lista');
+                container.innerHTML = `
+                    <div class="glass-card rounded-3xl p-8 text-center text-slate-500">
+                        <div class="animate-spin inline-block w-8 h-8 border-4 border-slate-300 border-t-slate-900 rounded-full mb-4"></div>
+                        <div>Actualizando tablero de tickets...</div>
+                    </div>
+                `;
+                try {
+                    const response = await fetch('/api/mantenimiento/tickets');
+                    const data = await response.json();
+                    this.tickets = data.tickets || [];
+                    this.resumen = data.resumen || {};
+                    this.renderKPIs();
+                    this.render();
+                } catch (error) {
+                    console.error('Error cargando tickets:', error);
+                    container.innerHTML = `
+                        <div class="glass-card rounded-3xl p-8 text-center text-red-600">
+                            No se pudieron cargar los tickets de mantenimiento.
+                        </div>
+                    `;
+                }
+            },
+
+            renderKPIs() {
+                document.getElementById('kpi-total').textContent = this.resumen.total || 0;
+                document.getElementById('kpi-alta').textContent = this.resumen.alta || 0;
+                document.getElementById('kpi-media').textContent = this.resumen.media || 0;
+                document.getElementById('kpi-cajero').textContent = (this.resumen.por_origen || {}).cajero || 0;
+                document.getElementById('kpi-offline').textContent = this.resumen.offline || 0;
+            },
+
+            getFilteredTickets() {
+                const text = (document.getElementById('filtroTexto').value || '').toLowerCase().trim();
+                const prioridad = document.getElementById('filtroPrioridad').value;
+                const origen = document.getElementById('filtroOrigen').value;
+
+                return this.tickets.filter(ticket => {
+                    if (prioridad !== 'todas' && ticket.priority !== prioridad) return false;
+                    if (origen === 'cajero' && !(ticket.cajero_count > 0 && ticket.esp32_count === 0)) return false;
+                    if (origen === 'esp32' && !(ticket.esp32_count > 0 && ticket.cajero_count === 0)) return false;
+                    if (origen === 'mixto' && !(ticket.esp32_count > 0 && ticket.cajero_count > 0)) return false;
+
+                    if (!text) return true;
+                    const haystack = [
+                        ticket.machine_name,
+                        ticket.location_name,
+                        ticket.station_label,
+                        ticket.latest_note,
+                        ticket.machine_status
+                    ].join(' ').toLowerCase();
+                    return haystack.includes(text);
+                });
+            },
+
+            render() {
+                const container = document.getElementById('tickets-lista');
+                const tickets = this.getFilteredTickets();
+
+                if (!tickets.length) {
+                    container.innerHTML = `
+                        <div class="glass-card rounded-3xl p-10 text-center">
+                            <div class="text-5xl text-slate-300 mb-4"><i class="fas fa-check-circle"></i></div>
+                            <h3 class="text-xl font-bold text-slate-800">Sin tickets para mostrar</h3>
+                            <p class="text-slate-500 mt-2">No hay incidencias activas que coincidan con los filtros actuales.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = tickets.map(ticket => {
+                    const prioridadClass = ticket.priority === 'alta'
+                        ? 'border-red-200 bg-red-50'
+                        : 'border-amber-200 bg-amber-50';
+                    const prioridadBadge = ticket.priority === 'alta'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700';
+                    const scopeLabel = ticket.scope === 'maquina'
+                        ? 'Nivel maquina'
+                        : (ticket.station_label || `Estacion ${ticket.station_index + 1}`);
+                    const origenLabel = ticket.cajero_count > 0 && ticket.esp32_count > 0
+                        ? 'Mixto'
+                        : (ticket.cajero_count > 0 ? 'Cajero' : 'ESP32');
+                    const offlineBadge = ticket.online
+                        ? '<span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Online</span>'
+                        : '<span class="px-2 py-1 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold">Offline</span>';
+                    const mantenimientoBadge = ticket.machine_status === 'mantenimiento'
+                        ? '<span class="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">En mantenimiento</span>'
+                        : '<span class="px-2 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">Activa</span>';
+                    const ageText = ticket.age_minutes == null
+                        ? 'Sin fecha'
+                        : (ticket.age_minutes >= 60
+                            ? `Hace ${Math.floor(ticket.age_minutes / 60)} h`
+                            : `Hace ${ticket.age_minutes} min`);
+
+                    return `
+                        <article class="glass-card rounded-3xl p-6 border ${prioridadClass}">
+                            <div class="flex flex-col xl:flex-row xl:items-start justify-between gap-5">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2 mb-3">
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${prioridadBadge}">Prioridad ${ticket.priority}</span>
+                                        <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">${scopeLabel}</span>
+                                        <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">${origenLabel}</span>
+                                        ${offlineBadge}
+                                        ${mantenimientoBadge}
+                                    </div>
+                                    <h3 class="text-2xl font-black text-slate-900">${ticket.machine_name}</h3>
+                                    <p class="text-sm text-slate-500 mt-1">
+                                        <i class="fas fa-store mr-2"></i>${ticket.location_name}
+                                        <span class="mx-2 text-slate-300">|</span>
+                                        <i class="fas fa-clock mr-2"></i>${ageText}
+                                    </p>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                                        <div class="rounded-2xl bg-white border border-slate-200 p-3">
+                                            <div class="text-xs text-slate-500 uppercase tracking-wide">Reportes</div>
+                                            <div class="text-2xl font-black mt-1">${ticket.total_reportes}</div>
+                                        </div>
+                                        <div class="rounded-2xl bg-white border border-slate-200 p-3">
+                                            <div class="text-xs text-slate-500 uppercase tracking-wide">Cajero</div>
+                                            <div class="text-2xl font-black mt-1 text-blue-600">${ticket.cajero_count}</div>
+                                        </div>
+                                        <div class="rounded-2xl bg-white border border-slate-200 p-3">
+                                            <div class="text-xs text-slate-500 uppercase tracking-wide">ESP32</div>
+                                            <div class="text-2xl font-black mt-1 text-violet-600">${ticket.esp32_count}</div>
+                                        </div>
+                                        <div class="rounded-2xl bg-white border border-slate-200 p-3">
+                                            <div class="text-xs text-slate-500 uppercase tracking-wide">WiFi/Servidor</div>
+                                            <div class="text-sm font-semibold mt-2 ${ticket.online ? 'text-emerald-600' : 'text-violet-700'}">
+                                                ${ticket.online ? 'Operativa' : 'Sin heartbeat'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-5 rounded-2xl bg-white border border-slate-200 p-4">
+                                        <div class="text-xs text-slate-500 uppercase tracking-wide mb-2">Ultima nota</div>
+                                        <p class="text-sm text-slate-700">${ticket.latest_note || 'Sin nota registrada.'}</p>
+                                    </div>
+                                </div>
+                                <div class="xl:w-60 flex xl:flex-col gap-3">
+                                    <button onclick="TicketsManager.resolver(${ticket.machine_id}, ${ticket.station_index === null ? 'null' : ticket.station_index}, '${String(ticket.machine_name).replace(/'/g, "\\'")}')"
+                                            class="w-full bg-slate-900 text-white px-4 py-3 rounded-xl hover:bg-slate-800">
+                                        <i class="fas fa-wrench mr-2"></i>Resolver ticket
+                                    </button>
+                                    <a href="/admin/maquinas/gestionmaquinas" class="w-full text-center bg-white border border-slate-300 text-slate-700 px-4 py-3 rounded-xl hover:bg-slate-50">
+                                        <i class="fas fa-gamepad mr-2"></i>Ir a maquinas
+                                    </a>
+                                </div>
+                            </div>
+                        </article>
+                    `;
+                }).join('');
+            },
+
+            async resolver(machineId, stationIndex, machineName) {
+                const scopeLabel = stationIndex == null ? 'maquina completa' : `estacion ${stationIndex + 1}`;
+                if (!confirm(`¿Resolver ticket de ${machineName} (${scopeLabel})? Esto limpiara las fallas activas y enviara RESUME al ESP32.`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/maquinas/${machineId}/resolver-falla`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ estacion_index: stationIndex })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status === 'error') {
+                        throw new Error(data.message || data.error || 'No se pudo resolver el ticket');
+                    }
+                    await this.cargarTickets();
+                } catch (error) {
+                    console.error('Error resolviendo ticket:', error);
+                    alert(error.message || 'No se pudo resolver el ticket');
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => TicketsManager.init());
+    </script>
+</body>
+</html>
