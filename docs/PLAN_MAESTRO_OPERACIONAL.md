@@ -595,41 +595,36 @@ Controles propuestos:
 
 ## 9. Roadmap recomendado
 
-### Fase 1 - Ahora: operar limpio en El Mekatiadero
+### Fase 1 - Estado actual: 97 % completada en El Mekatiadero
 
-Objetivo:
+Objetivo actual:
 
-Cerrar el piloto con calidad operacional.
+Cerrar el piloto con calidad operacional y validar en operación real lo ya implementado.
 
-Prioridades:
+Estado:
 
-1. Completar/verificar `socios.html` para que el socio vea estado real.
-2. Revisar filtros por local en blueprints pendientes.
-3. Documentar checklist de cierre diario y cierre mensual.
-4. Actualizar manuales operativos para reflejar cierre unico y PDF oficial.
-5. Definir flujo formal de anulacion o version corregida de cierres.
-6. Verificar en operacion real el uso de `cortesia` y `ajuste`.
-7. Consolidar reporte mensual para restaurante y socios.
+1. El flujo base operacional ya quedo implementado: ventas, cierres, PDFs, filtros por local y base de liquidaciones.
+2. El faltante principal ya no es de desarrollo sino de validacion operativa real.
+3. La bateria de validacion quedo documentada en `docs/pruebas/01_liquidaciones_flujo_base.md`.
+4. Mientras esa prueba semanal no cierre en verde, esta fase debe considerarse en 97 % y no en 100 %.
 
-Criterio de exito:
+Criterio de cierre:
 
-El Mekatiadero puede operar una semana completa con ventas, fallas, devoluciones y cierre financiero sin cuadre manual externo.
+El Mekatiadero puede operar una semana completa con ventas, fallas, devoluciones y cierre financiero sin cuadre manual externo, y la prueba 01 queda aprobada.
 
-### Fase 2 - Proximo mes: abrir segundo local
+### Fase 2 - Estado actual: iniciada para abrir segundo local
 
-Objetivo:
+Objetivo actual:
 
-Hacer que agregar un local sea repetible.
+Hacer que agregar un local sea repetible sin depender de reaccion manual ante fallas cortas de red.
 
-Prioridades:
+Estado:
 
-1. Checklist de onboarding de local.
-2. Modo gracia ESP32 offline.
-3. Alerta de heartbeat perdido.
-4. Notificaciones de fallas/mantenimiento.
-5. Reporte mensual del restaurante.
-6. Inventario basico de modulos fisicos.
-7. Guia de instalacion de modulo en maquina.
+1. La fase ya arranco con modo gracia ESP32 offline y reconexion.
+2. El backend ya expone sincronizacion de transacciones offline y registro de conflictos para auditoria.
+3. Ya existe monitoreo de heartbeat perdido y notificaciones de offline/online.
+4. La validacion operativa de esta implementacion quedo documentada en `docs/pruebas/02_modo_gracia_offline.md`.
+5. Siguen pendientes los entregables de onboarding repetible del segundo local: checklist, inventario hardware y guia de instalacion.
 
 Criterio de exito:
 
