@@ -612,7 +612,7 @@ Criterio de cierre:
 
 El Mekatiadero puede operar una semana completa con ventas, fallas, devoluciones y cierre financiero sin cuadre manual externo, y la prueba 01 queda aprobada.
 
-### Fase 2 - Estado actual: iniciada para abrir segundo local
+### Fase 2 - Estado actual: 97 % completada para abrir segundo local
 
 Objetivo actual:
 
@@ -624,11 +624,12 @@ Estado:
 2. El backend ya expone sincronizacion de transacciones offline y registro de conflictos para auditoria.
 3. Ya existe monitoreo de heartbeat perdido y notificaciones de offline/online.
 4. La validacion operativa de esta implementacion quedo documentada en `docs/pruebas/02_modo_gracia_offline.md`.
-5. Siguen pendientes los entregables de onboarding repetible del segundo local: checklist, inventario hardware y guia de instalacion.
+5. El onboarding repetible del segundo local ya cuenta con checklist, inventario hardware, guia de instalacion y reporte mensual del restaurante.
+6. El faltante principal ya no es de desarrollo sino de pruebas generales del modo gracia en operacion real.
 
 Criterio de exito:
 
-Se puede instalar una maquina en un segundo local con pasos documentados y reportes separados.
+Se puede instalar una maquina en un segundo local con pasos documentados y reportes separados, y la prueba general de modo gracia queda aprobada.
 
 ### Fase 3 - Cuando entren inversionistas externos
 
@@ -661,10 +662,15 @@ Prioridades:
 1. Dashboard ejecutivo global.
 2. Dashboard por local.
 3. Dashboard tecnico de hardware.
-4. Tickets de mantenimiento.
-5. Analisis de rentabilidad por maquina/local.
-6. Alertas anomalas de ventas, fallas y devoluciones.
-7. Historial de acuerdos comerciales.
+4. Analisis de rentabilidad por maquina/local.
+5. Alertas anomalas de ventas, fallas y devoluciones.
+6. Historial de acuerdos comerciales.
+
+Estado de arranque:
+
+1. Esta fase ya pasa a ser la prioridad actual del producto.
+2. La validacion general del modo gracia queda como cierre operativo pendiente de Fase 2, pero no bloquea arrancar este frente.
+3. Ya existen datos operativos, tecnicos y de rentabilidad desde los que se puede arrancar dashboards y alertas sin empezar desde cero.
 
 Criterio de exito:
 
@@ -768,7 +774,6 @@ Cada accion critica debe generar evento:
 | Media | Alertas heartbeat/fallas | Operacion sin vigilancia manual |
 | Media | Modo gracia offline | Continuidad en restaurante lleno |
 | Media | Inventario hardware | Soporte y reemplazos |
-| Media | Tickets mantenimiento | Control operativo |
 | Baja ahora | Multi-tenant | Importante, pero no antes de operar bien |
 | Baja ahora | Captive portal | Muy util, pero despues de segundo local |
 

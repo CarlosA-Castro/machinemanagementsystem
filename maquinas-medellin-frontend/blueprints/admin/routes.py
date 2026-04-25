@@ -81,23 +81,6 @@ def mostrar_gestion_maquinas():
     )
 
 
-@admin_bp.route('/admin/maquinas/tickets-mantenimiento')
-def mostrar_tickets_mantenimiento():
-    if not session.get('logged_in'):
-        return redirect('/login')
-    permisos = get_user_permissions()
-    if 'admin_panel' not in permisos or 'ver_maquinas' not in permisos:
-        return redirect('/local')
-    hora_colombia = get_colombia_time()
-    return render_template(
-        'admin/maquinas/ticketsmantenimiento.html',
-        nombre_usuario=session.get('user_name', 'Administrador'),
-        local_usuario=session.get('user_local', 'Sistema'),
-        hora_actual=hora_colombia.strftime('%H:%M:%S'),
-        fecha_actual=hora_colombia.strftime('%Y-%m-%d'),
-    )
-
-
 # ── Ventas / reportes ─────────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/ventas/liquidaciones')
