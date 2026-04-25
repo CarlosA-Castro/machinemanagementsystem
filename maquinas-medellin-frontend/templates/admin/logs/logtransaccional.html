@@ -238,9 +238,10 @@
                             <th class="py-2 px-2">QR / Nombre</th>
                             <th class="py-2 px-2">Paquete</th>
                             <th class="py-2 px-2 text-right">Precio</th>
+                            <th class="py-2 px-2">Método de pago</th>
                             <th class="py-2 px-2">Cajero</th>
                         </tr></thead>
-                        <tbody id="tablaVentas"><tr><td colspan="5" class="text-center py-8 text-gray-300">Cargando...</td></tr></tbody>
+                        <tbody id="tablaVentas"><tr><td colspan="6" class="text-center py-8 text-gray-300">Cargando...</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -255,9 +256,9 @@
                     <table class="w-full text-xs sticky-head border-collapse">
                         <thead><tr class="text-left text-gray-400 border-b-2 border-gray-200">
                             <th class="py-2 px-2">Máquina</th>
-                            <th class="py-2 px-2 text-center">Turnos</th>
+                            <th class="py-2 px-2 text-center">Turnos jugados</th>
                             <th class="py-2 px-2 text-center">Fallas</th>
-                            <th class="py-2 px-2 text-center">Dev.</th>
+                            <th class="py-2 px-2 text-center" title="Turnos devueltos al cliente por fallas reportadas">T. Devueltos</th>
                             <th class="py-2 px-2">Estado</th>
                             <th class="py-2 px-2">Últ. uso</th>
                         </tr></thead>
@@ -292,9 +293,9 @@
                     <thead><tr class="text-left text-gray-400 border-b-2 border-gray-200">
                         <th class="py-2 px-2">Fecha / Hora</th>
                         <th class="py-2 px-2">Máquina</th>
-                        <th class="py-2 px-2 text-center">Est.</th>
-                        <th class="py-2 px-2">QR</th>
-                        <th class="py-2 px-2 text-center">Dev.</th>
+                        <th class="py-2 px-2 text-center">Estación</th>
+                        <th class="py-2 px-2">QR / Cliente</th>
+                        <th class="py-2 px-2 text-center" title="Turnos devueltos al cliente por esta falla">T. Devueltos</th>
                         <th class="py-2 px-2">Origen</th>
                         <th class="py-2 px-2">Notas</th>
                     </tr></thead>
@@ -519,7 +520,18 @@ const LT = {
             : '<div class="text-gray-300 text-xs">Sin ventas</div>';
         // Tabla
         const tb = document.getElementById('tablaVentas');
-        if (!ventas.length) { tb.innerHTML='<tr><td colspan="5" class="text-center py-8 text-gray-400">Sin ventas en el período</td></tr>'; return; }
+        if (!ventas.length) { tb.innerHTML='<tr><td colspan="6" class="text-center py-8 text-gray-400">Sin ventas en el período</td></tr>'; return; }
+        const _metodoBadge = pm => {
+            const map = {
+                efectivo:      ['#dcfce7','#166534','💵 Efectivo'],
+                transferencia: ['#dbeafe','#1e40af','🔁 Transferencia'],
+                tarjeta:       ['#ede9fe','#4c1d95','💳 Tarjeta'],
+                cheque:        ['#fef9c3','#854d0e','📄 Cheque'],
+                sin_registrar: ['#f3f4f6','#9ca3af','— Sin registrar'],
+            };
+            const [bg, color, label] = map[pm] || map['sin_registrar'];
+            return `<span class="badge" style="background:${bg};color:${color};font-size:10px">${label}</span>`;
+        };
         tb.innerHTML = ventas.map((v,i)=>`
             <tr class="border-b border-gray-100 hover:bg-green-50 transition-colors" style="${i%2===0?'background:#f9fafb':''}">
                 <td class="py-1.5 px-2 font-mono text-gray-500 text-xs">${this.fmtHora(v.fecha_hora)}</td>
@@ -529,6 +541,7 @@ const LT = {
                 </td>
                 <td class="py-1.5 px-2"><span class="badge" style="background:#dbeafe;color:#1e40af">${v.paquete||'—'}</span></td>
                 <td class="py-1.5 px-2 text-right font-bold text-green-700">${this.fmtPeso(v.precio)}</td>
+                <td class="py-1.5 px-2">${_metodoBadge(v.payment_method||'sin_registrar')}</td>
                 <td class="py-1.5 px-2 text-gray-500 text-xs">${v.cajero||'—'}</td>
             </tr>`).join('');
     },

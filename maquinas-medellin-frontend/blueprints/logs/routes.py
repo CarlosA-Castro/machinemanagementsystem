@@ -87,7 +87,8 @@ def obtener_logs_transaccional_consolidado():
                 tp.name AS paquete,
                 tp.price AS precio,
                 tp.turns AS turnos_paquete,
-                qh.user_name AS cajero
+                qh.user_name AS cajero,
+                COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -100,12 +101,21 @@ def obtener_logs_transaccional_consolidado():
             """,
             (fecha_inicio, fecha_fin),
         )
+        _metodo_labels = {
+            'efectivo': 'Efectivo',
+            'transferencia': 'Transferencia',
+            'tarjeta': 'Tarjeta',
+            'cheque': 'Cheque',
+            'sin_registrar': 'Sin registrar',
+        }
         ventas = []
         for venta in cursor.fetchall():
             row = dict(venta)
             row['precio'] = float(row['precio']) if row['precio'] else 0
             if row.get('fecha_hora') and hasattr(row['fecha_hora'], 'isoformat'):
                 row['fecha_hora'] = row['fecha_hora'].isoformat()
+            pm = row.get('payment_method') or 'sin_registrar'
+            row['payment_method_label'] = _metodo_labels.get(pm, pm)
             ventas.append(row)
 
         cursor.execute(
