@@ -97,8 +97,13 @@ def obtener_historial_qr(qr_code):
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
+        active_loc_id, active_loc_name = get_active_location()
+        _no_filter = user_can_view_all() and active_loc_id is None
+        _loc_clause = "" if _no_filter else " AND h.local = %s"
+        _loc_p = [] if _no_filter or not active_loc_name else [active_loc_name]
+
         cursor.execute(
-            """
+            f"""
             SELECT
                 h.id,
                 h.qr_code,
@@ -113,11 +118,11 @@ def obtener_historial_qr(qr_code):
             LEFT JOIN qrcode qr ON qr.code = h.qr_code
             LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
             LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
-            WHERE h.qr_code = %s
+            WHERE h.qr_code = %s{_loc_clause}
             ORDER BY h.fecha_hora DESC
             LIMIT 20
             """,
-            (qr_code,),
+            (qr_code, *_loc_p),
         )
 
         historial = cursor.fetchall()

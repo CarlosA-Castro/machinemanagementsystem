@@ -55,6 +55,20 @@ def obtener_historial_completo_qr(qr_code):
         if not qr_data:
             return api_response('Q001', http_status=404, data={'qr_code': qr_code})
 
+        # Validar que el QR pertenece al local activo del cajero
+        active_loc_id, active_loc_name = get_active_location()
+        if not (user_can_view_all() and active_loc_id is None) and active_loc_name:
+            cursor.execute(
+                "SELECT 1 FROM qrhistory WHERE qr_code = %s LIMIT 1", (qr_code,)
+            )
+            if cursor.fetchone():
+                cursor.execute(
+                    "SELECT 1 FROM qrhistory WHERE qr_code = %s AND local = %s LIMIT 1",
+                    (qr_code, active_loc_name),
+                )
+                if not cursor.fetchone():
+                    return api_response('E004', http_status=403)
+
         cursor.execute(
             """
             SELECT
@@ -254,6 +268,20 @@ def obtener_estado_devolucion_qr(qr_code):
 
         if not qr_data:
             return api_response('Q001', http_status=404)
+
+        # Validar que el QR pertenece al local activo del cajero
+        active_loc_id, active_loc_name = get_active_location()
+        if not (user_can_view_all() and active_loc_id is None) and active_loc_name:
+            cursor.execute(
+                "SELECT 1 FROM qrhistory WHERE qr_code = %s LIMIT 1", (qr_code,)
+            )
+            if cursor.fetchone():
+                cursor.execute(
+                    "SELECT 1 FROM qrhistory WHERE qr_code = %s AND local = %s LIMIT 1",
+                    (qr_code, active_loc_name),
+                )
+                if not cursor.fetchone():
+                    return api_response('E004', http_status=403)
 
         qr_id = qr_data['id']
         cursor.execute(
@@ -468,11 +496,17 @@ def obtener_id_qr(qr_code):
 
 @devoluciones_bp.route('/api/historial-juegos/<qr_code>', methods=['GET'])
 @handle_api_errors
+@require_login(['admin', 'cajero'])
 def obtener_historial_juegos(qr_code):
     connection = None
     cursor = None
     try:
         limit = request.args.get('limit', 5)
+
+        active_loc_id, _ = get_active_location()
+        _no_filter = user_can_view_all() and active_loc_id is None
+        _loc_clause = "" if _no_filter else " AND m.location_id = %s"
+        _loc_p = [] if _no_filter or not active_loc_id else [active_loc_id]
 
         connection = get_db_connection()
         if not connection:
@@ -480,16 +514,16 @@ def obtener_historial_juegos(qr_code):
 
         cursor = get_db_cursor(connection)
         cursor.execute(
-            """
+            f"""
             SELECT tu.usedAt, m.name as machine_name
             FROM qrcode qr
             JOIN turnusage tu ON qr.id = tu.qrCodeId
             JOIN machine m ON tu.machineId = m.id
-            WHERE qr.code = %s
+            WHERE qr.code = %s{_loc_clause}
             ORDER BY tu.usedAt DESC
             LIMIT %s
             """,
-            (qr_code, int(limit)),
+            (qr_code, *_loc_p, int(limit)),
         )
         juegos = cursor.fetchall()
 

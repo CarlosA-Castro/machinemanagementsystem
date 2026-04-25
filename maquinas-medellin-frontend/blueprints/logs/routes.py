@@ -95,7 +95,6 @@ def obtener_logs_transaccional_consolidado():
         kpi_fallas = cursor.fetchone()
 
         cursor.execute(
-            """
             f"""
             SELECT
                 qh.fecha_hora,
