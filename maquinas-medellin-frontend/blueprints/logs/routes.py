@@ -12,6 +12,7 @@ from flask import Blueprint, jsonify, request, send_file, session
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import get_active_location, user_can_view_all
 from utils.logs import log_app_event
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
@@ -34,13 +35,26 @@ def obtener_logs_transaccional_consolidado():
         fecha_fin = request.args.get('fecha_fin', hoy)
         limit_feed = int(request.args.get('limit', 100))
 
+        # ── Filtro de local activo ────────────────────────────────────────────
+        # Si el admin no tiene local seleccionado (can_view_all + active=None) → sin filtro.
+        # Cajero/admin_restaurante siempre ven solo su local.
+        active_loc_id, active_loc_name = get_active_location()
+        _no_filter = user_can_view_all() and active_loc_id is None
+        # Para qrhistory (usa nombre de local como texto):
+        _name_clause = "" if _no_filter else " AND qh.local = %s"
+        _name_p      = [] if _no_filter or not active_loc_name else [active_loc_name]
+        # Para machine / machinefailures (usa location_id):
+        _id_clause   = "" if _no_filter else " AND m.location_id = %s"
+        _mf_id_clause= "" if _no_filter else " AND mf_m.location_id = %s"
+        _id_p        = [] if _no_filter or not active_loc_id else [active_loc_id]
+
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
         cursor.execute(
-            """
+            f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) AS paquetes_vendidos,
                 COALESCE(SUM(tp.price), 0) AS ingresos_ventas
@@ -50,36 +64,39 @@ def obtener_logs_transaccional_consolidado():
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
+              AND qh.es_venta_real = TRUE{_name_clause}
             """,
-            (fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, *_name_p),
         )
         kpi_ventas = cursor.fetchone()
 
         cursor.execute(
-            """
+            f"""
             SELECT COUNT(*) AS turnos_jugados
-            FROM turnusage
-            WHERE DATE(usedAt) BETWEEN %s AND %s
+            FROM turnusage tu
+            JOIN machine m ON tu.machineId = m.id
+            WHERE DATE(tu.usedAt) BETWEEN %s AND %s{_id_clause}
             """,
-            (fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, *_id_p),
         )
         kpi_turnos = cursor.fetchone()
 
         cursor.execute(
-            """
+            f"""
             SELECT
                 COUNT(*) AS fallas_total,
-                COALESCE(SUM(turnos_devueltos), 0) AS turnos_devueltos
-            FROM machinefailures
-            WHERE DATE(reported_at) BETWEEN %s AND %s
+                COALESCE(SUM(mf.turnos_devueltos), 0) AS turnos_devueltos
+            FROM machinefailures mf
+            LEFT JOIN machine m ON mf.machine_id = m.id
+            WHERE DATE(mf.reported_at) BETWEEN %s AND %s{_id_clause}
             """,
-            (fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, *_id_p),
         )
         kpi_fallas = cursor.fetchone()
 
         cursor.execute(
             """
+            f"""
             SELECT
                 qh.fecha_hora,
                 qh.qr_code,
@@ -95,11 +112,11 @@ def obtener_logs_transaccional_consolidado():
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
+              AND qh.es_venta_real = TRUE{_name_clause}
             ORDER BY qh.fecha_hora DESC
             LIMIT 200
             """,
-            (fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, *_name_p),
         )
         _metodo_labels = {
             'efectivo': 'Efectivo',
@@ -119,7 +136,7 @@ def obtener_logs_transaccional_consolidado():
             ventas.append(row)
 
         cursor.execute(
-            """
+            f"""
             SELECT
                 tp.name AS paquete,
                 COUNT(DISTINCT qh.qr_code) AS cantidad,
@@ -130,12 +147,12 @@ def obtener_logs_transaccional_consolidado():
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
               AND qr.turnPackageId != 1
-              AND qh.es_venta_real = TRUE
+              AND qh.es_venta_real = TRUE{_name_clause}
             GROUP BY tp.id, tp.name
             ORDER BY cantidad DESC
             LIMIT 5
             """,
-            (fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, *_name_p),
         )
         top_paquetes = []
         for paquete in cursor.fetchall():
@@ -144,7 +161,7 @@ def obtener_logs_transaccional_consolidado():
             top_paquetes.append(row)
 
         cursor.execute(
-            """
+            f"""
             SELECT
                 mf.id,
                 mf.reported_at,
@@ -158,12 +175,13 @@ def obtener_logs_transaccional_consolidado():
                 COALESCE(mf.is_forced, 0) AS is_forced,
                 COALESCE(mf.forced_by, '') AS forced_by
             FROM machinefailures mf
+            LEFT JOIN machine mf_m ON mf.machine_id = mf_m.id
             LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
-            WHERE DATE(mf.reported_at) BETWEEN %s AND %s
+            WHERE DATE(mf.reported_at) BETWEEN %s AND %s{_mf_id_clause}
             ORDER BY mf.reported_at DESC
             LIMIT 300
             """,
-            (fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, *_id_p),
         )
         fallas_esp32 = []
         for falla in cursor.fetchall():
@@ -172,8 +190,9 @@ def obtener_logs_transaccional_consolidado():
                 row['reported_at'] = row['reported_at'].isoformat()
             fallas_esp32.append(row)
 
+        _maq_where = "WHERE m.location_id = %s" if _id_clause else ""
         cursor.execute(
-            """
+            f"""
             SELECT
                 m.id,
                 m.name AS nombre,
@@ -199,9 +218,10 @@ def obtener_logs_transaccional_consolidado():
                 WHERE DATE(reported_at) BETWEEN %s AND %s
                 GROUP BY machine_id
             ) mf_agg ON mf_agg.machine_id = m.id
+            {_maq_where}
             ORDER BY turnos_periodo DESC
             """,
-            (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin),
+            (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin, *_id_p),
         )
         por_maquina = []
         for maquina in cursor.fetchall():
@@ -216,7 +236,7 @@ def obtener_logs_transaccional_consolidado():
         es_mismo_dia = fecha_inicio == fecha_fin
         if es_mismo_dia:
             cursor.execute(
-                """
+                f"""
                 SELECT
                     HOUR(qh.fecha_hora) AS periodo,
                     COUNT(DISTINCT qh.qr_code) AS ventas_count,
@@ -227,29 +247,30 @@ def obtener_logs_transaccional_consolidado():
                 WHERE DATE(qh.fecha_hora) = %s
                   AND qr.turnPackageId IS NOT NULL
                   AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
+                  AND qh.es_venta_real = TRUE{_name_clause}
                 GROUP BY HOUR(qh.fecha_hora)
                 ORDER BY periodo
                 """,
-                (fecha_inicio,),
+                (fecha_inicio, *_name_p),
             )
             grafica_ventas = cursor.fetchall()
 
             cursor.execute(
-                """
-                SELECT HOUR(usedAt) AS periodo, COUNT(*) AS turnos
-                FROM turnusage
-                WHERE DATE(usedAt) = %s
-                GROUP BY HOUR(usedAt)
+                f"""
+                SELECT HOUR(tu.usedAt) AS periodo, COUNT(*) AS turnos
+                FROM turnusage tu
+                JOIN machine m ON tu.machineId = m.id
+                WHERE DATE(tu.usedAt) = %s{_id_clause}
+                GROUP BY HOUR(tu.usedAt)
                 ORDER BY periodo
                 """,
-                (fecha_inicio,),
+                (fecha_inicio, *_id_p),
             )
             grafica_turnos = cursor.fetchall()
             tipo_grafica = 'horas'
         else:
             cursor.execute(
-                """
+                f"""
                 SELECT
                     DATE(qh.fecha_hora) AS periodo,
                     COUNT(DISTINCT qh.qr_code) AS ventas_count,
@@ -260,23 +281,24 @@ def obtener_logs_transaccional_consolidado():
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
                   AND qr.turnPackageId != 1
-                  AND qh.es_venta_real = TRUE
+                  AND qh.es_venta_real = TRUE{_name_clause}
                 GROUP BY DATE(qh.fecha_hora)
                 ORDER BY periodo
                 """,
-                (fecha_inicio, fecha_fin),
+                (fecha_inicio, fecha_fin, *_name_p),
             )
             grafica_ventas = cursor.fetchall()
 
             cursor.execute(
-                """
-                SELECT DATE(usedAt) AS periodo, COUNT(*) AS turnos
-                FROM turnusage
-                WHERE DATE(usedAt) BETWEEN %s AND %s
-                GROUP BY DATE(usedAt)
+                f"""
+                SELECT DATE(tu.usedAt) AS periodo, COUNT(*) AS turnos
+                FROM turnusage tu
+                JOIN machine m ON tu.machineId = m.id
+                WHERE DATE(tu.usedAt) BETWEEN %s AND %s{_id_clause}
+                GROUP BY DATE(tu.usedAt)
                 ORDER BY periodo
                 """,
-                (fecha_inicio, fecha_fin),
+                (fecha_inicio, fecha_fin, *_id_p),
             )
             grafica_turnos = cursor.fetchall()
             tipo_grafica = 'dias'

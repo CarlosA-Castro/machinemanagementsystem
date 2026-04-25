@@ -101,6 +101,28 @@ def notify_offline(machine_name: str, local_nombre: str, segundos: int) -> None:
     logger.info(f"[notify] Alerta offline enviada: {machine_name} ({minutos} min)")
 
 
+def notify_mantenimiento(machine_name: str, local_nombre: str, station_index: int, failure_count: int) -> None:
+    txt = (
+        f"MANTENIMIENTO — {local_nombre}\n"
+        f"Maquina: {machine_name}\n"
+        f"Estacion: {station_index}\n"
+        f"Fallas consecutivas: {failure_count}\n"
+        f"Hora: {_now_str()}\n"
+        f"La estacion fue bloqueada automaticamente."
+    )
+    wpp = (
+        f"🔧 MANTENIMIENTO — {local_nombre}\n"
+        f"Máquina: {machine_name}\n"
+        f"Estación: {station_index}\n"
+        f"Fallas consecutivas: {failure_count}\n"
+        f"Hora: {_now_str()}\n"
+        f"Estación bloqueada automáticamente."
+    )
+    send_whatsapp(wpp)
+    send_email(f"[MANTENIMIENTO] {machine_name} Est.{station_index} — {local_nombre}", txt)
+    logger.info(f"[notify] Alerta de mantenimiento enviada: {machine_name} est.{station_index}")
+
+
 def notify_online(machine_name: str, local_nombre: str) -> None:
     txt = (
         f"ONLINE — {local_nombre}\n"

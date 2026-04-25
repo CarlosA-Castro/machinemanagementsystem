@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, session
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, parse_db_datetime
 from utils.validators import validate_required_fields
@@ -315,6 +316,17 @@ def procesar_devolucion_unica():
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
+
+        # Validar que la máquina pertenece al local activo (aplica a cajeros y admins con local seleccionado)
+        active_loc_id, _ = get_active_location()
+        if active_loc_id and not user_can_view_all():
+            cursor.execute("SELECT location_id FROM machine WHERE id = %s", (machine_id,))
+            mach_row = cursor.fetchone()
+            if not mach_row or mach_row['location_id'] != active_loc_id:
+                return api_response('E005', http_status=403, data={
+                    'message': 'La máquina no pertenece al local activo'
+                })
+
         cursor.execute("SELECT id, remainingTurns FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
 

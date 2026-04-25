@@ -14,7 +14,7 @@ from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
 from blueprints.esp32.state import set_heartbeat
-from utils.notifications import notify_falla
+from utils.notifications import notify_falla, notify_mantenimiento
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -692,6 +692,9 @@ def esp32_reportar_falla():
         failure_id = cursor.lastrowid
 
         # ── Actualizar consecutive_failures y stations_in_maintenance en machine ──
+        _entered_maintenance = False
+        _maint_station = effective_station
+        _maint_count = 0
         try:
             cursor.execute(
                 "SELECT consecutive_failures, stations_in_maintenance FROM machine WHERE id = %s",
@@ -710,6 +713,8 @@ def esp32_reportar_falla():
                 # Si llega a 3 fallas consecutivas → marcar estación en mantenimiento
                 if new_count >= 3 and effective_station not in sim and str(effective_station) not in [str(x) for x in sim]:
                     sim.append(effective_station)
+                    _entered_maintenance = True
+                    _maint_count = new_count
                     logger.warning(
                         f"⚠️ [TFT] Estación {effective_station} de máquina {machine_id} "
                         f"entra en MANTENIMIENTO tras {new_count} fallas consecutivas"
@@ -784,6 +789,13 @@ def esp32_reportar_falla():
         except Exception:
             local_nombre = 'Sin local'
         notify_falla(machine_name or f'Máquina {machine_id}', local_nombre, notes or '')
+        if _entered_maintenance:
+            notify_mantenimiento(
+                machine_name or f'Máquina {machine_id}',
+                local_nombre,
+                _maint_station,
+                _maint_count,
+            )
 
         return api_response(
             'S012',
