@@ -57,6 +57,184 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
+        .phase-banner {
+            background: linear-gradient(135deg, rgba(30, 64, 175, 0.96), rgba(15, 23, 42, 0.96));
+            color: white;
+            border-radius: 20px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .phase-banner::after {
+            content: '';
+            position: absolute;
+            inset: auto -40px -40px auto;
+            width: 180px;
+            height: 180px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .metric-kpi {
+            border-radius: 18px;
+            padding: 1.25rem;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94));
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        }
+        .metric-kpi .label {
+            color: #64748b;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+        .metric-kpi .value {
+            color: #0f172a;
+            font-size: 1.85rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-top: 0.4rem;
+        }
+        .metric-kpi .hint {
+            color: #475569;
+            font-size: 0.85rem;
+            margin-top: 0.4rem;
+        }
+        .mini-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.9rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #f8fafc;
+        }
+        .mini-stat strong {
+            color: #0f172a;
+            font-size: 1.1rem;
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            border-radius: 9999px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        .status-pill.healthy {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-pill.warning {
+            background: #fef3c7;
+            color: #b45309;
+        }
+        .status-pill.critical {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .status-pill.empty {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .dashboard-local-card {
+            border-radius: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(255,255,255,0.98);
+            padding: 1.25rem;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+        }
+        .dashboard-local-card .name {
+            color: #0f172a;
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+        .dashboard-local-card .city {
+            color: #64748b;
+            font-size: 0.88rem;
+        }
+        .local-grid-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .local-grid-metrics .box {
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 0.85rem;
+        }
+        .local-grid-metrics .box span {
+            display: block;
+            color: #64748b;
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+        }
+        .local-grid-metrics .box strong {
+            display: block;
+            color: #0f172a;
+            font-size: 1.15rem;
+            margin-top: 0.3rem;
+        }
+        .alert-item {
+            border-radius: 16px;
+            padding: 1rem 1.1rem;
+            border-left: 5px solid transparent;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+        }
+        .alert-item.critical {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+        .alert-item.warning {
+            border-left-color: #d97706;
+            background: #fffbeb;
+        }
+        .alert-item.info {
+            border-left-color: #2563eb;
+            background: #eff6ff;
+        }
+        .table-soft {
+            width: 100%;
+            font-size: 0.92rem;
+        }
+        .table-soft thead {
+            background: #f8fafc;
+        }
+        .table-soft th,
+        .table-soft td {
+            padding: 0.8rem 0.9rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .table-soft tbody tr:hover {
+            background: #f8fafc;
+        }
+        .rank-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-weight: 800;
+            font-size: 0.78rem;
+        }
+        .empty-state {
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            color: #64748b;
+            background: #f8fafc;
+        }
         
         /* ===== NUEVOS ESTILOS RESPONSIVE ===== */
         @media (max-width: 1024px) {
@@ -138,6 +316,12 @@
             }
             table {
                 font-size: 0.875rem;
+            }
+            .metric-kpi .value {
+                font-size: 1.5rem;
+            }
+            .local-grid-metrics {
+                grid-template-columns: 1fr;
             }
         }
         
@@ -321,8 +505,30 @@
                 </div>
             </div>
 
+            <div class="phase-banner mb-6">
+                <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.25em] text-blue-200 mb-2">
+                            Fase 4 | Multi-local maduro
+                        </div>
+                        <h2 class="text-2xl lg:text-3xl font-extrabold mb-2">
+                            Control ejecutivo, técnico y de rentabilidad en una sola vista
+                        </h2>
+                        <p class="text-blue-100 max-w-3xl">
+                            Esta capa aprovecha la data operativa existente para comparar locales,
+                            detectar alertas y priorizar expansión o intervención.
+                        </p>
+                    </div>
+                    <div class="relative z-10 bg-white/10 rounded-2xl px-4 py-3 min-w-[220px]">
+                        <div class="text-xs uppercase tracking-[0.18em] text-blue-200 mb-1">Periodo de análisis</div>
+                        <div class="text-lg font-bold" id="resumenPeriodo">Cargando...</div>
+                        <div class="text-sm text-blue-100" id="subresumenPeriodo">Rentabilidad y alertas multi-local</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Estadísticas -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <div class="glass-card text-center">
                     <div class="text-2xl font-bold text-blue-600" id="total-locales">0</div>
                     <div class="text-sm text-gray-600">Total Locales</div>
@@ -334,6 +540,162 @@
                 <div class="glass-card text-center">
                     <div class="text-2xl font-bold text-purple-600" id="total-maquinas">0</div>
                     <div class="text-sm text-gray-600">Máquinas Totales</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-2xl font-bold text-amber-600" id="maquinas-activas">0</div>
+                    <div class="text-sm text-gray-600">Máquinas Activas</div>
+                </div>
+            </div>
+
+            <!-- Dashboard ejecutivo global -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-globe-americas mr-2 text-blue-600"></i>Dashboard Ejecutivo Global
+                        </h2>
+                        <p class="text-sm text-gray-600">Visión consolidada de conectividad, fallas y utilidad multi-local.</p>
+                    </div>
+                    <span class="status-pill healthy" id="estadoGlobal">Sin alertas críticas</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+                    <div class="metric-kpi">
+                        <div class="label">Ingresos del período</div>
+                        <div class="value" id="kpiIngresosPeriodo">$0</div>
+                        <div class="hint" id="kpiIngresosHint">Rentabilidad consolidada multi-local</div>
+                    </div>
+                    <div class="metric-kpi">
+                        <div class="label">Utilidad operativa</div>
+                        <div class="value" id="kpiUtilidadPeriodo">$0</div>
+                        <div class="hint" id="kpiUtilidadHint">Margen total bajo datos actuales</div>
+                    </div>
+                    <div class="metric-kpi">
+                        <div class="label">ESP32 offline</div>
+                        <div class="value" id="kpiOffline">0</div>
+                        <div class="hint" id="kpiOfflineHint">Máquinas con heartbeat caído</div>
+                    </div>
+                    <div class="metric-kpi">
+                        <div class="label">Fallas del período</div>
+                        <div class="value" id="kpiFallasPeriodo">0</div>
+                        <div class="hint" id="kpiFallasHint">Incidencias reportadas y devoluciones</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div class="mini-stat">
+                        <span class="text-sm text-gray-600">Locales en riesgo</span>
+                        <strong id="kpiLocalesRiesgo">0</strong>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="text-sm text-gray-600">Turnos devueltos</span>
+                        <strong id="kpiTurnosDevueltos">0</strong>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="text-sm text-gray-600">Estaciones en mantenimiento</span>
+                        <strong id="kpiEstacionesMtto">0</strong>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="text-sm text-gray-600">ESP32 online</span>
+                        <strong id="kpiOnline">0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard por local -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-store-alt mr-2 text-indigo-600"></i>Dashboard por Local
+                        </h2>
+                        <p class="text-sm text-gray-600">Comparación operativa y financiera para aterrizar el control multi-local en la operación real.</p>
+                    </div>
+                    <div class="text-sm text-gray-500" id="dashboardLocalesMeta">Cargando comparativo...</div>
+                </div>
+                <div id="dashboardLocalesGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div class="empty-state">Cargando dashboard por local...</div>
+                </div>
+            </div>
+
+            <!-- Alertas técnicas -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-bell mr-2 text-red-600"></i>Dashboard Técnico y Alertas Operativas
+                        </h2>
+                        <p class="text-sm text-gray-600">Heartbeat, mantenimiento por estación y fallas recientes priorizadas por severidad.</p>
+                    </div>
+                    <div class="text-sm text-gray-500" id="alertasMeta">Sincronizando señales técnicas...</div>
+                </div>
+                <div id="alertasTecnicasList" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="empty-state">Cargando alertas técnicas...</div>
+                </div>
+            </div>
+
+            <!-- Rentabilidad -->
+            <div class="glass-card mb-6">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-chart-line mr-2 text-emerald-600"></i>Análisis de Rentabilidad por Máquina y Local
+                        </h2>
+                        <p class="text-sm text-gray-600">Lectura priorizada para decisiones de expansión, intervención y reasignación.</p>
+                    </div>
+                    <div class="text-sm text-gray-500" id="rentabilidadMeta">Consolidando ingresos y utilidad...</div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                    <div class="table-container">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-800">Locales con mejor utilidad</h3>
+                            <span class="text-xs text-gray-500">Top comparativo</span>
+                        </div>
+                        <table class="table-soft">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Local</th>
+                                    <th>Utilidad</th>
+                                    <th>Margen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rentabilidadLocalesBody">
+                                <tr><td colspan="4" class="text-center text-gray-500">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-container">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-800">Máquinas con mayor aporte</h3>
+                            <span class="text-xs text-gray-500">Top comparativo</span>
+                        </div>
+                        <table class="table-soft">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Máquina</th>
+                                    <th>Local</th>
+                                    <th>Utilidad</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rentabilidadMaquinasBody">
+                                <tr><td colspan="4" class="text-center text-gray-500">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-gray-800">Máquinas a intervenir primero</h3>
+                        <span class="text-xs text-gray-500">Menor utilidad o riesgo de bajo aporte</span>
+                    </div>
+                    <div id="rentabilidadBajaList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div class="empty-state">Cargando foco de intervención...</div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -491,9 +853,10 @@
         const LocalesApp = {
             localAEliminar: null,
             vistaActual: 'tarjetas',
+            locales: [],
+            dashboardData: null,
 
             init: function() {
-                // Configurar partículas
                 particlesJS('particles-js', {
                     particles: {
                         number: { value: 40, density: { enable: true, value_area: 600 } },
@@ -514,96 +877,79 @@
                     }
                 });
 
-                // Inicializar hora en tiempo real
                 this.actualizarHora();
                 setInterval(() => this.actualizarHora(), 1000);
-
-                // Configurar fecha actual
                 this.configurarFechaActual();
-                
-                // Cargar locales
-                this.cargarLocales();
-                
-                // ===== NUEVO: Marcar el enlace activo =====
                 this.marcarEnlaceActivo();
-                
-                // Sincronizar nombre de usuario con versión móvil
-                const nombreUsuario = document.getElementById('nombreUsuario');
-                const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
-                if (nombreUsuario && nombreUsuarioMobile) {
-                    nombreUsuarioMobile.textContent = nombreUsuario.textContent;
-                }
-                
-                console.log("Gestión de Locales inicializada");
+                this.sincronizarNombreMobile();
+                this.resetDashboardFase4();
+
+                Promise.allSettled([
+                    this.cargarLocales(),
+                    this.cargarDashboardFase4()
+                ]).then(() => {
+                    console.log('Gestión de Locales inicializada');
+                });
             },
 
-            // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
             marcarEnlaceActivo: function() {
                 const currentPath = window.location.pathname;
-                
                 const pathToId = {
                     '/local': 'nav-local',
-                    '/admin': 'nav-admin',
+                    '/admin': 'nav-dashboard',
                     '/admin/usuarios/gestionusuarios': 'nav-usuarios',
-                    '/admin/maquinas/inventario': 'nav-maquinas',
+                    '/admin/maquinas/gestionmaquinas': 'nav-maquinas',
                     '/admin/paquetes/gestionpaquetes': 'nav-paquetes',
+                    '/admin/locales/listalocales': 'nav-locales',
                     '/admin/locales/gestionlocales': 'nav-locales',
                     '/admin/mensajes/gestionmensajes': 'nav-mensajes',
                     '/admin/ventas/liquidaciones': 'nav-liquidaciones',
                     '/admin/inversores/gestionsocios': 'nav-socios',
+                    '/admin/logs/transaccionales': 'nav-logs-transaccionales',
                     '/admin/logs/consola-completa': 'nav-consola',
                     '/admin/logs/gestionlogs': 'nav-gestion-logs'
                 };
-                
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.classList.remove('active');
-                });
-                
+
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
                 const activeId = pathToId[currentPath];
                 if (activeId) {
                     const activeLink = document.getElementById(activeId);
                     if (activeLink) {
                         activeLink.classList.add('active');
                     }
-                } else {
-                    // Si no hay match exacto, buscar por coincidencia parcial
-                    document.querySelectorAll('.nav-link').forEach(link => {
-                        const href = link.getAttribute('href');
-                        if (href && currentPath.includes(href) && href !== '/') {
-                            link.classList.add('active');
-                        }
-                    });
                 }
             },
 
-            // Función para actualizar la hora en tiempo real
+            sincronizarNombreMobile: function() {
+                const nombreUsuario = document.getElementById('nombreUsuario');
+                const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
+                if (nombreUsuario && nombreUsuarioMobile) {
+                    nombreUsuarioMobile.textContent = nombreUsuario.textContent;
+                }
+            },
+
             actualizarHora: function() {
                 const ahora = new Date();
-                const opciones = { 
+                const opcionesHora = {
                     timeZone: 'America/Bogota',
                     hour12: false,
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit'
                 };
-                
                 const opcionesFecha = {
                     timeZone: 'America/Bogota',
                     year: 'numeric',
                     month: '2-digit',
                     day: '2-digit'
                 };
-                
-                const hora = ahora.toLocaleTimeString('es-CO', opciones);
+
+                const hora = ahora.toLocaleTimeString('es-CO', opcionesHora);
                 const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
-                
-                // Actualizar en sidebar (desktop)
+
                 const horaSidebar = document.getElementById('horaActualSidebar');
-                const fechaSidebar = document.getElementById('fechaActualSidebar');
                 if (horaSidebar) horaSidebar.textContent = hora;
-                if (fechaSidebar) fechaSidebar.textContent = fecha;
-                
-                // Actualizar en versión móvil
+
                 const horaMobile = document.getElementById('horaActualMobile');
                 const fechaMobile = document.getElementById('fechaActualMobile');
                 if (horaMobile) horaMobile.textContent = hora;
@@ -611,205 +957,275 @@
             },
 
             configurarFechaActual: function() {
-                const ahora = new Date();
-                const opciones = { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                };
-                document.getElementById('fechaActual').textContent = 
-                    ahora.toLocaleDateString('es-ES', opciones);
+                const fechaActual = document.getElementById('fechaActual');
+                if (!fechaActual) return;
+
+                fechaActual.textContent = new Date().toLocaleDateString('es-CO', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
             },
 
-           cargarLocales: function() {
-    console.log("🔍 Iniciando carga de locales...");
-    
-    // Mostrar estado de carga
-    const container = document.getElementById('vistaTarjetas');
-    const tbody = document.getElementById('tablaLocales');
-    
-    // Mostrar estado de carga en ambas vistas
-    const loadingHTML = `
-        <div class="col-span-3 text-center py-8">
-            <div class="loading mx-auto mb-2"></div>
-            <p class="text-gray-600">Cargando locales...</p>
-        </div>
-    `;
-    
-    if (container) {
-        container.innerHTML = loadingHTML;
-    }
-    
-    if (tbody) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="p-4 text-center">
-                    <div class="loading mx-auto mb-2"></div>
-                    <p class="text-gray-600">Cargando locales...</p>
-                </td>
-            </tr>
-        `;
-    }
-    
-    fetch('/api/locales', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        console.log(`📊 Respuesta HTTP: ${response.status} ${response.statusText}`);
-        
-        // Verificar si la respuesta es exitosa
-        if (!response.ok) {
-            // Si hay un error HTTP, obtener el texto del error
-            return response.text().then(text => {
-                console.error("❌ Error en la respuesta:", text);
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            });
-        }
-        
-        // Intentar parsear como JSON
-        return response.json().then(data => {
-            console.log("✅ Locales cargados correctamente:", data);
-            return data;
-        });
-    })
-    .then(data => {
-        console.log(`📋 Total de locales recibidos: ${Array.isArray(data) ? data.length : 'no es array'}`);
-        
-        // Validar que data sea un array
-        if (!Array.isArray(data)) {
-            console.error("❌ Los datos recibidos no son un array:", data);
-            this.mostrarLocales([]);
-            return;
-        }
-        
-        // Verificar estructura de los datos
-        if (data.length > 0) {
-            console.log("📝 Primer local recibido:", data[0]);
-        }
-        
-        // Mostrar los locales
-        this.mostrarLocales(data);
-        this.actualizarEstadisticas(data);
-        
-        console.log("🎉 Locales mostrados exitosamente");
-    })
-    .catch(error => {
-        console.warn("⚠️ Advertencia al cargar locales:", error.message);
-        console.warn("Stack trace:", error.stack);
-        
-        // Solo mostrar error si realmente no hay datos
-        const container = document.getElementById('vistaTarjetas');
-        const currentContent = container ? container.innerHTML : '';
-        
-        // Si ya hay contenido (no el de carga), no mostrar error
-        if (currentContent && !currentContent.includes('Cargando locales')) {
-            console.log("✅ Ya hay locales mostrados, ignorando error...");
-            return;
-        }
-        
-        // Mostrar mensaje de error solo si no hay datos
-        this.mostrarLocales([]);
-        this.actualizarEstadisticas([]);
-        
-    });
-},
+            cargarLocales: function() {
+                const container = document.getElementById('vistaTarjetas');
+                const tbody = document.getElementById('tablaLocales');
+
+                if (container) {
+                    container.innerHTML = `
+                        <div class="col-span-3 text-center py-8">
+                            <div class="loading mx-auto mb-2"></div>
+                            <p class="text-gray-600">Cargando locales...</p>
+                        </div>
+                    `;
+                }
+
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="p-4 text-center">
+                                <div class="loading mx-auto mb-2"></div>
+                                <p class="text-gray-600">Cargando locales...</p>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                return fetch('/api/locales', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!Array.isArray(data)) {
+                        throw new Error('La respuesta de locales no es un arreglo válido');
+                    }
+
+                    this.locales = data;
+                    this.mostrarLocales(data);
+                    this.actualizarEstadisticas(data);
+                    return data;
+                })
+                .catch(error => {
+                    console.error('Error cargando locales:', error);
+                    this.locales = [];
+                    this.mostrarLocales([]);
+                    this.actualizarEstadisticas([]);
+                    throw error;
+                });
+            },
+
+            cargarDashboardFase4: function() {
+                return fetch('/api/locales/dashboard-fase4', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    this.dashboardData = data;
+                    this.renderDashboardFase4(data);
+                    return data;
+                })
+                .catch(error => {
+                    console.error('Error cargando dashboard Fase 4:', error);
+                    this.dashboardData = null;
+                    this.resetDashboardFase4('No se pudo consolidar la capa multi-local.');
+                    throw error;
+                });
+            },
+
+            resetDashboardFase4: function(mensaje) {
+                const msg = mensaje || 'Cargando consolidado multi-local...';
+
+                this.setText('resumenPeriodo', 'Cargando...');
+                this.setText('subresumenPeriodo', msg);
+                this.setText('kpiIngresosPeriodo', '$0');
+                this.setText('kpiUtilidadPeriodo', '$0');
+                this.setText('kpiOffline', '0');
+                this.setText('kpiFallasPeriodo', '0');
+                this.setText('kpiLocalesRiesgo', '0');
+                this.setText('kpiTurnosDevueltos', '0');
+                this.setText('kpiEstacionesMtto', '0');
+                this.setText('kpiOnline', '0');
+                this.setText('kpiIngresosHint', 'Rentabilidad consolidada multi-local');
+                this.setText('kpiUtilidadHint', 'Margen total bajo datos actuales');
+                this.setText('kpiOfflineHint', 'Máquinas con heartbeat caído');
+                this.setText('kpiFallasHint', 'Incidencias reportadas y devoluciones');
+                this.setText('dashboardLocalesMeta', msg);
+                this.setText('alertasMeta', msg);
+                this.setText('rentabilidadMeta', msg);
+                this.setStatusPill('estadoGlobal', 'Sincronizando', 'empty');
+
+                const alertPlaceholder = '<div class="empty-state">Cargando alertas técnicas...</div>';
+                const gridPlaceholder = '<div class="empty-state">Cargando dashboard por local...</div>';
+                const rentPlaceholder = '<tr><td colspan="4" class="text-center text-gray-500">Cargando...</td></tr>';
+
+                this.setHTML('dashboardLocalesGrid', gridPlaceholder);
+                this.setHTML('alertasTecnicasList', alertPlaceholder);
+                this.setHTML('rentabilidadLocalesBody', rentPlaceholder);
+                this.setHTML('rentabilidadMaquinasBody', rentPlaceholder);
+                this.setHTML('rentabilidadBajaList', '<div class="empty-state">Cargando foco de intervención...</div>');
+            },
+
+            renderDashboardFase4: function(data) {
+                const summary = data.summary || {};
+                const locales = Array.isArray(data.locales) ? data.locales : [];
+                const alerts = Array.isArray(data.technical_alerts) ? data.technical_alerts : [];
+                const profitability = data.profitability || {};
+
+                this.setText('resumenPeriodo', this.formatPeriodLabel(data.periodo));
+                this.setText('subresumenPeriodo', 'Datos operativos, técnicos y de utilidad listos para decisión.');
+                this.setText('kpiIngresosPeriodo', this.formatCurrency(summary.ingresos_periodo || 0));
+                this.setText('kpiUtilidadPeriodo', this.formatCurrency(summary.utilidad_periodo || 0));
+                this.setText('kpiOffline', this.formatNumber(summary.esp32_offline || 0));
+                this.setText('kpiFallasPeriodo', this.formatNumber(summary.fallas_periodo || 0));
+                this.setText('kpiLocalesRiesgo', this.formatNumber(summary.locales_en_riesgo || 0));
+                this.setText('kpiTurnosDevueltos', this.formatNumber(summary.turnos_devueltos_periodo || 0));
+                this.setText('kpiEstacionesMtto', this.formatNumber(summary.estaciones_mantenimiento || 0));
+                this.setText('kpiOnline', this.formatNumber(summary.esp32_online || 0));
+                this.setText(
+                    'kpiIngresosHint',
+                    `${this.formatNumber(summary.maquinas_totales || 0)} máquinas monitoreadas en el período`
+                );
+                this.setText(
+                    'kpiUtilidadHint',
+                    `${this.formatNumber(summary.locales_activos || 0)} locales activos con rentabilidad consolidada`
+                );
+                this.setText(
+                    'kpiOfflineHint',
+                    `${this.formatNumber(summary.esp32_online || 0)} máquinas reportando en línea`
+                );
+                this.setText(
+                    'kpiFallasHint',
+                    `${this.formatNumber(summary.turnos_devueltos_periodo || 0)} turnos devueltos en el período`
+                );
+
+                const globalStatus = this.buildGlobalStatus(summary);
+                this.setStatusPill('estadoGlobal', globalStatus.label, globalStatus.type);
+                this.setText(
+                    'dashboardLocalesMeta',
+                    `${locales.length} locales comparados en una sola vista`
+                );
+                this.setText(
+                    'alertasMeta',
+                    alerts.length ? `${alerts.length} alertas priorizadas para seguimiento` : 'Sin alertas críticas en este momento'
+                );
+                this.setText(
+                    'rentabilidadMeta',
+                    `${(profitability.top_machines || []).length} máquinas priorizadas por utilidad`
+                );
+
+                this.renderDashboardLocales(locales);
+                this.renderAlertasTecnicas(alerts);
+                this.renderRentabilidad(profitability);
+            },
 
             mostrarLocales: function(locales) {
                 this.mostrarVistaTarjetas(locales);
                 this.mostrarVistaTabla(locales);
             },
-mostrarVistaTarjetas: function(locales) {
-    const container = document.getElementById('vistaTarjetas');
-    
-    if (!locales || locales.length === 0) {
-        container.innerHTML = `
-            <div class="col-span-3 text-center py-8 text-gray-500">
-                <i class="fas fa-store text-4xl mb-4 text-gray-300"></i>
-                <p>No hay locales registrados</p>
-            </div>
-        `;
-        return;
-    }
 
-    let html = '';
-    locales.forEach(local => {
-        const estadoColor = local.status === 'activo' ? 'bg-green-100 text-green-800' : 
-                          local.status === 'inactivo' ? 'bg-red-100 text-red-800' : 
-                          'bg-yellow-100 text-yellow-800';
-        
-        const maquinasCount = local.maquinas_count || 0;
-        const maquinasActivas = local.maquinas_activas || 0;
-        
-        // Usar valores por defecto si los campos no existen
-        const telefono = local.telefono || '';
-        const horario = local.horario || '';
+            mostrarVistaTarjetas: function(locales) {
+                const container = document.getElementById('vistaTarjetas');
+                if (!container) return;
 
-        html += `
-            <div class="local-card bg-white rounded-lg shadow-md p-4">
-                <div class="flex justify-between items-start mb-3">
-                    <h3 class="font-bold text-lg text-gray-800">${local.name}</h3>
-                    <span class="px-2 py-1 rounded-full text-xs ${estadoColor}">
-                        ${this.formatearEstado(local.status)}
-                    </span>
-                </div>
-                
-                <div class="space-y-2 text-sm text-gray-600 mb-4">
-                    <div class="flex items-center">
-                        <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>
-                        <span class="truncate">${local.address || 'Sin dirección'}</span>
-                    </div>
-                    <div class="flex items-center">
-                        <i class="fas fa-city mr-2 text-blue-500"></i>
-                        <span>${local.city || 'Sin ciudad'}</span>
-                    </div>
-                    <div class="flex items-center">
-                        <i class="fas fa-gamepad mr-2 text-purple-500"></i>
-                        <span>${maquinasActivas}/${maquinasCount} máquinas activas</span>
-                    </div>
-                    ${telefono ? `
-                    <div class="flex items-center">
-                        <i class="fas fa-phone mr-2 text-green-500"></i>
-                        <span>${telefono}</span>
-                    </div>
-                    ` : ''}
-                    ${horario ? `
-                    <div class="flex items-center">
-                        <i class="fas fa-clock mr-2 text-orange-500"></i>
-                        <span>${horario}</span>
-                    </div>
-                    ` : ''}
-                </div>
-                
-                <div class="flex justify-between pt-3 border-t border-gray-200">
-                    <button onclick="LocalesApp.editarLocal(${local.id})" 
-                            class="text-blue-600 hover:text-blue-800 btn-touch text-sm">
-                        <i class="fas fa-edit mr-1"></i>Editar
-                    </button>
-                    <button onclick="LocalesApp.eliminarLocal(${local.id}, '${local.name}')" 
-                            class="text-red-600 hover:text-red-800 btn-touch text-sm">
-                        <i class="fas fa-trash mr-1"></i>Eliminar
-                    </button>
-                </div>
-            </div>
-        `;
-    });
+                if (!locales || !locales.length) {
+                    container.innerHTML = `
+                        <div class="col-span-3 text-center py-8 text-gray-500">
+                            <i class="fas fa-store text-4xl mb-4 text-gray-300"></i>
+                            <p>No hay locales registrados</p>
+                        </div>
+                    `;
+                    return;
+                }
 
-    container.innerHTML = html;
-},
+                let html = '';
+                locales.forEach(local => {
+                    const estadoColor = local.status === 'activo'
+                        ? 'bg-green-100 text-green-800'
+                        : local.status === 'inactivo'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800';
+
+                    const maquinasCount = local.maquinas_count || 0;
+                    const maquinasActivas = local.maquinas_activas || 0;
+                    const telefono = local.telefono || '';
+                    const horario = local.horario || '';
+
+                    html += `
+                        <div class="local-card bg-white rounded-lg shadow-md p-4">
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="font-bold text-lg text-gray-800">${this.escapeHtml(local.name)}</h3>
+                                <span class="px-2 py-1 rounded-full text-xs ${estadoColor}">
+                                    ${this.formatearEstado(local.status)}
+                                </span>
+                            </div>
+
+                            <div class="space-y-2 text-sm text-gray-600 mb-4">
+                                <div class="flex items-center">
+                                    <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>
+                                    <span class="truncate">${this.escapeHtml(local.address || 'Sin dirección')}</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-city mr-2 text-blue-500"></i>
+                                    <span>${this.escapeHtml(local.city || 'Sin ciudad')}</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-gamepad mr-2 text-purple-500"></i>
+                                    <span>${maquinasActivas}/${maquinasCount} máquinas activas</span>
+                                </div>
+                                ${telefono ? `
+                                <div class="flex items-center">
+                                    <i class="fas fa-phone mr-2 text-green-500"></i>
+                                    <span>${this.escapeHtml(telefono)}</span>
+                                </div>` : ''}
+                                ${horario ? `
+                                <div class="flex items-center">
+                                    <i class="fas fa-clock mr-2 text-orange-500"></i>
+                                    <span>${this.escapeHtml(horario)}</span>
+                                </div>` : ''}
+                            </div>
+
+                            <div class="flex justify-between pt-3 border-t border-gray-200">
+                                <button onclick="LocalesApp.editarLocal(${local.id})"
+                                        class="text-blue-600 hover:text-blue-800 btn-touch text-sm">
+                                    <i class="fas fa-edit mr-1"></i>Editar
+                                </button>
+                                <button onclick="LocalesApp.eliminarLocal(${local.id}, '${this.escapeQuotes(local.name)}')"
+                                        class="text-red-600 hover:text-red-800 btn-touch text-sm">
+                                    <i class="fas fa-trash mr-1"></i>Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            },
 
             mostrarVistaTabla: function(locales) {
                 const tbody = document.getElementById('tablaLocales');
-                
-                if (!locales || locales.length === 0) {
+                if (!tbody) return;
+
+                if (!locales || !locales.length) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="7" class="p-4 text-center text-gray-500">
-                                No hay locales registrados
-                            </td>
+                            <td colspan="7" class="p-4 text-center text-gray-500">No hay locales registrados</td>
                         </tr>
                     `;
                     return;
@@ -817,19 +1233,20 @@ mostrarVistaTarjetas: function(locales) {
 
                 let html = '';
                 locales.forEach(local => {
-                    const estadoColor = local.status === 'activo' ? 'bg-green-100 text-green-800' : 
-                                      local.status === 'inactivo' ? 'bg-red-100 text-red-800' : 
-                                      'bg-yellow-100 text-yellow-800';
-                    
+                    const estadoColor = local.status === 'activo'
+                        ? 'bg-green-100 text-green-800'
+                        : local.status === 'inactivo'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800';
                     const maquinasCount = local.maquinas_count || 0;
                     const maquinasActivas = local.maquinas_activas || 0;
 
                     html += `
                         <tr class="local-row border-b border-gray-200">
                             <td class="p-3 font-mono text-sm">${local.id}</td>
-                            <td class="p-3 font-medium">${local.name}</td>
-                            <td class="p-3 text-sm">${local.address || 'N/A'}</td>
-                            <td class="p-3">${local.city || 'N/A'}</td>
+                            <td class="p-3 font-medium">${this.escapeHtml(local.name)}</td>
+                            <td class="p-3 text-sm">${this.escapeHtml(local.address || 'N/A')}</td>
+                            <td class="p-3">${this.escapeHtml(local.city || 'N/A')}</td>
                             <td class="p-3">
                                 <span class="px-2 py-1 rounded-full text-xs ${estadoColor}">
                                     ${this.formatearEstado(local.status)}
@@ -842,12 +1259,12 @@ mostrarVistaTarjetas: function(locales) {
                             </td>
                             <td class="p-3 text-center">
                                 <div class="flex justify-center space-x-2">
-                                    <button onclick="LocalesApp.editarLocal(${local.id})" 
+                                    <button onclick="LocalesApp.editarLocal(${local.id})"
                                             class="text-blue-600 hover:text-blue-800 btn-touch"
                                             title="Editar local">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="LocalesApp.eliminarLocal(${local.id}, '${local.name}')" 
+                                    <button onclick="LocalesApp.eliminarLocal(${local.id}, '${this.escapeQuotes(local.name)}')"
                                             class="text-red-600 hover:text-red-800 btn-touch"
                                             title="Eliminar local">
                                         <i class="fas fa-trash"></i>
@@ -861,34 +1278,221 @@ mostrarVistaTarjetas: function(locales) {
                 tbody.innerHTML = html;
             },
 
+            renderDashboardLocales: function(locales) {
+                const container = document.getElementById('dashboardLocalesGrid');
+                if (!container) return;
+
+                if (!locales || !locales.length) {
+                    container.innerHTML = '<div class="empty-state">No hay locales para comparar todavía.</div>';
+                    return;
+                }
+
+                const sorted = [...locales].sort((a, b) => {
+                    const severityWeight = { critical: 0, warning: 1, healthy: 2, empty: 3 };
+                    return (severityWeight[a.health_status] ?? 9) - (severityWeight[b.health_status] ?? 9);
+                });
+
+                container.innerHTML = sorted.map(local => {
+                    const health = this.getHealthMeta(local.health_status);
+                    return `
+                        <div class="dashboard-local-card">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="name">${this.escapeHtml(local.name)}</div>
+                                    <div class="city">${this.escapeHtml(local.city || 'Sin ciudad registrada')}</div>
+                                </div>
+                                <span class="status-pill ${health.className}">${health.label}</span>
+                            </div>
+
+                            <div class="local-grid-metrics">
+                                <div class="box">
+                                    <span>Máquinas activas</span>
+                                    <strong>${this.formatNumber(local.maquinas_activas || 0)} / ${this.formatNumber(local.maquinas_count || 0)}</strong>
+                                </div>
+                                <div class="box">
+                                    <span>ESP32 offline</span>
+                                    <strong>${this.formatNumber(local.esp32_offline || 0)}</strong>
+                                </div>
+                                <div class="box">
+                                    <span>Fallas período</span>
+                                    <strong>${this.formatNumber(local.fallas_periodo || 0)}</strong>
+                                </div>
+                                <div class="box">
+                                    <span>Utilidad</span>
+                                    <strong>${this.formatCurrency(local.utilidad_periodo || 0)}</strong>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 space-y-2 text-sm text-gray-600">
+                                <div class="flex items-center justify-between">
+                                    <span>Estaciones en mantenimiento</span>
+                                    <strong class="text-gray-800">${this.formatNumber(local.estaciones_mantenimiento || 0)}</strong>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Margen del local</span>
+                                    <strong class="text-gray-800">${this.formatPercent(local.margen_utilidad || 0)}</strong>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Top máquina</span>
+                                    <strong class="text-gray-800">${this.escapeHtml(local.top_machine_name || 'Sin data suficiente')}</strong>
+                                </div>
+                                <div class="pt-2 border-t border-gray-200 text-xs text-gray-500">
+                                    Fuente de rentabilidad: ${this.formatearFuente(local.rentabilidad_source)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderAlertasTecnicas: function(alerts) {
+                const container = document.getElementById('alertasTecnicasList');
+                if (!container) return;
+
+                if (!alerts || !alerts.length) {
+                    container.innerHTML = `
+                        <div class="empty-state lg:col-span-2">
+                            Sin alertas críticas por ahora. El monitoreo multi-local está estable.
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = alerts.map(alert => {
+                    const meta = this.getAlertMeta(alert.severity);
+                    return `
+                        <div class="alert-item ${meta.className}">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="status-pill ${meta.className}">${meta.label}</span>
+                                        <span class="text-xs uppercase tracking-wide text-gray-500">${this.escapeHtml(alert.location_name || 'Sin local')}</span>
+                                    </div>
+                                    <h3 class="font-semibold text-gray-900">${this.escapeHtml(alert.title || 'Alerta operativa')}</h3>
+                                    <p class="text-sm text-gray-700 mt-1">${this.escapeHtml(alert.description || 'Sin descripción')}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-semibold text-gray-900">${this.escapeHtml(alert.metric || 'Revisar')}</div>
+                                    <div class="text-xs text-gray-500 mt-1">${this.escapeHtml(alert.machine_name || 'Sin máquina')}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderRentabilidad: function(profitability) {
+                const topLocales = Array.isArray(profitability.top_locations) ? profitability.top_locations : [];
+                const topMaquinas = Array.isArray(profitability.top_machines) ? profitability.top_machines : [];
+                const bajas = Array.isArray(profitability.underperforming_machines) ? profitability.underperforming_machines : [];
+
+                const localesBody = document.getElementById('rentabilidadLocalesBody');
+                const maquinasBody = document.getElementById('rentabilidadMaquinasBody');
+                const bajasList = document.getElementById('rentabilidadBajaList');
+
+                if (localesBody) {
+                    localesBody.innerHTML = topLocales.length
+                        ? topLocales.map((item, index) => `
+                            <tr>
+                                <td><span class="rank-chip">${index + 1}</span></td>
+                                <td>
+                                    <div class="font-semibold text-gray-900">${this.escapeHtml(item.location_name || 'Sin local')}</div>
+                                    <div class="text-xs text-gray-500">${this.formatearFuente(item.source)}</div>
+                                </td>
+                                <td class="font-semibold text-emerald-700">${this.formatCurrency(item.utilidad_operativa || 0)}</td>
+                                <td>${this.formatPercent(item.margin_pct || 0)}</td>
+                            </tr>
+                        `).join('')
+                        : '<tr><td colspan="4" class="text-center text-gray-500">Sin datos de rentabilidad por local</td></tr>';
+                }
+
+                if (maquinasBody) {
+                    maquinasBody.innerHTML = topMaquinas.length
+                        ? topMaquinas.map((item, index) => `
+                            <tr>
+                                <td><span class="rank-chip">${index + 1}</span></td>
+                                <td>
+                                    <div class="font-semibold text-gray-900">${this.escapeHtml(item.machine_name || 'Sin nombre')}</div>
+                                    <div class="text-xs text-gray-500">${this.formatearFuente(item.source)}</div>
+                                </td>
+                                <td>${this.escapeHtml(item.location_name || 'Sin local')}</td>
+                                <td class="font-semibold text-emerald-700">${this.formatCurrency(item.utilidad_operativa || 0)}</td>
+                            </tr>
+                        `).join('')
+                        : '<tr><td colspan="4" class="text-center text-gray-500">Sin datos de rentabilidad por máquina</td></tr>';
+                }
+
+                if (bajasList) {
+                    bajasList.innerHTML = bajas.length
+                        ? bajas.map(item => `
+                            <div class="dashboard-local-card">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900">${this.escapeHtml(item.machine_name || 'Sin nombre')}</h3>
+                                        <p class="text-sm text-gray-500">${this.escapeHtml(item.location_name || 'Sin local')}</p>
+                                    </div>
+                                    <span class="status-pill warning">Intervenir</span>
+                                </div>
+                                <div class="mt-4 space-y-2 text-sm text-gray-600">
+                                    <div class="flex items-center justify-between">
+                                        <span>Utilidad</span>
+                                        <strong class="text-gray-900">${this.formatCurrency(item.utilidad_operativa || 0)}</strong>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span>Ingreso bruto</span>
+                                        <strong class="text-gray-900">${this.formatCurrency(item.ingreso_bruto || 0)}</strong>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span>Fuente</span>
+                                        <strong class="text-gray-900">${this.formatearFuente(item.source)}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')
+                        : '<div class="empty-state">No hay máquinas con señales claras de bajo aporte en este período.</div>';
+                }
+            },
+
             formatearEstado: function(estado) {
                 const estados = {
-                    'activo': 'Activo',
-                    'inactivo': 'Inactivo',
-                    'mantenimiento': 'Mantenimiento'
+                    activo: 'Activo',
+                    inactivo: 'Inactivo',
+                    mantenimiento: 'Mantenimiento'
                 };
-                return estados[estado] || estado;
+                return estados[estado] || estado || 'Sin estado';
+            },
+
+            formatearFuente: function(source) {
+                const map = {
+                    manual: 'manual',
+                    mixta: 'mixta',
+                    estimada_por_uso: 'estimada por uso',
+                    sin_datos: 'sin datos'
+                };
+                return map[source] || source || 'sin datos';
             },
 
             actualizarEstadisticas: function(locales) {
                 const total = locales.length;
-                const activos = locales.filter(l => l.status === 'activo').length;
-                const totalMaquinas = locales.reduce((sum, l) => sum + (l.maquinas_count || 0), 0);
-                const maquinasActivas = locales.reduce((sum, l) => sum + (l.maquinas_activas || 0), 0);
+                const activos = locales.filter(local => local.status === 'activo').length;
+                const totalMaquinas = locales.reduce((sum, local) => sum + (local.maquinas_count || 0), 0);
+                const maquinasActivas = locales.reduce((sum, local) => sum + (local.maquinas_activas || 0), 0);
 
-                document.getElementById('total-locales').textContent = total;
-                document.getElementById('locales-activos').textContent = activos;
-                document.getElementById('total-maquinas').textContent = totalMaquinas;
-                document.getElementById('maquinas-activas').textContent = maquinasActivas;
+                this.setText('total-locales', this.formatNumber(total));
+                this.setText('locales-activos', this.formatNumber(activos));
+                this.setText('total-maquinas', this.formatNumber(totalMaquinas));
+                this.setText('maquinas-activas', this.formatNumber(maquinasActivas));
             },
 
             cambiarVista: function(vista) {
                 this.vistaActual = vista;
-                
+
                 const btnTabla = document.getElementById('btnVistaTabla');
                 const btnTarjetas = document.getElementById('btnVistaTarjetas');
                 const vistaTabla = document.getElementById('vistaTabla');
                 const vistaTarjetas = document.getElementById('vistaTarjetas');
+
+                if (!btnTabla || !btnTarjetas || !vistaTabla || !vistaTarjetas) return;
 
                 if (vista === 'tabla') {
                     btnTabla.className = 'bg-blue-600 text-white px-3 py-2 rounded-lg btn-touch';
@@ -913,9 +1517,7 @@ mostrarVistaTarjetas: function(locales) {
 
             editarLocal: function(id) {
                 fetch(`/api/locales/${id}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('Error en la respuesta del servidor');
@@ -924,14 +1526,13 @@ mostrarVistaTarjetas: function(locales) {
                 .then(local => {
                     document.getElementById('modalTitulo').innerHTML = '<i class="fas fa-edit mr-2 text-blue-600"></i>Editar Local';
                     document.getElementById('localId').value = local.id;
-                    document.getElementById('nombre').value = local.name;
+                    document.getElementById('nombre').value = local.name || '';
                     document.getElementById('direccion').value = local.address || '';
                     document.getElementById('ciudad').value = local.city || '';
                     document.getElementById('estado').value = local.status || 'activo';
                     document.getElementById('telefono').value = local.telefono || '';
                     document.getElementById('horario').value = local.horario || '';
                     document.getElementById('notas').value = local.notas || '';
-
                     document.getElementById('modalLocal').classList.remove('hidden');
                     document.getElementById('modalLocal').classList.add('flex');
                 })
@@ -943,10 +1544,9 @@ mostrarVistaTarjetas: function(locales) {
 
             guardarLocal: function(event) {
                 event.preventDefault();
-                
+
                 const localId = document.getElementById('localId').value;
                 const esEdicion = !!localId;
-
                 const datos = {
                     name: document.getElementById('nombre').value,
                     address: document.getElementById('direccion').value,
@@ -972,13 +1572,13 @@ mostrarVistaTarjetas: function(locales) {
                     if (!response.ok) throw new Error('Error en la respuesta del servidor');
                     return response.json();
                 })
-                .then(data => {
+                .then(() => Promise.allSettled([this.cargarLocales(), this.cargarDashboardFase4()]))
+                .then(() => {
                     this.mostrarAlerta(
-                        esEdicion ? 'Local actualizado correctamente' : 'Local creado correctamente', 
+                        esEdicion ? 'Local actualizado correctamente' : 'Local creado correctamente',
                         'success'
                     );
                     this.cerrarModal();
-                    this.cargarLocales();
                 })
                 .catch(error => {
                     console.error('Error guardando local:', error);
@@ -988,7 +1588,7 @@ mostrarVistaTarjetas: function(locales) {
 
             eliminarLocal: function(id, nombre) {
                 this.localAEliminar = id;
-                document.getElementById('mensajeConfirmacion').textContent = 
+                document.getElementById('mensajeConfirmacion').textContent =
                     `¿Estás seguro de que deseas eliminar el local "${nombre}"? Esta acción no se puede deshacer.`;
                 document.getElementById('modalConfirmar').classList.remove('hidden');
                 document.getElementById('modalConfirmar').classList.add('flex');
@@ -999,18 +1599,16 @@ mostrarVistaTarjetas: function(locales) {
 
                 fetch(`/api/locales/${this.localAEliminar}`, {
                     method: 'DELETE',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('Error en la respuesta del servidor');
                     return response.json();
                 })
-                .then(data => {
+                .then(() => Promise.allSettled([this.cargarLocales(), this.cargarDashboardFase4()]))
+                .then(() => {
                     this.mostrarAlerta('Local eliminado correctamente', 'success');
                     this.cancelarEliminar();
-                    this.cargarLocales();
                 })
                 .catch(error => {
                     console.error('Error eliminando local:', error);
@@ -1030,27 +1628,122 @@ mostrarVistaTarjetas: function(locales) {
             },
 
             actualizarLista: function() {
-                this.cargarLocales();
-                this.mostrarAlerta('Lista de locales actualizada', 'success');
+                Promise.allSettled([this.cargarLocales(), this.cargarDashboardFase4()])
+                    .then(results => {
+                        const huboError = results.some(result => result.status === 'rejected');
+                        if (huboError) {
+                            this.mostrarError('Se actualizó parcialmente la vista. Revisa la consola si persiste.');
+                            return;
+                        }
+                        this.mostrarAlerta('Vista multi-local actualizada', 'success');
+                    });
+            },
+
+            buildGlobalStatus: function(summary) {
+                if ((summary.esp32_offline || 0) > 0 || (summary.locales_en_riesgo || 0) >= 3) {
+                    return { label: 'Atención prioritaria', type: 'critical' };
+                }
+                if ((summary.fallas_periodo || 0) > 0 || (summary.estaciones_mantenimiento || 0) > 0) {
+                    return { label: 'Seguimiento activo', type: 'warning' };
+                }
+                return { label: 'Sin alertas críticas', type: 'healthy' };
+            },
+
+            getHealthMeta: function(status) {
+                const map = {
+                    healthy: { label: 'Saludable', className: 'healthy' },
+                    warning: { label: 'En seguimiento', className: 'warning' },
+                    critical: { label: 'Crítico', className: 'critical' },
+                    empty: { label: 'Sin parque', className: 'empty' }
+                };
+                return map[status] || map.warning;
+            },
+
+            getAlertMeta: function(severity) {
+                const map = {
+                    critical: { label: 'Crítica', className: 'critical' },
+                    warning: { label: 'Advertencia', className: 'warning' },
+                    info: { label: 'Info', className: 'info' }
+                };
+                return map[severity] || map.info;
+            },
+
+            setStatusPill: function(elementId, label, type) {
+                const element = document.getElementById(elementId);
+                if (!element) return;
+                element.className = `status-pill ${type}`;
+                element.textContent = label;
+            },
+
+            setText: function(elementId, value) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = value;
+                }
+            },
+
+            setHTML: function(elementId, value) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.innerHTML = value;
+                }
+            },
+
+            formatCurrency: function(value) {
+                return new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    maximumFractionDigits: 0
+                }).format(Number(value) || 0);
+            },
+
+            formatNumber: function(value) {
+                return new Intl.NumberFormat('es-CO').format(Number(value) || 0);
+            },
+
+            formatPercent: function(value) {
+                return `${Number(value || 0).toFixed(1)}%`;
+            },
+
+            formatPeriodLabel: function(periodo) {
+                if (!periodo || !periodo.fecha_inicio || !periodo.fecha_fin) {
+                    return 'Período no disponible';
+                }
+                const inicio = new Date(`${periodo.fecha_inicio}T00:00:00`);
+                const fin = new Date(`${periodo.fecha_fin}T00:00:00`);
+                const options = { day: '2-digit', month: 'short', year: 'numeric' };
+                return `${inicio.toLocaleDateString('es-CO', options)} - ${fin.toLocaleDateString('es-CO', options)}`;
+            },
+
+            escapeHtml: function(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            },
+
+            escapeQuotes: function(value) {
+                return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             },
 
             mostrarAlerta: function(mensaje, tipo) {
                 const toast = document.createElement('div');
                 toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-                    tipo === 'error' ? 'bg-red-500' : 
+                    tipo === 'error' ? 'bg-red-500' :
                     tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
                 } text-white max-w-md`;
                 toast.innerHTML = `
                     <div class="flex items-center">
                         <i class="fas fa-${
-                            tipo === 'success' ? 'check-circle' : 
+                            tipo === 'success' ? 'check-circle' :
                             tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
                         } mr-2"></i>
-                        <span>${mensaje}</span>
+                        <span>${this.escapeHtml(mensaje)}</span>
                     </div>
                 `;
                 document.body.appendChild(toast);
-                
                 setTimeout(() => toast.remove(), 4000);
             },
 
@@ -1059,7 +1752,6 @@ mostrarVistaTarjetas: function(locales) {
             }
         };
 
-        // Inicializar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             LocalesApp.init();
         });
