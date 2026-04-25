@@ -178,18 +178,27 @@ def obtener_logs_transaccional_consolidado():
                 m.id,
                 m.name AS nombre,
                 m.status AS estado,
-                COUNT(DISTINCT tu.id) AS turnos_periodo,
-                COUNT(DISTINCT mf.id) AS fallas_periodo,
-                COALESCE(SUM(mf.turnos_devueltos), 0) AS turnos_devueltos_periodo,
-                MAX(tu.usedAt) AS ultimo_uso
+                COALESCE(tu_agg.turnos_periodo, 0)          AS turnos_periodo,
+                COALESCE(mf_agg.fallas_periodo, 0)          AS fallas_periodo,
+                COALESCE(mf_agg.turnos_devueltos_periodo, 0) AS turnos_devueltos_periodo,
+                tu_agg.ultimo_uso
             FROM machine m
-            LEFT JOIN turnusage tu
-                   ON tu.machineId = m.id
-                  AND DATE(tu.usedAt) BETWEEN %s AND %s
-            LEFT JOIN machinefailures mf
-                   ON mf.machine_id = m.id
-                  AND DATE(mf.reported_at) BETWEEN %s AND %s
-            GROUP BY m.id, m.name, m.status
+            LEFT JOIN (
+                SELECT machineId,
+                       COUNT(*)    AS turnos_periodo,
+                       MAX(usedAt) AS ultimo_uso
+                FROM turnusage
+                WHERE DATE(usedAt) BETWEEN %s AND %s
+                GROUP BY machineId
+            ) tu_agg ON tu_agg.machineId = m.id
+            LEFT JOIN (
+                SELECT machine_id,
+                       COUNT(*)               AS fallas_periodo,
+                       SUM(turnos_devueltos)  AS turnos_devueltos_periodo
+                FROM machinefailures
+                WHERE DATE(reported_at) BETWEEN %s AND %s
+                GROUP BY machine_id
+            ) mf_agg ON mf_agg.machine_id = m.id
             ORDER BY turnos_periodo DESC
             """,
             (fecha_inicio, fecha_fin, fecha_inicio, fecha_fin),
