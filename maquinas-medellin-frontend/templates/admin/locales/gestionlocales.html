@@ -57,88 +57,6 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
-        .phase-banner {
-            background: linear-gradient(135deg, rgba(30, 64, 175, 0.96), rgba(15, 23, 42, 0.96));
-            color: white;
-            border-radius: 20px;
-            padding: 1.5rem;
-            position: relative;
-            overflow: hidden;
-        }
-        .phase-banner::after {
-            content: '';
-            position: absolute;
-            inset: auto -40px -40px auto;
-            width: 180px;
-            height: 180px;
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.08);
-        }
-        .metric-kpi {
-            border-radius: 18px;
-            padding: 1.25rem;
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94));
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-        }
-        .metric-kpi .label {
-            color: #64748b;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            font-weight: 700;
-        }
-        .metric-kpi .value {
-            color: #0f172a;
-            font-size: 1.85rem;
-            font-weight: 800;
-            line-height: 1.1;
-            margin-top: 0.4rem;
-        }
-        .metric-kpi .hint {
-            color: #475569;
-            font-size: 0.85rem;
-            margin-top: 0.4rem;
-        }
-        .mini-stat {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.9rem 1rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            background: #f8fafc;
-        }
-        .mini-stat strong {
-            color: #0f172a;
-            font-size: 1.1rem;
-        }
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            border-radius: 9999px;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
-        .status-pill.healthy {
-            background: #dcfce7;
-            color: #166534;
-        }
-        .status-pill.warning {
-            background: #fef3c7;
-            color: #b45309;
-        }
-        .status-pill.critical {
-            background: #fee2e2;
-            color: #b91c1c;
-        }
-        .status-pill.empty {
-            background: #e2e8f0;
-            color: #475569;
-        }
         .dashboard-local-card {
             border-radius: 18px;
             border: 1px solid rgba(148, 163, 184, 0.18);
@@ -179,25 +97,6 @@
             color: #0f172a;
             font-size: 1.15rem;
             margin-top: 0.3rem;
-        }
-        .alert-item {
-            border-radius: 16px;
-            padding: 1rem 1.1rem;
-            border-left: 5px solid transparent;
-            background: #fff;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-        }
-        .alert-item.critical {
-            border-left-color: #dc2626;
-            background: #fef2f2;
-        }
-        .alert-item.warning {
-            border-left-color: #d97706;
-            background: #fffbeb;
-        }
-        .alert-item.info {
-            border-left-color: #2563eb;
-            background: #eff6ff;
         }
         .table-soft {
             width: 100%;
@@ -316,9 +215,6 @@
             }
             table {
                 font-size: 0.875rem;
-            }
-            .metric-kpi .value {
-                font-size: 1.5rem;
             }
             .local-grid-metrics {
                 grid-template-columns: 1fr;
@@ -505,28 +401,6 @@
                 </div>
             </div>
 
-            <div class="phase-banner mb-6">
-                <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.25em] text-blue-200 mb-2">
-                            Fase 4 | Multi-local maduro
-                        </div>
-                        <h2 class="text-2xl lg:text-3xl font-extrabold mb-2">
-                            Control ejecutivo, técnico y de rentabilidad en una sola vista
-                        </h2>
-                        <p class="text-blue-100 max-w-3xl">
-                            Esta capa aprovecha la data operativa existente para comparar locales,
-                            detectar alertas y priorizar expansión o intervención.
-                        </p>
-                    </div>
-                    <div class="relative z-10 bg-white/10 rounded-2xl px-4 py-3 min-w-[220px]">
-                        <div class="text-xs uppercase tracking-[0.18em] text-blue-200 mb-1">Periodo de análisis</div>
-                        <div class="text-lg font-bold" id="resumenPeriodo">Cargando...</div>
-                        <div class="text-sm text-blue-100" id="subresumenPeriodo">Rentabilidad y alertas multi-local</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Estadísticas -->
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <div class="glass-card text-center">
@@ -547,61 +421,6 @@
                 </div>
             </div>
 
-            <!-- Dashboard ejecutivo global -->
-            <div class="glass-card mb-6">
-                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800">
-                            <i class="fas fa-globe-americas mr-2 text-blue-600"></i>Dashboard Ejecutivo Global
-                        </h2>
-                        <p class="text-sm text-gray-600">Visión consolidada de conectividad, fallas y utilidad multi-local.</p>
-                    </div>
-                    <span class="status-pill healthy" id="estadoGlobal">Sin alertas críticas</span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-                    <div class="metric-kpi">
-                        <div class="label">Ingresos del período</div>
-                        <div class="value" id="kpiIngresosPeriodo">$0</div>
-                        <div class="hint" id="kpiIngresosHint">Rentabilidad consolidada multi-local</div>
-                    </div>
-                    <div class="metric-kpi">
-                        <div class="label">Utilidad operativa</div>
-                        <div class="value" id="kpiUtilidadPeriodo">$0</div>
-                        <div class="hint" id="kpiUtilidadHint">Margen total bajo datos actuales</div>
-                    </div>
-                    <div class="metric-kpi">
-                        <div class="label">ESP32 offline</div>
-                        <div class="value" id="kpiOffline">0</div>
-                        <div class="hint" id="kpiOfflineHint">Máquinas con heartbeat caído</div>
-                    </div>
-                    <div class="metric-kpi">
-                        <div class="label">Fallas del período</div>
-                        <div class="value" id="kpiFallasPeriodo">0</div>
-                        <div class="hint" id="kpiFallasHint">Incidencias reportadas y devoluciones</div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                    <div class="mini-stat">
-                        <span class="text-sm text-gray-600">Locales en riesgo</span>
-                        <strong id="kpiLocalesRiesgo">0</strong>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="text-sm text-gray-600">Turnos devueltos</span>
-                        <strong id="kpiTurnosDevueltos">0</strong>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="text-sm text-gray-600">Estaciones en mantenimiento</span>
-                        <strong id="kpiEstacionesMtto">0</strong>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="text-sm text-gray-600">ESP32 online</span>
-                        <strong id="kpiOnline">0</strong>
-                    </div>
-                </div>
-            </div>
-
             <!-- Dashboard por local -->
             <div class="glass-card mb-6">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
@@ -615,22 +434,6 @@
                 </div>
                 <div id="dashboardLocalesGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <div class="empty-state">Cargando dashboard por local...</div>
-                </div>
-            </div>
-
-            <!-- Alertas técnicas -->
-            <div class="glass-card mb-6">
-                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800">
-                            <i class="fas fa-bell mr-2 text-red-600"></i>Dashboard Técnico y Alertas Operativas
-                        </h2>
-                        <p class="text-sm text-gray-600">Heartbeat, mantenimiento por estación y fallas recientes priorizadas por severidad.</p>
-                    </div>
-                    <div class="text-sm text-gray-500" id="alertasMeta">Sincronizando señales técnicas...</div>
-                </div>
-                <div id="alertasTecnicasList" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="empty-state">Cargando alertas técnicas...</div>
                 </div>
             </div>
 
@@ -688,15 +491,6 @@
                     </div>
                 </div>
 
-                <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-semibold text-gray-800">Máquinas a intervenir primero</h3>
-                        <span class="text-xs text-gray-500">Menor utilidad o riesgo de bajo aporte</span>
-                    </div>
-                    <div id="rentabilidadBajaList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <div class="empty-state">Cargando foco de intervención...</div>
-                    </div>
-                </div>
             </div>
         </main>
     </div>
@@ -859,13 +653,13 @@
             init: function() {
                 particlesJS('particles-js', {
                     particles: {
-                        number: { value: 40, density: { enable: true, value_area: 600 } },
-                        color: { value: '#3b82f6' },
+                        number: { value: 55, density: { enable: true, value_area: 650 } },
+                        color: { value: '#2563eb' },
                         shape: { type: 'circle' },
-                        opacity: { value: 0.2, random: true },
-                        size: { value: 2, random: true },
-                        line_linked: { enable: true, distance: 120, color: '#3b82f6', opacity: 0.1, width: 1 },
-                        move: { enable: true, speed: 0.5, direction: 'none', random: true }
+                        opacity: { value: 0.45, random: true },
+                        size: { value: 3.2, random: true },
+                        line_linked: { enable: true, distance: 135, color: '#1d4ed8', opacity: 0.3, width: 1.2 },
+                        move: { enable: true, speed: 0.75, direction: 'none', random: true }
                     },
                     interactivity: {
                         detect_on: 'canvas',
@@ -1288,12 +1082,10 @@
                 }
 
                 const sorted = [...locales].sort((a, b) => {
-                    const severityWeight = { critical: 0, warning: 1, healthy: 2, empty: 3 };
-                    return (severityWeight[a.health_status] ?? 9) - (severityWeight[b.health_status] ?? 9);
+                    return (b.utilidad_periodo || 0) - (a.utilidad_periodo || 0);
                 });
 
                 container.innerHTML = sorted.map(local => {
-                    const health = this.getHealthMeta(local.health_status);
                     return `
                         <div class="dashboard-local-card">
                             <div class="flex items-start justify-between gap-3">
@@ -1301,7 +1093,6 @@
                                     <div class="name">${this.escapeHtml(local.name)}</div>
                                     <div class="city">${this.escapeHtml(local.city || 'Sin ciudad registrada')}</div>
                                 </div>
-                                <span class="status-pill ${health.className}">${health.label}</span>
                             </div>
 
                             <div class="local-grid-metrics">
