@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión Firmware OTA - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #particles-js {
+            position: fixed; width: 100%; height: 100%;
+            z-index: -1; top: 0; left: 0;
+        }
+        .glass-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .loading {
+            display: inline-block; width: 18px; height: 18px;
+            border: 3px solid rgba(59,130,246,0.3);
+            border-radius: 50%; border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .badge-active   { background:#d1fae5; color:#065f46; }
+        .badge-inactive { background:#f3f4f6; color:#6b7280; }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+<div id="particles-js"></div>
+
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+
+    <!-- Encabezado -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white">
+                <i class="fas fa-microchip mr-2"></i>Firmware OTA
+            </h1>
+            <p class="text-blue-200 text-sm mt-1">Gestión de versiones para ESP32</p>
+        </div>
+        <a href="/admin" class="text-blue-200 hover:text-white text-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Volver al panel
+        </a>
+    </div>
+
+    <!-- Versión activa -->
+    <div class="glass-card">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">
+            <i class="fas fa-check-circle text-green-500 mr-2"></i>Versión activa
+        </h2>
+        <div id="activeInfo" class="text-gray-500 text-sm">
+            <span class="loading"></span> Cargando…
+        </div>
+    </div>
+
+    <!-- Subir nuevo firmware -->
+    <div class="glass-card">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-blue-500 mr-2"></i>Subir nueva versión
+        </h2>
+        <form id="uploadForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Versión <span class="text-red-500">*</span>
+                        <span class="text-gray-400 font-normal">(ej: 20260426)</span>
+                    </label>
+                    <input id="version" type="number" placeholder="20260426"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Archivo .bin <span class="text-red-500">*</span></label>
+                    <input id="binFile" type="file" accept=".bin"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notas de versión</label>
+                <textarea id="notes" rows="2" placeholder="Cambios en esta versión…"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+            </div>
+            <div class="flex items-center gap-3">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+                    <i class="fas fa-upload mr-1"></i>Subir
+                </button>
+                <span id="uploadStatus" class="text-sm"></span>
+            </div>
+        </form>
+    </div>
+
+    <!-- Lista de versiones -->
+    <div class="glass-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">
+                <i class="fas fa-history text-purple-500 mr-2"></i>Historial de versiones
+            </h2>
+            <button onclick="loadVersions()"
+                class="text-sm text-blue-600 hover:text-blue-800">
+                <i class="fas fa-sync-alt mr-1"></i>Actualizar
+            </button>
+        </div>
+        <div id="versionsList" class="text-gray-500 text-sm">
+            <span class="loading"></span> Cargando…
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+particlesJS('particles-js', {
+    particles: { number: { value: 40 }, color: { value: '#ffffff' }, opacity: { value: 0.15 },
+        size: { value: 3 }, line_linked: { enable: true, color: '#ffffff', opacity: 0.1 },
+        move: { enable: true, speed: 1 } },
+    interactivity: { events: { onhover: { enable: false } } }
+});
+
+// ── Carga versión activa ──────────────────────────────────────────────────────
+async function loadActive() {
+    const el = document.getElementById('activeInfo');
+    try {
+        const res = await fetch('/api/esp32/firmware/latest');
+        const data = await res.json();
+        if (!data.available) {
+            el.innerHTML = '<span class="text-gray-400">Sin versión activa</span>';
+        } else {
+            el.innerHTML = `
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <span><strong>Versión:</strong> ${data.version}</span>
+                    <span><strong>Archivo:</strong> ${data.filename}</span>
+                    <span><strong>Tamaño:</strong> ${(data.size / 1024).toFixed(1)} KB</span>
+                </div>`;
+        }
+    } catch {
+        el.innerHTML = '<span class="text-red-500">Error al cargar</span>';
+    }
+}
+
+// ── Carga lista de versiones ──────────────────────────────────────────────────
+async function loadVersions() {
+    const el = document.getElementById('versionsList');
+    el.innerHTML = '<span class="loading"></span> Cargando…';
+    try {
+        const res = await fetch('/api/admin/firmware', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const list = await res.json();
+        if (!list.length) {
+            el.innerHTML = '<p class="text-gray-400">No hay versiones registradas.</p>';
+            return;
+        }
+        el.innerHTML = `
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-500 border-b">
+                    <th class="pb-2 pr-4">Versión</th>
+                    <th class="pb-2 pr-4">Archivo</th>
+                    <th class="pb-2 pr-4">Tamaño</th>
+                    <th class="pb-2 pr-4">Subido</th>
+                    <th class="pb-2 pr-4">Estado</th>
+                    <th class="pb-2">Acción</th>
+                </tr>
+            </thead>
+            <tbody id="versionsBody"></tbody>
+        </table>
+        </div>`;
+
+        const tbody = document.getElementById('versionsBody');
+        list.forEach(fw => {
+            const date = fw.uploaded_at ? fw.uploaded_at.substring(0, 10) : '—';
+            const size = fw.file_size ? (fw.file_size / 1024).toFixed(1) + ' KB' : '—';
+            const badge = fw.is_active
+                ? '<span class="badge-active px-2 py-0.5 rounded-full text-xs font-medium">Activa</span>'
+                : '<span class="badge-inactive px-2 py-0.5 rounded-full text-xs font-medium">Inactiva</span>';
+            const btn = fw.is_active
+                ? '<span class="text-gray-400 text-xs">—</span>'
+                : `<button onclick="activarFirmware(${fw.id})"
+                    class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors">
+                    Activar</button>`;
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-2 pr-4 font-mono">${fw.version}</td>
+                    <td class="py-2 pr-4 text-gray-600 truncate max-w-[160px]" title="${fw.filename}">${fw.filename}</td>
+                    <td class="py-2 pr-4 text-gray-500">${size}</td>
+                    <td class="py-2 pr-4 text-gray-500">${date}</td>
+                    <td class="py-2 pr-4">${badge}</td>
+                    <td class="py-2">${btn}</td>
+                </tr>`);
+        });
+    } catch {
+        el.innerHTML = '<span class="text-red-500">Error al cargar versiones</span>';
+    }
+}
+
+// ── Activar versión ───────────────────────────────────────────────────────────
+async function activarFirmware(id) {
+    if (!confirm('¿Activar esta versión? El ESP32 la descargará en su próximo ciclo OTA.')) return;
+    try {
+        const res = await fetch(`/api/admin/firmware/${id}/activar`, {
+            method: 'PUT',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            loadActive();
+            loadVersions();
+        } else {
+            alert(data.error || 'Error al activar');
+        }
+    } catch {
+        alert('Error de red');
+    }
+}
+
+// ── Subida de archivo ─────────────────────────────────────────────────────────
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('uploadStatus');
+    const file    = document.getElementById('binFile').files[0];
+    const version = document.getElementById('version').value.trim();
+    const notes   = document.getElementById('notes').value.trim();
+
+    if (!file || !version) return;
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('version', version);
+    if (notes) fd.append('notes', notes);
+
+    status.innerHTML = '<span class="loading"></span> Subiendo…';
+    try {
+        const res = await fetch('/api/admin/firmware/upload', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        });
+        const data = await res.json();
+        if (res.ok) {
+            status.innerHTML = '<span class="text-green-600"><i class="fas fa-check mr-1"></i>Subido correctamente</span>';
+            document.getElementById('uploadForm').reset();
+            loadVersions();
+        } else {
+            status.innerHTML = `<span class="text-red-600">${data.error || 'Error'}</span>`;
+        }
+    } catch {
+        status.innerHTML = '<span class="text-red-600">Error de red</span>';
+    }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadActive();
+loadVersions();
+</script>
+</body>
+</html>

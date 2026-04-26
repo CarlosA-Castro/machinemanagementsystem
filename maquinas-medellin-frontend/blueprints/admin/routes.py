@@ -183,3 +183,18 @@ def mostrar_consola_completa():
 
 # ── Inversores ────────────────────────────────────────────────────────────────
 # FASE 3: /admin/inversores/gestionsocios se migra junto con el blueprint partners
+
+
+# ── Firmware OTA ──────────────────────────────────────────────────────────────
+
+@admin_bp.route('/admin/firmware/gestionfirmware')
+@require_login(['admin'])
+def mostrar_gestion_firmware():
+    hora_colombia = get_colombia_time()
+    return render_template(
+        'admin/firmware/gestionfirmware.html',
+        nombre_usuario=session.get('user_name', 'Administrador'),
+        local_usuario=session.get('user_local', 'Sistema'),
+        hora_actual=hora_colombia.strftime('%H:%M:%S'),
+        fecha_actual=hora_colombia.strftime('%Y-%m-%d'),
+    )
