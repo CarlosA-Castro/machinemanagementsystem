@@ -15,7 +15,7 @@ firmware_bp = Blueprint('firmware', __name__)
 
 FIRMWARE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static', 'firmware')
 ALLOWED_EXTENSIONS = {'bin'}
-MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
+MAX_FILE_SIZE = 4 * 1024 * 1024  # 4 MB — .bin de ESP32 puede superar 2 MB
 
 
 def _allowed(filename: str) -> bool:
@@ -151,7 +151,10 @@ def firmware_upload():
 @require_login(['admin'])
 @handle_api_errors
 def firmware_activar(firmware_id: int):
-    """Activa una versión y desactiva todas las demás."""
+    """
+    Activa una versión de firmware y envía FORCE_OTA a todas las máquinas activas.
+    Las máquinas lo reciben en ≤10 s (siguiente ciclo de checkPendingCommands).
+    """
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'db_error'}), 500
@@ -163,11 +166,31 @@ def firmware_activar(firmware_id: int):
         conn.close()
         return jsonify({'error': 'Versión no encontrada'}), 404
 
+    # Activar la versión seleccionada
     cur.execute("UPDATE firmware SET is_active = 0")
     cur.execute("UPDATE firmware SET is_active = 1 WHERE id = %s", (firmware_id,))
+
+    # Obtener todas las máquinas activas
+    cur.execute("SELECT id FROM machine WHERE status = 'activa'")
+    machines = cur.fetchall()
+
+    # Insertar FORCE_OTA para cada una — las recibirán en ≤10 s
+    triggered_by = f"firmware_ota_v{firmware_id}"
+    for m in machines:
+        cur.execute(
+            "INSERT INTO esp32_commands "
+            "  (machine_id, command, parameters, triggered_by, status, triggered_at) "
+            "VALUES (%s, 'FORCE_OTA', '{}', %s, 'queued', NOW())",
+            (m['id'], triggered_by),
+        )
+
     conn.commit()
+    notified = len(machines)
     cur.close()
     conn.close()
 
-    logger.info(f"Firmware {firmware_id} activado por user {session.get('user_id')}")
-    return jsonify({'ok': True, 'active_id': firmware_id}), 200
+    logger.info(
+        f"Firmware {firmware_id} activado por user {session.get('user_id')} "
+        f"— FORCE_OTA enviado a {notified} máquina(s)"
+    )
+    return jsonify({'ok': True, 'active_id': firmware_id, 'machines_notified': notified}), 200

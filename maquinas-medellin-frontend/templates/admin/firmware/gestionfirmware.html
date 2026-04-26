@@ -341,7 +341,8 @@ async function activarFirmware(id) {
         });
         const data = await res.json();
         if (res.ok) {
-            showAlert('Versión activada correctamente', 'success');
+            const n = data.machines_notified ?? 0;
+            showAlert(`Versión activada — FORCE_OTA enviado a ${n} máquina(s)`, 'success');
             loadVersions();
         } else {
             showAlert(data.error || 'Error al activar', 'error');
