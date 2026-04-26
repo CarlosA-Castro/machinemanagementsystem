@@ -3,262 +3,441 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gestión Firmware OTA - Panel de Administración</title>
+    <title>Firmware OTA - Panel de Administración</title>
     <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         #particles-js {
-            position: fixed; width: 100%; height: 100%;
+            position: fixed;
+            width: 100%; height: 100%;
             z-index: -1; top: 0; left: 0;
         }
         .glass-card {
-            background: rgba(255,255,255,0.95);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(5px);
             border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
+        .btn-touch {
+            min-height: 44px; min-width: 44px;
+            display: flex; align-items: center; justify-content: center;
+        }
         .loading {
-            display: inline-block; width: 18px; height: 18px;
+            display: inline-block; width: 20px; height: 20px;
             border: 3px solid rgba(59,130,246,0.3);
             border-radius: 50%; border-top-color: #3b82f6;
             animation: spin 1s ease-in-out infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .badge-active   { background:#d1fae5; color:#065f46; }
-        .badge-inactive { background:#f3f4f6; color:#6b7280; }
+        .stat-card { transition: all 0.3s ease; border-left: 4px solid; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .fw-row { transition: background 0.15s; }
+        .fw-row:hover { background: #f0f9ff; }
+        .badge-active   { background:#d1fae5; color:#065f46; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; }
+        .badge-inactive { background:#f3f4f6; color:#6b7280; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; }
+        .alert-box {
+            position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999;
+            padding: 0.875rem 1.25rem; border-radius: 12px; color: white;
+            font-size: 0.875rem; font-weight: 500;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 0.5rem;
+            transition: opacity 0.4s;
+        }
+        @media (max-width: 1024px) {
+            .flex.min-h-screen { flex-direction: column; height: auto; min-height: 100vh; }
+            aside { width: 100% !important; order: 1; padding-bottom: 0 !important; }
+            main { order: 2; padding: 1rem !important; }
+            .sidebar-nav { display: flex; flex-wrap: wrap; gap: .5rem; padding: 1rem; }
+            .sidebar-nav a { flex: 1; min-width: 120px; text-align: center; padding: 0.75rem 0.5rem !important; }
+            .user-info-desktop { display: none !important; }
+            .user-info-mobile { display: block !important; width: 100%; background-color: #1f2937; border-top: 1px solid #374151; padding: 1rem; text-align: center; }
+        }
+        @media (min-width: 1025px) {
+            .user-info-desktop { display: block !important; }
+            .user-info-mobile  { display: none !important; }
+        }
+        /* Sidebar */
+        aside .nav-link {
+            display: flex; align-items: center;
+            padding: 0.5rem 0.75rem; font-size: 0.875rem;
+            color: #d1d5db; border-radius: 8px;
+            transition: all 0.15s; text-decoration: none;
+            min-height: 36px; white-space: nowrap;
+        }
+        aside .nav-link:hover { background: rgba(255,255,255,0.12); color: white; }
+        aside .nav-link.active { background: rgba(59,130,246,0.22); color: white; font-weight: 600; border-left: 3px solid #3b82f6; padding-left: calc(0.75rem - 3px); }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+<body class="bg-gray-50 min-h-screen">
+
 <div id="particles-js"></div>
 
-<div class="container mx-auto px-4 py-8 max-w-4xl">
+<!-- Alert flotante -->
+<div id="alertBox" class="alert-box" style="display:none;"></div>
 
-    <!-- Encabezado -->
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white">
-                <i class="fas fa-microchip mr-2"></i>Firmware OTA
-            </h1>
-            <p class="text-blue-200 text-sm mt-1">Gestión de versiones para ESP32</p>
-        </div>
-        <a href="/admin" class="text-blue-200 hover:text-white text-sm">
-            <i class="fas fa-arrow-left mr-1"></i>Volver al panel
-        </a>
-    </div>
+<div class="flex flex-col lg:flex-row min-h-screen">
 
-    <!-- Versión activa -->
-    <div class="glass-card">
-        <h2 class="text-lg font-semibold text-gray-800 mb-3">
-            <i class="fas fa-check-circle text-green-500 mr-2"></i>Versión activa
-        </h2>
-        <div id="activeInfo" class="text-gray-500 text-sm">
-            <span class="loading"></span> Cargando…
-        </div>
-    </div>
-
-    <!-- Subir nuevo firmware -->
-    <div class="glass-card">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">
-            <i class="fas fa-upload text-blue-500 mr-2"></i>Subir nueva versión
-        </h2>
-        <form id="uploadForm" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Versión <span class="text-red-500">*</span>
-                        <span class="text-gray-400 font-normal">(ej: 20260426)</span>
-                    </label>
-                    <input id="version" type="number" placeholder="20260426"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Archivo .bin <span class="text-red-500">*</span></label>
-                    <input id="binFile" type="file" accept=".bin"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required>
-                </div>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notas de versión</label>
-                <textarea id="notes" rows="2" placeholder="Cambios en esta versión…"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
-            </div>
+    <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0"
+           style="min-height:100vh;box-shadow:6px 0 28px rgba(17,24,39,0.55),2px 0 6px rgba(17,24,39,0.35)">
+        <div class="p-4 border-b border-gray-700">
             <div class="flex items-center gap-3">
-                <button type="submit"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
-                    <i class="fas fa-upload mr-1"></i>Subir
-                </button>
-                <span id="uploadStatus" class="text-sm"></span>
+                <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo"
+                     class="w-10 h-10 rounded-full object-cover">
+                <div>
+                    <div class="font-bold text-sm">Inversiones Arcade</div>
+                    <div class="text-xs text-gray-400">Panel Admin</div>
+                </div>
             </div>
-        </form>
-    </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto sidebar-nav">
+            <a href="/admin"                              class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+            <a href="/local"                              class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
+            <a href="/admin/usuarios/gestionusuarios"     class="nav-link" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
+            <a href="/admin/maquinas/gestionmaquinas"     class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+            <a href="/admin/paquetes/gestionpaquetes"     class="nav-link" id="nav-paquetes"><i class="fas fa-box mr-2"></i>Paquetes</a>
+            <a href="/admin/locales/listalocales"         class="nav-link" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
+            <a href="/admin/mensajes/gestionmensajes"     class="nav-link" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+            <a href="/admin/ventas/liquidaciones"         class="nav-link" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+            <a href="/admin/inversores/gestionsocios"     class="nav-link" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sistema</div>
+            <a href="/admin/firmware/gestionfirmware"     class="nav-link" id="nav-firmware"><i class="fas fa-microchip mr-2"></i>Firmware OTA</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
+            <a href="/admin/logs/transaccionales"         class="nav-link" id="nav-logs-transaccionales"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
+            <a href="/admin/logs/consola-completa"        class="nav-link" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+            <a href="/admin/logs/gestionlogs"             class="nav-link" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
+        </nav>
+        <div class="p-4 border-t border-gray-700 text-sm user-info-desktop">
+            <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
+            <div class="text-gray-400 text-xs mb-2"><span id="horaActualSidebar">{{ hora_actual }}</span></div>
+            <a href="/logout" class="text-red-400 hover:underline text-xs"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
+        </div>
+    </aside>
 
-    <!-- Lista de versiones -->
-    <div class="glass-card">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800">
-                <i class="fas fa-history text-purple-500 mr-2"></i>Historial de versiones
+    <!-- ── Contenido principal ─────────────────────────────────────────────── -->
+    <main class="flex-1 p-4 lg:p-8 overflow-y-auto contenido">
+        {% include 'partials/_location_context_bar.html' %}
+
+        <!-- Encabezado -->
+        <div class="glass-card mb-6">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-microchip mr-3 text-indigo-600"></i>Firmware OTA
+                    </h1>
+                    <p class="text-gray-600">
+                        <i class="fas fa-user mr-2"></i>Bienvenido, <strong>{{ nombre_usuario }}</strong> |
+                        <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual">{{ fecha_actual }}</span>
+                    </p>
+                </div>
+                <div class="mt-4 lg:mt-0 flex gap-3">
+                    <button onclick="loadAll()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
+                        <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 stat-grid">
+            <div class="stat-card glass-card border-l-4 border-l-indigo-500">
+                <div class="flex items-center">
+                    <div class="bg-indigo-100 p-3 rounded-lg mr-4">
+                        <i class="fas fa-layer-group text-indigo-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total versiones</p>
+                        <p id="statTotal" class="text-2xl font-bold text-gray-800">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card glass-card border-l-4 border-l-green-500">
+                <div class="flex items-center">
+                    <div class="bg-green-100 p-3 rounded-lg mr-4">
+                        <i class="fas fa-broadcast-tower text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Versión activa</p>
+                        <p id="statActive" class="text-2xl font-bold text-gray-800">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card glass-card border-l-4 border-l-blue-500">
+                <div class="flex items-center">
+                    <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                        <i class="fas fa-weight-hanging text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Tamaño activo</p>
+                        <p id="statSize" class="text-2xl font-bold text-gray-800">—</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subir firmware -->
+        <div class="glass-card">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-upload mr-2 text-blue-600"></i>Subir nueva versión
             </h2>
-            <button onclick="loadVersions()"
-                class="text-sm text-blue-600 hover:text-blue-800">
-                <i class="fas fa-sync-alt mr-1"></i>Actualizar
-            </button>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Versión <span class="text-red-500">*</span>
+                            <span class="text-gray-400 font-normal">(ej: 20260426)</span>
+                        </label>
+                        <input id="fwVersion" type="number" placeholder="20260426"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Archivo .bin <span class="text-red-500">*</span>
+                        </label>
+                        <input id="fwFile" type="file" accept=".bin"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notas de versión</label>
+                        <input id="fwNotes" type="text" placeholder="Cambios incluidos…"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button type="submit"
+                        id="btnUpload"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg
+                               text-sm font-medium btn-touch transition-colors">
+                        <i class="fas fa-upload mr-2"></i>Subir firmware
+                    </button>
+                    <span id="uploadMsg" class="text-sm"></span>
+                </div>
+            </form>
         </div>
-        <div id="versionsList" class="text-gray-500 text-sm">
-            <span class="loading"></span> Cargando…
-        </div>
-    </div>
 
+        <!-- Tabla de versiones -->
+        <div class="glass-card">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-history mr-2 text-purple-600"></i>Historial de versiones
+                </h2>
+            </div>
+
+            <div id="versionsArea">
+                <div class="flex justify-center py-8">
+                    <span class="loading"></span>
+                </div>
+            </div>
+        </div>
+
+    </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<!-- ── Scripts ──────────────────────────────────────────────────────────────── -->
 <script>
-particlesJS('particles-js', {
-    particles: { number: { value: 40 }, color: { value: '#ffffff' }, opacity: { value: 0.15 },
-        size: { value: 3 }, line_linked: { enable: true, color: '#ffffff', opacity: 0.1 },
-        move: { enable: true, speed: 1 } },
-    interactivity: { events: { onhover: { enable: false } } }
-});
-
-// ── Carga versión activa ──────────────────────────────────────────────────────
-async function loadActive() {
-    const el = document.getElementById('activeInfo');
-    try {
-        const res = await fetch('/api/esp32/firmware/latest');
-        const data = await res.json();
-        if (!data.available) {
-            el.innerHTML = '<span class="text-gray-400">Sin versión activa</span>';
-        } else {
-            el.innerHTML = `
-                <div class="flex flex-wrap gap-4 text-sm">
-                    <span><strong>Versión:</strong> ${data.version}</span>
-                    <span><strong>Archivo:</strong> ${data.filename}</span>
-                    <span><strong>Tamaño:</strong> ${(data.size / 1024).toFixed(1)} KB</span>
-                </div>`;
-        }
-    } catch {
-        el.innerHTML = '<span class="text-red-500">Error al cargar</span>';
-    }
+// ── Alertas ───────────────────────────────────────────────────────────────────
+function showAlert(msg, type = 'success') {
+    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+    const icons  = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+    const el = document.getElementById('alertBox');
+    el.style.background = colors[type] || colors.info;
+    el.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${msg}`;
+    el.style.display = 'flex';
+    el.style.opacity = '1';
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 400); }, 3500);
 }
 
-// ── Carga lista de versiones ──────────────────────────────────────────────────
+// ── Carga stats + tabla ───────────────────────────────────────────────────────
+async function loadAll() {
+    await Promise.all([loadVersions()]);
+}
+
 async function loadVersions() {
-    const el = document.getElementById('versionsList');
-    el.innerHTML = '<span class="loading"></span> Cargando…';
+    const area = document.getElementById('versionsArea');
+    area.innerHTML = '<div class="flex justify-center py-8"><span class="loading"></span></div>';
     try {
-        const res = await fetch('/api/admin/firmware', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const res  = await fetch('/api/admin/firmware', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const list = await res.json();
+
+        // Stats
+        document.getElementById('statTotal').textContent = list.length;
+        const active = list.find(f => f.is_active);
+        document.getElementById('statActive').textContent = active ? active.version : 'Ninguna';
+        document.getElementById('statSize').textContent   = active ? (active.file_size / 1024).toFixed(1) + ' KB' : '—';
+
         if (!list.length) {
-            el.innerHTML = '<p class="text-gray-400">No hay versiones registradas.</p>';
+            area.innerHTML = '<p class="text-gray-400 text-sm py-4">No hay versiones registradas.</p>';
             return;
         }
-        el.innerHTML = `
-        <div class="overflow-x-auto">
+
+        area.innerHTML = `
+        <div class="overflow-x-auto table-container">
         <table class="w-full text-sm">
             <thead>
-                <tr class="text-left text-gray-500 border-b">
-                    <th class="pb-2 pr-4">Versión</th>
-                    <th class="pb-2 pr-4">Archivo</th>
-                    <th class="pb-2 pr-4">Tamaño</th>
-                    <th class="pb-2 pr-4">Subido</th>
-                    <th class="pb-2 pr-4">Estado</th>
-                    <th class="pb-2">Acción</th>
+                <tr class="border-b border-gray-200 text-left text-gray-500 text-xs uppercase tracking-wider">
+                    <th class="pb-3 pr-4 font-semibold">Versión</th>
+                    <th class="pb-3 pr-4 font-semibold">Archivo</th>
+                    <th class="pb-3 pr-4 font-semibold">Tamaño</th>
+                    <th class="pb-3 pr-4 font-semibold">Notas</th>
+                    <th class="pb-3 pr-4 font-semibold">Subido</th>
+                    <th class="pb-3 pr-4 font-semibold">Estado</th>
+                    <th class="pb-3 font-semibold">Acción</th>
                 </tr>
             </thead>
-            <tbody id="versionsBody"></tbody>
+            <tbody id="fwTbody"></tbody>
         </table>
         </div>`;
 
-        const tbody = document.getElementById('versionsBody');
+        const tbody = document.getElementById('fwTbody');
         list.forEach(fw => {
-            const date = fw.uploaded_at ? fw.uploaded_at.substring(0, 10) : '—';
-            const size = fw.file_size ? (fw.file_size / 1024).toFixed(1) + ' KB' : '—';
+            const date  = fw.uploaded_at ? fw.uploaded_at.substring(0, 10) : '—';
+            const size  = fw.file_size ? (fw.file_size / 1024).toFixed(1) + ' KB' : '—';
+            const notes = fw.notes || '<span class="text-gray-400">—</span>';
             const badge = fw.is_active
-                ? '<span class="badge-active px-2 py-0.5 rounded-full text-xs font-medium">Activa</span>'
-                : '<span class="badge-inactive px-2 py-0.5 rounded-full text-xs font-medium">Inactiva</span>';
+                ? '<span class="badge-active">Activa</span>'
+                : '<span class="badge-inactive">Inactiva</span>';
             const btn = fw.is_active
-                ? '<span class="text-gray-400 text-xs">—</span>'
+                ? '<span class="text-gray-400 text-xs italic">—</span>'
                 : `<button onclick="activarFirmware(${fw.id})"
-                    class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors">
-                    Activar</button>`;
+                        class="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5
+                               rounded-lg transition-colors btn-touch">
+                        <i class="fas fa-bolt mr-1"></i>Activar</button>`;
             tbody.insertAdjacentHTML('beforeend', `
-                <tr class="border-b border-gray-100 hover:bg-gray-50">
-                    <td class="py-2 pr-4 font-mono">${fw.version}</td>
-                    <td class="py-2 pr-4 text-gray-600 truncate max-w-[160px]" title="${fw.filename}">${fw.filename}</td>
-                    <td class="py-2 pr-4 text-gray-500">${size}</td>
-                    <td class="py-2 pr-4 text-gray-500">${date}</td>
-                    <td class="py-2 pr-4">${badge}</td>
-                    <td class="py-2">${btn}</td>
+                <tr class="fw-row border-b border-gray-100">
+                    <td class="py-3 pr-4 font-mono font-semibold text-gray-800">${fw.version}</td>
+                    <td class="py-3 pr-4 text-gray-600 max-w-[160px] truncate" title="${fw.filename}">${fw.filename}</td>
+                    <td class="py-3 pr-4 text-gray-500">${size}</td>
+                    <td class="py-3 pr-4 text-gray-500 max-w-[200px] truncate">${notes}</td>
+                    <td class="py-3 pr-4 text-gray-500">${date}</td>
+                    <td class="py-3 pr-4">${badge}</td>
+                    <td class="py-3">${btn}</td>
                 </tr>`);
         });
-    } catch {
-        el.innerHTML = '<span class="text-red-500">Error al cargar versiones</span>';
+    } catch (e) {
+        area.innerHTML = '<p class="text-red-500 text-sm py-4"><i class="fas fa-exclamation-circle mr-2"></i>Error al cargar versiones.</p>';
     }
 }
 
 // ── Activar versión ───────────────────────────────────────────────────────────
 async function activarFirmware(id) {
-    if (!confirm('¿Activar esta versión? El ESP32 la descargará en su próximo ciclo OTA.')) return;
+    if (!confirm('¿Activar esta versión? Los ESP32 la descargarán en su próximo ciclo OTA.')) return;
     try {
-        const res = await fetch(`/api/admin/firmware/${id}/activar`, {
+        const res  = await fetch(`/api/admin/firmware/${id}/activar`, {
             method: 'PUT',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         const data = await res.json();
         if (res.ok) {
-            loadActive();
+            showAlert('Versión activada correctamente', 'success');
             loadVersions();
         } else {
-            alert(data.error || 'Error al activar');
+            showAlert(data.error || 'Error al activar', 'error');
         }
     } catch {
-        alert('Error de red');
+        showAlert('Error de red', 'error');
     }
 }
 
-// ── Subida de archivo ─────────────────────────────────────────────────────────
+// ── Subida ────────────────────────────────────────────────────────────────────
 document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const status = document.getElementById('uploadStatus');
-    const file    = document.getElementById('binFile').files[0];
-    const version = document.getElementById('version').value.trim();
-    const notes   = document.getElementById('notes').value.trim();
+    const btn   = document.getElementById('btnUpload');
+    const msg   = document.getElementById('uploadMsg');
+    const file  = document.getElementById('fwFile').files[0];
+    const ver   = document.getElementById('fwVersion').value.trim();
+    const notes = document.getElementById('fwNotes').value.trim();
 
-    if (!file || !version) return;
+    if (!file || !ver) return;
 
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('version', version);
+    fd.append('version', ver);
     if (notes) fd.append('notes', notes);
 
-    status.innerHTML = '<span class="loading"></span> Subiendo…';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading mr-2"></span>Subiendo…';
+    msg.innerHTML = '';
+
     try {
-        const res = await fetch('/api/admin/firmware/upload', {
+        const res  = await fetch('/api/admin/firmware/upload', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: fd,
         });
         const data = await res.json();
         if (res.ok) {
-            status.innerHTML = '<span class="text-green-600"><i class="fas fa-check mr-1"></i>Subido correctamente</span>';
+            showAlert('Firmware subido correctamente', 'success');
             document.getElementById('uploadForm').reset();
             loadVersions();
         } else {
-            status.innerHTML = `<span class="text-red-600">${data.error || 'Error'}</span>`;
+            showAlert(data.error || 'Error al subir', 'error');
         }
     } catch {
-        status.innerHTML = '<span class="text-red-600">Error de red</span>';
+        showAlert('Error de red', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-upload mr-2"></i>Subir firmware';
     }
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadActive();
-loadVersions();
+loadAll();
 </script>
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+particlesJS('particles-js', {
+    particles: {
+        number: { value: 60, density: { enable: true, value_area: 800 } },
+        color: { value: '#ffffff' }, opacity: { value: 0.15 },
+        size: { value: 3 }, line_linked: { enable: true, color: '#ffffff', opacity: 0.1 },
+        move: { enable: true, speed: 1.2 }
+    },
+    interactivity: { events: { onhover: { enable: false } } }
+});
+</script>
+
+<script>
+(function () {
+    var path = window.location.pathname;
+    var map = {
+        "/admin":                               "nav-dashboard",
+        "/local":                               "nav-local",
+        "/admin/usuarios/gestionusuarios":      "nav-usuarios",
+        "/admin/maquinas/gestionmaquinas":      "nav-maquinas",
+        "/admin/paquetes/gestionpaquetes":      "nav-paquetes",
+        "/admin/locales/listalocales":          "nav-locales",
+        "/admin/locales/gestionlocales":        "nav-locales",
+        "/admin/mensajes/gestionmensajes":      "nav-mensajes",
+        "/admin/ventas/liquidaciones":          "nav-liquidaciones",
+        "/admin/inversores/gestionsocios":      "nav-socios",
+        "/admin/firmware/gestionfirmware":      "nav-firmware",
+        "/admin/logs/transaccionales":          "nav-logs-transaccionales",
+        "/admin/logs/consola-completa":         "nav-consola",
+        "/admin/logs/gestionlogs":              "nav-gestion-logs"
+    };
+    var id = map[path];
+    if (id) { var el = document.getElementById(id); if (el) el.classList.add("active"); }
+
+    setInterval(function () {
+        var s = document.getElementById("horaActualSidebar");
+        if (s) s.textContent = new Date().toLocaleTimeString("es-CO", { hour12: false });
+    }, 1000);
+})();
+</script>
+<script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
 </body>
 </html>
