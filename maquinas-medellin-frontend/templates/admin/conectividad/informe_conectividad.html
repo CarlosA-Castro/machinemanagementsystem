@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conectividad de Máquinas - Panel de Administración</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        #particles-js { position:fixed; width:100%; height:100%; z-index:-1; top:0; left:0; }
+
+        .glass-card {
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(6px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 6px 24px rgba(31,38,135,0.09);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .kpi-card { border-radius:14px; padding:1.1rem 1.25rem; color:white; position:relative; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.13); }
+        .kpi-card::after { content:''; position:absolute; top:-30%; right:-10%; width:140px; height:140px; background:rgba(255,255,255,0.07); border-radius:50%; }
+        .kpi-online  { background: linear-gradient(135deg,#059669,#10b981); }
+        .kpi-offline { background: linear-gradient(135deg,#dc2626,#f87171); }
+        .kpi-total   { background: linear-gradient(135deg,#2563eb,#60a5fa); }
+        .kpi-maq     { background: linear-gradient(135deg,#7c3aed,#a78bfa); }
+
+        .btn-periodo { padding:.4rem .9rem; border-radius:8px; font-size:.82rem; font-weight:600; cursor:pointer; transition:all .15s; background:rgba(255,255,255,.85); color:#374151; border:2px solid transparent; }
+        .btn-periodo.active, .btn-periodo:hover { background:#2563eb; color:white; border-color:#2563eb; }
+
+        aside .nav-link { display:flex; align-items:center; padding:.5rem .75rem; font-size:.875rem; color:#d1d5db; border-radius:8px; transition:all .15s; text-decoration:none; min-height:36px; }
+        aside .nav-link:hover { background:rgba(255,255,255,.12); color:white; }
+        aside .nav-link.active { background:rgba(59,130,246,.22); color:white; font-weight:600; border-left:3px solid #3b82f6; padding-left:calc(.75rem - 3px); }
+
+        .badge-online  { background:#d1fae5; color:#065f46; padding:.2rem .55rem; border-radius:9999px; font-size:.7rem; font-weight:700; }
+        .badge-offline { background:#fee2e2; color:#991b1b; padding:.2rem .55rem; border-radius:9999px; font-size:.7rem; font-weight:700; }
+
+        .event-row-online  { border-left:4px solid #10b981; }
+        .event-row-offline { border-left:4px solid #ef4444; }
+
+        table.sticky-head thead th { position:sticky; top:0; background:#f8fafc; z-index:1; }
+        .scroll-box { overflow-y:auto; }
+        .scroll-500 { max-height:520px; }
+
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .spin { display:inline-block; width:16px; height:16px; border:3px solid rgba(59,130,246,.3); border-radius:50%; border-top-color:#3b82f6; animation:spin 1s linear infinite; }
+
+        @media(max-width:1024px) { aside { display:none; } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div id="particles-js"></div>
+
+<div class="flex min-h-screen">
+
+    <!-- ══════════ SIDEBAR ══════════ -->
+    <aside class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0" style="min-height:100vh;box-shadow:6px 0 28px rgba(17,24,39,0.55),2px 0 6px rgba(17,24,39,0.35)">
+        <div class="p-4 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">
+                <div>
+                    <div class="font-bold text-sm">Inversiones Arcade</div>
+                    <div class="text-xs text-gray-400">Panel Admin</div>
+                </div>
+            </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+            <a href="/admin" class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+            <a href="/local" class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
+            <a href="/admin/usuarios/gestionusuarios" class="nav-link" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
+            <a href="/admin/maquinas/gestionmaquinas" class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+            <a href="/admin/paquetes/gestionpaquetes" class="nav-link" id="nav-paquetes"><i class="fas fa-box mr-2"></i>Paquetes</a>
+            <a href="/admin/locales/listalocales" class="nav-link" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
+            <a href="/admin/mensajes/gestionmensajes" class="nav-link" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+            <a href="/admin/ventas/liquidaciones" class="nav-link" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+            <a href="/admin/inversores/gestionsocios" class="nav-link" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sistema</div>
+            <a href="/admin/firmware/gestionfirmware" class="nav-link" id="nav-firmware"><i class="fas fa-microchip mr-2"></i>Firmware OTA</a>
+            <a href="/admin/conectividad" class="nav-link active" id="nav-conectividad"><i class="fas fa-wifi mr-2"></i>Conectividad</a>
+            <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
+            <a href="/admin/logs/transaccionales" class="nav-link" id="nav-logs-transaccionales"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
+            <a href="/admin/logs/consola-completa" class="nav-link" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+            <a href="/admin/logs/gestionlogs" class="nav-link" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
+        </nav>
+        <div class="p-4 border-t border-gray-700 text-sm">
+            <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario }}</div>
+            <div class="text-gray-400 text-xs mb-2"><span id="horaActualSidebar">{{ hora_actual }}</span></div>
+            <a href="/logout" class="text-red-400 hover:underline text-xs"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
+        </div>
+    </aside>
+
+    <!-- ══════════ MAIN ══════════ -->
+    <main class="flex-1 p-4 lg:p-6 overflow-y-auto">
+        {% include 'partials/_location_context_bar.html' %}
+
+        <!-- HEADER -->
+        <div class="glass-card mb-4">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-wifi mr-2 text-blue-600"></i>Conectividad de Máquinas</h1>
+                    <p class="text-gray-500 text-sm mt-1">Historial de encendidos y apagados. Depuración automática cada 60 días.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <!-- Filtro período -->
+                    <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                        <button class="btn-periodo active" data-days="7">7 días</button>
+                        <button class="btn-periodo" data-days="14">14 días</button>
+                        <button class="btn-periodo" data-days="30">30 días</button>
+                        <button class="btn-periodo" data-days="60">60 días</button>
+                    </div>
+                    <!-- Filtro máquina -->
+                    <select id="filtroMaquina" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todas las máquinas</option>
+                    </select>
+                    <button onclick="cargarDatos()" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4" id="kpiRow">
+            <div class="kpi-card kpi-total">
+                <div class="text-xs font-semibold opacity-80 mb-1">Total eventos</div>
+                <div class="text-3xl font-bold" id="kpiTotal">—</div>
+                <div class="text-xs opacity-75 mt-1" id="kpiPeriod">cargando...</div>
+            </div>
+            <div class="kpi-card kpi-online">
+                <div class="text-xs font-semibold opacity-80 mb-1">Encendidos (ONLINE)</div>
+                <div class="text-3xl font-bold" id="kpiOnline">—</div>
+                <div class="text-xs opacity-75 mt-1">reconexiones</div>
+            </div>
+            <div class="kpi-card kpi-offline">
+                <div class="text-xs font-semibold opacity-80 mb-1">Apagados (OFFLINE)</div>
+                <div class="text-3xl font-bold" id="kpiOffline">—</div>
+                <div class="text-xs opacity-75 mt-1">desconexiones</div>
+            </div>
+            <div class="kpi-card kpi-maq">
+                <div class="text-xs font-semibold opacity-80 mb-1">Máquinas con actividad</div>
+                <div class="text-3xl font-bold" id="kpiMaq">—</div>
+                <div class="text-xs opacity-75 mt-1">en el período</div>
+            </div>
+        </div>
+
+        <!-- Resumen por máquina + Eventos -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+            <!-- Resumen por máquina -->
+            <div class="glass-card lg:col-span-2">
+                <h2 class="text-base font-bold text-gray-700 mb-3"><i class="fas fa-gamepad mr-2 text-purple-600"></i>Resumen por máquina</h2>
+                <div class="scroll-box scroll-500">
+                    <table class="w-full text-sm sticky-head">
+                        <thead>
+                            <tr class="text-left text-xs text-gray-500 uppercase">
+                                <th class="py-2 pr-3">Máquina</th>
+                                <th class="py-2 text-center text-green-700">ON</th>
+                                <th class="py-2 text-center text-red-700">OFF</th>
+                                <th class="py-2 text-right">Último</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaResumen">
+                            <tr><td colspan="4" class="text-center text-gray-400 py-6"><span class="spin"></span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Eventos recientes -->
+            <div class="glass-card lg:col-span-3">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-bold text-gray-700"><i class="fas fa-history mr-2 text-blue-600"></i>Historial de eventos</h2>
+                    <span class="text-xs text-gray-400" id="totalEventosLabel">—</span>
+                </div>
+                <div class="scroll-box scroll-500">
+                    <table class="w-full text-sm sticky-head">
+                        <thead>
+                            <tr class="text-left text-xs text-gray-500 uppercase">
+                                <th class="py-2 pr-3">Fecha / hora</th>
+                                <th class="py-2 pr-3">Máquina</th>
+                                <th class="py-2 text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEventos">
+                            <tr><td colspan="3" class="text-center text-gray-400 py-6"><span class="spin"></span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Paginación -->
+                <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                    <button id="btnPrev" onclick="cambiarPagina(-1)" class="text-sm text-blue-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-chevron-left mr-1"></i>Anterior
+                    </button>
+                    <span class="text-xs text-gray-500" id="paginaLabel">—</span>
+                    <button id="btnNext" onclick="cambiarPagina(1)" class="text-sm text-blue-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                        Siguiente<i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+// ── Estado ────────────────────────────────────────────────────────────────────
+let _days    = 7;
+let _machId  = '';
+let _page    = 1;
+let _pages   = 1;
+let _machines = [];   // lista para el selector
+
+// ── Partículas ────────────────────────────────────────────────────────────────
+particlesJS('particles-js', {
+    particles: { number:{value:40}, color:{value:'#3b82f6'}, opacity:{value:0.18},
+                 size:{value:3}, line_linked:{enable:true,distance:130,color:'#3b82f6',opacity:0.12,width:1},
+                 move:{enable:true,speed:0.8} },
+    interactivity: { events:{onhover:{enable:false},onclick:{enable:false}} }
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'})
+        + ' ' + d.toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'});
+}
+
+function fmtDateShort(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit'})
+        + ' ' + d.toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'});
+}
+
+// ── Carga de datos ────────────────────────────────────────────────────────────
+async function cargarDatos() {
+    let url = `/api/admin/connectivity?days=${_days}&page=${_page}&per_page=100`;
+    if (_machId) url += `&machine_id=${_machId}`;
+
+    try {
+        const r = await fetch(url);
+        const data = await r.json();
+        if (!r.ok) { console.error('Error API', data); return; }
+
+        renderKPIs(data);
+        renderResumen(data.summary);
+        renderEventos(data.events);
+        renderPagina(data.pagination);
+        poblarSelector(data.summary);
+    } catch(e) {
+        console.error('Error cargando conectividad', e);
+    }
+}
+
+function renderKPIs(data) {
+    const totalEvents = data.pagination.total;
+    const onlineTotal  = data.summary.reduce((a,s) => a + s.online_count,  0);
+    const offlineTotal = data.summary.reduce((a,s) => a + s.offline_count, 0);
+    document.getElementById('kpiTotal').textContent   = totalEvents.toLocaleString();
+    document.getElementById('kpiOnline').textContent  = onlineTotal.toLocaleString();
+    document.getElementById('kpiOffline').textContent = offlineTotal.toLocaleString();
+    document.getElementById('kpiMaq').textContent     = data.summary.length;
+    document.getElementById('kpiPeriod').textContent  = `últimos ${_days} días`;
+}
+
+function renderResumen(summary) {
+    const tbody = document.getElementById('tablaResumen');
+    if (!summary.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-400 py-6">Sin registros en este período</td></tr>';
+        return;
+    }
+    tbody.innerHTML = summary.map(s => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onclick="filtrarMaquina(${s.machine_id})">
+            <td class="py-2 pr-3 font-medium text-gray-800 text-xs">${s.machine_name}</td>
+            <td class="py-2 text-center">
+                <span class="font-bold text-green-700">${s.online_count}</span>
+            </td>
+            <td class="py-2 text-center">
+                <span class="font-bold text-red-600">${s.offline_count}</span>
+            </td>
+            <td class="py-2 text-right text-xs text-gray-500 whitespace-nowrap">${fmtDateShort(s.last_event)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderEventos(events) {
+    const tbody = document.getElementById('tablaEventos');
+    if (!events.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-400 py-6">Sin eventos en este período</td></tr>';
+        return;
+    }
+    tbody.innerHTML = events.map(e => `
+        <tr class="border-b border-gray-50 event-row-${e.event_type}">
+            <td class="py-2 pr-3 text-xs text-gray-600 whitespace-nowrap">${fmtDate(e.event_at)}</td>
+            <td class="py-2 pr-3 text-sm font-medium text-gray-800">${e.machine_name}</td>
+            <td class="py-2 text-center">
+                ${e.event_type === 'online'
+                    ? '<span class="badge-online"><i class="fas fa-circle mr-1"></i>ONLINE</span>'
+                    : '<span class="badge-offline"><i class="fas fa-circle mr-1"></i>OFFLINE</span>'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderPagina(pag) {
+    _pages = pag.pages;
+    const label = document.getElementById('paginaLabel');
+    const total = document.getElementById('totalEventosLabel');
+    label.textContent  = `Página ${pag.page} de ${pag.pages}`;
+    total.textContent  = `${pag.total.toLocaleString()} evento${pag.total !== 1 ? 's' : ''}`;
+    document.getElementById('btnPrev').disabled = pag.page <= 1;
+    document.getElementById('btnNext').disabled = pag.page >= pag.pages;
+}
+
+function poblarSelector(summary) {
+    const sel = document.getElementById('filtroMaquina');
+    // Conservar opción "todas"
+    const currentVal = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    summary.forEach(s => {
+        const opt = new Option(s.machine_name, s.machine_id);
+        sel.add(opt);
+    });
+    sel.value = currentVal;
+}
+
+// ── Interacciones ─────────────────────────────────────────────────────────────
+function cambiarPagina(delta) {
+    const nueva = _page + delta;
+    if (nueva < 1 || nueva > _pages) return;
+    _page = nueva;
+    cargarDatos();
+}
+
+function filtrarMaquina(id) {
+    _machId = id;
+    _page   = 1;
+    document.getElementById('filtroMaquina').value = id;
+    cargarDatos();
+}
+
+// Botones de período
+document.querySelectorAll('.btn-periodo').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _days = parseInt(btn.dataset.days);
+        _page = 1;
+        cargarDatos();
+    });
+});
+
+// Selector de máquina
+document.getElementById('filtroMaquina').addEventListener('change', e => {
+    _machId = e.target.value;
+    _page   = 1;
+    cargarDatos();
+});
+
+// Reloj sidebar
+function actualizarHora() {
+    const el = document.getElementById('horaActualSidebar');
+    if (el) el.textContent = new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+setInterval(actualizarHora, 1000);
+
+// Carga inicial
+cargarDatos();
+// Auto-refresh cada 2 minutos
+setInterval(cargarDatos, 120_000);
+</script>
+</body>
+</html>

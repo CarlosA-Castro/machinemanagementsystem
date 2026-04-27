@@ -2,7 +2,7 @@ import logging
 import os
 
 import sentry_sdk
-from flask import Blueprint, request, jsonify, session, json
+from flask import Blueprint, request, jsonify, render_template, session, json
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
@@ -1415,3 +1415,122 @@ def obtener_estadisticas_maquina(maquina_id):
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()
+
+
+# ── Informe de conectividad ───────────────────────────────────────────────────
+
+@machines_bp.route('/admin/conectividad', methods=['GET'])
+@require_login(['admin'])
+def conectividad_page():
+    """Página del informe de conectividad de máquinas."""
+    return render_template('admin/conectividad/informe_conectividad.html')
+
+
+@machines_bp.route('/api/admin/connectivity', methods=['GET'])
+@require_login(['admin'])
+@handle_api_errors
+def connectivity_report():
+    """
+    Retorna eventos online/offline del log de conectividad.
+    Query params:
+      - machine_id (int, opcional)
+      - days       (int, default 30, max 60)
+      - page       (int, default 1)
+      - per_page   (int, default 100, max 500)
+    """
+    machine_id = request.args.get('machine_id', type=int)
+    days       = min(int(request.args.get('days', 30)), 60)
+    page       = max(int(request.args.get('page', 1)), 1)
+    per_page   = min(int(request.args.get('per_page', 100)), 500)
+    offset     = (page - 1) * per_page
+
+    active_id, _ = get_active_location()
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'db_error'}), 500
+    cursor = get_db_cursor(connection)
+
+    try:
+        where_clauses = ["event_at >= DATE_SUB(NOW(), INTERVAL %s DAY)"]
+        params = [days]
+
+        if active_id is not None:
+            where_clauses.append("location_id = %s")
+            params.append(active_id)
+        if machine_id:
+            where_clauses.append("machine_id = %s")
+            params.append(machine_id)
+
+        where_sql = " AND ".join(where_clauses)
+
+        cursor.execute(
+            f"SELECT COUNT(*) AS total FROM machine_connectivity_log WHERE {where_sql}",
+            params,
+        )
+        total = cursor.fetchone()['total']
+
+        cursor.execute(
+            f"""
+            SELECT id, machine_id, machine_name, location_id, event_type, event_at
+            FROM machine_connectivity_log
+            WHERE {where_sql}
+            ORDER BY event_at DESC
+            LIMIT %s OFFSET %s
+            """,
+            params + [per_page, offset],
+        )
+        events = cursor.fetchall()
+
+        cursor.execute(
+            f"""
+            SELECT
+                machine_id, machine_name,
+                COUNT(*) AS total_events,
+                SUM(event_type = 'online')  AS online_count,
+                SUM(event_type = 'offline') AS offline_count,
+                MAX(event_at) AS last_event
+            FROM machine_connectivity_log
+            WHERE {where_sql}
+            GROUP BY machine_id, machine_name
+            ORDER BY machine_name
+            """,
+            params,
+        )
+        summary = cursor.fetchall()
+
+        return jsonify({
+            'events': [
+                {
+                    'id':           e['id'],
+                    'machine_id':   e['machine_id'],
+                    'machine_name': e['machine_name'],
+                    'location_id':  e['location_id'],
+                    'event_type':   e['event_type'],
+                    'event_at':     e['event_at'].isoformat() if e['event_at'] else None,
+                }
+                for e in events
+            ],
+            'summary': [
+                {
+                    'machine_id':    s['machine_id'],
+                    'machine_name':  s['machine_name'],
+                    'total_events':  int(s['total_events'] or 0),
+                    'online_count':  int(s['online_count'] or 0),
+                    'offline_count': int(s['offline_count'] or 0),
+                    'last_event':    s['last_event'].isoformat() if s['last_event'] else None,
+                }
+                for s in summary
+            ],
+            'pagination': {
+                'total':    total,
+                'page':     page,
+                'per_page': per_page,
+                'pages':    (total + per_page - 1) // per_page if per_page else 1,
+            },
+            'filters': {'days': days, 'machine_id': machine_id, 'location_id': active_id},
+        }), 200
+
+    finally:
+        cursor.close()
+        connection.close()

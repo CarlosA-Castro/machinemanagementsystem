@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.location_scope import get_active_location
 from utils.responses import handle_api_errors
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -163,11 +164,15 @@ def machine_reset_config(machine_id: int):
         return jsonify({'error': 'db_error'}), 500
     cur = get_db_cursor(conn)
 
-    cur.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
+    active_id, _ = get_active_location()
+    cur.execute("SELECT id, name, location_id FROM machine WHERE id = %s", (machine_id,))
     machine = cur.fetchone()
     if not machine:
         cur.close(); conn.close()
         return jsonify({'error': 'Máquina no encontrada'}), 404
+    if active_id is not None and machine['location_id'] != active_id:
+        cur.close(); conn.close()
+        return jsonify({'error': 'La máquina no pertenece al local activo'}), 403
 
     cur.execute(
         "INSERT INTO esp32_commands "
@@ -187,12 +192,19 @@ def machine_reset_config(machine_id: int):
 @require_login(['admin'])
 @handle_api_errors
 def machines_list_simple():
-    """Lista de máquinas activas para el panel de firmware."""
+    """Lista de máquinas del local activo para el panel de firmware."""
+    active_id, _ = get_active_location()
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'db_error'}), 500
     cur = get_db_cursor(conn)
-    cur.execute("SELECT id, name, status FROM machine ORDER BY name")
+    if active_id is not None:
+        cur.execute(
+            "SELECT id, name, status FROM machine WHERE location_id = %s ORDER BY name",
+            (active_id,),
+        )
+    else:
+        cur.execute("SELECT id, name, status FROM machine ORDER BY name")
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -222,8 +234,15 @@ def firmware_activar(firmware_id: int):
     cur.execute("UPDATE firmware SET is_active = 0")
     cur.execute("UPDATE firmware SET is_active = 1 WHERE id = %s", (firmware_id,))
 
-    # Obtener todas las máquinas activas
-    cur.execute("SELECT id FROM machine WHERE status = 'activa'")
+    # Obtener máquinas activas del local activo (o todas si admin en modo global)
+    active_id, _ = get_active_location()
+    if active_id is not None:
+        cur.execute(
+            "SELECT id FROM machine WHERE status = 'activa' AND location_id = %s",
+            (active_id,),
+        )
+    else:
+        cur.execute("SELECT id FROM machine WHERE status = 'activa'")
     machines = cur.fetchall()
 
     # Insertar FORCE_OTA para cada una — las recibirán en ≤10 s

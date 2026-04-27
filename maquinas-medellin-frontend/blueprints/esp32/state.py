@@ -15,12 +15,14 @@ _alerted_offline: set = set()   # machine_ids ya notificados como offline
 _newly_online: list = []        # machine_ids que volvieron online (consumir una vez)
 _lock = threading.Lock()
 _ONLINE_TIMEOUT = 90  # segundos sin heartbeat → considerado offline
+_server_start = time.time()     # para ignorar reconexiones del reinicio de servidor
 
 
 def set_heartbeat(machine_id: int, wifi: bool, server: bool, rssi: int) -> None:
     """Actualiza o crea el registro de heartbeat para una máquina."""
     with _lock:
         was_offline = machine_id in _alerted_offline
+        is_first_seen = machine_id not in _heartbeats
         _heartbeats[machine_id] = {
             'wifi':   wifi,
             'server': server,
@@ -28,7 +30,13 @@ def set_heartbeat(machine_id: int, wifi: bool, server: bool, rssi: int) -> None:
             'ts':     time.time(),
         }
         if was_offline:
+            # Máquina que ya habíamos alertado como offline → notificar online
             _alerted_offline.discard(machine_id)
+            _newly_online.append(machine_id)
+        elif is_first_seen and (time.time() - _server_start) > _ONLINE_TIMEOUT:
+            # Primer heartbeat de un machine_id nuevo (ej: ESP con ID cambiado),
+            # pero solo si el servidor lleva > 90s corriendo — evita spam al reiniciar
+            # cuando todos los ESP reconectan en los primeros ~30s.
             _newly_online.append(machine_id)
 
 

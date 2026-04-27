@@ -62,18 +62,20 @@ def _start_heartbeat_monitor() -> None:
     """Thread de fondo: detecta máquinas offline y notifica al admin."""
     import time
     import threading
+    from datetime import datetime, date
     from blueprints.esp32.state import check_offline_machines, pop_newly_online
     from utils.notifications import notify_offline, notify_online
     from database import get_db_connection, get_db_cursor
 
     def _machine_info(machine_id: int) -> tuple:
+        """Retorna (name, local_nombre, location_id) de la máquina."""
         try:
             conn = get_db_connection()
             if not conn:
-                return f'Máquina {machine_id}', 'Sin local'
+                return f'Máquina {machine_id}', 'Sin local', None
             cur = get_db_cursor(conn)
             cur.execute(
-                "SELECT m.name, COALESCE(l.name, 'Sin local') AS local_nombre "
+                "SELECT m.name, COALESCE(l.name, 'Sin local') AS local_nombre, m.location_id "
                 "FROM machine m LEFT JOIN location l ON m.location_id = l.id "
                 "WHERE m.id = %s", (machine_id,)
             )
@@ -81,21 +83,71 @@ def _start_heartbeat_monitor() -> None:
             cur.close()
             conn.close()
             if row:
-                return row['name'], row['local_nombre']
+                return row['name'], row['local_nombre'], row['location_id']
         except Exception:
             pass
-        return f'Máquina {machine_id}', 'Sin local'
+        return f'Máquina {machine_id}', 'Sin local', None
+
+    def _log_connectivity(machine_id: int, machine_name: str, location_id, event_type: str) -> None:
+        """Persiste un evento online/offline en machine_connectivity_log."""
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return
+            cur = get_db_cursor(conn)
+            cur.execute(
+                "INSERT INTO machine_connectivity_log "
+                "  (machine_id, machine_name, location_id, event_type, event_at) "
+                "VALUES (%s, %s, %s, %s, NOW())",
+                (machine_id, machine_name, location_id, event_type),
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception:
+            pass
+
+    def _cleanup_connectivity_log() -> None:
+        """Borra registros de conectividad con más de 60 días (depuración bimestral)."""
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return
+            cur = get_db_cursor(conn)
+            cur.execute(
+                "DELETE FROM machine_connectivity_log WHERE event_at < DATE_SUB(NOW(), INTERVAL 60 DAY)"
+            )
+            deleted = cur.rowcount
+            conn.commit()
+            cur.close()
+            conn.close()
+            if deleted:
+                import logging
+                logging.getLogger('maquinas').info(
+                    f"[connectivity] Cleanup: {deleted} registros eliminados (>60 días)"
+                )
+        except Exception:
+            pass
 
     def _monitor():
         time.sleep(15)  # esperar a que la app arranque completamente
+        last_cleanup_day = None
         while True:
             try:
                 for mid, segundos in check_offline_machines():
-                    name, local = _machine_info(mid)
+                    name, local, loc_id = _machine_info(mid)
                     notify_offline(name, local, segundos)
+                    _log_connectivity(mid, name, loc_id, 'offline')
                 for mid in pop_newly_online():
-                    name, local = _machine_info(mid)
+                    name, local, loc_id = _machine_info(mid)
                     notify_online(name, local)
+                    _log_connectivity(mid, name, loc_id, 'online')
+
+                # Cleanup bimestral: una vez por día en el primer ciclo del día
+                today = date.today()
+                if last_cleanup_day != today:
+                    last_cleanup_day = today
+                    _cleanup_connectivity_log()
             except Exception:
                 pass
             time.sleep(60)

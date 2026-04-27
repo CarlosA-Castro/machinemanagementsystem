@@ -13,7 +13,7 @@
 - **Backend:** Flask 3.0 + MySQL 8.3 + Docker + EC2 (AWS)
 - **Frontend:** HTML/JS/TailwindCSS (templates Jinja2)
 - **Hardware:** ESP32 + TFT ILI9341 + GM67 QR reader
-- **Migrations:** Flyway — próxima disponible: **V41**
+- **Migrations:** Flyway — próxima disponible: **V43**
 - **Deploy:** `cd ~/machinemanagementsystem && git pull && docker compose up --build -d web`
 
 ## Archivos críticos
@@ -27,6 +27,12 @@
 - Tabla de máquinas: `machine` (NO `maquinas`)
 - Conexión: variables de entorno en docker-compose.yml
 - Cambios de esquema: SIEMPRE via migración Flyway, nunca directo a la BD
+
+## Regla de filtro por local (multi-location)
+
+**TODO endpoint admin que devuelva o afecte máquinas DEBE filtrar por `active_location_id` de sesión.**
+Usar `get_active_location()` de `utils/location_scope.py`. Si `active_id is None` = admin en modo "todos los locales" → no filtrar.
+Aplica especialmente a: listados de máquinas, FORCE_OTA, RESET_CONFIG, comandos ESP32, y cualquier nuevo endpoint que toque la tabla `machine`.
 
 ## ESP32 — regla de oro
 
