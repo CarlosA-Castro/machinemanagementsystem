@@ -228,6 +228,17 @@
             </form>
         </div>
 
+        <!-- Reset config por máquina -->
+        <div class="glass-card">
+            <h2 class="text-xl font-bold text-gray-800 mb-1">
+                <i class="fas fa-undo mr-2 text-red-500"></i>Reset de configuración
+            </h2>
+            <p class="text-sm text-gray-500 mb-4">Borra las credenciales WiFi y el Machine ID del ESP32. La máquina entra al captive portal para reconfigurar.</p>
+            <div id="machinesArea">
+                <div class="flex justify-center py-4"><span class="loading"></span></div>
+            </div>
+        </div>
+
         <!-- Tabla de versiones -->
         <div class="glass-card">
             <div class="flex items-center justify-between mb-4">
@@ -394,8 +405,58 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     }
 });
 
+// ── Máquinas — reset config ───────────────────────────────────────────────────
+async function loadMachines() {
+    const area = document.getElementById('machinesArea');
+    try {
+        const res  = await fetch('/api/admin/machines', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const list = await res.json();
+        if (!list.length) {
+            area.innerHTML = '<p class="text-gray-400 text-sm">No hay máquinas registradas.</p>';
+            return;
+        }
+        const statusColor = { activa: 'text-green-600', inactiva: 'text-gray-400', mantenimiento: 'text-yellow-600' };
+        area.innerHTML = '<div class="divide-y divide-gray-100">' +
+            list.map(m => `
+            <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-gamepad ${statusColor[m.status] || 'text-gray-400'}"></i>
+                    <span class="text-sm font-medium text-gray-800">${m.name}</span>
+                    <span class="text-xs text-gray-400">#${m.id}</span>
+                </div>
+                <button onclick="resetConfig(${m.id}, '${m.name}')"
+                    class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200
+                           text-xs px-3 py-1.5 rounded-lg transition-colors btn-touch">
+                    <i class="fas fa-undo mr-1"></i>Reset config
+                </button>
+            </div>`).join('') +
+        '</div>';
+    } catch {
+        area.innerHTML = '<p class="text-red-500 text-sm">Error al cargar máquinas.</p>';
+    }
+}
+
+async function resetConfig(id, name) {
+    if (!confirm(`¿Resetear configuración de "${name}"?\n\nLa máquina borrará su WiFi y Machine ID, y entrará al captive portal.`)) return;
+    try {
+        const res  = await fetch(`/api/admin/machines/${id}/reset-config`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showAlert(`Reset enviado a "${name}" — entrará al captive portal en ≤10 s`, 'warning');
+        } else {
+            showAlert(data.error || 'Error al enviar reset', 'error');
+        }
+    } catch {
+        showAlert('Error de red', 'error');
+    }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadAll();
+loadMachines();
 </script>
 
 <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>

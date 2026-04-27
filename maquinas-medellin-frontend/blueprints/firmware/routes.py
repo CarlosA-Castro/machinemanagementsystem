@@ -150,6 +150,55 @@ def firmware_upload():
     return jsonify({'id': new_id, 'filename': filename, 'size': size}), 201
 
 
+@firmware_bp.route('/api/admin/machines/<int:machine_id>/reset-config', methods=['POST'])
+@require_login(['admin'])
+@handle_api_errors
+def machine_reset_config(machine_id: int):
+    """
+    Envía RESET_CONFIG al ESP32 indicado.
+    La máquina borra sus Preferences (WiFi + machine_id) y entra al captive portal.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'db_error'}), 500
+    cur = get_db_cursor(conn)
+
+    cur.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
+    machine = cur.fetchone()
+    if not machine:
+        cur.close(); conn.close()
+        return jsonify({'error': 'Máquina no encontrada'}), 404
+
+    cur.execute(
+        "INSERT INTO esp32_commands "
+        "  (machine_id, command, parameters, triggered_by, status, triggered_at) "
+        "VALUES (%s, 'RESET_CONFIG', '{}', %s, 'queued', NOW())",
+        (machine_id, f"admin_reset_{session.get('user_id')}"),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    logger.info(f"RESET_CONFIG enviado a máquina {machine_id} ({machine['name']}) por user {session.get('user_id')}")
+    return jsonify({'ok': True, 'machine': machine['name']}), 200
+
+
+@firmware_bp.route('/api/admin/machines', methods=['GET'])
+@require_login(['admin'])
+@handle_api_errors
+def machines_list_simple():
+    """Lista de máquinas activas para el panel de firmware."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'db_error'}), 500
+    cur = get_db_cursor(conn)
+    cur.execute("SELECT id, name, status FROM machine ORDER BY name")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify([{'id': r['id'], 'name': r['name'], 'status': r['status']} for r in rows]), 200
+
+
 @firmware_bp.route('/api/admin/firmware/<int:firmware_id>/activar', methods=['PUT'])
 @require_login(['admin'])
 @handle_api_errors
