@@ -40,6 +40,8 @@ services:
     container_name: ec2-user-web-1
     ports:
       - "5000:5000"
+    volumes:
+      - firmware_data:/app/maquinas-medellin-frontend/static/firmware
     depends_on:
       mysql:
         condition: service_healthy
@@ -59,3 +61,4 @@ services:
 
 volumes:
   mysql_data:
+  firmware_data:

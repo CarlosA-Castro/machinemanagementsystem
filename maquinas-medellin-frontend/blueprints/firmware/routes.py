@@ -23,6 +23,14 @@ def _allowed(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _ensure_firmware_dir() -> None:
+    os.makedirs(FIRMWARE_DIR, exist_ok=True)
+
+
+def _firmware_file_exists(filename: str) -> bool:
+    return os.path.isfile(os.path.join(FIRMWARE_DIR, filename))
+
+
 # ── Endpoints sin auth (los llama el ESP32) ───────────────────────────────────
 
 @firmware_bp.route('/api/esp32/firmware/latest', methods=['GET'])
@@ -41,6 +49,13 @@ def firmware_latest():
     conn.close()
     if not row:
         return jsonify({'available': False}), 200
+    if not _firmware_file_exists(row['filename']):
+        logger.error(
+            "Firmware activo sin archivo en disco: version=%s filename=%s",
+            row['version'],
+            row['filename'],
+        )
+        return jsonify({'available': False, 'error': 'active_firmware_missing_file'}), 200
     return jsonify({
         'available': True,
         'version':   row['version'],
@@ -65,6 +80,9 @@ def firmware_download():
     conn.close()
     if not row:
         return jsonify({'error': 'no_active_firmware'}), 404
+    if not _firmware_file_exists(row['filename']):
+        logger.error("Descarga OTA fallida: archivo no existe para firmware activo: %s", row['filename'])
+        return jsonify({'error': 'active_firmware_file_missing'}), 404
     return send_from_directory(FIRMWARE_DIR, row['filename'], as_attachment=True)
 
 
@@ -117,6 +135,7 @@ def firmware_upload():
 
     # Guardar con la versión en el nombre para que cada build quede separado
     # ej: Circuito_maquinas.ino.esp32.bin → Circuito_maquinas.ino.esp32_20260427.bin
+    _ensure_firmware_dir()
     original = secure_filename(file.filename)
     base, ext = os.path.splitext(original)
     filename  = f"{base}_{version}{ext}"
@@ -224,13 +243,19 @@ def firmware_activar(firmware_id: int):
         return jsonify({'error': 'db_error'}), 500
     cur = get_db_cursor(conn)
 
-    cur.execute("SELECT id FROM firmware WHERE id = %s", (firmware_id,))
-    if not cur.fetchone():
+    cur.execute("SELECT id, filename FROM firmware WHERE id = %s", (firmware_id,))
+    firmware = cur.fetchone()
+    if not firmware:
         cur.close()
         conn.close()
         return jsonify({'error': 'Versión no encontrada'}), 404
 
     # Activar la versión seleccionada
+    if not _firmware_file_exists(firmware['filename']):
+        cur.close()
+        conn.close()
+        return jsonify({'error': 'El archivo .bin de esta versiÃ³n no existe en el servidor'}), 409
+
     cur.execute("UPDATE firmware SET is_active = 0")
     cur.execute("UPDATE firmware SET is_active = 1 WHERE id = %s", (firmware_id,))
 
