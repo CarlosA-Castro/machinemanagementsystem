@@ -7,13 +7,14 @@
 - **SIEMPRE declarar qué líneas se van a cambiar y por qué** antes de editar cualquier archivo grande (app.py, HTMLs).
 - **SIEMPRE explicar el por qué** de cada cambio, no solo el qué.
 - Commits directos a `main`. No crear ramas salvo que el usuario lo pida.
+- **SIEMPRE hacer push a `main` inmediatamente después del commit**, en el mismo paso. Nunca dejar un commit sin push.
 
 ## Stack
 
 - **Backend:** Flask 3.0 + MySQL 8.3 + Docker + EC2 (AWS)
 - **Frontend:** HTML/JS/TailwindCSS (templates Jinja2)
 - **Hardware:** ESP32 + TFT ILI9341 + GM67 QR reader
-- **Migrations:** Flyway — próxima disponible: **V43**
+- **Migrations:** Flyway — próxima disponible: **V44**
 - **Deploy:** `cd ~/machinemanagementsystem && git pull && docker compose up --build -d web`
 
 ## Archivos críticos
