@@ -114,12 +114,15 @@ def firmware_upload():
     if not version or not version.isdigit():
         return jsonify({'error': 'version requerida (entero, ej: 20260426)'}), 400
 
-    filename  = secure_filename(file.filename)
+    # Guardar con la versión en el nombre para que cada build quede separado
+    # ej: Circuito_maquinas.ino.esp32.bin → Circuito_maquinas.ino.esp32_20260427.bin
+    original = secure_filename(file.filename)
+    base, ext = os.path.splitext(original)
+    filename  = f"{base}_{version}{ext}"
     file_path = os.path.join(FIRMWARE_DIR, filename)
 
-    # Evitar sobreescribir sin querer
     if os.path.exists(file_path):
-        return jsonify({'error': f'Ya existe un archivo con ese nombre: {filename}'}), 409
+        return jsonify({'error': f'Ya existe la versión {version}. Usa un número de versión diferente.'}), 409
 
     file.save(file_path)
     size = os.path.getsize(file_path)
