@@ -14,7 +14,7 @@
 - **Backend:** Flask 3.0 + MySQL 8.3 + Docker + EC2 (AWS)
 - **Frontend:** HTML/JS/TailwindCSS (templates Jinja2)
 - **Hardware:** ESP32 + TFT ILI9341 + GM67 QR reader
-- **Migrations:** Flyway — próxima disponible: **V45**
+- **Migrations:** Flyway — próxima disponible: **V48**
 - **Deploy:** `cd ~/machinemanagementsystem && git pull && docker compose up --build -d web`
 
 ## Archivos críticos
