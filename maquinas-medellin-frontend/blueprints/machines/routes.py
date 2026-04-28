@@ -190,6 +190,196 @@ def _build_connectivity_insights(all_events, now_dt):
     return event_meta, machine_meta
 
 
+def _serialize_iso_datetime(value):
+    """Convierte fechas de BD a ISO para respuestas JSON."""
+    if value and hasattr(value, 'isoformat'):
+        return value.isoformat()
+    return None
+
+
+def _build_maintenance_insights(maintenance_rows, now_dt):
+    """Consolida eventos de mantenimiento y calcula sus duraciones."""
+    events = []
+    machine_rollup = {}
+    total_duration_seconds = 0
+    active_events = 0
+
+    for raw_row in maintenance_rows:
+        row = dict(raw_row)
+        machine_id = row.get('machine_id')
+        machine_name = row.get('machine_name') or f'Máquina {machine_id}'
+        location_name = row.get('location_name') or 'Sin local'
+        started_at = row.get('started_at')
+        resolved_at = row.get('resolved_at')
+        resolved = bool(row.get('resolved'))
+        is_active = not resolved
+
+        duration_seconds = None
+        if started_at:
+            if is_active:
+                duration_seconds = max(int((now_dt - started_at).total_seconds()), 0)
+            elif resolved_at:
+                duration_seconds = max(int((resolved_at - started_at).total_seconds()), 0)
+            else:
+                duration_seconds = 0
+
+        duration_text = _format_connectivity_duration(duration_seconds)
+        station_names = parse_json_col(row.get('station_names'), [])
+        station_index = row.get('station_index')
+        station_label = None
+        if station_index is not None:
+            try:
+                station_index_int = int(station_index)
+                raw_station = station_names[station_index_int] if 0 <= station_index_int < len(station_names) else None
+                if isinstance(raw_station, dict):
+                    station_label = raw_station.get('name') or f'Estación {station_index_int + 1}'
+                else:
+                    station_label = raw_station or f'Estación {station_index_int + 1}'
+            except Exception:
+                station_label = None
+
+        if is_active:
+            active_events += 1
+            detail_message = f'Está en mantenimiento desde hace {duration_text}.'
+        else:
+            detail_message = f'Estuvo en mantenimiento durante {duration_text}.'
+
+        event_data = {
+            'id': row.get('id'),
+            'machine_id': machine_id,
+            'machine_name': machine_name,
+            'machine_status': row.get('machine_status'),
+            'location_name': location_name,
+            'source_type': row.get('source_type'),
+            'source_label': row.get('source_label'),
+            'started_at': _serialize_iso_datetime(started_at),
+            'resolved_at': _serialize_iso_datetime(resolved_at),
+            'resolved': resolved,
+            'is_active': is_active,
+            'duration_seconds': duration_seconds,
+            'duration_text': duration_text,
+            'station_index': station_index,
+            'station_label': station_label,
+            'qr_name': row.get('qr_name') or '',
+            'reported_by': row.get('reported_by') or '',
+            'description': row.get('description') or '',
+            'detail_message': detail_message,
+            '_started_at_sort': started_at or datetime.min,
+        }
+        events.append(event_data)
+
+        summary = machine_rollup.setdefault(
+            machine_id,
+            {
+                'machine_id': machine_id,
+                'machine_name': machine_name,
+                'machine_status': row.get('machine_status'),
+                'location_name': location_name,
+                'event_count': 0,
+                'active_count': 0,
+                'resolved_count': 0,
+                'total_duration_seconds': 0,
+                'longest_event_seconds': 0,
+                'longest_event_text': _format_connectivity_duration(0),
+                'current_longest_seconds': None,
+                'current_longest_text': None,
+                'latest_started_at': None,
+                'latest_resolved_at': None,
+                'latest_duration_seconds': None,
+                'latest_duration_text': None,
+            },
+        )
+
+        summary['event_count'] += 1
+        if duration_seconds is not None:
+            summary['total_duration_seconds'] += duration_seconds
+            total_duration_seconds += duration_seconds
+            if duration_seconds > summary['longest_event_seconds']:
+                summary['longest_event_seconds'] = duration_seconds
+                summary['longest_event_text'] = duration_text
+
+        if is_active:
+            summary['active_count'] += 1
+            if summary['current_longest_seconds'] is None or (duration_seconds or 0) > summary['current_longest_seconds']:
+                summary['current_longest_seconds'] = duration_seconds or 0
+                summary['current_longest_text'] = duration_text
+        else:
+            summary['resolved_count'] += 1
+
+        if started_at and (summary['latest_started_at'] is None or started_at > summary['latest_started_at']):
+            summary['latest_started_at'] = started_at
+            summary['latest_duration_seconds'] = duration_seconds
+            summary['latest_duration_text'] = duration_text
+
+        if resolved_at and (summary['latest_resolved_at'] is None or resolved_at > summary['latest_resolved_at']):
+            summary['latest_resolved_at'] = resolved_at
+
+    events.sort(key=lambda item: (item['_started_at_sort'], item['id'] or 0), reverse=True)
+
+    summaries = []
+    for summary in machine_rollup.values():
+        if summary['active_count'] > 1:
+            summary_message = (
+                f"Tiene {summary['active_count']} mantenimientos activos. "
+                f"El más largo lleva {summary['current_longest_text']}."
+            )
+        elif summary['active_count'] == 1:
+            summary_message = f"Sigue en mantenimiento desde hace {summary['current_longest_text']}."
+        elif summary['latest_duration_text']:
+            summary_message = f"Su último mantenimiento duró {summary['latest_duration_text']}."
+        else:
+            summary_message = 'No hay duración calculable para esta máquina.'
+
+        summaries.append(
+            {
+                'machine_id': summary['machine_id'],
+                'machine_name': summary['machine_name'],
+                'machine_status': summary['machine_status'],
+                'location_name': summary['location_name'],
+                'event_count': summary['event_count'],
+                'active_count': summary['active_count'],
+                'resolved_count': summary['resolved_count'],
+                'has_active_maintenance': summary['active_count'] > 0,
+                'total_duration_seconds': summary['total_duration_seconds'],
+                'total_duration_text': _format_connectivity_duration(summary['total_duration_seconds']),
+                'longest_event_seconds': summary['longest_event_seconds'],
+                'longest_event_text': summary['longest_event_text'],
+                'current_longest_seconds': summary['current_longest_seconds'],
+                'current_longest_text': summary['current_longest_text'],
+                'latest_started_at': _serialize_iso_datetime(summary['latest_started_at']),
+                'latest_resolved_at': _serialize_iso_datetime(summary['latest_resolved_at']),
+                'latest_duration_seconds': summary['latest_duration_seconds'],
+                'latest_duration_text': summary['latest_duration_text'],
+                'summary_message': summary_message,
+            }
+        )
+
+    summaries.sort(
+        key=lambda item: (
+            1 if item['has_active_maintenance'] else 0,
+            item['total_duration_seconds'],
+            item['event_count'],
+        ),
+        reverse=True,
+    )
+
+    for event in events:
+        event.pop('_started_at_sort', None)
+
+    top_machine = summaries[0] if summaries else None
+    overview = {
+        'event_count': len(events),
+        'active_events': active_events,
+        'machines_with_active_maintenance': sum(1 for item in summaries if item['has_active_maintenance']),
+        'total_duration_seconds': total_duration_seconds,
+        'total_duration_text': _format_connectivity_duration(total_duration_seconds),
+        'top_machine_name': top_machine['machine_name'] if top_machine else None,
+        'top_machine_total_text': top_machine['total_duration_text'] if top_machine else None,
+    }
+
+    return events, summaries, overview
+
+
 # ── Listados ──────────────────────────────────────────────────────────────────
 
 @machines_bp.route('/api/maquinas', methods=['GET'])
@@ -740,6 +930,133 @@ def obtener_machinefailures_recientes():
 
 
 # ── Imágenes ──────────────────────────────────────────────────────────────────
+
+@machines_bp.route('/api/maquinas/mantenimientos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_historial_mantenimientos():
+    """Historial consolidado de mantenimientos con duración por evento y por máquina."""
+    connection = None
+    cursor = None
+    try:
+        try:
+            limit = int(request.args.get('limit', 300))
+        except Exception:
+            limit = 300
+
+        limit = max(50, min(limit, 1000))
+        machine_id = request.args.get('machine_id')
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'eventos': [], 'resumen_maquinas': [], 'overview': {}})
+
+        cursor = get_db_cursor(connection)
+        if not cursor:
+            return jsonify({'eventos': [], 'resumen_maquinas': [], 'overview': {}})
+
+        active_id, _ = get_active_location()
+        can_all = user_can_view_all()
+        scoped_location_id = None if (can_all and active_id is None) else (active_id if active_id is not None else -1)
+
+        failures_query = """
+            SELECT
+                mf.id,
+                mf.machine_id,
+                COALESCE(m.name, mf.machine_name, 'Máquina desconocida') AS machine_name,
+                COALESCE(m.status, 'mantenimiento') AS machine_status,
+                COALESCE(l.name, 'Sin local') AS location_name,
+                'machine_failure' AS source_type,
+                'ESP32 / estación' AS source_label,
+                mf.station_index,
+                mt.station_names,
+                COALESCE(qr.qr_name, '') AS qr_name,
+                COALESCE(mf.notes, '') AS description,
+                mf.reported_at AS started_at,
+                COALESCE(mf.resolved, 0) AS resolved,
+                mf.resolved_at,
+                '' AS reported_by
+            FROM machinefailures mf
+            LEFT JOIN machine m ON mf.machine_id = m.id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+            LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE 1 = 1
+        """
+        failures_params = []
+        if machine_id:
+            failures_query += " AND mf.machine_id = %s"
+            failures_params.append(machine_id)
+        if scoped_location_id is not None:
+            failures_query += " AND m.location_id = %s"
+            failures_params.append(scoped_location_id)
+        failures_query += " ORDER BY mf.reported_at DESC LIMIT %s"
+        failures_params.append(limit)
+
+        reports_query = """
+            SELECT
+                er.id,
+                er.machineId AS machine_id,
+                COALESCE(m.name, 'Máquina desconocida') AS machine_name,
+                COALESCE(m.status, 'mantenimiento') AS machine_status,
+                COALESCE(l.name, 'Sin local') AS location_name,
+                'manual_report' AS source_type,
+                'Reporte manual' AS source_label,
+                NULL AS station_index,
+                mt.station_names,
+                '' AS qr_name,
+                COALESCE(er.description, '') AS description,
+                er.reportedAt AS started_at,
+                COALESCE(er.isResolved, 0) AS resolved,
+                er.resolved_at,
+                COALESCE(u.name, '') AS reported_by
+            FROM errorreport er
+            JOIN machine m ON er.machineId = m.id
+            LEFT JOIN users u ON er.userId = u.id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE LOWER(COALESCE(er.problem_type, '')) IN ('mantenimiento', 'maintenance')
+        """
+        reports_params = []
+        if machine_id:
+            reports_query += " AND er.machineId = %s"
+            reports_params.append(machine_id)
+        if scoped_location_id is not None:
+            reports_query += " AND m.location_id = %s"
+            reports_params.append(scoped_location_id)
+        reports_query += " ORDER BY er.reportedAt DESC LIMIT %s"
+        reports_params.append(limit)
+
+        cursor.execute(failures_query, failures_params)
+        failure_rows = cursor.fetchall() or []
+
+        cursor.execute(reports_query, reports_params)
+        report_rows = cursor.fetchall() or []
+
+        now_dt = get_colombia_time()
+        eventos, resumen_maquinas, overview = _build_maintenance_insights(
+            list(failure_rows) + list(report_rows),
+            now_dt,
+        )
+
+        return jsonify(
+            {
+                'eventos': eventos[:limit],
+                'resumen_maquinas': resumen_maquinas,
+                'overview': overview,
+                'generated_at': _serialize_iso_datetime(now_dt),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error obteniendo historial de mantenimientos: {e}")
+        return jsonify({'eventos': [], 'resumen_maquinas': [], 'overview': {}})
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
 
 @machines_bp.route('/api/imagenes/maquinas', methods=['GET'])
 @handle_api_errors

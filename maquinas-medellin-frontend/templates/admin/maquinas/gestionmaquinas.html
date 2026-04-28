@@ -498,6 +498,76 @@
                     </div>
                 </div>
             </div>
+
+            <div class="glass-card mt-6">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-wrench mr-2 text-amber-600"></i>Historial de Mantenimiento
+                        </h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Consulta cuánto tiempo estuvo o sigue en mantenimiento cada máquina.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <select id="mantenimientoEstado" class="border border-gray-300 rounded-lg p-2 text-sm" onchange="MantenimientoManager.render()">
+                            <option value="todos">Todos los eventos</option>
+                            <option value="activos">Solo activos</option>
+                            <option value="resueltos">Solo resueltos</option>
+                        </select>
+                        <select id="mantenimientoMaquina" class="border border-gray-300 rounded-lg p-2 text-sm" onchange="MantenimientoManager.render()">
+                            <option value="todas">Todas las máquinas</option>
+                        </select>
+                        <button onclick="MantenimientoManager.actualizar()" class="bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-gray-500 mb-1">Eventos</div>
+                        <div class="text-2xl font-bold text-gray-800" id="mantenimiento-total-eventos">0</div>
+                        <div class="text-xs text-gray-500 mt-1">Registros de mantenimiento encontrados</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-red-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-red-500 mb-1">Activos</div>
+                        <div class="text-2xl font-bold text-red-600" id="mantenimiento-activos">0</div>
+                        <div class="text-xs text-red-500 mt-1">Eventos que siguen abiertos</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-amber-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-amber-600 mb-1">Tiempo acumulado</div>
+                        <div class="text-2xl font-bold text-amber-700" id="mantenimiento-tiempo-total">0</div>
+                        <div class="text-xs text-amber-600 mt-1">Suma de tiempo en mantenimiento</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-indigo-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-indigo-500 mb-1">Máquina con más tiempo</div>
+                        <div class="text-sm font-bold text-indigo-700" id="mantenimiento-top-maquina">Sin datos</div>
+                        <div class="text-xs text-indigo-500 mt-1" id="mantenimiento-top-tiempo">Aún sin historial</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                    <div class="xl:col-span-2 bg-white rounded-lg border border-gray-200">
+                        <div class="bg-amber-600 text-white p-3 rounded-t-lg flex justify-between items-center">
+                            <h4 class="font-semibold text-sm"><i class="fas fa-microchip mr-2"></i>Resumen por Máquina</h4>
+                            <span class="text-xs bg-white text-amber-700 px-2 py-1 rounded-full font-bold" id="resumen-mantenimiento-count">0</span>
+                        </div>
+                        <div class="p-3 max-h-[30rem] overflow-y-auto" id="lista-resumen-mantenimiento">
+                            <div class="text-center py-6 text-gray-400"><div class="loading mx-auto mb-2"></div><p class="text-sm">Cargando resumen...</p></div>
+                        </div>
+                    </div>
+                    <div class="xl:col-span-3 bg-white rounded-lg border border-gray-200">
+                        <div class="bg-slate-800 text-white p-3 rounded-t-lg flex justify-between items-center">
+                            <h4 class="font-semibold text-sm"><i class="fas fa-list mr-2"></i>Eventos de Mantenimiento</h4>
+                            <span class="text-xs bg-white text-slate-700 px-2 py-1 rounded-full font-bold" id="eventos-mantenimiento-count">0</span>
+                        </div>
+                        <div class="p-3 max-h-[30rem] overflow-y-auto" id="lista-eventos-mantenimiento">
+                            <div class="text-center py-6 text-gray-400"><div class="loading mx-auto mb-2"></div><p class="text-sm">Cargando eventos...</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -941,6 +1011,7 @@
                 }
 
                 HistorialManager.init();
+                MantenimientoManager.init();
 
                 // Polling en tiempo real: refresca lista de máquinas cada 20s
                 setInterval(() => this.cargarMaquinas(), 20000);
@@ -1033,6 +1104,7 @@
                     const response = await fetch('/api/maquinas');
                     if (response.ok) {
                         this.maquinas = await response.json();
+                        MantenimientoManager.syncMaquinas(this.maquinas);
                         
                         for (let maquina of this.maquinas) {
                             try {
@@ -2520,6 +2592,268 @@
             cerrarModalResolver: function() {
                 document.getElementById('modalConfirmarResolver').classList.add('hidden');
                 document.getElementById('modalConfirmarResolver').classList.remove('flex');
+            }
+        };
+
+
+        const MantenimientoManager = {
+            eventos: [],
+            resumenMaquinas: [],
+            overview: {},
+            maquinas: [],
+            intervalId: null,
+
+            init: function() {
+                this.syncMaquinas(MaquinaManager.maquinas || []);
+                this.actualizar();
+                if (this.intervalId) clearInterval(this.intervalId);
+                this.intervalId = setInterval(() => this.actualizar(), 30000);
+            },
+
+            syncMaquinas: function(maquinas) {
+                this.maquinas = Array.isArray(maquinas) ? maquinas : [];
+                const sel = document.getElementById('mantenimientoMaquina');
+                if (!sel) return;
+
+                const currentValue = sel.value || 'todas';
+                sel.innerHTML = '<option value="todas">Todas las máquinas</option>';
+                this.maquinas.forEach(maquina => {
+                    sel.innerHTML += `<option value="${maquina.id}">${this.escapeHtml(maquina.name || `Máquina ${maquina.id}`)}</option>`;
+                });
+
+                if ([...sel.options].some(option => option.value === currentValue)) {
+                    sel.value = currentValue;
+                }
+            },
+
+            actualizar: async function() {
+                try {
+                    const response = await fetch('/api/maquinas/mantenimientos?limit=400');
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const data = await response.json();
+                    this.eventos = Array.isArray(data.eventos) ? data.eventos : [];
+                    this.resumenMaquinas = Array.isArray(data.resumen_maquinas) ? data.resumen_maquinas : [];
+                    this.overview = data.overview || {};
+                    this.render();
+                } catch (error) {
+                    console.error('Error cargando mantenimientos:', error);
+                    this.eventos = [];
+                    this.resumenMaquinas = [];
+                    this.overview = {};
+                    this.renderError();
+                }
+            },
+
+            getEventosFiltrados: function() {
+                const estado = document.getElementById('mantenimientoEstado')?.value || 'todos';
+                const maquinaId = document.getElementById('mantenimientoMaquina')?.value || 'todas';
+
+                return this.eventos.filter(evento => {
+                    const coincideMaquina = maquinaId === 'todas' || String(evento.machine_id) === maquinaId;
+                    const coincideEstado =
+                        estado === 'todos' ||
+                        (estado === 'activos' && evento.is_active) ||
+                        (estado === 'resueltos' && !evento.is_active);
+
+                    return coincideMaquina && coincideEstado;
+                });
+            },
+
+            getResumenFiltrado: function(eventosFiltrados) {
+                const maquinaId = document.getElementById('mantenimientoMaquina')?.value || 'todas';
+                const machineIds = new Set(eventosFiltrados.map(evento => String(evento.machine_id)));
+
+                return this.resumenMaquinas.filter(item => {
+                    const coincideMaquina = maquinaId === 'todas' || String(item.machine_id) === maquinaId;
+                    const tieneEventos = machineIds.has(String(item.machine_id));
+                    return coincideMaquina && tieneEventos;
+                }).map(item => {
+                    const eventosMaquina = eventosFiltrados.filter(evento => String(evento.machine_id) === String(item.machine_id));
+                    const eventosActivos = eventosMaquina.filter(evento => evento.is_active);
+                    const totalSegundos = eventosMaquina.reduce((acc, evento) => acc + (evento.duration_seconds || 0), 0);
+                    const ultimoEvento = eventosMaquina[0];
+                    const eventoActivoMasLargo = [...eventosActivos].sort((a, b) => (b.duration_seconds || 0) - (a.duration_seconds || 0))[0];
+
+                    let mensajeFiltrado = item.summary_message || '';
+                    if (eventosActivos.length > 1 && eventoActivoMasLargo) {
+                        mensajeFiltrado = `Tiene ${eventosActivos.length} mantenimientos activos. El más largo lleva ${eventoActivoMasLargo.duration_text || 'Sin dato'}.`;
+                    } else if (eventosActivos.length === 1 && eventoActivoMasLargo) {
+                        mensajeFiltrado = `Sigue en mantenimiento desde hace ${eventoActivoMasLargo.duration_text || 'Sin dato'}.`;
+                    } else if (ultimoEvento?.duration_text) {
+                        mensajeFiltrado = `Último mantenimiento visible: ${ultimoEvento.duration_text}.`;
+                    }
+
+                    return {
+                        ...item,
+                        filtered_event_count: eventosMaquina.length,
+                        filtered_active_count: eventosActivos.length,
+                        filtered_has_active: eventosActivos.length > 0,
+                        filtered_total_duration_seconds: totalSegundos,
+                        filtered_total_duration_text: this.formatDuration(totalSegundos),
+                        filtered_summary_message: mensajeFiltrado
+                    };
+                });
+            },
+
+            render: function() {
+                const eventosFiltrados = this.getEventosFiltrados();
+                const resumenFiltrado = this.getResumenFiltrado(eventosFiltrados);
+
+                this.actualizarKpis(eventosFiltrados, resumenFiltrado);
+                this.renderResumen(resumenFiltrado);
+                this.renderEventos(eventosFiltrados);
+            },
+
+            actualizarKpis: function(eventosFiltrados, resumenFiltrado) {
+                const totalEventos = eventosFiltrados.length;
+                const activos = eventosFiltrados.filter(evento => evento.is_active).length;
+                const totalSegundos = eventosFiltrados.reduce((acc, evento) => acc + (evento.duration_seconds || 0), 0);
+                const topMachine = [...resumenFiltrado].sort((a, b) => (b.filtered_total_duration_seconds || 0) - (a.filtered_total_duration_seconds || 0))[0];
+
+                const totalEventosEl = document.getElementById('mantenimiento-total-eventos');
+                const activosEl = document.getElementById('mantenimiento-activos');
+                const tiempoEl = document.getElementById('mantenimiento-tiempo-total');
+                const topMachineEl = document.getElementById('mantenimiento-top-maquina');
+                const topTiempoEl = document.getElementById('mantenimiento-top-tiempo');
+
+                if (totalEventosEl) totalEventosEl.textContent = totalEventos;
+                if (activosEl) activosEl.textContent = activos;
+                if (tiempoEl) tiempoEl.textContent = this.formatDuration(totalSegundos);
+                if (topMachineEl) topMachineEl.textContent = topMachine ? topMachine.machine_name : 'Sin datos';
+                if (topTiempoEl) {
+                    topTiempoEl.textContent = topMachine
+                        ? `${topMachine.filtered_total_duration_text} acumulado en ${topMachine.filtered_event_count} evento(s)`
+                        : 'Aún sin historial';
+                }
+
+                const resumenCount = document.getElementById('resumen-mantenimiento-count');
+                const eventosCount = document.getElementById('eventos-mantenimiento-count');
+                if (resumenCount) resumenCount.textContent = resumenFiltrado.length;
+                if (eventosCount) eventosCount.textContent = totalEventos;
+            },
+
+            renderResumen: function(resumenFiltrado) {
+                const contenedor = document.getElementById('lista-resumen-mantenimiento');
+                if (!contenedor) return;
+
+                if (resumenFiltrado.length === 0) {
+                    contenedor.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">No hay resumen de mantenimiento para este filtro.</div>';
+                    return;
+                }
+
+                contenedor.innerHTML = resumenFiltrado.map(item => `
+                    <div class="border-b border-gray-100 last:border-0 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-sm font-semibold text-gray-800">${this.escapeHtml(item.machine_name || '—')}</span>
+                                    ${item.filtered_has_active
+                                        ? '<span class="text-[11px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">En mantenimiento</span>'
+                                        : '<span class="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Resuelto</span>'}
+                                    ${item.location_name ? `<span class="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${this.escapeHtml(item.location_name)}</span>` : ''}
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">${this.escapeHtml(item.filtered_summary_message || '')}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-bold text-amber-700">${this.escapeHtml(item.filtered_total_duration_text || '0')}</div>
+                                <div class="text-[11px] text-gray-500">acumulado</div>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-2 text-xs">
+                            <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-full">${item.filtered_event_count || 0} evento(s)</span>
+                            <span class="bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Máximo ${this.escapeHtml(item.longest_event_text || '0')}</span>
+                            ${item.filtered_active_count ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded-full">${item.filtered_active_count} activo(s)</span>` : ''}
+                            ${item.latest_started_at ? `<span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">Último inicio ${this.escapeHtml(this.formatDateTime(item.latest_started_at))}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderEventos: function(eventosFiltrados) {
+                const contenedor = document.getElementById('lista-eventos-mantenimiento');
+                if (!contenedor) return;
+
+                if (eventosFiltrados.length === 0) {
+                    contenedor.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">No hay eventos de mantenimiento para este filtro.</div>';
+                    return;
+                }
+
+                contenedor.innerHTML = eventosFiltrados.slice(0, 80).map(evento => `
+                    <div class="border-b border-gray-100 last:border-0 py-3">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <i class="fas fa-wrench text-amber-500 text-xs"></i>
+                                    <span class="text-sm font-semibold text-gray-800">${this.escapeHtml(evento.machine_name || '—')}</span>
+                                    ${evento.station_label ? `<span class="text-[11px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">${this.escapeHtml(evento.station_label)}</span>` : ''}
+                                    <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${this.escapeHtml(evento.source_label || 'Mantenimiento')}</span>
+                                    ${evento.is_active
+                                        ? '<span class="text-[11px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Activo</span>'
+                                        : '<span class="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Resuelto</span>'}
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2 text-xs text-gray-500">
+                                    <div><span class="font-semibold text-gray-700">Inicio:</span> ${this.escapeHtml(this.formatDateTime(evento.started_at))}</div>
+                                    <div><span class="font-semibold text-gray-700">Fin:</span> ${evento.is_active ? 'Sigue en mantenimiento' : this.escapeHtml(this.formatDateTime(evento.resolved_at))}</div>
+                                    <div><span class="font-semibold text-gray-700">Local:</span> ${this.escapeHtml(evento.location_name || 'Sin local')}</div>
+                                </div>
+                                <p class="mt-2 text-xs ${evento.is_active ? 'text-red-600' : 'text-gray-600'}">${this.escapeHtml(evento.detail_message || '')}</p>
+                                ${evento.description ? `<p class="mt-1 text-xs text-gray-500"><span class="font-semibold text-gray-700">Detalle:</span> ${this.escapeHtml(evento.description)}</p>` : ''}
+                                ${(evento.reported_by || evento.qr_name) ? `<p class="mt-1 text-xs text-gray-500">${evento.reported_by ? `<span><span class="font-semibold text-gray-700">Reportó:</span> ${this.escapeHtml(evento.reported_by)}</span>` : ''}${evento.reported_by && evento.qr_name ? ' · ' : ''}${evento.qr_name ? `<span><span class="font-semibold text-gray-700">QR:</span> ${this.escapeHtml(evento.qr_name)}</span>` : ''}</p>` : ''}
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <div class="text-base font-bold ${evento.is_active ? 'text-red-600' : 'text-amber-700'}">${this.escapeHtml(evento.duration_text || 'Sin dato')}</div>
+                                <div class="text-[11px] text-gray-500">${evento.is_active ? 'Tiempo actual' : 'Duración total'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderError: function() {
+                const resumen = document.getElementById('lista-resumen-mantenimiento');
+                const eventos = document.getElementById('lista-eventos-mantenimiento');
+                if (resumen) {
+                    resumen.innerHTML = '<div class="text-center py-8 text-red-500 text-sm"><i class="fas fa-exclamation-triangle text-xl mb-2"></i><p>Error cargando resumen de mantenimiento.</p></div>';
+                }
+                if (eventos) {
+                    eventos.innerHTML = '<div class="text-center py-8 text-red-500 text-sm"><i class="fas fa-exclamation-triangle text-xl mb-2"></i><p>Error cargando eventos de mantenimiento.</p></div>';
+                }
+                this.actualizarKpis([], []);
+            },
+
+            formatDateTime: function(value) {
+                if (!value) return '—';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return '—';
+                const hora = date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                const dia = date.toLocaleDateString('es-CO');
+                return `${dia} · ${hora}`;
+            },
+
+            formatDuration: function(totalSeconds) {
+                const safeValue = Number.isFinite(totalSeconds) ? totalSeconds : 0;
+                if (safeValue <= 0) return '0 min';
+
+                const dias = Math.floor(safeValue / 86400);
+                const horas = Math.floor((safeValue % 86400) / 3600);
+                const minutos = Math.max(1, Math.floor((safeValue % 3600) / 60));
+                const partes = [];
+
+                if (dias) partes.push(`${dias} d`);
+                if (horas) partes.push(`${horas} h`);
+                if (minutos && partes.length < 2) partes.push(`${minutos} min`);
+
+                return partes.slice(0, 2).join(' ');
+            },
+
+            escapeHtml: function(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
             }
         };
 
