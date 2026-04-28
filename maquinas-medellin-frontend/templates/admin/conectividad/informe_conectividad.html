@@ -190,6 +190,11 @@
                     <select id="filtroMaquina" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todas las máquinas</option>
                     </select>
+                    <input id="fechaInicio" type="date" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input id="fechaFin" type="date" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="aplicarFiltroFechas()" class="bg-white text-blue-700 border border-blue-300 text-sm px-4 py-1.5 rounded-lg hover:bg-blue-50 transition">
+                        <i class="fas fa-calendar-alt mr-1"></i>Aplicar fechas
+                    </button>
                     <button onclick="cargarDatos()" class="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700 transition">
                         <i class="fas fa-sync-alt mr-1"></i>Actualizar
                     </button>
@@ -288,6 +293,8 @@ let _days = 7;
 let _machId = '';
 let _page = 1;
 let _pages = 1;
+let _fechaInicio = '';
+let _fechaFin = '';
 
 particlesJS('particles-js', {
     particles: {
@@ -315,6 +322,25 @@ function fmtDateShort(iso) {
         ' ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
+function fechaISO(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function setRangoDias(days) {
+    const fin = new Date();
+    const inicio = new Date();
+    inicio.setDate(fin.getDate() - Math.max(days - 1, 0));
+
+    _days = days;
+    _fechaInicio = fechaISO(inicio);
+    _fechaFin = fechaISO(fin);
+
+    const inicioInput = document.getElementById('fechaInicio');
+    const finInput = document.getElementById('fechaFin');
+    if (inicioInput) inicioInput.value = _fechaInicio;
+    if (finInput) finInput.value = _fechaFin;
+}
+
 function renderScopeInfo(filters) {
     const box = document.getElementById('scopeInfo');
     if (!box || !filters) return;
@@ -327,12 +353,17 @@ function renderScopeInfo(filters) {
         ? 'Además del local activo, el listado está filtrado por una máquina específica.'
         : 'Si cambias el local en la barra superior, este reporte debe recargarse con el nuevo alcance.';
 
+    const rangoTexto = filters.fecha_inicio && filters.fecha_fin
+        ? `Rango consultado: ${filters.fecha_inicio} a ${filters.fecha_fin}.`
+        : `Ventana consultada: últimos ${filters.days} días.`;
+
     box.innerHTML = `
         <div class="flex items-start gap-3">
             <i class="fas fa-filter mt-0.5 text-blue-600"></i>
             <div>
                 <p class="font-semibold">${titulo}</p>
                 <p class="text-blue-800/80 text-xs mt-1">${detalle}</p>
+                <p class="text-blue-800/80 text-xs mt-1">${rangoTexto}</p>
             </div>
         </div>
     `;
@@ -341,6 +372,8 @@ function renderScopeInfo(filters) {
 async function cargarDatos() {
     let url = `/api/admin/connectivity?days=${_days}&page=${_page}&per_page=100`;
     if (_machId) url += `&machine_id=${_machId}`;
+    if (_fechaInicio) url += `&fecha_inicio=${encodeURIComponent(_fechaInicio)}`;
+    if (_fechaFin) url += `&fecha_fin=${encodeURIComponent(_fechaFin)}`;
 
     try {
         const r = await fetch(url);
@@ -369,7 +402,11 @@ function renderKPIs(data) {
     document.getElementById('kpiOnline').textContent = onlineTotal.toLocaleString();
     document.getElementById('kpiOffline').textContent = offlineTotal.toLocaleString();
     document.getElementById('kpiMaq').textContent = data.summary.length;
-    document.getElementById('kpiPeriod').textContent = `últimos ${_days} días`;
+    if (data.filters.fecha_inicio && data.filters.fecha_fin) {
+        document.getElementById('kpiPeriod').textContent = `${data.filters.fecha_inicio} → ${data.filters.fecha_fin}`;
+    } else {
+        document.getElementById('kpiPeriod').textContent = `últimos ${_days} días`;
+    }
 }
 
 function renderResumen(summary) {
@@ -458,11 +495,26 @@ function filtrarMaquina(id) {
     cargarDatos();
 }
 
+function aplicarFiltroFechas() {
+    const inicio = document.getElementById('fechaInicio').value;
+    const fin = document.getElementById('fechaFin').value;
+
+    if (!inicio || !fin) {
+        return;
+    }
+
+    _fechaInicio = inicio;
+    _fechaFin = fin;
+    _page = 1;
+    document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
+    cargarDatos();
+}
+
 document.querySelectorAll('.btn-periodo').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        _days = parseInt(btn.dataset.days, 10);
+        setRangoDias(parseInt(btn.dataset.days, 10));
         _page = 1;
         cargarDatos();
     });
@@ -486,6 +538,7 @@ function actualizarHora() {
 }
 
 setInterval(actualizarHora, 1000);
+setRangoDias(_days);
 cargarDatos();
 setInterval(cargarDatos, 120000);
 </script>

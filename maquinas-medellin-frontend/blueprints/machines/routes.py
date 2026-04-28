@@ -1,6 +1,7 @@
 import logging
 import os
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, render_template, session, json
@@ -1578,11 +1579,15 @@ def connectivity_report():
     Query params:
       - machine_id (int, opcional)
       - days       (int, default 30, max 60)
+      - fecha_inicio (YYYY-MM-DD, opcional)
+      - fecha_fin    (YYYY-MM-DD, opcional)
       - page       (int, default 1)
       - per_page   (int, default 100, max 500)
     """
     machine_id = request.args.get('machine_id', type=int)
     days       = min(int(request.args.get('days', 30)), 60)
+    fecha_inicio_raw = request.args.get('fecha_inicio', type=str)
+    fecha_fin_raw = request.args.get('fecha_fin', type=str)
     page       = max(int(request.args.get('page', 1)), 1)
     per_page   = min(int(request.args.get('per_page', 100)), 500)
     offset     = (page - 1) * per_page
@@ -1595,8 +1600,34 @@ def connectivity_report():
     cursor = get_db_cursor(connection)
 
     try:
-        where_clauses = ["event_at >= DATE_SUB(NOW(), INTERVAL %s DAY)"]
-        params = [days]
+        now_dt = get_colombia_time()
+        if getattr(now_dt, 'tzinfo', None):
+            now_dt = now_dt.replace(tzinfo=None)
+
+        fecha_inicio = None
+        fecha_fin = None
+
+        if fecha_inicio_raw:
+            fecha_inicio = datetime.strptime(fecha_inicio_raw, '%Y-%m-%d').date()
+        if fecha_fin_raw:
+            fecha_fin = datetime.strptime(fecha_fin_raw, '%Y-%m-%d').date()
+
+        if fecha_inicio and not fecha_fin:
+            fecha_fin = fecha_inicio
+        if fecha_fin and not fecha_inicio:
+            fecha_inicio = fecha_fin
+        if fecha_inicio and fecha_fin and fecha_inicio > fecha_fin:
+            fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
+
+        if fecha_inicio and fecha_fin:
+            fecha_fin_exclusiva = fecha_fin + timedelta(days=1)
+            where_clauses = ["event_at >= %s", "event_at < %s"]
+            params = [fecha_inicio.strftime('%Y-%m-%d'), fecha_fin_exclusiva.strftime('%Y-%m-%d')]
+        else:
+            fecha_fin = now_dt.date()
+            fecha_inicio = fecha_fin - timedelta(days=max(days - 1, 0))
+            where_clauses = ["event_at >= DATE_SUB(NOW(), INTERVAL %s DAY)"]
+            params = [days]
 
         if active_id is not None:
             where_clauses.append("location_id = %s")
@@ -1652,10 +1683,6 @@ def connectivity_report():
             params,
         )
         summary = cursor.fetchall()
-
-        now_dt = get_colombia_time()
-        if getattr(now_dt, 'tzinfo', None):
-            now_dt = now_dt.replace(tzinfo=None)
 
         event_meta, machine_meta = _build_connectivity_insights(all_events, now_dt)
 
@@ -1718,6 +1745,8 @@ def connectivity_report():
                 'location_id': active_id,
                 'location_name': scope_name,
                 'is_global_scope': active_id is None and user_can_view_all(),
+                'fecha_inicio': fecha_inicio.isoformat() if fecha_inicio else None,
+                'fecha_fin': fecha_fin.isoformat() if fecha_fin else None,
             },
         }), 200
 
