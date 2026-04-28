@@ -1,5 +1,6 @@
 import logging
 import os
+from collections import defaultdict
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, render_template, session, json
@@ -44,6 +45,148 @@ def _nombre_imagen(nombre_maquina: str) -> str:
         if key.lower() in nombre_maquina.lower() or nombre_maquina.lower() in key.lower():
             return filename
     return 'default.jpg'
+
+
+def _format_connectivity_duration(total_seconds) -> str:
+    """Convierte segundos a un texto corto y legible para la UI."""
+    if total_seconds is None:
+        return 'Sin dato'
+
+    total_seconds = max(int(total_seconds), 0)
+    if total_seconds < 60:
+        return 'menos de 1 min'
+
+    dias, rem = divmod(total_seconds, 86400)
+    horas, rem = divmod(rem, 3600)
+    minutos, _ = divmod(rem, 60)
+
+    partes = []
+    if dias:
+        partes.append(f"{dias} d")
+    if horas:
+        partes.append(f"{horas} h")
+    if minutos and len(partes) < 2:
+        partes.append(f"{minutos} min")
+
+    if not partes:
+        partes.append('1 min')
+    return ' '.join(partes[:2])
+
+
+def _build_connectivity_insights(all_events, now_dt):
+    """Calcula tiempos de inactividad por evento y por máquina."""
+    grouped_events = defaultdict(list)
+    event_meta = {}
+    machine_meta = {}
+
+    for event in all_events:
+        grouped_events[event['machine_id']].append(event)
+
+    for machine_id, machine_events in grouped_events.items():
+        machine_name = machine_events[0]['machine_name'] if machine_events else f'Máquina {machine_id}'
+        pending_offline = None
+        total_downtime = 0
+        longest_downtime = 0
+        downtime_count = 0
+        last_downtime = None
+        current_offline_since = None
+        current_offline_seconds = None
+        current_offline_text = None
+        last_event_type = None
+        last_event_at = None
+
+        for event in sorted(machine_events, key=lambda row: (row['event_at'], row['id'])):
+            event_id = event['id']
+            event_type = event['event_type']
+            event_at = event['event_at']
+            last_event_type = event_type
+            last_event_at = event_at
+
+            if event_type == 'offline':
+                if pending_offline and pending_offline['id'] not in event_meta:
+                    event_meta[pending_offline['id']] = {
+                        'downtime_seconds': None,
+                        'downtime_text': None,
+                        'detail_message': 'Se registró otra desconexión antes de una reconexión.',
+                    }
+                pending_offline = {'id': event_id, 'event_at': event_at}
+                current_offline_since = event_at
+                event_meta.setdefault(
+                    event_id,
+                    {
+                        'downtime_seconds': None,
+                        'downtime_text': None,
+                        'detail_message': 'Desconexión registrada. Esperando reconexión para medir el tiempo caído.',
+                    },
+                )
+                continue
+
+            if pending_offline:
+                downtime_seconds = max(int((event_at - pending_offline['event_at']).total_seconds()), 0)
+                downtime_text = _format_connectivity_duration(downtime_seconds)
+                total_downtime += downtime_seconds
+                longest_downtime = max(longest_downtime, downtime_seconds)
+                downtime_count += 1
+                last_downtime = downtime_seconds
+                current_offline_since = None
+                current_offline_seconds = None
+                current_offline_text = None
+
+                event_meta[pending_offline['id']] = {
+                    'downtime_seconds': downtime_seconds,
+                    'downtime_text': downtime_text,
+                    'detail_message': f'La máquina estuvo inactiva {downtime_text} hasta volver a conectar.',
+                }
+                event_meta[event_id] = {
+                    'downtime_seconds': downtime_seconds,
+                    'downtime_text': downtime_text,
+                    'detail_message': f'Volvió a estar online tras {downtime_text} de inactividad.',
+                }
+                pending_offline = None
+            else:
+                event_meta.setdefault(
+                    event_id,
+                    {
+                        'downtime_seconds': None,
+                        'downtime_text': None,
+                        'detail_message': 'Conexión registrada sin una desconexión previa dentro del período.',
+                    },
+                )
+
+        if pending_offline:
+            current_offline_seconds = max(int((now_dt - pending_offline['event_at']).total_seconds()), 0)
+            current_offline_text = _format_connectivity_duration(current_offline_seconds)
+            event_meta[pending_offline['id']] = {
+                'downtime_seconds': current_offline_seconds,
+                'downtime_text': current_offline_text,
+                'detail_message': f'Sigue inactiva desde hace {current_offline_text}.',
+            }
+
+        if current_offline_text:
+            summary_message = f'Actualmente caída desde hace {current_offline_text}.'
+        elif last_downtime is not None:
+            summary_message = f'Última caída registrada: { _format_connectivity_duration(last_downtime) }.'
+        else:
+            summary_message = 'Sin caídas completas registradas en el período.'
+
+        machine_meta[machine_id] = {
+            'machine_name': machine_name,
+            'total_downtime_seconds': total_downtime,
+            'total_downtime_text': _format_connectivity_duration(total_downtime),
+            'longest_downtime_seconds': longest_downtime,
+            'longest_downtime_text': _format_connectivity_duration(longest_downtime),
+            'downtime_count': downtime_count,
+            'last_downtime_seconds': last_downtime,
+            'last_downtime_text': _format_connectivity_duration(last_downtime) if last_downtime is not None else None,
+            'current_offline_since': current_offline_since,
+            'current_offline_seconds': current_offline_seconds,
+            'current_offline_text': current_offline_text,
+            'last_event_type': last_event_type,
+            'last_event_at': last_event_at,
+            'summary_message': summary_message,
+        }
+
+    return event_meta, machine_meta
 
 
 # ── Listados ──────────────────────────────────────────────────────────────────
@@ -1444,7 +1587,7 @@ def connectivity_report():
     per_page   = min(int(request.args.get('per_page', 100)), 500)
     offset     = (page - 1) * per_page
 
-    active_id, _ = get_active_location()
+    active_id, active_name = get_active_location()
 
     connection = get_db_connection()
     if not connection:
@@ -1484,6 +1627,17 @@ def connectivity_report():
 
         cursor.execute(
             f"""
+            SELECT id, machine_id, machine_name, event_type, event_at
+            FROM machine_connectivity_log
+            WHERE {where_sql}
+            ORDER BY machine_id, event_at ASC, id ASC
+            """,
+            params,
+        )
+        all_events = cursor.fetchall()
+
+        cursor.execute(
+            f"""
             SELECT
                 machine_id, machine_name,
                 COUNT(*) AS total_events,
@@ -1499,6 +1653,18 @@ def connectivity_report():
         )
         summary = cursor.fetchall()
 
+        now_dt = get_colombia_time()
+        if getattr(now_dt, 'tzinfo', None):
+            now_dt = now_dt.replace(tzinfo=None)
+
+        event_meta, machine_meta = _build_connectivity_insights(all_events, now_dt)
+
+        scope_name = active_name
+        if active_id is None and user_can_view_all():
+            scope_name = 'Todos los locales'
+        elif not scope_name:
+            scope_name = 'Sin local activo'
+
         return jsonify({
             'events': [
                 {
@@ -1508,6 +1674,9 @@ def connectivity_report():
                     'location_id':  e['location_id'],
                     'event_type':   e['event_type'],
                     'event_at':     e['event_at'].isoformat() if e['event_at'] else None,
+                    'downtime_seconds': event_meta.get(e['id'], {}).get('downtime_seconds'),
+                    'downtime_text': event_meta.get(e['id'], {}).get('downtime_text'),
+                    'detail_message': event_meta.get(e['id'], {}).get('detail_message'),
                 }
                 for e in events
             ],
@@ -1519,6 +1688,21 @@ def connectivity_report():
                     'online_count':  int(s['online_count'] or 0),
                     'offline_count': int(s['offline_count'] or 0),
                     'last_event':    s['last_event'].isoformat() if s['last_event'] else None,
+                    'total_downtime_seconds': machine_meta.get(s['machine_id'], {}).get('total_downtime_seconds', 0),
+                    'total_downtime_text': machine_meta.get(s['machine_id'], {}).get('total_downtime_text', '0 min'),
+                    'longest_downtime_seconds': machine_meta.get(s['machine_id'], {}).get('longest_downtime_seconds', 0),
+                    'longest_downtime_text': machine_meta.get(s['machine_id'], {}).get('longest_downtime_text', '0 min'),
+                    'last_downtime_seconds': machine_meta.get(s['machine_id'], {}).get('last_downtime_seconds'),
+                    'last_downtime_text': machine_meta.get(s['machine_id'], {}).get('last_downtime_text'),
+                    'current_offline_since': (
+                        machine_meta.get(s['machine_id'], {}).get('current_offline_since').isoformat()
+                        if machine_meta.get(s['machine_id'], {}).get('current_offline_since') else None
+                    ),
+                    'current_offline_seconds': machine_meta.get(s['machine_id'], {}).get('current_offline_seconds'),
+                    'current_offline_text': machine_meta.get(s['machine_id'], {}).get('current_offline_text'),
+                    'downtime_count': machine_meta.get(s['machine_id'], {}).get('downtime_count', 0),
+                    'last_event_type': machine_meta.get(s['machine_id'], {}).get('last_event_type'),
+                    'summary_message': machine_meta.get(s['machine_id'], {}).get('summary_message'),
                 }
                 for s in summary
             ],
@@ -1528,7 +1712,13 @@ def connectivity_report():
                 'per_page': per_page,
                 'pages':    (total + per_page - 1) // per_page if per_page else 1,
             },
-            'filters': {'days': days, 'machine_id': machine_id, 'location_id': active_id},
+            'filters': {
+                'days': days,
+                'machine_id': machine_id,
+                'location_id': active_id,
+                'location_name': scope_name,
+                'is_global_scope': active_id is None and user_can_view_all(),
+            },
         }), 200
 
     finally:

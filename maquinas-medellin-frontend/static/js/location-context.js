@@ -7,19 +7,25 @@
  */
 
 const LocationContext = (() => {
+  let _ctx = null;
+  let _locales = null;
 
-  let _ctx = null;        // contexto cargado desde /api/session/contexto-local
-  let _locales = null;    // lista cargada desde /api/session/locales-disponibles
-
-  // ── Inicialización ──────────────────────────────────────────────────────────
+  function _setNombreLocal(texto) {
+    const nombreEl = document.getElementById('lcb-nombre-local');
+    if (nombreEl) nombreEl.textContent = texto;
+  }
 
   async function init() {
     try {
       const res = await fetch('/api/session/contexto-local');
-      if (!res.ok) return;
+      if (!res.ok) {
+        _setNombreLocal('No disponible');
+        return;
+      }
       _ctx = await res.json();
       _renderBar();
     } catch (e) {
+      _setNombreLocal('No disponible');
       console.warn('[LocationContext] No se pudo cargar contexto:', e);
     }
   }
@@ -34,17 +40,12 @@ const LocationContext = (() => {
       can_view_all_locations,
     } = _ctx;
 
-    // Nombre del local
-    const nombreEl = document.getElementById('lcb-nombre-local');
-    if (nombreEl) {
-      if (!active_location_id && can_view_all_locations) {
-        nombreEl.textContent = 'Todos los locales';
-      } else {
-        nombreEl.textContent = active_location_name || '—';
-      }
+    if (!active_location_id && can_view_all_locations) {
+      _setNombreLocal('Todos los locales');
+    } else {
+      _setNombreLocal(active_location_name || '—');
     }
 
-    // Badge "Todos los locales"
     const badgeTodos = document.getElementById('lcb-badge-todos');
     if (badgeTodos) {
       if (!active_location_id && can_view_all_locations) {
@@ -56,7 +57,6 @@ const LocationContext = (() => {
       }
     }
 
-    // Botón "Ver todos" (solo visible si can_view_all Y hay local activo)
     const btnTodos = document.getElementById('lcb-btn-todos');
     if (btnTodos) {
       if (can_view_all_locations && active_location_id) {
@@ -68,20 +68,29 @@ const LocationContext = (() => {
       }
     }
 
-    // Controles de cambio de local
     const btnCambiar = document.getElementById('lcb-btn-cambiar');
-    const elFijo     = document.getElementById('lcb-fijo');
+    const elFijo = document.getElementById('lcb-fijo');
 
     if (can_switch_location) {
-      if (btnCambiar) { btnCambiar.classList.remove('hidden'); btnCambiar.classList.add('flex'); }
-      if (elFijo)     { elFijo.classList.add('hidden'); elFijo.classList.remove('flex'); }
+      if (btnCambiar) {
+        btnCambiar.classList.remove('hidden');
+        btnCambiar.classList.add('flex');
+      }
+      if (elFijo) {
+        elFijo.classList.add('hidden');
+        elFijo.classList.remove('flex');
+      }
     } else {
-      if (btnCambiar) { btnCambiar.classList.add('hidden'); btnCambiar.classList.remove('flex'); }
-      if (elFijo)     { elFijo.classList.remove('hidden'); elFijo.classList.add('flex'); }
+      if (btnCambiar) {
+        btnCambiar.classList.add('hidden');
+        btnCambiar.classList.remove('flex');
+      }
+      if (elFijo) {
+        elFijo.classList.remove('hidden');
+        elFijo.classList.add('flex');
+      }
     }
   }
-
-  // ── Dropdown de locales ─────────────────────────────────────────────────────
 
   async function toggleDropdown() {
     const dropdown = document.getElementById('lcb-dropdown');
@@ -93,10 +102,10 @@ const LocationContext = (() => {
       return;
     }
 
-    // Cargar lista de locales si aún no está en memoria
     if (!_locales) {
       await _cargarLocales();
     }
+
     _renderDropdown();
     dropdown.classList.remove('hidden');
 
@@ -121,7 +130,10 @@ const LocationContext = (() => {
   async function _cargarLocales() {
     try {
       const res = await fetch('/api/session/locales-disponibles');
-      if (!res.ok) return;
+      if (!res.ok) {
+        _locales = [];
+        return;
+      }
       const data = await res.json();
       _locales = data.locales || [];
     } catch (e) {
@@ -132,43 +144,47 @@ const LocationContext = (() => {
 
   function _renderDropdown() {
     const lista = document.getElementById('lcb-dropdown-lista');
-    if (!lista || !_locales) return;
+    if (!lista) return;
 
     const activeId = _ctx && _ctx.active_location_id;
 
-    lista.innerHTML = _locales.map(l => {
-      const isActive = l.id === activeId;
-      return `
-        <button
-          onclick="LocationContext.cambiarLocal(${l.id}, '${l.name.replace(/'/g, "\\'")}')"
-          class="w-full flex items-center gap-2 px-4 py-3 text-sm text-left transition-colors
-                 ${isActive
-                   ? 'bg-blue-50 text-blue-700 font-semibold cursor-default'
-                   : 'text-gray-700 hover:bg-gray-50'
-                 }"
-          ${isActive ? 'disabled' : ''}>
-          <i class="fas fa-store text-xs ${isActive ? 'text-blue-500' : 'text-gray-400'}"></i>
-          ${l.name}
-          ${isActive ? '<i class="fas fa-check text-xs text-blue-500 ml-auto"></i>' : ''}
-        </button>
+    if (!_locales || !_locales.length) {
+      lista.innerHTML = `
+        <div class="px-4 py-3 text-sm text-gray-500">
+          No hay locales disponibles para esta sesión.
+        </div>
       `;
-    }).join('');
+    } else {
+      lista.innerHTML = _locales.map((local) => {
+        const isActive = local.id === activeId;
+        const safeName = String(local.name || '').replace(/'/g, "\\'");
+        return `
+          <button
+            onclick="LocationContext.cambiarLocal(${local.id}, '${safeName}')"
+            class="w-full flex items-center gap-2 px-4 py-3 text-sm text-left transition-colors
+                   ${isActive ? 'bg-blue-50 text-blue-700 font-semibold cursor-default' : 'text-gray-700 hover:bg-gray-50'}"
+            ${isActive ? 'disabled' : ''}>
+            <i class="fas fa-store text-xs ${isActive ? 'text-blue-500' : 'text-gray-400'}"></i>
+            ${local.name}
+            ${isActive ? '<i class="fas fa-check text-xs text-blue-500 ml-auto"></i>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
 
-    // Mostrar/ocultar opción "Ver todos" dentro del dropdown
     const dropdownTodos = document.getElementById('lcb-dropdown-todos');
-    if (dropdownTodos && _ctx && _ctx.can_view_all_locations) {
-      dropdownTodos.classList.remove('hidden');
+    if (dropdownTodos) {
+      if (_ctx && _ctx.can_view_all_locations) {
+        dropdownTodos.classList.remove('hidden');
+      } else {
+        dropdownTodos.classList.add('hidden');
+      }
     }
   }
 
-  // ── Cambio de local ─────────────────────────────────────────────────────────
-
   async function cambiarLocal(locationId, locationName) {
     cerrarDropdown();
-
-    // Feedback visual inmediato
-    const nombreEl = document.getElementById('lcb-nombre-local');
-    if (nombreEl) nombreEl.textContent = 'Cambiando...';
+    _setNombreLocal(`Cambiando a ${locationName}...`);
 
     try {
       const res = await fetch('/api/session/seleccionar-local', {
@@ -179,26 +195,22 @@ const LocationContext = (() => {
       const data = await res.json();
 
       if (data.ok) {
-        // Invalidar caché de locales y recargar contexto
         _locales = null;
         _ctx = null;
-        // Recargar la página para que todos los datos se filtren por el nuevo local
         window.location.reload();
       } else {
-        if (nombreEl && _ctx) nombreEl.textContent = _ctx.active_location_name || '—';
+        if (_ctx) _setNombreLocal(_ctx.active_location_name || '—');
         _mostrarToast('No se pudo cambiar el local.', 'error');
       }
     } catch (e) {
-      if (nombreEl && _ctx) nombreEl.textContent = _ctx.active_location_name || '—';
+      if (_ctx) _setNombreLocal(_ctx.active_location_name || '—');
       _mostrarToast('Error de conexión.', 'error');
     }
   }
 
   async function verTodos() {
     cerrarDropdown();
-
-    const nombreEl = document.getElementById('lcb-nombre-local');
-    if (nombreEl) nombreEl.textContent = 'Cargando...';
+    _setNombreLocal('Cargando todos los locales...');
 
     try {
       const res = await fetch('/api/session/seleccionar-local', {
@@ -222,21 +234,17 @@ const LocationContext = (() => {
     }
   }
 
-  // ── Utilidades ──────────────────────────────────────────────────────────────
-
   function _mostrarToast(mensaje, tipo) {
     const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm
-      ${tipo === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+    toast.className = `fixed top-4 right-4 z-[9999] px-4 py-3 rounded-lg shadow-lg text-white text-sm ${
+      tipo === 'error' ? 'bg-red-500' : 'bg-green-500'
+    }`;
     toast.textContent = mensaje;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
   }
 
-  // ── API pública ─────────────────────────────────────────────────────────────
   return { init, toggleDropdown, cerrarDropdown, cambiarLocal, verTodos };
-
 })();
 
-// Auto-inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => LocationContext.init());
