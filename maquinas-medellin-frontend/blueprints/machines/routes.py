@@ -192,13 +192,32 @@ def _build_connectivity_insights(all_events, now_dt):
 
 def _serialize_iso_datetime(value):
     """Convierte fechas de BD a ISO para respuestas JSON."""
-    if value and hasattr(value, 'isoformat'):
-        return value.isoformat()
+    normalized_value = _normalize_colombia_datetime(value)
+    if normalized_value and hasattr(normalized_value, 'isoformat'):
+        return normalized_value.isoformat()
+    return None
+
+
+def _normalize_colombia_datetime(value):
+    """Normaliza fechas naive/aware a zona horaria de Colombia."""
+    if not value:
+        return None
+
+    if isinstance(value, str):
+        return parse_db_datetime(value)
+
+    if hasattr(value, 'tzinfo') and value.tzinfo and value.tzinfo.utcoffset(value) is not None:
+        return value.astimezone(get_colombia_time().tzinfo)
+
+    if hasattr(value, 'strftime'):
+        return parse_db_datetime(value.strftime('%Y-%m-%d %H:%M:%S'))
+
     return None
 
 
 def _build_maintenance_insights(maintenance_rows, now_dt):
     """Consolida eventos de mantenimiento y calcula sus duraciones."""
+    now_dt = _normalize_colombia_datetime(now_dt) or get_colombia_time()
     events = []
     machine_rollup = {}
     total_duration_seconds = 0
@@ -209,8 +228,8 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
         machine_id = row.get('machine_id')
         machine_name = row.get('machine_name') or f'Máquina {machine_id}'
         location_name = row.get('location_name') or 'Sin local'
-        started_at = row.get('started_at')
-        resolved_at = row.get('resolved_at')
+        started_at = _normalize_colombia_datetime(row.get('started_at'))
+        resolved_at = _normalize_colombia_datetime(row.get('resolved_at'))
         resolved = bool(row.get('resolved'))
         is_active = not resolved
 
