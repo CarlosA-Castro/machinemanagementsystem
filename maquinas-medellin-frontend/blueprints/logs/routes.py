@@ -6,10 +6,11 @@ import os
 import tempfile
 import zipfile
 from datetime import datetime, timedelta
+from logging.handlers import RotatingFileHandler
 
 from flask import Blueprint, jsonify, request, send_file, session
 
-from config import LOGGER_NAME
+from config import LOGGER_NAME, LOG_FILE
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
 from utils.location_scope import get_active_location, user_can_view_all
@@ -705,24 +706,40 @@ def obtener_estadisticas_logs():
 
         cursor = get_db_cursor(connection)
         hoy = get_colombia_time().date()
+        periodo = request.args.get('periodo', 'hoy')
+        fecha_inicio = hoy
 
-        cursor.execute("SELECT COUNT(*) as total_logs_hoy FROM app_logs WHERE DATE(created_at) = %s", (hoy,))
+        if periodo == 'semana':
+            fecha_inicio = hoy - timedelta(days=6)
+        elif periodo == 'mes':
+            fecha_inicio = hoy - timedelta(days=29)
+
+        cursor.execute(
+            "SELECT COUNT(*) as total_logs_hoy FROM app_logs WHERE DATE(created_at) BETWEEN %s AND %s",
+            (fecha_inicio, hoy),
+        )
         total_logs = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as errores_hoy FROM error_logs WHERE DATE(created_at) = %s", (hoy,))
+        cursor.execute(
+            "SELECT COUNT(*) as errores_hoy FROM error_logs WHERE DATE(created_at) BETWEEN %s AND %s",
+            (fecha_inicio, hoy),
+        )
         errores = cursor.fetchone()
 
-        cursor.execute("SELECT COUNT(*) as accesos_hoy FROM access_logs WHERE DATE(created_at) = %s", (hoy,))
+        cursor.execute(
+            "SELECT COUNT(*) as accesos_hoy FROM access_logs WHERE DATE(created_at) BETWEEN %s AND %s",
+            (fecha_inicio, hoy),
+        )
         accesos = cursor.fetchone()
 
         cursor.execute(
             """
             SELECT COUNT(DISTINCT user_id) as usuarios_activos_hoy
             FROM access_logs
-            WHERE DATE(created_at) = %s
+            WHERE DATE(created_at) BETWEEN %s AND %s
               AND user_id IS NOT NULL
             """,
-            (hoy,),
+            (fecha_inicio, hoy),
         )
         usuarios_activos = cursor.fetchone()
 
@@ -734,12 +751,12 @@ def obtener_estadisticas_logs():
                 AVG(response_time_ms) as avg_time,
                 COUNT(DISTINCT ip_address) as ips_unicas
             FROM access_logs
-            WHERE DATE(created_at) = %s
+            WHERE DATE(created_at) BETWEEN %s AND %s
             GROUP BY method, path
             ORDER BY total DESC
             LIMIT 5
             """,
-            (hoy,),
+            (fecha_inicio, hoy),
         )
         top_endpoints = cursor.fetchall()
 
@@ -750,12 +767,12 @@ def obtener_estadisticas_logs():
                 COUNT(*) as total,
                 GROUP_CONCAT(DISTINCT module) as modulos
             FROM error_logs
-            WHERE DATE(created_at) = %s
+            WHERE DATE(created_at) BETWEEN %s AND %s
             GROUP BY error_type
             ORDER BY total DESC
             LIMIT 5
             """,
-            (hoy,),
+            (fecha_inicio, hoy),
         )
         errores_por_tipo = cursor.fetchall()
 
@@ -767,6 +784,8 @@ def obtener_estadisticas_logs():
                 'usuarios_activos_hoy': usuarios_activos['usuarios_activos_hoy'] or 0,
                 'top_endpoints': top_endpoints,
                 'errores_por_tipo': errores_por_tipo,
+                'periodo': periodo,
+                'fecha_inicio': fecha_inicio.isoformat(),
                 'fecha': hoy.isoformat(),
                 'timestamp': get_colombia_time().isoformat(),
             }
@@ -952,7 +971,7 @@ def limpiar_logs_sistema():
     connection = None
     cursor = None
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         dias = int(data.get('dias', 30))
 
         connection = get_db_connection()
@@ -962,13 +981,18 @@ def limpiar_logs_sistema():
         cursor = get_db_cursor(connection)
         fecha_limite = (datetime.now() - timedelta(days=dias)).strftime('%Y-%m-%d')
 
-        tablas = ['app_logs', 'access_logs', 'error_logs', 'sessionlog']
+        tablas = {
+            'app_logs': 'created_at',
+            'access_logs': 'created_at',
+            'error_logs': 'created_at',
+            'sessionlog': 'loginTime',
+        }
         total_eliminados = 0
-        for tabla in tablas:
+        for tabla, columna_fecha in tablas.items():
             cursor.execute(
                 f"""
                 DELETE FROM {tabla}
-                WHERE DATE(created_at) < %s
+                WHERE DATE({columna_fecha}) < %s
                 """,
                 (fecha_limite,),
             )
@@ -996,7 +1020,12 @@ def limpiar_logs_sistema():
         return api_response(
             'S001',
             status='success',
-            data={'eliminados': total_eliminados, 'dias': dias, 'fecha_limite': fecha_limite},
+            data={
+                'eliminados': total_eliminados,
+                'dias': dias,
+                'fecha_limite': fecha_limite,
+                'backup': f'log_statistics_backup_{backup_suffix}',
+            },
         )
     except Exception as e:
         logger.error(f"Error limpiando logs: {e}")
@@ -1006,6 +1035,45 @@ def limpiar_logs_sistema():
             cursor.close()
         if connection:
             connection.close()
+
+
+@logs_bp.route('/api/logs/rotar', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def rotar_logs_sistema():
+    try:
+        handlers_rotados = 0
+        archivos_rotados = []
+
+        for handler in logger.handlers:
+            if isinstance(handler, RotatingFileHandler):
+                handler.acquire()
+                try:
+                    handler.flush()
+                    handler.doRollover()
+                    handlers_rotados += 1
+                    archivos_rotados.append(os.path.basename(getattr(handler, 'baseFilename', LOG_FILE)))
+                finally:
+                    handler.release()
+
+        if not handlers_rotados:
+            return api_response('E001', http_status=500, data={'detalle': 'No hay handlers rotativos configurados'})
+
+        log_app_event(
+            'INFO',
+            f'Rotacion manual de logs ejecutada ({handlers_rotados} handlers)',
+            'logs',
+            {'handlers_rotados': handlers_rotados, 'archivos': archivos_rotados},
+            session.get('user_id'),
+        )
+        return api_response(
+            'S003',
+            status='success',
+            data={'handlers_rotados': handlers_rotados, 'archivos': archivos_rotados},
+        )
+    except Exception as e:
+        logger.error(f"Error rotando logs: {e}", exc_info=True)
+        return api_response('E001', http_status=500)
 
 
 @logs_bp.route('/api/logs/exportar', methods=['POST'])

@@ -357,7 +357,7 @@
                             </div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked class="sr-only peer">
+                            <input type="checkbox" id="alertasActivas" checked class="sr-only peer">
                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                         </label>
                     </div>
@@ -425,399 +425,472 @@
 
     <script>
         const LogsManager = {
-    init: function() {
-        // Configurar partículas
-        particlesJS('particles-js', {
-            particles: {
-                number: { value: 20, density: { enable: true, value_area: 600 } },
-                color: { value: '#8b5cf6' },
-                shape: { type: 'circle' },
-                opacity: { value: 0.1, random: true },
-                size: { value: 2, random: true },
-                line_linked: { enable: true, distance: 150, color: '#8b5cf6', opacity: 0.05, width: 1 },
-                move: { enable: true, speed: 0.3, direction: 'none', random: true }
+            init: function() {
+                if (typeof particlesJS === 'function') {
+                    particlesJS('particles-js', {
+                        particles: {
+                            number: { value: 20, density: { enable: true, value_area: 600 } },
+                            color: { value: '#8b5cf6' },
+                            shape: { type: 'circle' },
+                            opacity: { value: 0.1, random: true },
+                            size: { value: 2, random: true },
+                            line_linked: { enable: true, distance: 150, color: '#8b5cf6', opacity: 0.05, width: 1 },
+                            move: { enable: true, speed: 0.3, direction: 'none', random: true }
+                        },
+                        interactivity: {
+                            detect_on: 'canvas',
+                            events: {
+                                onhover: { enable: true, mode: 'grab' },
+                                onclick: { enable: true, mode: 'push' },
+                                resize: true
+                            }
+                        }
+                    });
+                }
+
+                this.actualizarHora();
+                setInterval(() => this.actualizarHora(), 1000);
+                this.marcarEnlaceActivo();
+                this.cargarConfiguracion();
+                this.cargarEstadisticas();
+                this.cargarEstadoSistema();
             },
-            interactivity: {
-                detect_on: 'canvas',
-                events: {
-                    onhover: { enable: true, mode: 'grab' },
-                    onclick: { enable: true, mode: 'push' },
-                    resize: true
+
+            marcarEnlaceActivo: function() {
+                const currentPath = window.location.pathname;
+                const pathToId = {
+                    '/local': 'nav-local',
+                    '/admin': 'nav-dashboard',
+                    '/admin/usuarios/gestionusuarios': 'nav-usuarios',
+                    '/admin/maquinas/gestionmaquinas': 'nav-maquinas',
+                    '/admin/paquetes/gestionpaquetes': 'nav-paquetes',
+                    '/admin/locales/listalocales': 'nav-locales',
+                    '/admin/mensajes/gestionmensajes': 'nav-mensajes',
+                    '/admin/ventas/liquidaciones': 'nav-liquidaciones',
+                    '/admin/inversores/gestionsocios': 'nav-socios',
+                    '/admin/logs/consola-completa': 'nav-consola',
+                    '/admin/logs/gestionlogs': 'nav-gestion-logs'
+                };
+
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+
+                const activeId = pathToId[currentPath];
+                if (activeId) {
+                    const activeLink = document.getElementById(activeId);
+                    if (activeLink) {
+                        activeLink.classList.add('active');
+                    }
                 }
-            }
-        });
-        
-        // Inicializar hora en tiempo real
-        this.actualizarHora();
-        setInterval(() => this.actualizarHora(), 1000);
-        
-        // Cargar datos iniciales
-        this.cargarEstadisticas();
-        this.cargarEstadoSistema();
-        
-        // ===== NUEVO: Marcar el enlace activo =====
-        this.marcarEnlaceActivo();
-        
-        // Sincronizar nombre de usuario con versión móvil
-        const nombreUsuario = document.getElementById('nombreUsuario');
-        const nombreUsuarioMobile = document.getElementById('nombreUsuarioMobile');
-        if (nombreUsuario && nombreUsuarioMobile) {
-            nombreUsuarioMobile.textContent = nombreUsuario.textContent;
-        }
-        
-        console.log("Gestor de Logs inicializado");
-    },
-    
-    // ===== NUEVA FUNCIÓN: Marcar el enlace activo =====
-    marcarEnlaceActivo: function() {
-        const currentPath = window.location.pathname;
-        
-        const pathToId = {
-            '/local': 'nav-local',
-            '/admin': 'nav-admin',
-            '/admin/usuarios/lista': 'nav-usuarios',
-            '/admin/maquinas/gestionmaquinas': 'nav-maquinas',
-            '/admin/paquetes/lista': 'nav-paquetes',
-            '/admin/locales/listalocales': 'nav-locales',
-            '/admin/mensajes/gestionmensajes': 'nav-mensajes',
-            '/admin/ventas/liquidaciones': 'nav-liquidaciones',
-            '/admin/inversores/gestionsocios': 'nav-socios',
-            '/admin/logs/consola-completa': 'nav-consola',
-            '/admin/logs/gestionlogs': 'nav-gestion-logs'
-        };
-        
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        const activeId = pathToId[currentPath];
-        if (activeId) {
-            const activeLink = document.getElementById(activeId);
-            if (activeLink) {
-                activeLink.classList.add('active');
-            }
-        } else {
-            // Si no hay match exacto, buscar por coincidencia parcial
-            document.querySelectorAll('.nav-link').forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && currentPath.includes(href) && href !== '/') {
-                    link.classList.add('active');
+            },
+
+            actualizarHora: function() {
+                const ahora = new Date();
+                const opcionesHora = {
+                    timeZone: 'America/Bogota',
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                };
+                const opcionesFecha = {
+                    timeZone: 'America/Bogota',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                };
+
+                const hora = ahora.toLocaleTimeString('es-CO', opcionesHora);
+                const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
+
+                const horaSidebar = document.getElementById('horaActualSidebar');
+                const horaMobile = document.getElementById('horaActualMobile');
+                const fechaMobile = document.getElementById('fechaActualMobile');
+                const horaHeader = document.getElementById('horaActual');
+
+                if (horaSidebar) horaSidebar.textContent = hora;
+                if (horaMobile) horaMobile.textContent = hora;
+                if (fechaMobile) fechaMobile.textContent = fecha;
+                if (horaHeader) horaHeader.textContent = hora;
+            },
+
+            cargarConfiguracion: async function() {
+                try {
+                    const response = await fetch('/api/logs/config');
+                    if (!response.ok) {
+                        throw new Error(await this.obtenerMensajeError(response));
+                    }
+
+                    const data = await response.json();
+                    const configMap = {};
+                    (data.config || []).forEach(item => {
+                        configMap[item.config_key] = item.config_value;
+                    });
+
+                    const umbral = document.getElementById('umbralErrores');
+                    const notificaciones = document.getElementById('tipoNotificaciones');
+                    const alertas = document.getElementById('alertasActivas');
+
+                    if (umbral && configMap.error_threshold) {
+                        umbral.value = configMap.error_threshold;
+                    }
+                    if (notificaciones && configMap.notification_method) {
+                        notificaciones.value = configMap.notification_method;
+                    }
+                    if (alertas && Object.prototype.hasOwnProperty.call(configMap, 'alerts_enabled')) {
+                        alertas.checked = String(configMap.alerts_enabled).toLowerCase() === 'true';
+                    }
+                } catch (error) {
+                    this.mostrarNotificacion(`No se pudo cargar la configuración: ${error.message}`, 'error');
                 }
-            });
-        }
-    },
-    
-    actualizarHora: function() {
-        const ahora = new Date();
-        const opciones = { 
-            timeZone: 'America/Bogota',
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        };
-        
-        const opcionesFecha = {
-            timeZone: 'America/Bogota',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        };
-        
-        const hora = ahora.toLocaleTimeString('es-CO', opciones);
-        const fecha = ahora.toLocaleDateString('es-CO', opcionesFecha);
-        
-        // Actualizar en sidebar (desktop)
-        const horaSidebar = document.getElementById('horaActualSidebar');
-        const fechaSidebar = document.getElementById('fechaActualSidebar');
-        if (horaSidebar) horaSidebar.textContent = hora;
-        if (fechaSidebar) fechaSidebar.textContent = fecha;
-        
-        // Actualizar en versión móvil
-        const horaMobile = document.getElementById('horaActualMobile');
-        const fechaMobile = document.getElementById('fechaActualMobile');
-        if (horaMobile) horaMobile.textContent = hora;
-        if (fechaMobile) fechaMobile.textContent = fecha;
-        
-        // Actualizar en header
-        document.getElementById('horaActual').textContent = hora;
-    },
-    
-    cargarEstadisticas: function() {
-        const periodo = document.getElementById('periodoEstadisticas').value;
-        const container = document.getElementById('estadisticasDetalladas');
-        const endpointsContainer = document.getElementById('topEndpoints');
-        
-        // Mostrar loading
-        container.innerHTML = '<div class="text-center py-8 col-span-4"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando estadísticas...</p></div>';
-        endpointsContainer.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando endpoints...</p></div>';
-        
-        fetch('/api/logs/estadisticas')
-            .then(response => response.json())
-            .then(data => {
-                // Actualizar estadísticas principales
+            },
+
+            cargarEstadisticas: async function() {
+                const periodo = document.getElementById('periodoEstadisticas').value;
+                const container = document.getElementById('estadisticasDetalladas');
+                const endpointsContainer = document.getElementById('topEndpoints');
+
+                container.innerHTML = '<div class="text-center py-8 col-span-4"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando estadísticas...</p></div>';
+                endpointsContainer.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando endpoints...</p></div>';
+
+                try {
+                    const response = await fetch(`/api/logs/estadisticas?periodo=${encodeURIComponent(periodo)}`);
+                    if (!response.ok) {
+                        throw new Error(await this.obtenerMensajeError(response));
+                    }
+
+                    const data = await response.json();
+                    const labels = {
+                        hoy: 'Hoy',
+                        semana: 'Últimos 7 días',
+                        mes: 'Últimos 30 días'
+                    };
+                    const subtitulo = labels[periodo] || 'Periodo seleccionado';
+
+                    container.innerHTML = `
+                        <div class="glass-card">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-gray-800">${data.total_logs_hoy || 0}</p>
+                                <p class="text-sm text-gray-600">Total Logs (${subtitulo})</p>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-red-600">${data.errores_hoy || 0}</p>
+                                <p class="text-sm text-gray-600">Errores (${subtitulo})</p>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-green-600">${data.accesos_hoy || 0}</p>
+                                <p class="text-sm text-gray-600">Accesos HTTP (${subtitulo})</p>
+                            </div>
+                        </div>
+                        <div class="glass-card">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-purple-600">${data.usuarios_activos_hoy || 0}</p>
+                                <p class="text-sm text-gray-600">Usuarios Activos (${subtitulo})</p>
+                            </div>
+                        </div>
+                    `;
+
+                    if (data.top_endpoints && data.top_endpoints.length > 0) {
+                        endpointsContainer.innerHTML = data.top_endpoints.map((endpoint, index) => {
+                            const avgTime = Number(endpoint.avg_time || 0);
+                            const colorClase = avgTime > 1000 ? 'text-red-600' : avgTime > 500 ? 'text-yellow-600' : 'text-green-600';
+                            return `
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <span class="text-lg">${index + 1}.</span>
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-800">${endpoint.endpoint || 'Desconocido'}</p>
+                                            <p class="text-xs text-gray-600">${endpoint.total || 0} accesos | ${endpoint.ips_unicas || 0} IPs</p>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs ${colorClase}">
+                                        ${avgTime ? `${avgTime.toFixed(0)}ms` : '-'}
+                                    </span>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        endpointsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos de endpoints para este período.</p>';
+                    }
+                } catch (error) {
+                    console.error('Error cargando estadísticas:', error);
+                    container.innerHTML = '<div class="text-center py-8 col-span-4"><p class="text-red-500">Error cargando estadísticas</p></div>';
+                    endpointsContainer.innerHTML = '<p class="text-red-500 text-center py-4">Error cargando endpoints</p>';
+                }
+            },
+
+            cargarEstadoSistema: function() {
+                const container = document.getElementById('estadoSistema');
+                const alertasActivas = document.getElementById('alertasActivas')?.checked;
+                const notificaciones = document.getElementById('tipoNotificaciones')?.value || 'consola';
+
                 container.innerHTML = `
                     <div class="glass-card">
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-gray-800">${data.total_logs_hoy || 0}</p>
-                            <p class="text-sm text-gray-600">Total Logs Hoy</p>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-700">Archivos de Log</h3>
+                            <span class="badge badge-success">Activo</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">maquinas.log</span>
+                                <span class="font-medium">Rotación automática habilitada</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Backups</span>
+                                <span class="font-medium">Manual + exportación ZIP</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Limpieza</span>
+                                <span class="font-medium">Por antigüedad</span>
+                            </div>
                         </div>
                     </div>
+
                     <div class="glass-card">
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-red-600">${data.errores_hoy || 0}</p>
-                            <p class="text-sm text-gray-600">Errores</p>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-700">Configuración</h3>
+                            <span class="badge badge-info">Persistida</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Umbral de errores</span>
+                                <span class="font-medium">${document.getElementById('umbralErrores')?.value || 10}/hora</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Notificaciones</span>
+                                <span class="font-medium capitalize">${notificaciones}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Alertas</span>
+                                <span class="font-medium">${alertasActivas ? 'Activas' : 'Pausadas'}</span>
+                            </div>
                         </div>
                     </div>
+
                     <div class="glass-card">
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-green-600">${data.accesos_hoy || 0}</p>
-                            <p class="text-sm text-gray-600">Accesos HTTP</p>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium text-gray-700">Acciones rápidas</h3>
+                            <span class="badge badge-success">Listo</span>
                         </div>
-                    </div>
-                    <div class="glass-card">
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-purple-600">${data.usuarios_activos_hoy || 0}</p>
-                            <p class="text-sm text-gray-600">Usuarios Activos</p>
+                        <div class="space-y-2">
+                            <div class="text-sm p-2 bg-blue-50 rounded">
+                                <p class="font-medium text-blue-700">La exportación genera ZIP con JSON y CSV</p>
+                            </div>
+                            <div class="text-sm p-2 bg-green-50 rounded">
+                                <p class="font-medium text-green-700">El backup completo usa el endpoint manual del servidor</p>
+                            </div>
                         </div>
                     </div>
                 `;
-                
-                // Actualizar top endpoints
-                if (data.top_endpoints && data.top_endpoints.length > 0) {
-                    let endpointsHtml = '';
-                    data.top_endpoints.forEach((endpoint, index) => {
-                        endpointsHtml += `
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center space-x-3">
-                                    <span class="text-lg">${index + 1}.</span>
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-800">${endpoint.endpoint || 'Desconocido'}</p>
-                                        <p class="text-xs text-gray-600">${endpoint.total} accesos | ${endpoint.ips_unicas || 0} IPs</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs ${endpoint.avg_time && endpoint.avg_time > 1000 ? 'text-red-600' : endpoint.avg_time > 500 ? 'text-yellow-600' : 'text-green-600'}">
-                                    ${endpoint.avg_time ? endpoint.avg_time.toFixed(0) + 'ms' : '-'}
-                                </span>
-                            </div>
-                        `;
-                    });
-                    endpointsContainer.innerHTML = endpointsHtml;
-                } else {
-                    endpointsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos de endpoints</p>';
-                }
-            })
-            .catch(error => {
-                console.error('Error cargando estadísticas:', error);
-                container.innerHTML = '<div class="text-center py-8 col-span-4"><p class="text-red-500">Error cargando estadísticas</p></div>';
-                endpointsContainer.innerHTML = '<p class="text-red-500 text-center py-4">Error cargando endpoints</p>';
-            });
-    },
-    
-    cargarEstadoSistema: function() {
-        const container = document.getElementById('estadoSistema');
-        
-        // En una implementación real, esto consultaría el estado del sistema
-        // Por ahora, mostramos información estática
-        
-        container.innerHTML = `
-            <div class="glass-card">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-700">Archivos de Log</h3>
-                    <span class="badge badge-success">Activo</span>
-                </div>
-                <div class="space-y-2">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">maquinas.log</span>
-                        <span class="font-medium">${this.formatBytes(1024 * 1024)}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">access.log</span>
-                        <span class="font-medium">${this.formatBytes(512 * 1024)}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">error.log</span>
-                        <span class="font-medium">${this.formatBytes(256 * 1024)}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass-card">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-700">Rendimiento</h3>
-                    <span class="badge badge-success">Óptimo</span>
-                </div>
-                <div class="space-y-2">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">CPU Usage</span>
-                        <span class="font-medium">15%</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Memory</span>
-                        <span class="font-medium">45%</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Disk I/O</span>
-                        <span class="font-medium">Bajo</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass-card">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-700">Alertas</h3>
-                    <span class="badge badge-info">2 Activas</span>
-                </div>
-                <div class="space-y-2">
-                    <div class="text-sm p-2 bg-red-50 rounded">
-                        <p class="font-medium text-red-700">10+ errores en última hora</p>
-                    </div>
-                    <div class="text-sm p-2 bg-yellow-50 rounded">
-                        <p class="font-medium text-yellow-700">Log file > 1GB</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    },
-    
-    limpiarLogs: function() {
-        const dias = document.getElementById('limpiarDias').value;
-        
-        if (confirm(`¿Estás seguro de que quieres limpiar logs antiguos (conservando solo últimos ${dias} días)?`)) {
-            fetch('/api/logs/limpiar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ dias: parseInt(dias) })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert(`Logs limpiados exitosamente. Backup creado: ${data.data.backup || 'N/A'}`);
-                    this.cargarEstadisticas();
-                } else {
-                    alert('Error limpiando logs: ' + (data.message || 'Error desconocido'));
-                }
-            })
-            .catch(error => {
-                alert('Error limpiando logs: ' + error.message);
-            });
-        }
-    },
-    
-    rotarLogs: function() {
-        if (confirm('¿Rotar archivos de log actuales? Esto creará nuevos archivos y comprimirá los anteriores.')) {
-            fetch('/api/logs/limpiar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ rotar: true })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('Logs rotados exitosamente');
-                    this.cargarEstadisticas();
-                } else {
-                    alert('Error rotando logs: ' + (data.message || 'Error desconocido'));
-                }
-            })
-            .catch(error => {
-                alert('Error rotando logs: ' + error.message);
-            });
-        }
-    },
-    
-    exportarLogs: function(dias) {
-        const nivel = 'todos';
-        const fuente = 'todos';
-        
-        const url = `/api/logs/exportar?dias=${dias}&nivel=${nivel}&fuente=${fuente}`;
-        window.open(url, '_blank');
-        
-        this.mostrarNotificacion(`Exportando logs de los últimos ${dias} días...`, 'info');
-    },
-    
-    crearBackup: function() {
-        if (confirm('¿Crear backup completo de todos los logs? Esto puede tomar algunos segundos.')) {
-            fetch('/api/logs/exportar?dias=365&nivel=todos&fuente=todos')
-                .then(response => {
-                    if (response.ok) {
-                        return response.blob();
-                    }
-                    throw new Error('Error en la respuesta');
-                })
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `backup_logs_completo_${new Date().toISOString().split('T')[0]}.zip`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    this.mostrarNotificacion('Backup creado exitosamente', 'success');
-                })
-                .catch(error => {
-                    this.mostrarNotificacion('Error creando backup: ' + error.message, 'error');
-                });
-        }
-    },
-    
-    guardarConfiguracion: function() {
-        const umbral = document.getElementById('umbralErrores').value;
-        const notificaciones = document.getElementById('tipoNotificaciones').value;
-        
-        // Aquí iría la lógica para guardar la configuración
-        this.mostrarNotificacion('Configuración guardada exitosamente', 'success');
-    },
-    
-    actualizarTodo: function() {
-        this.cargarEstadisticas();
-        this.cargarEstadoSistema();
-        this.mostrarNotificacion('Todo actualizado', 'success');
-    },
-    
-    formatBytes: function(bytes, decimals = 2) {
-        if (bytes === 0) return '0 Bytes';
-        
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    },
-    
-    mostrarNotificacion: function(mensaje, tipo) {
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            tipo === 'error' ? 'bg-red-500' : 
-            tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
-        } text-white max-w-md`;
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${
-                    tipo === 'success' ? 'check-circle' : 
-                    tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
-                } mr-2"></i>
-                <span>${mensaje}</span>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.remove(), 3000);
-    }
-};
+            },
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    LogsManager.init();
-});
+            limpiarLogs: async function() {
+                const dias = parseInt(document.getElementById('limpiarDias').value, 10);
+                if (!confirm(`¿Estás seguro de que quieres limpiar logs antiguos y conservar solo los últimos ${dias} días?`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/logs/limpiar', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ dias })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') {
+                        throw new Error(data.message || 'No fue posible limpiar los logs.');
+                    }
+
+                    this.mostrarNotificacion(
+                        `Se eliminaron ${data.data?.eliminados || 0} registros. Backup: ${data.data?.backup || 'N/A'}`,
+                        'success'
+                    );
+                    this.cargarEstadisticas();
+                } catch (error) {
+                    this.mostrarNotificacion(`Error limpiando logs: ${error.message}`, 'error');
+                }
+            },
+
+            rotarLogs: async function() {
+                if (!confirm('¿Rotar archivos de log actuales? Esto cerrará el archivo activo y generará una nueva rotación.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/logs/rotar', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') {
+                        throw new Error(data.message || 'No fue posible rotar los logs.');
+                    }
+
+                    const total = data.data?.handlers_rotados || 0;
+                    this.mostrarNotificacion(`Rotación completada. Handlers rotados: ${total}.`, 'success');
+                } catch (error) {
+                    this.mostrarNotificacion(`Error rotando logs: ${error.message}`, 'error');
+                }
+            },
+
+            exportarLogs: async function(dias) {
+                const rango = this.obtenerRangoFechas(dias);
+                this.mostrarNotificacion(`Preparando exportación de los últimos ${dias} días...`, 'info');
+
+                try {
+                    const response = await fetch('/api/logs/exportar', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            fecha_inicio: rango.fechaInicio,
+                            fecha_fin: rango.fechaFin,
+                            formatos: ['json', 'csv']
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.obtenerMensajeError(response));
+                    }
+
+                    const blob = await response.blob();
+                    this.descargarArchivo(blob, `logs_export_${dias}dias_${rango.fechaFin}.zip`);
+                    this.mostrarNotificacion('Exportación completada.', 'success');
+                } catch (error) {
+                    this.mostrarNotificacion(`Error exportando logs: ${error.message}`, 'error');
+                }
+            },
+
+            crearBackup: async function() {
+                if (!confirm('¿Crear backup completo de todos los archivos de log disponibles?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/admin/logs/backup-manual', {
+                        method: 'POST'
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.obtenerMensajeError(response));
+                    }
+
+                    const blob = await response.blob();
+                    const fecha = new Date().toISOString().split('T')[0];
+                    this.descargarArchivo(blob, `backup_logs_completo_${fecha}.zip`);
+                    this.mostrarNotificacion('Backup creado exitosamente.', 'success');
+                } catch (error) {
+                    this.mostrarNotificacion(`Error creando backup: ${error.message}`, 'error');
+                }
+            },
+
+            guardarConfiguracion: async function() {
+                const umbral = document.getElementById('umbralErrores').value;
+                const notificaciones = document.getElementById('tipoNotificaciones').value;
+                const alertasActivas = document.getElementById('alertasActivas').checked;
+
+                try {
+                    await Promise.all([
+                        this.actualizarConfiguracion('error_threshold', umbral, 'integer', 'Umbral de errores por hora'),
+                        this.actualizarConfiguracion('notification_method', notificaciones, 'string', 'Canal de notificaciones para logs'),
+                        this.actualizarConfiguracion('alerts_enabled', String(alertasActivas), 'boolean', 'Habilita o pausa alertas de logs')
+                    ]);
+
+                    this.cargarEstadoSistema();
+                    this.mostrarNotificacion('Configuración guardada exitosamente.', 'success');
+                } catch (error) {
+                    this.mostrarNotificacion(`Error guardando configuración: ${error.message}`, 'error');
+                }
+            },
+
+            actualizarConfiguracion: async function(configKey, configValue, configType, description) {
+                const response = await fetch('/api/logs/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        config_key: configKey,
+                        config_value: configValue,
+                        config_type: configType,
+                        description
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') {
+                    throw new Error(data.message || `No fue posible guardar ${configKey}.`);
+                }
+                return data;
+            },
+
+            actualizarTodo: function() {
+                this.cargarConfiguracion();
+                this.cargarEstadisticas();
+                this.cargarEstadoSistema();
+                this.mostrarNotificacion('Panel actualizado.', 'success');
+            },
+
+            obtenerRangoFechas: function(dias) {
+                const hoy = new Date();
+                const inicio = new Date(hoy);
+                inicio.setDate(inicio.getDate() - (dias - 1));
+
+                return {
+                    fechaInicio: inicio.toISOString().split('T')[0],
+                    fechaFin: hoy.toISOString().split('T')[0]
+                };
+            },
+
+            descargarArchivo: function(blob, filename) {
+                const url = window.URL.createObjectURL(blob);
+                const enlace = document.createElement('a');
+                enlace.href = url;
+                enlace.download = filename;
+                document.body.appendChild(enlace);
+                enlace.click();
+                enlace.remove();
+                window.URL.revokeObjectURL(url);
+            },
+
+            obtenerMensajeError: async function(response) {
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+                    return data.message || data.error || `HTTP ${response.status}`;
+                }
+                const text = await response.text();
+                return text || `HTTP ${response.status}`;
+            },
+
+            mostrarNotificacion: function(mensaje, tipo) {
+                const toast = document.createElement('div');
+                toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                    tipo === 'error' ? 'bg-red-500' :
+                    tipo === 'success' ? 'bg-green-500' : 'bg-blue-500'
+                } text-white max-w-md`;
+                toast.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-${
+                            tipo === 'success' ? 'check-circle' :
+                            tipo === 'error' ? 'exclamation-triangle' : 'info-circle'
+                        } mr-2"></i>
+                        <span>${mensaje}</span>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3500);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            LogsManager.init();
+        });
     </script>
     <script>
     (function() {
