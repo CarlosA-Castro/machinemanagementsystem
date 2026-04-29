@@ -1280,6 +1280,113 @@ def crear_reparacion():
         if connection: connection.close()
 
 
+@machines_bp.route('/api/maquinas/fallas-abiertas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def listar_fallas_abiertas():
+    """Fallas sin resolver de ambas fuentes: ESP32/TFT (machinefailures) y cajero (errorreport).
+    Devuelve campo source='esp32' o 'cajero' para que el frontend los distinga.
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'fallas': [], 'total': 0})
+        cursor = get_db_cursor(connection)
+        if not cursor:
+            return jsonify({'fallas': [], 'total': 0})
+
+        active_id, _ = get_active_location()
+        can_all      = user_can_view_all()
+        scoped_id    = None if (can_all and active_id is None) else (active_id if active_id is not None else -1)
+
+        loc_filter_mf = ""
+        loc_filter_er = ""
+        params_mf = []
+        params_er = []
+        if scoped_id is not None:
+            loc_filter_mf = " AND m.location_id = %s"
+            loc_filter_er = " AND m.location_id = %s"
+            params_mf.append(scoped_id)
+            params_er.append(scoped_id)
+
+        q_mf = f"""
+            SELECT
+                mf.id,
+                'esp32'                                              AS source,
+                mf.machine_id,
+                COALESCE(m.name, mf.machine_name, 'Desconocida')   AS machine_name,
+                mf.station_index,
+                mt.station_names,
+                COALESCE(mf.notes, '')                              AS description,
+                mf.reported_at,
+                COALESCE(mf.is_forced, 0)                          AS is_forced,
+                COALESCE(l.name, 'Sin local')                      AS location_name
+            FROM machinefailures mf
+            JOIN machine m ON mf.machine_id = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+            WHERE mf.resolved = 0 {loc_filter_mf}
+            ORDER BY mf.reported_at DESC
+            LIMIT 200
+        """
+
+        q_er = f"""
+            SELECT
+                er.id,
+                'cajero'                          AS source,
+                er.machineId                      AS machine_id,
+                COALESCE(m.name, 'Desconocida')   AS machine_name,
+                er.station_index,
+                mt.station_names,
+                COALESCE(er.description, '')       AS description,
+                er.reportedAt                      AS reported_at,
+                0                                  AS is_forced,
+                COALESCE(l.name, 'Sin local')      AS location_name
+            FROM errorreport er
+            JOIN machine m ON er.machineId = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+            LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+            WHERE er.isResolved = 0 {loc_filter_er}
+            ORDER BY er.reportedAt DESC
+            LIMIT 200
+        """
+
+        cursor.execute(q_mf, params_mf)
+        rows_mf = cursor.fetchall() or []
+
+        cursor.execute(q_er, params_er)
+        rows_er = cursor.fetchall() or []
+
+        fallas = []
+        for row in list(rows_mf) + list(rows_er):
+            d = dict(row)
+            if d.get('reported_at') and hasattr(d['reported_at'], 'isoformat'):
+                d['reported_at'] = d['reported_at'].isoformat()
+            d['station_names'] = parse_json_col(d.get('station_names'), [])
+            station_names = d['station_names']
+            idx = d.get('station_index')
+            if idx is not None and station_names and idx < len(station_names):
+                d['station_label'] = station_names[idx]
+            elif idx is not None:
+                d['station_label'] = f'Estación {int(idx) + 1}'
+            else:
+                d['station_label'] = None
+            fallas.append(d)
+
+        fallas.sort(key=lambda f: f.get('reported_at') or '', reverse=True)
+
+        return jsonify({'fallas': fallas, 'total': len(fallas)})
+
+    except Exception as e:
+        logger.error(f"Error listando fallas abiertas: {e}")
+        return jsonify({'fallas': [], 'total': 0})
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 @machines_bp.route('/api/imagenes/maquinas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])
