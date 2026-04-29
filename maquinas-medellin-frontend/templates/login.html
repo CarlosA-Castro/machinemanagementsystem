@@ -79,18 +79,31 @@
 
     <h1 class="text-2xl font-bold mb-4 text-center">Inicio de sesión</h1>
 
-    <label class="block mb-2 font-semibold text-gray-700">Ingrese su número de empleado</label>
+    <label class="block mb-1 font-semibold text-gray-700">Nombre de usuario</label>
     <input
       type="text"
-      id="codigoEmpleado"
-      class="w-full border border-gray-300 p-3 rounded-lg mb-4 text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-      placeholder="Ej: 12345"
-      inputmode="numeric"
-      autocomplete="off"
+      id="loginNombre"
+      class="w-full border border-gray-300 p-3 rounded-lg mb-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+      placeholder="Tu nombre en el sistema"
+      autocomplete="username"
       autocorrect="off"
       autocapitalize="off"
       spellcheck="false"
     >
+
+    <label class="block mb-1 font-semibold text-gray-700">Contraseña</label>
+    <div class="relative mb-4">
+      <input
+        type="password"
+        id="loginPassword"
+        class="w-full border border-gray-300 p-3 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none pr-12"
+        placeholder="Contraseña"
+        autocomplete="current-password"
+      >
+      <button type="button" onclick="LoginApp.togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+        <i id="passwordEye" class="fas fa-eye"></i>
+      </button>
+    </div>
 
     <button type="button" onclick="LoginApp.verificarCodigo()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition btn-touch text-lg font-semibold">
       <i class="fas fa-sign-in-alt mr-2"></i>Aceptar
@@ -162,18 +175,32 @@
   <script>
   const LoginApp = {
 
-    // ── Verificación de código ───────────────────────────────────────────────
+    // ── Mostrar / ocultar contraseña ─────────────────────────────────────────
+    togglePassword: function() {
+      const input = document.getElementById("loginPassword");
+      const icon  = document.getElementById("passwordEye");
+      if (input.type === "password") {
+        input.type = "text";
+        icon.className = "fas fa-eye-slash";
+      } else {
+        input.type = "password";
+        icon.className = "fas fa-eye";
+      }
+    },
+
+    // ── Verificación ─────────────────────────────────────────────────────────
     verificarCodigo: function() {
-      const codigo = document.getElementById("codigoEmpleado").value.trim();
+      const nombre   = document.getElementById("loginNombre").value.trim();
+      const password = document.getElementById("loginPassword").value;
       const loadingElement = document.getElementById("loading");
 
-      if (!codigo) {
-        this.mostrarAlerta("Por favor ingrese su código.", "warning");
+      if (!nombre || !password) {
+        this.mostrarAlerta("Ingrese nombre y contraseña.", "warning");
         return;
       }
 
       loadingElement.classList.remove('hidden');
-      document.querySelector('button').disabled = true;
+      document.querySelector('button[onclick]').disabled = true;
 
       fetch("/login", {
         method: "POST",
@@ -181,12 +208,12 @@
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest"
         },
-        body: JSON.stringify({ codigo })
+        body: JSON.stringify({ nombre, password })
       })
       .then(res => res.json())
       .then(data => {
         loadingElement.classList.add('hidden');
-        document.querySelector('button').disabled = false;
+        document.querySelector('button[onclick]').disabled = false;
 
         if (!data.valido) {
           this.mostrarAlerta(data.error || "Código inválido. Intenta de nuevo.", "error");
@@ -215,7 +242,7 @@
       })
       .catch(err => {
         loadingElement.classList.add('hidden');
-        document.querySelector('button').disabled = false;
+        document.querySelector('button[onclick]').disabled = false;
         console.error("Error login:", err);
         this.mostrarAlerta("Error de conexión. Intente nuevamente.", "error");
       });
@@ -411,15 +438,21 @@
 
   // Focus automático y soporte Enter / iOS
   document.addEventListener('DOMContentLoaded', function() {
-    const input = document.getElementById('codigoEmpleado');
-    input.focus();
+    const inputNombre   = document.getElementById('loginNombre');
+    const inputPassword = document.getElementById('loginPassword');
 
-    input.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') LoginApp.verificarCodigo();
+    if (inputNombre) inputNombre.focus();
+
+    [inputNombre, inputPassword].forEach(el => {
+      if (el) el.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') LoginApp.verificarCodigo();
+      });
     });
 
     document.addEventListener('touchstart', function() {
-      if (input) input.style.fontSize = '16px';
+      [inputNombre, inputPassword].forEach(el => {
+        if (el) el.style.fontSize = '16px';
+      });
     });
   });
   </script>

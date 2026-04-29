@@ -2,6 +2,7 @@ import logging
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, session
+from werkzeug.security import generate_password_hash
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
@@ -207,8 +208,8 @@ def crear_usuario():
                                     data={'message': 'Local no encontrado o inactivo'})
 
         cursor.execute(
-            "INSERT INTO users (name, password, role, createdBy, notes, location_id) VALUES (%s, %s, %s, %s, %s, %s)",
-            (name, password, role, session.get('user_id'), notes, location_id or None)
+            "INSERT INTO users (name, password, password_hash, role, createdBy, notes, location_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (name, '', generate_password_hash(password), role, session.get('user_id'), notes, location_id or None)
         )
         connection.commit()
         logger.info(f"Usuario creado: {name} ({role}) local={location_id}")
@@ -271,8 +272,8 @@ def actualizar_usuario(usuario_id):
 
         if password:
             cursor.execute(
-                "UPDATE users SET name=%s, password=%s, role=%s, notes=%s, isActive=%s, location_id=%s WHERE id=%s",
-                (name, password, role, notes, isActive, location_id or None, usuario_id)
+                "UPDATE users SET name=%s, password='', password_hash=%s, role=%s, notes=%s, isActive=%s, location_id=%s WHERE id=%s",
+                (name, generate_password_hash(password), role, notes, isActive, location_id or None, usuario_id)
             )
         else:
             cursor.execute(

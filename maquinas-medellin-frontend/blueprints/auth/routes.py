@@ -2,6 +2,7 @@ import logging
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, session, redirect, render_template
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
@@ -129,104 +130,129 @@ def mostrar_login():
 @auth_bp.route('/login', methods=['POST'])
 @handle_api_errors
 def procesar_login():
-    """Procesa el login del usuario."""
+    """Procesa el login del usuario con nombre + contraseña."""
     connection = None
     cursor = None
     try:
-        data = request.get_json()
-        codigo = data.get('codigo')
+        data     = request.get_json()
+        nombre   = (data.get('nombre') or '').strip()
+        password = (data.get('password') or '').strip()
 
-        if not codigo:
-            return jsonify({'valido': False, 'error': 'Código requerido'}), 400
+        if not nombre or not password:
+            return jsonify({'valido': False, 'error': 'Nombre y contraseña requeridos'}), 400
 
         connection = get_db_connection()
         if not connection:
             return jsonify({'valido': False, 'error': 'Error de conexión a BD'}), 500
 
         cursor = get_db_cursor(connection)
-        cursor.execute("SELECT * FROM users WHERE password = %s", (codigo,))
+        cursor.execute("SELECT * FROM users WHERE name = %s", (nombre,))
         usuario = cursor.fetchone()
 
-        if usuario:
-            # Bloquear usuarios desactivados antes de cualquier operación de sesión
-            if not usuario.get('isActive', True):
-                logger.warning(f"Intento de login de usuario inactivo: {usuario.get('name')}")
-                return jsonify({'valido': False, 'error': 'Usuario inactivo. Contacte al administrador.'}), 403
+        if not usuario:
+            return jsonify({'valido': False, 'error': 'Usuario o contraseña incorrectos'}), 401
 
-            session['user_id']    = usuario['id']
-            session['user_name']  = usuario['name']
-            session['user_role']  = usuario['role']
-            session['user_local'] = usuario.get('local', 'El Mekatiadero')
-            session['logged_in']  = True
-            session['last_activity'] = datetime.utcnow().isoformat()
-            session.permanent = True
-            session.modified  = True
+        # Verificar contraseña: hash (nuevo) o texto plano con migración lazy (legacy)
+        password_hash = usuario.get('password_hash')
+        password_plain = usuario.get('password', '')
 
-            # Construir y guardar contexto de local en sesión
-            loc_ctx = build_user_location_context(usuario, cursor)
-            save_location_context_to_session(loc_ctx)
-
-            logger.info(f"Usuario {usuario['name']} inició sesión")
-
-            role = usuario.get('role', '')
-
-            # socios: flujo propio, sin selector de local
-            if role == 'socio':
-                return jsonify({
-                    'valido':               True,
-                    'nombre':               usuario.get('name', 'Usuario'),
-                    'role':                 role,
-                    'local':                usuario.get('local', ''),
-                    'user_id':              usuario['id'],
-                    'redirect_to':          'socios',
-                    'needs_location_select': False,
-                })
-
-            # Determinar si hay que mostrar el selector de local
-            needs_select = loc_ctx['can_switch_location'] and len(loc_ctx['allowed_location_ids']) > 1
-
-            # Si solo hay un local disponible para el admin, seleccionarlo automáticamente
-            if loc_ctx['can_switch_location'] and len(loc_ctx['allowed_location_ids']) == 1:
-                only_id = loc_ctx['allowed_location_ids'][0]
-                try:
-                    cursor.execute("SELECT name FROM location WHERE id = %s", (only_id,))
-                    row = cursor.fetchone()
-                    only_name = row['name'] if row else ''
-                except Exception:
-                    only_name = ''
-                set_active_location(only_id, only_name)
-                needs_select = False
-
-            # Si el rol fijo no tiene local asignado: bloquear login
-            if role in ('cajero', 'admin_restaurante') and not loc_ctx['assigned_location_id']:
-                session.clear()
-                return jsonify({
-                    'valido': False,
-                    'error':  'Tu usuario no está asignado a ningún local. Contacta al administrador.',
-                }), 403
-
-            locales_disponibles = []
-            if needs_select:
+        if password_hash:
+            autenticado = check_password_hash(password_hash, password)
+        else:
+            autenticado = (password == password_plain)
+            if autenticado:
+                # Migrar a hash en el primer login exitoso
+                nuevo_hash = generate_password_hash(password)
                 try:
                     cursor.execute(
-                        "SELECT id, name FROM location WHERE status = 'activo' ORDER BY name"
+                        "UPDATE users SET password_hash = %s WHERE id = %s",
+                        (nuevo_hash, usuario['id'])
                     )
-                    locales_disponibles = [{'id': r['id'], 'name': r['name']} for r in cursor.fetchall()]
-                except Exception as e:
-                    logger.error(f"Error cargando locales para selector: {e}")
+                    connection.commit()
+                except Exception as mig_err:
+                    logger.warning(f"No se pudo migrar hash para {nombre}: {mig_err}")
 
+        if not autenticado:
+            logger.warning(f"Contraseña incorrecta para usuario: {nombre}")
+            return jsonify({'valido': False, 'error': 'Usuario o contraseña incorrectos'}), 401
+
+        # Bloquear usuarios desactivados antes de cualquier operación de sesión
+        if not usuario.get('isActive', True):
+            logger.warning(f"Intento de login de usuario inactivo: {usuario.get('name')}")
+            return jsonify({'valido': False, 'error': 'Usuario inactivo. Contacte al administrador.'}), 403
+
+        session['user_id']    = usuario['id']
+        session['user_name']  = usuario['name']
+        session['user_role']  = usuario['role']
+        session['user_local'] = usuario.get('local', 'El Mekatiadero')
+        session['logged_in']  = True
+        session['last_activity'] = datetime.utcnow().isoformat()
+        session.permanent = True
+        session.modified  = True
+
+        # Construir y guardar contexto de local en sesión
+        loc_ctx = build_user_location_context(usuario, cursor)
+        save_location_context_to_session(loc_ctx)
+
+        logger.info(f"Usuario {usuario['name']} inició sesión")
+
+        role = usuario.get('role', '')
+
+        # socios: flujo propio, sin selector de local
+        if role == 'socio':
             return jsonify({
-                'valido':                True,
-                'nombre':                usuario.get('name', 'Usuario'),
-                'role':                  role,
-                'local':                 usuario.get('local', ''),
-                'user_id':               usuario['id'],
-                'redirect_to':           None,
-                'needs_location_select': needs_select,
-                'locales_disponibles':   locales_disponibles,
+                'valido':               True,
+                'nombre':               usuario.get('name', 'Usuario'),
+                'role':                 role,
+                'local':                usuario.get('local', ''),
+                'user_id':              usuario['id'],
+                'redirect_to':          'socios',
+                'needs_location_select': False,
             })
-        else:
-            return jsonify({'valido': False, 'error': 'Código inválido'}), 401
+
+        # Determinar si hay que mostrar el selector de local
+        needs_select = loc_ctx['can_switch_location'] and len(loc_ctx['allowed_location_ids']) > 1
+
+        # Si solo hay un local disponible para el admin, seleccionarlo automáticamente
+        if loc_ctx['can_switch_location'] and len(loc_ctx['allowed_location_ids']) == 1:
+            only_id = loc_ctx['allowed_location_ids'][0]
+            try:
+                cursor.execute("SELECT name FROM location WHERE id = %s", (only_id,))
+                row = cursor.fetchone()
+                only_name = row['name'] if row else ''
+            except Exception:
+                only_name = ''
+            set_active_location(only_id, only_name)
+            needs_select = False
+
+        # Si el rol fijo no tiene local asignado: bloquear login
+        if role in ('cajero', 'admin_restaurante') and not loc_ctx['assigned_location_id']:
+            session.clear()
+            return jsonify({
+                'valido': False,
+                'error':  'Tu usuario no está asignado a ningún local. Contacta al administrador.',
+            }), 403
+
+        locales_disponibles = []
+        if needs_select:
+            try:
+                cursor.execute(
+                    "SELECT id, name FROM location WHERE status = 'activo' ORDER BY name"
+                )
+                locales_disponibles = [{'id': r['id'], 'name': r['name']} for r in cursor.fetchall()]
+            except Exception as e:
+                logger.error(f"Error cargando locales para selector: {e}")
+
+        return jsonify({
+            'valido':                True,
+            'nombre':                usuario.get('name', 'Usuario'),
+            'role':                  role,
+            'local':                 usuario.get('local', ''),
+            'user_id':               usuario['id'],
+            'redirect_to':           None,
+            'needs_location_select': needs_select,
+            'locales_disponibles':   locales_disponibles,
+        })
 
     except Exception as e:
         logger.error(f"Error en login: {e}")
