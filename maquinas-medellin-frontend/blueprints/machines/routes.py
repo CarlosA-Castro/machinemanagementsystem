@@ -1077,6 +1077,209 @@ def obtener_historial_mantenimientos():
             connection.close()
 
 
+# ── Reparaciones técnicas reales ──────────────────────────────────────────────
+
+@machines_bp.route('/api/maquinas/reparaciones', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def listar_reparaciones():
+    """Lista el historial de reparaciones técnicas registradas por el encargado."""
+    connection = None
+    cursor = None
+    try:
+        machine_id = request.args.get('machine_id')
+        tipo       = request.args.get('tipo')
+        try:
+            limit = min(int(request.args.get('limit', 200)), 500)
+        except Exception:
+            limit = 200
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'reparaciones': [], 'stats': {}})
+        cursor = get_db_cursor(connection)
+        if not cursor:
+            return jsonify({'reparaciones': [], 'stats': {}})
+
+        active_id, _ = get_active_location()
+        can_all      = user_can_view_all()
+        scoped_id    = None if (can_all and active_id is None) else (active_id if active_id is not None else -1)
+
+        q = """
+            SELECT
+                r.id,
+                r.machine_id,
+                m.name             AS machine_name,
+                r.fecha_reparacion,
+                r.tipo,
+                r.tecnico,
+                r.descripcion,
+                r.costo,
+                r.resuelve_fallas,
+                r.created_by,
+                r.created_at,
+                COALESCE(l.name, 'Sin local') AS location_name
+            FROM machine_repair_log r
+            JOIN machine m ON r.machine_id = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE 1=1
+        """
+        params = []
+        if machine_id:
+            q += " AND r.machine_id = %s"
+            params.append(machine_id)
+        if tipo in ('preventivo', 'correctivo'):
+            q += " AND r.tipo = %s"
+            params.append(tipo)
+        if scoped_id is not None:
+            q += " AND m.location_id = %s"
+            params.append(scoped_id)
+        q += " ORDER BY r.fecha_reparacion DESC LIMIT %s"
+        params.append(limit)
+
+        cursor.execute(q, params)
+        rows = cursor.fetchall() or []
+
+        reparaciones = []
+        total_costo  = 0.0
+        correctivos  = 0
+        preventivos  = 0
+        for row in rows:
+            d = dict(row)
+            for col in ('fecha_reparacion', 'created_at'):
+                if d.get(col) and hasattr(d[col], 'isoformat'):
+                    d[col] = d[col].isoformat()
+            if d.get('costo') is not None:
+                d['costo'] = float(d['costo'])
+                total_costo += d['costo']
+            if d['tipo'] == 'correctivo':
+                correctivos += 1
+            else:
+                preventivos += 1
+            reparaciones.append(d)
+
+        return jsonify({
+            'reparaciones': reparaciones,
+            'stats': {
+                'total':       len(reparaciones),
+                'correctivos': correctivos,
+                'preventivos': preventivos,
+                'costo_total': round(total_costo, 2),
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"Error listando reparaciones: {e}")
+        return jsonify({'reparaciones': [], 'stats': {}})
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@machines_bp.route('/api/maquinas/reparaciones', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def crear_reparacion():
+    """Registra una reparación técnica real.
+    Si tipo='correctivo' y resuelve_fallas=true, marca como resueltas todas las
+    fallas abiertas (machinefailures + errorreport) de la máquina afectada.
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json() or {}
+
+        machine_id_raw   = data.get('machine_id')
+        tipo             = data.get('tipo', '')
+        tecnico          = (data.get('tecnico') or '').strip()
+        fecha_str        = data.get('fecha_reparacion', '')
+        descripcion      = (data.get('descripcion') or '').strip()
+        costo_raw        = data.get('costo')
+        resuelve_fallas  = bool(data.get('resuelve_fallas', False))
+
+        if not machine_id_raw:
+            return jsonify({'ok': False, 'error': 'machine_id requerido'}), 400
+        if tipo not in ('preventivo', 'correctivo'):
+            return jsonify({'ok': False, 'error': 'tipo debe ser preventivo o correctivo'}), 400
+        if not tecnico:
+            return jsonify({'ok': False, 'error': 'tecnico requerido'}), 400
+        if not fecha_str:
+            return jsonify({'ok': False, 'error': 'fecha_reparacion requerida'}), 400
+
+        machine_id = int(machine_id_raw)
+
+        try:
+            fecha_reparacion = datetime.fromisoformat(fecha_str.replace('Z', '+00:00'))
+        except Exception:
+            return jsonify({'ok': False, 'error': 'Formato de fecha inválido'}), 400
+
+        costo = None
+        if costo_raw not in (None, ''):
+            try:
+                costo = float(costo_raw)
+            except Exception:
+                return jsonify({'ok': False, 'error': 'Costo inválido'}), 400
+
+        created_by = session.get('user_name', 'admin')
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'ok': False, 'error': 'Sin conexión a BD'}), 500
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT id, name FROM machine WHERE id = %s", (machine_id,))
+        maquina = cursor.fetchone()
+        if not maquina:
+            return jsonify({'ok': False, 'error': 'Máquina no encontrada'}), 404
+
+        if resuelve_fallas and tipo == 'correctivo':
+            cursor.execute("""
+                UPDATE machinefailures
+                SET resolved = 1, resolved_at = NOW()
+                WHERE machine_id = %s AND resolved = 0
+            """, (machine_id,))
+            cursor.execute("""
+                UPDATE errorreport
+                SET isResolved = 1, resolved_at = NOW()
+                WHERE machineId = %s AND isResolved = 0
+            """, (machine_id,))
+
+        cursor.execute("""
+            INSERT INTO machine_repair_log
+                (machine_id, fecha_reparacion, tipo, tecnico, descripcion, costo, resuelve_fallas, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (machine_id, fecha_reparacion, tipo, tecnico,
+              descripcion or None, costo, int(resuelve_fallas), created_by))
+
+        repair_id = cursor.lastrowid
+        connection.commit()
+
+        log_transaccion(
+            tipo='reparacion_tecnica',
+            categoria='operacional',
+            descripcion=f"Reparación {tipo} registrada en {maquina['name']} por {tecnico}",
+            usuario=created_by,
+            usuario_id=session.get('user_id'),
+            maquina_id=machine_id,
+            maquina_nombre=maquina['name'],
+            entidad='machine_repair_log',
+            entidad_id=repair_id,
+        )
+
+        logger.info(f"Reparación #{repair_id} — {maquina['name']} ({tipo}) por {tecnico}")
+        return jsonify({'ok': True, 'id': repair_id})
+
+    except Exception as e:
+        if connection:
+            try: connection.rollback()
+            except Exception: pass
+        logger.error(f"Error creando reparación: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 @machines_bp.route('/api/imagenes/maquinas', methods=['GET'])
 @handle_api_errors
 @require_login(['admin'])

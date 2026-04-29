@@ -568,6 +568,71 @@
                     </div>
                 </div>
             </div>
+
+            <!-- HISTORIAL DE REPARACIONES TÉCNICAS -->
+            <div class="glass-card mt-6">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-tools mr-2 text-teal-600"></i>Historial de Reparaciones Técnicas
+                        </h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Registro de arreglos reales realizados por el técnico o encargado. Los correctivos pueden cerrar fallas abiertas del TFT y el cajero.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <select id="reparacionTipoFiltro" class="border border-gray-300 rounded-lg p-2 text-sm" onchange="ReparacionesManager.render()">
+                            <option value="todos">Todos los tipos</option>
+                            <option value="correctivo">Correctivo</option>
+                            <option value="preventivo">Preventivo</option>
+                        </select>
+                        <select id="reparacionMaquinaFiltro" class="border border-gray-300 rounded-lg p-2 text-sm" onchange="ReparacionesManager.render()">
+                            <option value="todas">Todas las máquinas</option>
+                        </select>
+                        <button onclick="ReparacionesManager.actualizar()" class="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                        </button>
+                        <button onclick="ReparacionesManager.abrirModal()" class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                            <i class="fas fa-plus mr-1"></i>Registrar Reparación
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPIs -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-white rounded-xl border border-gray-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-gray-500 mb-1">Total reparaciones</div>
+                        <div class="text-2xl font-bold text-gray-800" id="rep-total">0</div>
+                        <div class="text-xs text-gray-500 mt-1">Registros encontrados</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-red-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-red-500 mb-1">Correctivos</div>
+                        <div class="text-2xl font-bold text-red-600" id="rep-correctivos">0</div>
+                        <div class="text-xs text-red-500 mt-1">Reparaciones por falla</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-teal-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-teal-600 mb-1">Preventivos</div>
+                        <div class="text-2xl font-bold text-teal-700" id="rep-preventivos">0</div>
+                        <div class="text-xs text-teal-600 mt-1">Mantenimiento programado</div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-indigo-200 p-4">
+                        <div class="text-xs uppercase tracking-wide text-indigo-500 mb-1">Costo acumulado</div>
+                        <div class="text-sm font-bold text-indigo-700" id="rep-costo">$0</div>
+                        <div class="text-xs text-indigo-500 mt-1">De reparaciones con costo</div>
+                    </div>
+                </div>
+
+                <!-- Lista -->
+                <div class="bg-white rounded-lg border border-gray-200">
+                    <div class="bg-teal-700 text-white p-3 rounded-t-lg flex justify-between items-center">
+                        <h4 class="font-semibold text-sm"><i class="fas fa-list-ul mr-2"></i>Reparaciones registradas</h4>
+                        <span class="text-xs bg-white text-teal-700 px-2 py-1 rounded-full font-bold" id="rep-count">0</span>
+                    </div>
+                    <div class="p-3 max-h-[32rem] overflow-y-auto" id="lista-reparaciones">
+                        <div class="text-center py-6 text-gray-400"><div class="loading mx-auto mb-2"></div><p class="text-sm">Cargando reparaciones...</p></div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -946,6 +1011,107 @@
         </div>
     </div>
 
+    <!-- Modal registrar reparación técnica -->
+    <div id="modalReparacion" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-tools mr-3 text-teal-600"></i>Registrar Reparación Técnica
+                </h3>
+                <button onclick="ReparacionesManager.cerrarModal()" class="text-gray-500 hover:text-gray-700 btn-touch">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Aviso fallas abiertas (visible solo en correctivo) -->
+            <div id="rep-aviso-fallas" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-exclamation-triangle text-red-500 mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-semibold text-red-700">Fallas abiertas detectadas</p>
+                        <p class="text-xs text-red-600 mt-0.5" id="rep-aviso-fallas-texto">Esta máquina tiene fallas sin resolver reportadas por el TFT o el cajero.</p>
+                    </div>
+                </div>
+            </div>
+
+            <form id="formReparacion" onsubmit="ReparacionesManager.guardar(event)" class="space-y-4">
+
+                <!-- Máquina -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Máquina <span class="text-red-500">*</span></label>
+                    <select id="rep-machine-id" class="w-full border border-gray-300 rounded-lg p-2 text-sm" required onchange="ReparacionesManager.onMaquinaChange()">
+                        <option value="">— Seleccionar máquina —</option>
+                    </select>
+                </div>
+
+                <!-- Tipo -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de reparación <span class="text-red-500">*</span></label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="rep-tipo" value="correctivo" checked onchange="ReparacionesManager.onTipoChange()" class="accent-red-600">
+                            <span class="text-sm font-medium text-red-700">Correctivo</span>
+                            <span class="text-xs text-gray-400">(respuesta a falla)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="rep-tipo" value="preventivo" onchange="ReparacionesManager.onTipoChange()" class="accent-teal-600">
+                            <span class="text-sm font-medium text-teal-700">Preventivo</span>
+                            <span class="text-xs text-gray-400">(mantenimiento programado)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Técnico y fecha -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Técnico / Encargado <span class="text-red-500">*</span></label>
+                        <input type="text" id="rep-tecnico" class="w-full border border-gray-300 rounded-lg p-2 text-sm" placeholder="Nombre del técnico" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de reparación <span class="text-red-500">*</span></label>
+                        <input type="datetime-local" id="rep-fecha" class="w-full border border-gray-300 rounded-lg p-2 text-sm" required>
+                    </div>
+                </div>
+
+                <!-- Descripción -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descripción del trabajo realizado</label>
+                    <textarea id="rep-descripcion" rows="3" class="w-full border border-gray-300 rounded-lg p-2 text-sm resize-none" placeholder="Ej: Se cambió el relay de la estación 1, se limpió el lector QR, se ajustaron los tornillos del panel..."></textarea>
+                </div>
+
+                <!-- Costo -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Costo de la reparación <span class="text-xs text-gray-400">(opcional)</span></label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                        <input type="number" id="rep-costo" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg p-2 pl-6 text-sm" placeholder="0.00">
+                    </div>
+                </div>
+
+                <!-- Resolver fallas (solo visible en correctivo) -->
+                <div id="rep-resolver-fallas-bloque" class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="rep-resuelve-fallas" class="mt-0.5 accent-amber-600 w-4 h-4">
+                        <div>
+                            <p class="text-sm font-semibold text-amber-800">Marcar fallas abiertas como resueltas</p>
+                            <p class="text-xs text-amber-600 mt-0.5">Cierra automáticamente todas las fallas activas de esta máquina en el sistema (TFT y cajero).</p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex justify-end gap-3 pt-2 border-t border-gray-200">
+                    <button type="button" onclick="ReparacionesManager.cerrarModal()" class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="rep-submit-btn" class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold flex items-center gap-2">
+                        <i class="fas fa-save"></i>Guardar reparación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal historial detallado de máquina -->
     <div id="modalHistorialMaquina" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-overlay">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
@@ -1012,6 +1178,7 @@
 
                 HistorialManager.init();
                 MantenimientoManager.init();
+                ReparacionesManager.init();
 
                 // Polling en tiempo real: refresca lista de máquinas cada 20s
                 setInterval(() => this.cargarMaquinas(), 20000);
@@ -1105,6 +1272,7 @@
                     if (response.ok) {
                         this.maquinas = await response.json();
                         MantenimientoManager.syncMaquinas(this.maquinas);
+                        ReparacionesManager.syncMaquinas(this.maquinas);
                         
                         for (let maquina of this.maquinas) {
                             try {
@@ -3004,6 +3172,252 @@
             if (s) s.textContent = new Date().toLocaleTimeString("es-CO", {hour12:false});
         }, 1000);
     })();
+
+        // ── ReparacionesManager ────────────────────────────────────────────────────
+        const ReparacionesManager = {
+            reparaciones: [],
+            stats: {},
+            maquinas: [],
+            intervalId: null,
+
+            init: function() {
+                this.syncMaquinas(MaquinaManager.maquinas || []);
+                this.actualizar();
+                if (this.intervalId) clearInterval(this.intervalId);
+                this.intervalId = setInterval(() => this.actualizar(), 60000);
+            },
+
+            syncMaquinas: function(maquinas) {
+                this.maquinas = Array.isArray(maquinas) ? maquinas : [];
+                const selFiltro = document.getElementById('reparacionMaquinaFiltro');
+                const selModal  = document.getElementById('rep-machine-id');
+                [selFiltro, selModal].forEach(sel => {
+                    if (!sel) return;
+                    const cur = sel.value;
+                    const isModal = sel.id === 'rep-machine-id';
+                    sel.innerHTML = isModal
+                        ? '<option value="">— Seleccionar máquina —</option>'
+                        : '<option value="todas">Todas las máquinas</option>';
+                    this.maquinas.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.textContent = m.name || `Máquina ${m.id}`;
+                        sel.appendChild(opt);
+                    });
+                    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+                });
+            },
+
+            actualizar: async function() {
+                try {
+                    const res = await fetch('/api/maquinas/reparaciones?limit=300');
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    this.reparaciones = Array.isArray(data.reparaciones) ? data.reparaciones : [];
+                    this.stats = data.stats || {};
+                    this.render();
+                } catch(e) {
+                    console.error('Error cargando reparaciones:', e);
+                    this.reparaciones = [];
+                    this.stats = {};
+                    this.renderError();
+                }
+            },
+
+            getFiltradas: function() {
+                const tipo = document.getElementById('reparacionTipoFiltro')?.value || 'todos';
+                const mid  = document.getElementById('reparacionMaquinaFiltro')?.value || 'todas';
+                return this.reparaciones.filter(r => {
+                    const okTipo = tipo === 'todos' || r.tipo === tipo;
+                    const okMaq  = mid === 'todas' || String(r.machine_id) === mid;
+                    return okTipo && okMaq;
+                });
+            },
+
+            render: function() {
+                const lista = this.getFiltradas();
+                let correctivos = 0, preventivos = 0, costo = 0;
+                lista.forEach(r => {
+                    if (r.tipo === 'correctivo') correctivos++;
+                    else preventivos++;
+                    if (r.costo != null) costo += r.costo;
+                });
+
+                const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+                set('rep-total',       lista.length);
+                set('rep-correctivos', correctivos);
+                set('rep-preventivos', preventivos);
+                set('rep-costo',       `$${costo.toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`);
+                set('rep-count',       lista.length);
+
+                const contenedor = document.getElementById('lista-reparaciones');
+                if (!contenedor) return;
+
+                if (lista.length === 0) {
+                    contenedor.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-tools text-3xl mb-3"></i><p>No hay reparaciones registradas para este filtro.</p></div>';
+                    return;
+                }
+
+                contenedor.innerHTML = lista.slice(0, 100).map(r => {
+                    const esCorrectivo = r.tipo === 'correctivo';
+                    const tipoBadge = esCorrectivo
+                        ? '<span class="text-[11px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Correctivo</span>'
+                        : '<span class="text-[11px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">Preventivo</span>';
+                    const resuelveBadge = (esCorrectivo && r.resuelve_fallas)
+                        ? '<span class="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Cerró fallas</span>'
+                        : '';
+                    const costoStr = r.costo != null
+                        ? `<span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full">$${Number(r.costo).toLocaleString('es-CO')}</span>`
+                        : '';
+                    const desc = r.descripcion ? this.escapeHtml(r.descripcion) : '<span class="italic text-gray-400">Sin descripción</span>';
+
+                    return `
+                    <div class="border-b border-gray-100 last:border-0 py-3">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <i class="fas fa-tools text-teal-500 text-xs"></i>
+                                    <span class="text-sm font-semibold text-gray-800">${this.escapeHtml(r.machine_name || '—')}</span>
+                                    ${tipoBadge}
+                                    ${resuelveBadge}
+                                    ${r.location_name ? `<span class="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">${this.escapeHtml(r.location_name)}</span>` : ''}
+                                </div>
+                                <div class="text-xs text-gray-600 mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                                    <span><i class="fas fa-user-hard-hat mr-1 text-gray-400"></i>${this.escapeHtml(r.tecnico)}</span>
+                                    <span><i class="fas fa-calendar-alt mr-1 text-gray-400"></i>${this.formatFecha(r.fecha_reparacion)}</span>
+                                    ${r.created_by ? `<span class="text-gray-400">Registrado por ${this.escapeHtml(r.created_by)}</span>` : ''}
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1.5">${desc}</p>
+                            </div>
+                            <div class="flex flex-col items-end gap-1 shrink-0">
+                                ${costoStr}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            renderError: function() {
+                const c = document.getElementById('lista-reparaciones');
+                if (c) c.innerHTML = '<div class="text-center py-6 text-red-400 text-sm">Error cargando reparaciones.</div>';
+            },
+
+            // ── Modal ──────────────────────────────────────────────────────────────
+            abrirModal: function() {
+                this.syncMaquinas(this.maquinas);
+                document.getElementById('formReparacion').reset();
+
+                // Fecha default = ahora en Colombia (UTC-5)
+                const now = new Date();
+                const col = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+                const iso = col.toISOString().slice(0, 16);
+                document.getElementById('rep-fecha').value = iso;
+
+                document.getElementById('rep-aviso-fallas').classList.add('hidden');
+                document.getElementById('rep-resolver-fallas-bloque').classList.remove('hidden');
+
+                const modal = document.getElementById('modalReparacion');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            },
+
+            cerrarModal: function() {
+                const modal = document.getElementById('modalReparacion');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            },
+
+            onTipoChange: function() {
+                const tipo = document.querySelector('input[name="rep-tipo"]:checked')?.value;
+                const bloque = document.getElementById('rep-resolver-fallas-bloque');
+                if (bloque) {
+                    bloque.classList.toggle('hidden', tipo !== 'correctivo');
+                }
+                if (tipo !== 'correctivo') {
+                    const chk = document.getElementById('rep-resuelve-fallas');
+                    if (chk) chk.checked = false;
+                    document.getElementById('rep-aviso-fallas').classList.add('hidden');
+                } else {
+                    this.onMaquinaChange();
+                }
+            },
+
+            onMaquinaChange: async function() {
+                const mid  = document.getElementById('rep-machine-id')?.value;
+                const tipo = document.querySelector('input[name="rep-tipo"]:checked')?.value;
+                const aviso = document.getElementById('rep-aviso-fallas');
+                if (!mid || tipo !== 'correctivo') { aviso.classList.add('hidden'); return; }
+
+                try {
+                    const res = await fetch(`/api/maquinas/${mid}`);
+                    if (!res.ok) return;
+                    const d = await res.json();
+                    const abiertasEsp32  = (d.active_failure_stations || []).reduce((s, st) => s + (st.count || 0), 0);
+                    const abiertasMachLv = d.machine_level_failures || 0;
+                    const total = abiertasEsp32 + abiertasMachLv;
+                    if (total > 0) {
+                        document.getElementById('rep-aviso-fallas-texto').textContent =
+                            `Esta máquina tiene ${total} falla${total > 1 ? 's' : ''} sin resolver registrada${total > 1 ? 's' : ''} por el TFT o el cajero.`;
+                        aviso.classList.remove('hidden');
+                    } else {
+                        aviso.classList.add('hidden');
+                    }
+                } catch(e) { aviso.classList.add('hidden'); }
+            },
+
+            guardar: async function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('rep-submit-btn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+                const tipo = document.querySelector('input[name="rep-tipo"]:checked')?.value;
+                const payload = {
+                    machine_id:       document.getElementById('rep-machine-id').value,
+                    tipo:             tipo,
+                    tecnico:          document.getElementById('rep-tecnico').value.trim(),
+                    fecha_reparacion: document.getElementById('rep-fecha').value,
+                    descripcion:      document.getElementById('rep-descripcion').value.trim(),
+                    costo:            document.getElementById('rep-costo').value || null,
+                    resuelve_fallas:  tipo === 'correctivo' && document.getElementById('rep-resuelve-fallas').checked,
+                };
+
+                try {
+                    const res = await fetch('/api/maquinas/reparaciones', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        this.cerrarModal();
+                        await this.actualizar();
+                        if (payload.resuelve_fallas) await MaquinaManager.cargarMaquinas();
+                    } else {
+                        alert('Error: ' + (data.error || 'No se pudo guardar'));
+                    }
+                } catch(err) {
+                    alert('Error de red al guardar');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save"></i>Guardar reparación';
+                }
+            },
+
+            escapeHtml: function(str) {
+                if (!str) return '';
+                return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            },
+
+            formatFecha: function(iso) {
+                if (!iso) return '—';
+                try {
+                    const d = new Date(iso);
+                    return d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12: false });
+                } catch(e) { return iso; }
+            },
+        };
+
     </script>
     <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
 </body>
