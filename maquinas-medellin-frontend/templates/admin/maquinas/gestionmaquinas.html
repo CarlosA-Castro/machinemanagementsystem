@@ -1328,7 +1328,7 @@
                     has_failure_report: true,
                     show_station_selection: false,
                     station_names: [maquina.name],
-                    relay_pins: [26, 27, -1, -1]
+                    relay_pins: [26, -1, -1, -1]
                 };
             },
 
@@ -1601,17 +1601,21 @@
                         
                         for (let i = 0; i < stationCount; i++) {
                             const rawName = stationNames[i];
-                            const stName = (rawName && typeof rawName === 'object')
-                                ? (rawName.name || `Estación ${i+1}`)
-                                : String(rawName || `Estación ${i+1}`);
+                            let stName, stRelayPin, stResetPin;
+                            if (rawName && typeof rawName === 'object') {
+                                stName     = rawName.name     || `Estación ${i+1}`;
+                                stRelayPin = rawName.relayPin !== undefined ? parseInt(rawName.relayPin) : (i === 0 ? 26 : -1);
+                                stResetPin = rawName.resetPin !== undefined ? parseInt(rawName.resetPin) : -1;
+                            } else {
+                                stName     = String(rawName || `Estación ${i+1}`);
+                                stRelayPin = relayPins[i] !== undefined ? relayPins[i] : (i === 0 ? 26 : -1);
+                                stResetPin = -1;
+                            }
                             this.estaciones.push({
                                 name: stName,
-                                relayPin: relayPins[i] !== undefined ? relayPins[i] : (i === 0 ? 26 : i === 1 ? 27 : -1),
-                                stats: {
-                                    totalPlays: 0,
-                                    lastPlay: null,
-                                    failures: 0
-                                }
+                                relayPin: stRelayPin,
+                                resetPin: stResetPin,
+                                stats: { totalPlays: 0, lastPlay: null, failures: 0 }
                             });
                         }
                         
@@ -1645,28 +1649,39 @@
             actualizarPinesRele: function() {
                 const container = document.getElementById('relay-pins-container');
                 let html = '';
-                
+
                 for (let i = 0; i < this.estaciones.length; i++) {
                     const estacion = this.estaciones[i];
-                    const pinValue = estacion.relayPin !== undefined ? estacion.relayPin : (i === 0 ? 26 : i === 1 ? 27 : -1);
-                    
+                    const turnPin  = estacion.relayPin !== undefined ? estacion.relayPin : -1;
+                    const resetPin = estacion.resetPin !== undefined ? estacion.resetPin : -1;
+
                     html += `
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">${estacion.name} (GPIO)</label>
-                            <input type="number" id="relayPin${i+1}" value="${pinValue}" 
-                                   onchange="MaquinaManager.actualizarPinEstacion(${i}, this.value)"
-                                   class="w-full border border-gray-300 rounded-lg p-3">
-                            <p class="text-xs text-gray-500">-1 para deshabilitado</p>
+                        <div class="border border-gray-200 rounded-lg p-3">
+                            <p class="text-sm font-semibold text-gray-700 mb-2">${estacion.name}</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">GPIO Turno</label>
+                                    <input type="number" id="relayPin${i+1}" value="${turnPin}"
+                                           onchange="MaquinaManager.actualizarPinEstacion(${i}, 'relayPin', this.value)"
+                                           class="w-full border border-gray-300 rounded p-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 mb-1">GPIO Reinicio</label>
+                                    <input type="number" id="resetPin${i+1}" value="${resetPin}"
+                                           onchange="MaquinaManager.actualizarPinEstacion(${i}, 'resetPin', this.value)"
+                                           class="w-full border border-gray-300 rounded p-2 text-sm">
+                                </div>
+                            </div>
                         </div>
                     `;
                 }
-                
+
                 container.innerHTML = html;
             },
 
-            actualizarPinEstacion: function(index, value) {
+            actualizarPinEstacion: function(index, campo, value) {
                 if (this.estaciones[index]) {
-                    this.estaciones[index].relayPin = parseInt(value);
+                    this.estaciones[index][campo] = parseInt(value);
                 }
             },
 
@@ -1680,8 +1695,8 @@
                     document.getElementById('tab-estaciones-li').style.display = 'block';
                     if (this.estaciones.length === 0) {
                         this.estaciones = [
-                            { name: 'Estación 1', relayPin: 26, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
-                            { name: 'Estación 2', relayPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
+                            { name: 'Estación 1', relayPin: 26, resetPin: 27, stats: { totalPlays: 0, lastPlay: null, failures: 0 } },
+                            { name: 'Estación 2', relayPin: 28, resetPin: 29, stats: { totalPlays: 0, lastPlay: null, failures: 0 } }
                         ];
                         document.getElementById('stationCount').value = '2';
                         this.renderizarEstaciones();
@@ -1703,7 +1718,8 @@
                     } else {
                         newStations.push({
                             name: `Estación ${i+1}`,
-                            relayPin: i === 0 ? 26 : i === 1 ? 27 : -1,
+                            relayPin: i === 0 ? 26 : i === 1 ? 28 : -1,
+                            resetPin: i === 0 ? 27 : i === 1 ? 29 : -1,
                             stats: { totalPlays: 0, lastPlay: null, failures: 0 }
                         });
                     }
@@ -1774,23 +1790,31 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                                    <input type="text" value="${estacion.name}" 
-                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'name', this.value)" 
+                                    <input type="text" value="${estacion.name}"
+                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'name', this.value)"
                                            class="w-full border border-gray-300 rounded-lg p-2 estacion-nombre">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Pin Relé (GPIO)</label>
-                                    <input type="number" value="${estacion.relayPin}" 
-                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'relayPin', this.value)" 
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">GPIO Turno</label>
+                                    <input type="number" value="${estacion.relayPin}"
+                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'relayPin', this.value)"
                                            class="w-full border border-gray-300 rounded-lg p-2 estacion-pin">
+                                    <p class="text-xs text-gray-400 mt-1">Activa al dar turno</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">GPIO Reinicio</label>
+                                    <input type="number" value="${estacion.resetPin !== undefined ? estacion.resetPin : -1}"
+                                           onchange="MaquinaManager.actualizarEstacion(${index}, 'resetPin', this.value)"
+                                           class="w-full border border-gray-300 rounded-lg p-2">
+                                    <p class="text-xs text-gray-400 mt-1">Activa al reportar falla</p>
                                 </div>
                             </div>
                             <div class="mt-2 text-xs text-gray-500">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                Usa -1 para deshabilitar el relé
+                                Usa -1 para deshabilitar. Sin GPIO Reinicio configurado, usa el relé de turno como fallback.
                             </div>
                         </div>
                     `;
@@ -1811,9 +1835,10 @@
 
             agregarEstacion: function() {
                 const num = this.estaciones.length + 1;
-                this.estaciones.push({ 
-                    name: `Estación ${num}`, 
-                    relayPin: num === 1 ? 26 : num === 2 ? 27 : -1,
+                this.estaciones.push({
+                    name: `Estación ${num}`,
+                    relayPin: num === 1 ? 26 : num === 2 ? 28 : -1,
+                    resetPin: num === 1 ? 27 : num === 2 ? 29 : -1,
                     stats: { totalPlays: 0, lastPlay: null, failures: 0 }
                 });
                 document.getElementById('stationCount').value = this.estaciones.length;
@@ -1831,7 +1856,7 @@
             },
 
             actualizarEstacion: function(index, campo, valor) {
-                if (campo === 'relayPin') {
+                if (campo === 'relayPin' || campo === 'resetPin') {
                     valor = parseInt(valor);
                 }
                 this.estaciones[index][campo] = valor;
@@ -1913,27 +1938,29 @@
                 
                 if (datosTecnicos.machine_subtype === 'multi_station') {
                     const stations = this.estaciones.map(est => ({
-                        name: est.name,
-                        relayPin: parseInt(est.relayPin) || 26
+                        name:     est.name,
+                        relayPin: parseInt(est.relayPin) || 26,
+                        resetPin: parseInt(est.resetPin) !== undefined ? parseInt(est.resetPin) : -1
                     }));
-                    
+
                     datosTecnicos.station_names = stations.map(s => s.name);
-                    
+
                     const relayPinsArray = [-1, -1, -1, -1];
                     stations.forEach((s, index) => {
                         if (index < 4) relayPinsArray[index] = s.relayPin;
                     });
                     datosTecnicos.relay_pins = relayPinsArray;
-                    datosTecnicos.stations = stations;
-                    
+                    datosTecnicos.stations   = stations;
+
                     console.log('Estaciones a guardar:', stations);
                     console.log('Relay pins:', relayPinsArray);
                 } else {
                     datosTecnicos.station_names = [datosBasicos.name];
-                    datosTecnicos.relay_pins = [this.estaciones[0]?.relayPin || 26, -1, -1, -1];
-                    datosTecnicos.stations = [{
-                        name: datosBasicos.name,
-                        relayPin: this.estaciones[0]?.relayPin || 26
+                    datosTecnicos.relay_pins    = [this.estaciones[0]?.relayPin || 26, -1, -1, -1];
+                    datosTecnicos.stations      = [{
+                        name:     datosBasicos.name,
+                        relayPin: this.estaciones[0]?.relayPin || 26,
+                        resetPin: this.estaciones[0]?.resetPin !== undefined ? this.estaciones[0].resetPin : -1
                     }];
                 }
                 
