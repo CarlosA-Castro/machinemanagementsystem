@@ -204,8 +204,14 @@
                 <input type="hidden" id="usuarioId">
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-user mr-2"></i>Nombre Completo *</label>
-                        <input type="text" id="nombre" required class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Ej: Juan Pérez">
+                        <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-user mr-2"></i>Nombre de usuario *</label>
+                        <input type="text" id="nombre" required
+                            class="w-full border border-gray-300 rounded-lg p-3 text-base font-mono tracking-wider"
+                            placeholder="Ej: AFGOMEZ"
+                            maxlength="20"
+                            autocorrect="off" autocapitalize="characters" spellcheck="false"
+                            oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+                        <p class="text-xs text-gray-500 mt-1">Solo letras mayúsculas y números, sin espacios. Entre 4 y 20 caracteres.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-lock mr-2"></i>Contraseña *</label>

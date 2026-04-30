@@ -135,7 +135,7 @@ def procesar_login():
     cursor = None
     try:
         data     = request.get_json()
-        nombre   = (data.get('nombre') or '').strip()
+        nombre   = (data.get('nombre') or '').strip().upper()
         password = (data.get('password') or '').strip()
 
         if not nombre or not password:

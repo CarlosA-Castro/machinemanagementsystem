@@ -172,11 +172,17 @@ def crear_usuario():
     cursor = None
     try:
         data        = request.get_json()
-        name        = data['name']
+        name        = (data['name'] or '').strip().upper()
         password    = data['password']
         role        = data['role']
         notes       = data.get('notes', '')
         location_id = data.get('location_id')  # requerido para roles fijos
+
+        # Validar formato de nombre de usuario: solo A-Z y 0-9, sin espacios, 4-20 chars
+        import re
+        if not re.fullmatch(r'[A-Z0-9]{4,20}', name):
+            return api_response('E005', http_status=400,
+                                data={'message': 'El nombre de usuario debe tener entre 4 y 20 caracteres, solo letras mayúsculas y números. Ej: AFGOMEZ'})
 
         if len(password) < 6:
             return api_response('U003', http_status=400)
@@ -234,12 +240,17 @@ def actualizar_usuario(usuario_id):
     cursor = None
     try:
         data        = request.get_json()
-        name        = data['name']
+        name        = (data['name'] or '').strip().upper()
         password    = data.get('password')
         role        = data['role']
         notes       = data.get('notes')
         isActive    = data.get('isActive')
         location_id = data.get('location_id')  # None = sin cambio si no se envía
+
+        import re
+        if not re.fullmatch(r'[A-Z0-9]{4,20}', name):
+            return api_response('E005', http_status=400,
+                                data={'message': 'El nombre de usuario debe tener entre 4 y 20 caracteres, solo letras mayúsculas y números. Ej: AFGOMEZ'})
 
         ROLES_FIJO = {'cajero', 'admin_restaurante'}
         if role in ROLES_FIJO and not location_id:
