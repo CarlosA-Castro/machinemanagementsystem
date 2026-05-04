@@ -2,6 +2,7 @@ import logging
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, session, redirect, render_template
+from extensions import limiter
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from config import LOGGER_NAME
@@ -128,6 +129,7 @@ def mostrar_login():
 
 
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit("10 per minute; 100 per hour")
 @handle_api_errors
 def procesar_login():
     """Procesa el login del usuario con nombre + contraseña."""

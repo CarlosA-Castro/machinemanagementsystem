@@ -2,6 +2,9 @@
 .venv/
 .vscode/
 
+# Secrets — NUNCA subir al repo
+.env
+
 # Ignore runtime artifacts
 /logs/
 __pycache__/

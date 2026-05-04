@@ -7,8 +7,8 @@ services:
     environment:
       MYSQL_DATABASE: maquinasmedellin
       MYSQL_USER: myuser
-      MYSQL_PASSWORD: mypassword
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
@@ -28,7 +28,7 @@ services:
     environment:
       FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin
       FLYWAY_USER: myuser
-      FLYWAY_PASSWORD: mypassword
+      FLYWAY_PASSWORD: ${MYSQL_PASSWORD}
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
       FLYWAY_OUT_OF_ORDER: "true"
       FLYWAY_VALIDATE_ON_MIGRATE: "false"
@@ -50,13 +50,14 @@ services:
     environment:
       DB_HOST: mysql
       DB_USER: myuser
-      DB_PASSWORD: mypassword
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: maquinasmedellin
-      ALERT_PHONE: "573218001092"
-      CALLMEBOT_APIKEY: "4191841"
-      ALERT_EMAIL_FROM: "maquinasmedellin1@gmail.com"
-      ALERT_EMAIL_PASSWORD: "oyfoxahgwhbzialq"
-      ALERT_EMAIL_TO: "maquinasmedellin1@gmail.com"
+      SECRET_KEY: ${SECRET_KEY}
+      ALERT_PHONE: ${ALERT_PHONE}
+      CALLMEBOT_APIKEY: ${CALLMEBOT_APIKEY}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM}
+      ALERT_EMAIL_PASSWORD: ${ALERT_EMAIL_PASSWORD}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO}
     restart: always
 
 volumes:

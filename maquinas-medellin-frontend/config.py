@@ -2,7 +2,9 @@ import os
 from datetime import timedelta
 
 # ── Sesión ────────────────────────────────────────────────────────────────────
-SECRET_KEY = 'maquinasmedellin_sk_v2_8h_timeout_2026'
+# Leer de variable de entorno; el fallback existe solo para arranques locales
+# sin .env — en producción SECRET_KEY siempre debe estar definida en .env
+SECRET_KEY = os.getenv("SECRET_KEY", "maquinasmedellin_sk_v2_8h_timeout_2026")
 SESSION_TIMEOUT = timedelta(hours=8)
 
 # ── Base de datos ─────────────────────────────────────────────────────────────
