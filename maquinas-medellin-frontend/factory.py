@@ -253,7 +253,9 @@ def create_app() -> Flask:
     csrf.exempt(contacto_inversor)
     csrf.exempt(public_promedios)
 
-    _start_heartbeat_monitor()
+    # El monitor de heartbeat no arranca en modo test (no hay BD real)
+    if not app.config.get('TESTING', False):
+        _start_heartbeat_monitor()
 
     return app
 
