@@ -23,6 +23,11 @@ def test_login_page_loads(client):
     assert b'login' in response.data.lower() or b'ingresar' in response.data.lower()
 
 
+def test_error_intencional_para_demo(client):
+    """TEST DE DEMOSTRACIÓN — falla a propósito para mostrar la alerta de CI."""
+    assert False, "Este test falla intencionalmente — será revertido en el siguiente commit"
+
+
 # ── POST /login — validación de campos ───────────────────────────────────────
 
 def test_login_missing_fields_returns_400(client):
