@@ -38,8 +38,9 @@ services:
   web:
     build: .
     container_name: ec2-user-web-1
-    ports:
-      - "5000:5000"
+    # Puerto 5000 no expuesto al exterior — nginx es el único punto de entrada
+    expose:
+      - "5000"
     volumes:
       - firmware_data:/app/maquinas-medellin-frontend/static/firmware
     depends_on:
@@ -59,6 +60,28 @@ services:
       ALERT_EMAIL_PASSWORD: ${ALERT_EMAIL_PASSWORD}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO}
     restart: always
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ec2-user-nginx-1
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - web
+    restart: always
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    # Intenta renovar cada 12h; Let's Encrypt renueva solo si faltan menos de 30 días
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
 
 volumes:
   mysql_data:
