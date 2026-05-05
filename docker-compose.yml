@@ -26,7 +26,7 @@ services:
         condition: service_healthy
     command: repair migrate
     environment:
-      FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin
+      FLYWAY_URL: jdbc:mysql://mysql:3306/maquinasmedellin?allowPublicKeyRetrieval=true&useSSL=false
       FLYWAY_USER: myuser
       FLYWAY_PASSWORD: ${MYSQL_PASSWORD}
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
