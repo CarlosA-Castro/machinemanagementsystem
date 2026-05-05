@@ -1,4 +1,4 @@
-name: 🚀 Deploy to EC2
+name: 🚀 CI/CD — Tests + Deploy to EC2
 
 on:
   push:
@@ -6,7 +6,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: ✅ Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Checkout código
+        uses: actions/checkout@v3
+
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: 🧪 Correr tests
+        run: python -m pytest maquinas-medellin-frontend/tests/ -v --tb=short
+
   deploy:
+    name: 🚀 Deploy a EC2
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
