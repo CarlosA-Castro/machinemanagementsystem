@@ -23,6 +23,11 @@ def test_login_page_loads(client):
     assert b'login' in response.data.lower() or b'ingresar' in response.data.lower()
 
 
+def test_error_prueba_gmail(client):
+    """TEST TEMPORAL — prueba notificación al nuevo gmail. Revertir después."""
+    assert False, "Prueba de notificación a maquinasmedellin1@gmail.com"
+
+
 
 
 # ── POST /login — validación de campos ───────────────────────────────────────
