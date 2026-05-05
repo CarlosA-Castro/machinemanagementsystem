@@ -6,14 +6,18 @@ from logging.handlers import RotatingFileHandler
 import sentry_sdk
 from flask import Flask
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 from extensions import limiter
 from config import (
     SECRET_KEY, SESSION_TIMEOUT,
     SENTRY_DSN,
+    WTF_CSRF_TIME_LIMIT, WTF_CSRF_HEADERS,
     LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT, LOGGER_NAME,
 )
+
+csrf = CSRFProtect()
 from middleware.session import check_session_timeout
 from middleware.logging_mw import before_request_log, after_request_log
 
@@ -170,9 +174,12 @@ def create_app() -> Flask:
     )
     app.secret_key = SECRET_KEY
     app.config['PERMANENT_SESSION_LIFETIME'] = SESSION_TIMEOUT
+    app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
+    app.config['WTF_CSRF_HEADERS']    = WTF_CSRF_HEADERS
 
     CORS(app)
     limiter.init_app(app)
+    csrf.init_app(app)
 
     # ── Sentry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     sentry_sdk.init(
@@ -236,6 +243,15 @@ def create_app() -> Flask:
         firmware_bp,
     ):
         app.register_blueprint(blueprint)
+
+    # ESP32 llama directo desde firmware — no tiene navegador ni sesión,
+    # no puede generar tokens CSRF. Se exime todo el blueprint.
+    csrf.exempt(esp32_bp)
+
+    # Endpoints públicos sin sesión (formulario de contacto, stats landing)
+    from blueprints.auth.routes import contacto_inversor, public_promedios
+    csrf.exempt(contacto_inversor)
+    csrf.exempt(public_promedios)
 
     _start_heartbeat_monitor()
 

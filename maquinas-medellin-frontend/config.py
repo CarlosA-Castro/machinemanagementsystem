@@ -1,6 +1,10 @@
 import os
 from datetime import timedelta
 
+# ── CSRF ──────────────────────────────────────────────────────────────────────
+WTF_CSRF_TIME_LIMIT = 3600          # token válido 1 hora
+WTF_CSRF_HEADERS    = ['X-CSRFToken']  # header que usa el JS interceptor
+
 # ── Sesión ────────────────────────────────────────────────────────────────────
 # Leer de variable de entorno; el fallback existe solo para arranques locales
 # sin .env — en producción SECRET_KEY siempre debe estar definida en .env
