@@ -2107,16 +2107,21 @@
                     stationNames = ['Estación 1', 'Estación 2'];
                 }
                 
-                // Crear array de estaciones - extraer .name si es objeto
+                // Crear array de estaciones - extraer .name y .relayPin si es objeto
                 for (let i = 0; i < stationNames.length; i++) {
                     const raw = stationNames[i];
-                    const stName = (raw && typeof raw === 'object')
-                        ? (raw.name || `Estación ${i+1}`)
-                        : String(raw || `Estación ${i+1}`);
+                    let stName, stRelayPin;
+                    if (raw && typeof raw === 'object') {
+                        stName = raw.name || `Estación ${i+1}`;
+                        stRelayPin = raw.relayPin !== undefined ? parseInt(raw.relayPin) : relayPins[i];
+                    } else {
+                        stName = String(raw || `Estación ${i+1}`);
+                        stRelayPin = relayPins[i] !== undefined ? relayPins[i] : (i === 0 ? 26 : i === 1 ? 27 : -1);
+                    }
                     stations.push({
                         index: i,
                         name: stName,
-                        relayPin: relayPins[i] !== undefined ? relayPins[i] : (i === 0 ? 26 : i === 1 ? 27 : -1)
+                        relayPin: stRelayPin !== undefined ? stRelayPin : (i === 0 ? 26 : i === 1 ? 27 : -1)
                     });
                 }
             }

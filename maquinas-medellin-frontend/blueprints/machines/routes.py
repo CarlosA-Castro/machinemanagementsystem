@@ -1652,7 +1652,16 @@ def guardar_technical_maquina(maquina_id):
         stations = data.get('stations', [])
         if machine_subtype == 'multi_station' and stations:
             try:
-                station_names_list = [s['name'] if isinstance(s, dict) else str(s) for s in stations]
+                station_objects = []
+                for s in stations:
+                    if isinstance(s, dict):
+                        station_objects.append({
+                            'name': s.get('name', ''),
+                            'relayPin': int(s.get('relayPin', -1)) if s.get('relayPin') is not None else -1,
+                            'resetPin': int(s.get('resetPin', -1)) if s.get('resetPin') is not None else -1,
+                        })
+                    else:
+                        station_objects.append({'name': str(s), 'relayPin': -1, 'resetPin': -1})
                 cursor.execute("""
                     INSERT INTO esp32_commands
                         (machine_id, command, parameters, triggered_by, status, triggered_at)
@@ -1660,7 +1669,7 @@ def guardar_technical_maquina(maquina_id):
                 """, (
                     maquina_id,
                     'UPDATE_STATION_NAMES',
-                    json.dumps({'station_names': station_names_list, 'station_count': len(station_names_list)}),
+                    json.dumps({'station_names': station_objects, 'station_count': len(station_objects)}),
                     'admin_config',
                     'queued',
                 ))
