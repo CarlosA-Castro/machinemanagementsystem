@@ -438,9 +438,19 @@ def esp32_check_commands(machine_id):
 
         commands = cursor.fetchall()
 
+        commands_parsed = []
+        for cmd in commands:
+            cmd_dict = dict(cmd)
+            if isinstance(cmd_dict.get('parameters'), str):
+                try:
+                    cmd_dict['parameters'] = json.loads(cmd_dict['parameters'])
+                except Exception:
+                    pass
+            commands_parsed.append(cmd_dict)
+
         return jsonify({
-            'has_commands': len(commands) > 0,
-            'commands': commands
+            'has_commands': len(commands_parsed) > 0,
+            'commands': commands_parsed
         })
 
     except Exception as e:
