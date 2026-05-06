@@ -14,6 +14,7 @@ from config import (
     SECRET_KEY, SESSION_TIMEOUT,
     SENTRY_DSN,
     WTF_CSRF_TIME_LIMIT, WTF_CSRF_HEADERS,
+    CORS_ORIGINS,
     LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT, LOGGER_NAME,
 )
 
@@ -177,7 +178,8 @@ def create_app() -> Flask:
     app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
     app.config['WTF_CSRF_HEADERS']    = WTF_CSRF_HEADERS
 
-    CORS(app)
+    # CORS restringido al dominio de producción
+    CORS(app, origins=CORS_ORIGINS)
     limiter.init_app(app)
     csrf.init_app(app)
 
@@ -244,9 +246,11 @@ def create_app() -> Flask:
     ):
         app.register_blueprint(blueprint)
 
-    # ESP32 llama directo desde firmware — no tiene navegador ni sesión,
-    # no puede generar tokens CSRF. Se exime todo el blueprint.
+    # ESP32: eximido de CSRF (firmware, sin navegador) y del rate limit global
+    # (puede hacer muchas requests legítimas desde IPs compartidas/NAT).
+    # Su protección es el token por máquina (@require_machine_token).
     csrf.exempt(esp32_bp)
+    limiter.exempt(esp32_bp)
 
     # Endpoints públicos sin sesión (formulario de contacto, stats landing)
     from blueprints.auth.routes import contacto_inversor, public_promedios

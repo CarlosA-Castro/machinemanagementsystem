@@ -1,6 +1,14 @@
 import os
 from datetime import timedelta
 
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Solo el dominio de producción puede hacer requests cross-origin.
+# El ESP32 no es un navegador, no envía Origin — CORS no le aplica.
+CORS_ORIGINS = [
+    'https://inversionesarcade.com',
+    'https://www.inversionesarcade.com',
+]
+
 # ── CSRF ──────────────────────────────────────────────────────────────────────
 WTF_CSRF_TIME_LIMIT = 3600          # token válido 1 hora
 WTF_CSRF_HEADERS    = ['X-CSRFToken']  # header que usa el JS interceptor
