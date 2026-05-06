@@ -252,6 +252,12 @@ def create_app() -> Flask:
     csrf.exempt(esp32_bp)
     limiter.exempt(esp32_bp)
 
+    # API admin de máquinas: eximida de CSRF porque todos sus endpoints requieren
+    # @require_login(['admin']) — la sesión autenticada es la protección suficiente.
+    # Sin esta exención, tokens expirados (>1h) devuelven 400 HTML silencioso.
+    from blueprints.machines.routes import machines_bp as _machines_bp_csrf
+    csrf.exempt(_machines_bp_csrf)
+
     # Endpoints públicos sin sesión (formulario de contacto, stats landing)
     from blueprints.auth.routes import contacto_inversor, public_promedios
     csrf.exempt(contacto_inversor)
