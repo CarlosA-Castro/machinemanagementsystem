@@ -60,9 +60,9 @@ def esp32_heartbeat():
 # ── Estado de fallas ──────────────────────────────────────────────────────────
 
 @esp32_bp.route('/api/esp32/estado-fallas/<int:machine_id>', methods=['GET'])
-@require_machine_token
 @handle_api_errors
 def esp32_estado_fallas(machine_id):
+    # Sin @require_machine_token — solo lectura, necesario para bootstrap inicial
     """
     El ESP32 consulta este endpoint al arrancar para precargar los contadores de
     fallas consecutivas y saber qué estaciones están en mantenimiento.
@@ -415,9 +415,9 @@ def esp32_ultimo_usage(qr_code, machine_id):
 # ── Comandos ──────────────────────────────────────────────────────────────────
 
 @esp32_bp.route('/api/esp32/check-commands/<int:machine_id>', methods=['GET'])
-@require_machine_token
 @handle_api_errors
 def esp32_check_commands(machine_id):
+    # Sin @require_machine_token — necesario para bootstrap y entrega de RESET_CONFIG/FORCE_OTA
     """Endpoint para que el ESP32 consulte comandos pendientes"""
     connection = None
     cursor = None
@@ -498,8 +498,8 @@ def esp32_command_executed(command_id):
 # ── Configuración de máquina ──────────────────────────────────────────────────
 
 @esp32_bp.route('/api/esp32/machine-config/<int:machine_id>', methods=['GET'])
-@require_machine_token
 def esp32_machine_config(machine_id):
+    # Sin @require_machine_token — solo lectura, necesario para bootstrap inicial del ESP32
     connection = None
     cursor = None
     try:
