@@ -651,46 +651,60 @@ Criterio de exito:
 
 Un inversionista puede entender cuanto invirtio, cuanto genero, cuanto se le pago y cuanto se le debe sin pedir explicaciones por fuera del sistema.
 
-### Fase 4 - Operacion multi-local madura
+### Fase 4 - Estado actual: 100 % completada — Operacion multi-local madura
 
 Objetivo:
 
 Inversiones Arcade opera varios locales sin perder control.
 
-Prioridades:
+Lo que se construyo:
 
-1. Dashboard ejecutivo global.
-2. Dashboard por local.
-3. Dashboard tecnico de hardware.
-4. Analisis de rentabilidad por maquina/local.
-5. Alertas anomalas de ventas, fallas y devoluciones.
-6. Historial de acuerdos comerciales.
+1. Dashboard ejecutivo global con KPIs de ventas, fallas y rentabilidad por local.
+2. Dashboard por local con vista de maquinas, ventas del dia y estado operativo.
+3. Dashboard tecnico de hardware: heartbeat, conectividad, estado de modulos ESP32.
+4. Analisis de rentabilidad por maquina y por local: ingresos, utilidad, ROI.
+5. Alertas anomalas de ventas, fallas consecutivas y devoluciones fuera de rango.
+6. Historial de acuerdos comerciales: porcentajes configurables por maquina con trazabilidad.
 
-Estado de arranque:
-
-1. Esta fase ya pasa a ser la prioridad actual del producto.
-2. La validacion general del modo gracia queda como cierre operativo pendiente de Fase 2, pero no bloquea arrancar este frente.
-3. Ya existen datos operativos, tecnicos y de rentabilidad desde los que se puede arrancar dashboards y alertas sin empezar desde cero.
-
-Criterio de exito:
+Criterio de exito cumplido:
 
 La gerencia puede decidir donde poner o quitar maquinas con datos reales.
 
-### Fase 5 - Venta/licenciamiento del sistema
+### Fase 5 - Estado actual: Prioridad actual del producto — Venta/licenciamiento del sistema
 
 Objetivo:
 
-Convertir la plataforma en producto vendible a otros operadores.
+Convertir la plataforma en producto vendible a otros operadores de maquinas arcade,
+sin mezclar datos con Inversiones Arcade y sin depender de intervencion tecnica manual
+en cada instalacion.
 
-Prioridades:
+Estado de arranque:
 
-1. Arquitectura multi-tenant.
-2. Captive portal para ESP32.
-3. Tokens por dispositivo.
-4. API publica documentada.
-5. Panel self-service de onboarding.
-6. Marca configurable.
-7. Planes comerciales/licencias.
+1. Esta fase es la prioridad actual del producto a partir de abril 2026.
+2. Las fases 1 a 4 estan completadas: el sistema opera locales reales con ventas, liquidaciones,
+   hardware conectado y dashboards ejecutivos.
+3. La base tecnica ya es multi-local. Lo que falta es convertirla en multi-tenant con
+   aislamiento real de datos entre operadores distintos.
+4. El mayor bloqueador tecnico hoy es que la configuracion del ESP32 (WiFi, MACHINE_ID,
+   backend URL) sigue siendo manual, lo que hace imposible escalar instalaciones sin
+   dependencia directa del equipo tecnico.
+
+Prioridades ordenadas:
+
+1. Arquitectura multi-tenant: aislamiento de datos por operador, sin mezcla con Inversiones Arcade.
+2. Captive portal para ESP32: configurar WiFi, backend URL y MACHINE_ID desde el dispositivo,
+   sin recompilar firmware.
+3. Tokens por dispositivo: autenticacion del modulo fisico contra el backend.
+4. API publica documentada: para integraciones y self-service de terceros.
+5. Panel self-service de onboarding: un operador puede crear su cuenta, su local y sus maquinas
+   sin intervencion manual de Inversiones Arcade.
+6. Marca configurable: nombre, logo y colores por operador.
+7. Planes comerciales/licencias: modelo de cobro por operador o por local activo.
+
+Criterio de exito:
+
+Otro operador puede registrarse, instalar su primer modulo y operar su primer local
+sin comunicacion directa con el equipo de Inversiones Arcade.
 
 Criterio de exito:
 

@@ -93,11 +93,15 @@ Las migraciones Flyway corren automáticamente al iniciar el contenedor.
 
 ## Migraciones de base de datos
 
-La próxima migración disponible es **V36**. Nunca reutilizar un número ya usado.
+La próxima migración disponible es **V42**. Nunca reutilizar un número ya usado.
 
 Migraciones recientes:
 - V31 — columnas `resolved`, `resolved_at`, `station_index` en `machinefailures` y `errorreport`
 - V32 — `station_index` en `turnusage`; `consecutive_failures` y `stations_in_maintenance` en `machine`
+- V38 — `user_location_scope`: alcance de usuario por local
+- V39 — `package_location`: paquetes por local
+- V40 — `liquidaciones_v2_schema`: esquema liquidaciones v2
+- V41 — `contacto_inversor`: tabla de contacto de inversionistas
 
 ---
 
