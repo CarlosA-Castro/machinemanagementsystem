@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Static Preview",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-m", "http.server", "8888", "--directory", "preview"],
+      "port": 8888
+    },
+    {
       "name": "Flask + MySQL (Docker Compose)",
       "runtimeExecutable": "docker",
       "runtimeArgs": ["compose", "up", "--build", "web"],

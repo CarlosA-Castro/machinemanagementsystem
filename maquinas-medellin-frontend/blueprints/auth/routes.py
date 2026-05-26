@@ -9,6 +9,7 @@ from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.responses import handle_api_errors
 from utils.timezone import get_colombia_time
+from utils.notifications import send_whatsapp, send_bienvenida_inversor
 from utils.location_scope import (
     build_user_location_context,
     save_location_context_to_session,
@@ -16,7 +17,9 @@ from utils.location_scope import (
     enforce_location_scope,
     set_active_location,
 )
-from datetime import datetime
+import secrets
+from datetime import datetime, date, timedelta
+from werkzeug.security import generate_password_hash as _gen_hash  # alias corto
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -92,34 +95,146 @@ def public_promedios():
 
 @auth_bp.route('/api/contacto-inversor', methods=['POST'])
 def contacto_inversor():
-    """Recibe formulario de contacto de posibles inversionistas."""
+    """
+    Recibe formulario de posibles inversores (landing → sección "Sé Parte").
+
+    Flujo:
+      - Siempre: guarda lead en contacto_inversor + WhatsApp al admin.
+      - Con email: crea socio (estado='pendiente_activacion') + usuario del
+        sistema (role='socio') + envía email de bienvenida con credenciales.
+      - Sin email: solo guarda el lead; el admin debe contactar manualmente.
+    """
+    connection = None
+    cursor = None
     try:
-        data = request.get_json(silent=True) or {}
-        nombre   = (data.get('nombre') or '').strip()[:120]
-        whatsapp = (data.get('whatsapp') or '').strip()[:30]
-        email    = (data.get('email') or '').strip()[:120] or None
+        data     = request.get_json(silent=True) or {}
+        nombre   = (data.get('nombre')           or '').strip()[:120]
+        whatsapp = (data.get('whatsapp')         or '').strip()[:30]
+        email    = (data.get('email')            or '').strip()[:120] or None
         maquinas = (data.get('maquinas_interes') or '1').strip()[:20]
-        mensaje  = (data.get('mensaje') or '').strip()[:1000] or None
+        mensaje  = (data.get('mensaje')          or '').strip()[:1000] or None
 
         if not nombre or not whatsapp:
             return jsonify({'ok': False, 'error': 'Nombre y WhatsApp son requeridos'}), 400
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
+        connection = get_db_connection()
+        cursor     = get_db_cursor(connection)
+
+        # ── 1. Guardar lead siempre ────────────────────────────────────────
+        cursor.execute(
             """INSERT INTO contacto_inversor
                (nombre, whatsapp, email, maquinas_interes, mensaje)
                VALUES (%s, %s, %s, %s, %s)""",
             (nombre, whatsapp, email, maquinas, mensaje),
         )
-        conn.commit()
-        cur.close()
-        conn.close()
-        logger.info('Nuevo contacto inversor: %s (%s)', nombre, whatsapp)
-        return jsonify({'ok': True})
+
+        codigo_socio  = None
+        username      = None
+        password_temp = None
+        cuenta_creada = False
+
+        # ── 2. Auto-registro si hay email ──────────────────────────────────
+        if email:
+            # Número correlativo para código y usuario
+            cursor.execute(
+                "SELECT MAX(CAST(SUBSTRING(codigo_socio, 5) AS UNSIGNED)) AS max_num "
+                "FROM socios WHERE codigo_socio LIKE 'SOC-%'"
+            )
+            row = cursor.fetchone()
+            num = (row['max_num'] or 0) + 1
+
+            codigo_socio  = f"SOC-{num:04d}"
+            username      = f"SOC{num:04d}"
+            password_temp = secrets.token_urlsafe(6)   # ~8 chars URL-safe
+
+            today = date.today()
+
+            # Crear usuario del sistema con role=socio
+            cursor.execute(
+                """INSERT INTO users
+                   (name, password, password_hash, role, createdBy, notes)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (
+                    username,
+                    '',
+                    _gen_hash(password_temp),
+                    'socio',
+                    None,
+                    f'Auto-registro via landing: {nombre} / {whatsapp}',
+                ),
+            )
+            user_id = cursor.lastrowid
+
+            # Crear socio vinculado al usuario recién creado
+            cursor.execute(
+                """INSERT INTO socios
+                   (codigo_socio, nombre, documento, tipo_documento, telefono, email,
+                    fecha_inscripcion, fecha_vencimiento, estado, notas,
+                    porcentaje_global, cuota_anual, user_id)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    codigo_socio,
+                    nombre,
+                    'PENDIENTE',                    # admin completa al activar
+                    'CC',
+                    whatsapp,
+                    email,
+                    today,
+                    today + timedelta(days=365),
+                    'pendiente_activacion',
+                    (
+                        f'Registro automático vía landing. '
+                        f'Máquinas de interés: {maquinas}.'
+                        + (f' Mensaje: {mensaje}' if mensaje else '')
+                    ),
+                    0,
+                    0,
+                    user_id,
+                ),
+            )
+            cuenta_creada = True
+
+        connection.commit()
+        logger.info(
+            'Contacto inversor: %s (%s) | cuenta=%s | código=%s',
+            nombre, whatsapp, cuenta_creada, codigo_socio,
+        )
+
+        # ── 3. Notificaciones (fuera de la transacción) ───────────────────
+        wpp = (
+            f"🎯 NUEVO INVERSOR\n"
+            f"Nombre: {nombre}\n"
+            f"WhatsApp: {whatsapp}\n"
+            f"Máquinas de interés: {maquinas}\n"
+        )
+        if cuenta_creada:
+            wpp += f"Código: {codigo_socio} | Usuario: {username}\n✅ Cuenta creada."
+            send_bienvenida_inversor(
+                nombre, email, codigo_socio, username, password_temp,
+                login_url="https://inversionesarcade.com/login",
+            )
+        else:
+            wpp += "ℹ️ Sin email — solo lead guardado."
+
+        send_whatsapp(wpp)
+
+        return jsonify({
+            'ok':           True,
+            'cuenta_creada': cuenta_creada,
+            'codigo_socio':  codigo_socio,
+        })
+
     except Exception as e:
-        logger.error('contacto_inversor error: %s', e)
+        if connection:
+            try:
+                connection.rollback()
+            except Exception:
+                pass
+        logger.error('contacto_inversor error: %s', e, exc_info=True)
         return jsonify({'ok': False, 'error': 'Error al guardar. Intenta de nuevo.'}), 500
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
 
 
 @auth_bp.route('/login', methods=['GET'])

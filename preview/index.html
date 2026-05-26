@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Inversor — Inversiones Arcade [PREVIEW]</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg:       #030712;
+    --s1:       #0c1222;
+    --s2:       #111827;
+    --s3:       #1e293b;
+    --bd:       #1e293b;
+    --bd2:      #334155;
+    --blue:     #3b82f6;
+    --blue-lo:  rgba(59,130,246,.12);
+    --violet:   #8b5cf6;
+    --violet-lo:rgba(139,92,246,.12);
+    --green:    #22c55e;
+    --green-lo: rgba(34,197,94,.12);
+    --amber:    #f59e0b;
+    --amber-lo: rgba(245,158,11,.12);
+    --red:      #ef4444;
+    --text:     #f8fafc;
+    --sub:      #94a3b8;
+    --muted:    #64748b;
+    --radius:   14px;
+    --radius-sm:8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── TOPBAR ──────────────────────────────────────── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 58px;
+    background: rgba(3,7,18,.9);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(30,41,59,.7);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+  }
+  .tb-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .tb-logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--violet) 100%);
+    border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; box-shadow: 0 0 16px rgba(59,130,246,.3);
+  }
+  .tb-name   { font-weight: 700; font-size: 15px; letter-spacing: -.4px; }
+  .tb-sep    { color: var(--bd2); margin: 0 2px; font-size: 18px; font-weight: 300; }
+  .tb-portal { color: var(--sub); font-size: 14px; }
+  .tb-right  { display: flex; align-items: center; gap: 14px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 700; letter-spacing: .8px; color: var(--green); text-transform: uppercase;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0;
+    animation: pulse-live 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse-live {
+    0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+    50%      { opacity:.7; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  }
+  .clock { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: .3px; }
+  .user-pill {
+    display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 6px;
+    background: var(--s1); border: 1px solid var(--bd); border-radius: 30px; font-size: 13px;
+    transition: border-color .2s;
+  }
+  .user-pill:hover { border-color: var(--bd2); }
+  .user-avatar {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--blue), var(--violet));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: #fff;
+  }
+  .user-name { font-weight: 500; }
+  .user-code { color: var(--muted); font-size: 11px; }
+  .btn-logout {
+    background: none; border: 1px solid var(--bd); color: var(--muted);
+    padding: 6px 13px; border-radius: var(--radius-sm); font-size: 12px;
+    cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px; font-family: inherit;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── TOAST ───────────────────────────────────────── */
+  .toast-stack { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .toast {
+    background: var(--s2); border: 1px solid var(--bd2); border-radius: 11px;
+    padding: 12px 16px; font-size: 13px; display: flex; align-items: center; gap: 10px;
+    animation: toast-up .35s cubic-bezier(.16,1,.3,1); min-width: 220px; max-width: 340px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5); pointer-events: auto;
+  }
+  @keyframes toast-up { from{opacity:0;transform:translateY(14px) scale(.95)} to{opacity:1;transform:none} }
+  .toast.success { border-left: 3px solid var(--green); }
+
+  /* ── PAGE ────────────────────────────────────────── */
+  .page { max-width: 1380px; margin: 0 auto; padding: 78px 28px 72px; }
+
+  /* ── HERO ────────────────────────────────────────── */
+  .hero {
+    position: relative; border-radius: 20px;
+    background: linear-gradient(135deg, #0c1528 0%, #0f1c35 55%, #0c1528 100%);
+    border: 1px solid rgba(59,130,246,.15); overflow: hidden;
+    padding: 44px 48px; margin-bottom: 20px;
+    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 40px;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 90% at 85% 50%, rgba(59,130,246,.07) 0%, transparent 70%),
+      radial-gradient(ellipse 35% 60% at 5% 90%,  rgba(139,92,246,.05) 0%, transparent 60%),
+      radial-gradient(ellipse 20% 40% at 50% 0%,  rgba(59,130,246,.04) 0%, transparent 60%);
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .hero-left { position: relative; z-index: 1; }
+  .hero-eyebrow {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .hero-eyebrow::before { content: ''; display: block; width: 20px; height: 1.5px; background: var(--blue); border-radius: 2px; }
+  .hero-name {
+    font-size: 40px; font-weight: 800; letter-spacing: -1.8px; line-height: 1.05; margin-bottom: 14px;
+  }
+  .hero-name span {
+    background: linear-gradient(100deg, var(--text) 0%, #94a3b8 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-sub {
+    font-size: 15px; color: var(--sub); line-height: 1.7;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .hero-sub strong { color: var(--text); font-weight: 600; }
+  .days-pill {
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px;
+    background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2);
+    color: var(--blue); font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .hero-right { position: relative; z-index: 1; text-align: right; min-width: 220px; }
+  .hero-cap-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .hero-cap-value {
+    font-size: 44px; font-weight: 800; letter-spacing: -2.5px; font-variant-numeric: tabular-nums; line-height: 1;
+    background: linear-gradient(135deg, var(--text) 30%, #64748b 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-cap-meta {
+    font-size: 13px; color: var(--sub); margin-top: 10px;
+    display: flex; align-items: center; gap: 8px; justify-content: flex-end;
+  }
+  .roi-chip {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+    border-radius: 20px; font-size: 12px; font-weight: 700;
+  }
+  .roi-chip.pos { background: var(--green-lo); color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+
+  /* ── KPI STRIP ───────────────────────────────────── */
+  .kpi-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 28px; }
+  .kpi {
+    background: var(--s1); border: 1px solid var(--bd); border-radius: var(--radius);
+    padding: 22px 24px; position: relative; overflow: hidden;
+    transition: border-color .25s, transform .25s, box-shadow .25s;
+  }
+  .kpi:hover { border-color: var(--bd2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.25); }
+  .kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--_ac, var(--blue)); opacity: .8; }
+  .kpi[data-ac="green"]  { --_ac: var(--green); }
+  .kpi[data-ac="violet"] { --_ac: var(--violet); }
+  .kpi[data-ac="amber"]  { --_ac: var(--amber); }
+  .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -.8px; font-variant-numeric: tabular-nums; line-height: 1; }
+  .kpi-value.c-green  { color: var(--green); }
+  .kpi-value.c-violet { color: var(--violet); }
+  .kpi-value.c-amber  { color: var(--amber); }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .kpi-icon { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 34px; opacity: .04; }
+  .live-tag {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700;
+    letter-spacing: .5px; background: var(--green-lo); color: var(--green);
+    border: 1px solid rgba(34,197,94,.2); border-radius: 8px; padding: 2px 7px; text-transform: uppercase;
+  }
+
+  /* ── SECTION HEADER ──────────────────────────────── */
+  .sec-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .sec-hd-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 7px;
+  }
+  .sec-hd-line { flex: 1; height: 1px; background: var(--bd); }
+
+  /* ── ASSET CARDS ─────────────────────────────────── */
+  .assets-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(290px,1fr)); gap: 16px; margin-bottom: 32px; }
+  .asset-card {
+    background: var(--s1); border: 1px solid var(--bd); border-radius: var(--radius);
+    padding: 24px; position: relative; overflow: hidden;
+    transition: border-color .3s, box-shadow .3s, transform .3s; cursor: default;
+  }
+  .asset-card:hover {
+    border-color: rgba(59,130,246,.25);
+    box-shadow: 0 12px 48px rgba(0,0,0,.35), 0 0 0 1px rgba(59,130,246,.06);
+    transform: translateY(-3px);
+  }
+  .asset-card::before {
+    content: ''; position: absolute; left: 0; top: 16%; bottom: 16%;
+    width: 3px; border-radius: 0 3px 3px 0; background: var(--_stripe, var(--bd2)); transition: background .4s;
+  }
+  .asset-card::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 60% 50% at 80% 0%, rgba(59,130,246,.05) 0%, transparent 70%);
+    opacity: 0; transition: opacity .4s;
+  }
+  .asset-card:hover::after { opacity: 1; }
+  .asset-card.working { --_stripe: var(--green); }
+  .asset-card.idle    { --_stripe: var(--amber); }
+  .own-badge {
+    position: absolute; top: 20px; right: 20px;
+    background: var(--s2); border: 1px solid var(--bd2); border-radius: 12px;
+    padding: 8px 14px; text-align: center; min-width: 68px;
+  }
+  .own-value {
+    font-size: 21px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1;
+  }
+  .own-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+  .asset-status { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; margin-bottom: 14px; }
+  .st-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
+  .st-dot.working { background: var(--green); animation: st-pulse 2.5s ease-in-out infinite; }
+  .st-dot.idle    { background: var(--amber); }
+  @keyframes st-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+    50%      { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  }
+  .st-text.working { color: var(--green); }
+  .st-text.idle    { color: var(--amber); }
+  .asset-name { font-size: 17px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 5px; padding-right: 84px; line-height: 1.2; }
+  .asset-loc { font-size: 12px; color: var(--muted); margin-bottom: 20px; display: flex; align-items: center; gap: 5px; }
+  .asset-loc i { font-size: 10px; }
+  .asset-div { height: 1px; background: var(--bd); margin-bottom: 18px; }
+  .asset-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+  .metric-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.5px; line-height: 1; }
+  .metric-value.hi { color: var(--green); }
+  .asset-footer { font-size: 11px; color: var(--muted); }
+
+  /* ── BOTTOM GRID ─────────────────────────────────── */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 360px; gap: 18px; margin-bottom: 28px; align-items: start; }
+  .panel { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--radius); overflow: hidden; }
+  .panel-hd { padding: 16px 22px; border-bottom: 1px solid var(--bd); display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .panel-body { padding: 22px; }
+  .feed-badge { font-size: 11px; color: var(--muted); background: var(--s2); border: 1px solid var(--bd); padding: 2px 9px; border-radius: 20px; }
+  .feed-scroll { max-height: 380px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bd) transparent; }
+  .feed-scroll::-webkit-scrollbar { width: 3px; }
+  .feed-scroll::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 2px; }
+  .feed-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 22px;
+    border-bottom: 1px solid rgba(30,41,59,.5); transition: background .15s;
+  }
+  .feed-item:hover { background: var(--s2); }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-ico {
+    width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
+    background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.14);
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .feed-body { flex: 1; min-width: 0; }
+  .feed-mach { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .feed-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .feed-amt { font-size: 14px; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.3px; }
+
+  /* ── TABLE ───────────────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { padding: 11px 18px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); border-bottom: 1px solid var(--bd); white-space: nowrap; }
+  tbody td { padding: 14px 18px; border-bottom: 1px solid rgba(30,41,59,.5); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(255,255,255,.012); }
+
+  /* ── ANIMATIONS ──────────────────────────────────── */
+  .fade-up { opacity:0; transform:translateY(16px); animation: fu .55s cubic-bezier(.16,1,.3,1) forwards; }
+  @keyframes fu { to { opacity:1; transform:none; } }
+  .d1{animation-delay:.04s} .d2{animation-delay:.09s} .d3{animation-delay:.14s}
+  .d4{animation-delay:.19s} .d5{animation-delay:.24s} .d6{animation-delay:.29s}
+  .flash { animation: num-flash .45s ease; }
+  @keyframes num-flash { 0%,100%{color:inherit} 50%{color:var(--green)} }
+
+  /* ── RESPONSIVE ──────────────────────────────────── */
+  @media (max-width: 1120px) { .bottom-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 960px) {
+    .kpi-strip { grid-template-columns: repeat(2,1fr); }
+    .hero { grid-template-columns: 1fr; gap: 24px; }
+    .hero-right { text-align: left; }
+    .hero-cap-meta { justify-content: flex-start; }
+  }
+  @media (max-width: 700px) {
+    .page { padding: 72px 14px 48px; } .topbar { padding: 0 16px; }
+    .tb-right .clock { display: none; }
+    .hero { padding: 28px 22px; } .hero-name { font-size: 28px; } .hero-cap-value { font-size: 32px; }
+    .tb-sep, .tb-portal { display: none; }
+  }
+  @media (max-width: 480px) { .kpi-strip { grid-template-columns: 1fr 1fr; } .assets-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="tb-brand" href="#">
+    <div class="tb-logo"><i class="fas fa-gamepad" style="color:#fff;font-size:13px"></i></div>
+    <span class="tb-name">Inversiones Arcade</span>
+    <span class="tb-sep">/</span>
+    <span class="tb-portal">Portal Inversor</span>
+  </a>
+  <div class="tb-right">
+    <div class="live-badge"><span class="live-dot"></span>EN VIVO</div>
+    <span class="clock" id="clock">--:--:--</span>
+    <div class="user-pill">
+      <div class="user-avatar">C</div>
+      <span class="user-name">Carlos Gómez</span>
+      <span class="user-code">INV-001</span>
+    </div>
+    <button class="btn-logout"><i class="fas fa-sign-out-alt"></i></button>
+  </div>
+</header>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<main class="page">
+
+  <!-- HERO -->
+  <section class="hero fade-up">
+    <div class="hero-left">
+      <div class="hero-eyebrow">Portal del Inversor</div>
+      <h1 class="hero-name"><span>Carlos</span></h1>
+      <div class="hero-sub">
+        Tu portafolio lleva
+        <span class="days-pill">
+          <i class="fas fa-clock" style="font-size:9px"></i>
+          <span>183 días</span>
+        </span>
+        generando retornos para ti.
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-cap-label">Capital Invertido</div>
+      <div class="hero-cap-value" id="hero-capital">$15.000.000</div>
+      <div class="hero-cap-meta">
+        <span>2 activos</span>
+        <span class="roi-chip pos">
+          <i class="fas fa-arrow-up" style="font-size:9px"></i>
+          ROI 8.2%
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi fade-up d1">
+      <div class="kpi-accent"></div>
+      <div class="kpi-label"><i class="fas fa-coins"></i> Capital Invertido</div>
+      <div class="kpi-value" id="kpi-capital">$15.000.000</div>
+      <div class="kpi-sub">2 inversiones activas</div>
+      <i class="fas fa-coins kpi-icon"></i>
+    </div>
+    <div class="kpi fade-up d2" data-ac="green">
+      <div class="kpi-accent"></div>
+      <div class="kpi-label">
+        <i class="fas fa-bolt"></i> Ganado Hoy
+        <span class="live-tag"><span class="live-dot" style="width:5px;height:5px;margin-right:3px"></span>vivo</span>
+      </div>
+      <div class="kpi-value c-green" id="kpi-hoy">$47.200</div>
+      <div class="kpi-sub">Actualizando cada 10 s</div>
+      <i class="fas fa-bolt kpi-icon"></i>
+    </div>
+    <div class="kpi fade-up d3" data-ac="violet">
+      <div class="kpi-accent"></div>
+      <div class="kpi-label"><i class="fas fa-calendar-check"></i> Ganado Este Mes</div>
+      <div class="kpi-value c-violet" id="kpi-mes">$1.234.000</div>
+      <div class="kpi-sub">2 activos este mes</div>
+      <i class="fas fa-calendar-check kpi-icon"></i>
+    </div>
+    <div class="kpi fade-up d4" data-ac="amber">
+      <div class="kpi-accent"></div>
+      <div class="kpi-label"><i class="fas fa-chart-line"></i> ROI Total</div>
+      <div class="kpi-value c-amber">8.2%</div>
+      <div class="kpi-sub">Retorno positivo ↑</div>
+      <i class="fas fa-chart-line kpi-icon"></i>
+    </div>
+  </div>
+
+  <!-- ACTIVOS -->
+  <div class="sec-hd fade-up d2">
+    <div class="sec-hd-title"><i class="fas fa-layer-group"></i> Tus Activos</div>
+    <div class="sec-hd-line"></div>
+  </div>
+  <div class="assets-grid">
+
+    <!-- Máquina 1: activa -->
+    <div class="asset-card working fade-up d3">
+      <div class="asset-status">
+        <span class="st-dot working"></span>
+        <span class="st-text working">Trabajando para ti</span>
+      </div>
+      <div class="own-badge">
+        <div class="own-value">35.0%</div>
+        <div class="own-label">propiedad</div>
+      </div>
+      <div class="asset-name">Arcade Pro X1</div>
+      <div class="asset-loc"><i class="fas fa-location-dot"></i>El Mekatiadero</div>
+      <div class="asset-div"></div>
+      <div class="asset-metrics">
+        <div>
+          <div class="metric-label">Ganado hoy</div>
+          <div class="metric-value hi">$32.500</div>
+        </div>
+        <div>
+          <div class="metric-label">Este mes</div>
+          <div class="metric-value">$834.000</div>
+        </div>
+      </div>
+      <div class="asset-footer">127 turnos jugados este mes</div>
+    </div>
+
+    <!-- Máquina 2: sin actividad -->
+    <div class="asset-card idle fade-up d4">
+      <div class="asset-status">
+        <span class="st-dot idle"></span>
+        <span class="st-text idle">Sin actividad</span>
+      </div>
+      <div class="own-badge">
+        <div class="own-value">25.0%</div>
+        <div class="own-label">propiedad</div>
+      </div>
+      <div class="asset-name">Street Fighter II</div>
+      <div class="asset-loc"><i class="fas fa-location-dot"></i>El Mekatiadero</div>
+      <div class="asset-div"></div>
+      <div class="asset-metrics">
+        <div>
+          <div class="metric-label">Ganado hoy</div>
+          <div class="metric-value hi">$14.700</div>
+        </div>
+        <div>
+          <div class="metric-label">Este mes</div>
+          <div class="metric-value">$400.000</div>
+        </div>
+      </div>
+      <div class="asset-footer">83 turnos jugados este mes</div>
+    </div>
+
+    <!-- Máquina 3 placeholder para mostrar layout -->
+    <div class="asset-card fade-up d5" style="opacity:.35; pointer-events:none">
+      <div class="asset-status">
+        <span class="st-dot"></span>
+        <span class="st-text" style="color:var(--muted)">Próximo activo</span>
+      </div>
+      <div class="own-badge" style="opacity:.5">
+        <div class="own-value" style="-webkit-text-fill-color:var(--muted);background:none">—%</div>
+        <div class="own-label">propiedad</div>
+      </div>
+      <div class="asset-name" style="color:var(--muted)">+ Agregar activo</div>
+      <div class="asset-loc"><i class="fas fa-plus"></i>Expandir portafolio</div>
+      <div class="asset-div"></div>
+      <div class="asset-metrics">
+        <div><div class="metric-label">Ganado hoy</div><div class="metric-value" style="color:var(--muted)">—</div></div>
+        <div><div class="metric-label">Este mes</div><div class="metric-value" style="color:var(--muted)">—</div></div>
+      </div>
+      <div class="asset-footer">Habla con tu asesor</div>
+    </div>
+
+  </div>
+
+  <!-- CHART + FEED -->
+  <div class="bottom-grid">
+    <div class="panel fade-up d3">
+      <div class="panel-hd">
+        <span class="panel-title"><i class="fas fa-chart-area" style="color:var(--blue)"></i> Tu Retorno — Últimos 6 Meses</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="chartIngresos" height="200"></canvas>
+      </div>
+    </div>
+    <div class="panel fade-up d4">
+      <div class="panel-hd">
+        <span class="panel-title"><span class="live-dot" style="margin-right:3px"></span>Actividad en Vivo</span>
+        <span class="feed-badge" id="feedCount">6 eventos</span>
+      </div>
+      <div class="feed-scroll" id="feedList">
+        <!-- Mock feed items -->
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <div class="sec-hd fade-up d5">
+    <div class="sec-hd-title"><i class="fas fa-table-cells"></i> Resumen del Mes</div>
+    <div class="sec-hd-line"></div>
+  </div>
+  <div class="panel fade-up d6">
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Activo</th><th>Local</th><th>Turnos</th>
+            <th>Ingreso Bruto</th><th>Tu Retorno</th><th>Tu Propiedad</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Arcade Pro X1</strong></td>
+            <td style="color:var(--sub)">El Mekatiadero</td>
+            <td style="font-variant-numeric:tabular-nums">127</td>
+            <td style="font-variant-numeric:tabular-nums">$2.382.857</td>
+            <td style="color:var(--green);font-weight:700;font-variant-numeric:tabular-nums">$834.000</td>
+            <td><span style="display:inline-block;padding:3px 10px;border-radius:8px;background:var(--blue-lo);color:var(--blue);font-size:12px;font-weight:700">35.0%</span></td>
+          </tr>
+          <tr>
+            <td><strong>Street Fighter II</strong></td>
+            <td style="color:var(--sub)">El Mekatiadero</td>
+            <td style="font-variant-numeric:tabular-nums">83</td>
+            <td style="font-variant-numeric:tabular-nums">$1.600.000</td>
+            <td style="color:var(--green);font-weight:700;font-variant-numeric:tabular-nums">$400.000</td>
+            <td><span style="display:inline-block;padding:3px 10px;border-radius:8px;background:var(--blue-lo);color:var(--blue);font-size:12px;font-weight:700">25.0%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Reloj ─────────────────────────────────────────────────
+const tick = () => document.getElementById('clock').textContent =
+  new Date().toLocaleTimeString('es-CO', { hour12: false });
+tick(); setInterval(tick, 1000);
+
+// ── Toast demo ────────────────────────────────────────────
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast success';
+  el.innerHTML = `<i class="fas fa-check-circle" style="color:var(--green)"></i> ${msg}`;
+  document.getElementById('toastStack').prepend(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+// ── Feed mock ─────────────────────────────────────────────
+const fmt = n => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(n);
+const mockFeed = [
+  { maquina: 'Arcade Pro X1',    hora: '14:32', monto: 5850 },
+  { maquina: 'Street Fighter II',hora: '14:28', monto: 4160 },
+  { maquina: 'Arcade Pro X1',    hora: '14:21', monto: 5850 },
+  { maquina: 'Arcade Pro X1',    hora: '14:15', monto: 5850 },
+  { maquina: 'Street Fighter II',hora: '14:09', monto: 4160 },
+  { maquina: 'Arcade Pro X1',    hora: '14:02', monto: 5850 },
+];
+const feedList = document.getElementById('feedList');
+mockFeed.forEach(ev => {
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+  el.innerHTML = `
+    <div class="feed-ico"><i class="fas fa-gamepad" style="color:var(--blue)"></i></div>
+    <div class="feed-body">
+      <div class="feed-mach">${ev.maquina}</div>
+      <div class="feed-meta">${ev.hora} · turno jugado</div>
+    </div>
+    <div class="feed-amt">+${fmt(ev.monto)}</div>`;
+  feedList.appendChild(el);
+});
+
+// ── Simular actividad en vivo ─────────────────────────────
+let hoy = 47200;
+const kpiHoy = document.getElementById('kpi-hoy');
+function simLive() {
+  const ganancia = [5850, 4160][Math.random() > .5 ? 0 : 1];
+  hoy += ganancia;
+  kpiHoy.textContent = fmt(hoy);
+  kpiHoy.classList.add('flash');
+  setTimeout(() => kpiHoy.classList.remove('flash'), 500);
+
+  const maquinas = ['Arcade Pro X1', 'Street Fighter II'];
+  const m = maquinas[Math.random() > .5 ? 0 : 1];
+  toast(`Turno jugado en ${m} · ${fmt(ganancia)}`);
+
+  // Nuevo evento al feed
+  const now = new Date();
+  const hora = now.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12:false });
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+  el.style.animation = 'feed-slide .4s cubic-bezier(.16,1,.3,1)';
+  el.innerHTML = `
+    <div class="feed-ico"><i class="fas fa-gamepad" style="color:var(--blue)"></i></div>
+    <div class="feed-body">
+      <div class="feed-mach">${m}</div>
+      <div class="feed-meta">${hora} · turno jugado</div>
+    </div>
+    <div class="feed-amt">+${fmt(ganancia)}</div>`;
+  feedList.prepend(el);
+  const items = feedList.querySelectorAll('.feed-item');
+  if (items.length > 20) items[items.length-1].remove();
+  document.getElementById('feedCount').textContent = `${items.length} eventos`;
+}
+// Simular cada 12-20 segundos
+setTimeout(() => { simLive(); setInterval(simLive, 15000); }, 4000);
+
+// Animación CSS para slide-in del feed
+const style = document.createElement('style');
+style.textContent = '@keyframes feed-slide { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }';
+document.head.appendChild(style);
+
+// ── Gráfico ───────────────────────────────────────────────
+const ctx = document.getElementById('chartIngresos').getContext('2d');
+const labels = ['Dic 2024','Ene 2025','Feb 2025','Mar 2025','Abr 2025','May 2025'];
+const values = [820000, 940000, 1050000, 980000, 1120000, 1234000];
+const bgColors = values.map((_, i) => i === values.length-1 ? 'rgba(59,130,246,.55)' : 'rgba(59,130,246,.18)');
+const bdColors = values.map((_, i) => i === values.length-1 ? 'rgba(59,130,246,.9)'  : 'rgba(59,130,246,.4)');
+
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Tu retorno',
+      data: values,
+      backgroundColor: bgColors,
+      borderColor: bdColors,
+      borderWidth: 1.5,
+      borderRadius: 7,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0c1222', borderColor: '#1e293b', borderWidth: 1,
+        titleColor: '#94a3b8', bodyColor: '#f8fafc', padding: 13, cornerRadius: 10,
+        callbacks: { label: ctx => `  ${fmt(ctx.raw)}` }
+      }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(30,41,59,.5)' }, ticks: { color: '#64748b', font: { size: 11 } } },
+      y: { grid: { color: 'rgba(30,41,59,.5)' }, ticks: {
+        color: '#64748b', font: { size: 11 },
+        callback: v => v >= 1000000 ? '$'+(v/1000000).toFixed(1)+'M' : v >= 1000 ? '$'+(v/1000).toFixed(0)+'K' : '$'+v
+      }}
+    }
+  }
+});
+</script>
+</body>
+</html>
