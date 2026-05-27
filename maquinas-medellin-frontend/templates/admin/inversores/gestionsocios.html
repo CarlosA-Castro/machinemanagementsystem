@@ -599,7 +599,30 @@
                     </div>
                 </div>
             </div>
-            
+
+            <!-- Prospectos desde Landing ─────────────────────── -->
+            <div class="glass-card mt-6" id="seccionProspectos">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-3">
+                    <h2 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-inbox text-orange-500"></i>
+                        Prospectos desde Landing
+                        <span id="badge-prospectos"
+                              class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1"
+                              style="display:none">0</span>
+                    </h2>
+                    <button onclick="cargarProspectos()"
+                            class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 btn-touch text-sm">
+                        <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                    </button>
+                </div>
+                <div id="prospectos-contenido">
+                    <div class="text-center py-10 text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                        <p class="text-sm">Cargando prospectos...</p>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
     
@@ -1741,5 +1764,136 @@ document.addEventListener('DOMContentLoaded', function() {
     })();
     </script>
     <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
+
+    <!-- ── Prospectos desde Landing ───────────────────────────── -->
+    <script>
+    async function cargarProspectos() {
+        const contenido = document.getElementById('prospectos-contenido');
+        contenido.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-3xl mb-2"></i><p class="text-sm">Cargando...</p></div>';
+        try {
+            const res = await fetch('/api/admin/prospectos');
+            if (!res.ok) throw new Error('Error al cargar');
+            const data = await res.json();
+
+            const nuevos = data.filter(p => !p.leido).length;
+            const badge = document.getElementById('badge-prospectos');
+            if (nuevos > 0) { badge.textContent = nuevos; badge.style.display = 'inline-block'; }
+            else badge.style.display = 'none';
+
+            if (!data.length) {
+                contenido.innerHTML = `
+                    <div class="text-center py-12 text-gray-400">
+                        <i class="fas fa-inbox text-4xl mb-3 opacity-20"></i>
+                        <p class="text-sm">No hay prospectos aún.<br>
+                        Los leads del formulario "Sé Parte" de la landing aparecerán aquí.</p>
+                    </div>`;
+                return;
+            }
+
+            const fmt = iso => {
+                if (!iso) return '—';
+                const d = new Date(iso);
+                return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+            };
+
+            const filas = data.map(p => {
+                const esNuevo = !p.leido;
+                const rowBg  = esNuevo ? 'background:rgba(251,146,60,.06)' : '';
+                const estado = esNuevo
+                    ? '<span class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs font-semibold px-2 py-0.5 rounded-full"><span style="width:6px;height:6px;border-radius:50%;background:#f97316;display:inline-block"></span>Nuevo</span>'
+                    : '<span class="bg-gray-100 text-gray-400 text-xs px-2 py-0.5 rounded-full">Leído</span>';
+                const btnLeer = esNuevo
+                    ? `<button onclick="marcarLeido(${p.id},this)" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded transition-colors mr-1"><i class="fas fa-check mr-1"></i>Leído</button>`
+                    : '';
+                const wpp = p.whatsapp
+                    ? `<a href="https://wa.me/${p.whatsapp.replace(/\D/g,'')}" target="_blank" class="text-green-600 hover:underline font-medium"><i class="fab fa-whatsapp mr-1"></i>${p.whatsapp}</a>`
+                    : '—';
+                const email = p.email || '<span class="text-gray-300">—</span>';
+                const msg = p.mensaje
+                    ? `<span class="text-gray-500 text-xs cursor-help border-b border-dashed border-gray-300"
+                             title="${p.mensaje.replace(/"/g,'&quot;')}">${p.mensaje.slice(0,45)}${p.mensaje.length>45?'…':''}</span>`
+                    : '<span class="text-gray-300 text-xs">—</span>';
+                const nomEsc  = p.nombre.replace(/'/g,"\\'");
+                const wppEsc  = (p.whatsapp||'').replace(/'/g,"\\'");
+                const mailEsc = (p.email||'').replace(/'/g,"\\'");
+                return `
+                <tr style="${rowBg}" class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">${p.nombre}</td>
+                    <td class="px-4 py-3">${wpp}</td>
+                    <td class="px-4 py-3 text-gray-600 text-sm">${email}</td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">${p.maquinas_interes || '1'} máq.</span>
+                    </td>
+                    <td class="px-4 py-3">${msg}</td>
+                    <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">${fmt(p.created_at)}</td>
+                    <td class="px-4 py-3 text-center">${estado}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        ${btnLeer}
+                        <button onclick="crearSocioDesdeProspecto('${nomEsc}','${wppEsc}','${mailEsc}')"
+                                class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors">
+                            <i class="fas fa-user-plus mr-1"></i>Crear socio
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            contenido.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200 text-left">
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">WhatsApp</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Interés</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mensaje</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Estado</th>
+                                <th class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-400 mt-3 text-right px-1">
+                    ${data.length} prospecto${data.length !== 1 ? 's' : ''} total
+                    · <strong class="text-orange-500">${nuevos} nuevo${nuevos !== 1 ? 's' : ''}</strong>
+                </p>`;
+        } catch(e) {
+            console.error(e);
+            contenido.innerHTML = '<div class="text-center py-6 text-red-500 text-sm"><i class="fas fa-exclamation-triangle mr-2"></i>Error al cargar prospectos.</div>';
+        }
+    }
+
+    async function marcarLeido(id, btn) {
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            const res = await fetch(`/api/admin/prospectos/${id}/leer`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            cargarProspectos();
+        } catch {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Leído';
+            alert('Error al marcar como leído.');
+        }
+    }
+
+    function crearSocioDesdeProspecto(nombre, whatsapp, email) {
+        GestionSocios.mostrarModalNuevoSocio();
+        setTimeout(() => {
+            const form = document.getElementById('formSocio');
+            if (!form) return;
+            const n = form.querySelector('[name="nombre"]');
+            const t = form.querySelector('[name="telefono"]');
+            const e = form.querySelector('[name="email"]');
+            if (n) n.value = nombre;
+            if (t) t.value = whatsapp;
+            if (e) e.value = email;
+        }, 80);
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarProspectos);
+    </script>
 </body>
 </html>

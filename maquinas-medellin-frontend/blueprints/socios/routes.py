@@ -1458,3 +1458,68 @@ def cambiar_password_socio():
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()
+
+
+# ─── Prospectos (leads del formulario landing) ────────────────────────────────
+
+@socios_bp.route('/api/admin/prospectos', methods=['GET'])
+@handle_api_errors
+@require_login(['admin'])
+def obtener_prospectos():
+    """Lista todos los leads de contacto_inversor, nuevos primero."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        cursor.execute(
+            """
+            SELECT id, nombre, whatsapp, email, maquinas_interes,
+                   mensaje, leido, created_at
+            FROM contacto_inversor
+            ORDER BY leido ASC, created_at DESC
+            """
+        )
+        prospectos = cursor.fetchall()
+        for p in prospectos:
+            if p.get('created_at'):
+                p['created_at'] = _serialize_value(p['created_at'])
+        return jsonify(prospectos)
+    except Exception as e:
+        logger.error(f"Error obteniendo prospectos: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@socios_bp.route('/api/admin/prospectos/<int:prospecto_id>/leer', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def marcar_prospecto_leido(prospecto_id):
+    """Marca un lead de contacto_inversor como leído."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+        cursor.execute(
+            "UPDATE contacto_inversor SET leido = 1 WHERE id = %s",
+            (prospecto_id,),
+        )
+        if cursor.rowcount == 0:
+            return api_response('E002', http_status=404, data={'id': prospecto_id})
+        connection.commit()
+        logger.info(f"Prospecto {prospecto_id} marcado como leído")
+        return jsonify({'ok': True})
+    except Exception as e:
+        logger.error(f"Error marcando prospecto leído: {e}")
+        sentry_sdk.capture_exception(e)
+        if connection:
+            try: connection.rollback()
+            except Exception: pass
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
