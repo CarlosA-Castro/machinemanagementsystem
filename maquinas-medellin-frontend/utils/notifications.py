@@ -282,3 +282,96 @@ def send_bienvenida_inversor(
 </html>"""
 
     send_email_to(email, subject, body_text, body_html)
+
+
+def send_info_inversor(nombre: str, email: str, whatsapp_contacto: str = "") -> None:
+    """Email de confirmación de recepción para un prospecto del formulario landing.
+    NO incluye credenciales — solo agradecimiento e información de próximos pasos."""
+    primer_nombre = nombre.split()[0].capitalize() if nombre else "Inversor"
+    subject = "Recibimos tu solicitud — Inversiones Arcade"
+
+    body_text = (
+        f"Hola {primer_nombre},\n\n"
+        f"Gracias por tu interés en Inversiones Arcade.\n\n"
+        f"Recibimos tu solicitud y uno de nuestros socios se pondrá en contacto contigo "
+        f"por WhatsApp en las próximas horas para contarte todos los detalles sobre la oportunidad de inversión.\n\n"
+        f"¿Qué puedes esperar?\n"
+        f"  • Explicación del modelo de negocio\n"
+        f"  • Información sobre las máquinas y locales\n"
+        f"  • Proyecciones financieras reales\n"
+        f"  • Proceso legal y contratos\n\n"
+        f"Si tienes preguntas urgentes, escríbenos por WhatsApp.\n\n"
+        f"— El equipo de Inversiones Arcade"
+    )
+
+    body_html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recibimos tu solicitud</title></head>
+<body style="margin:0;padding:0;background:#030712;font-family:Inter,-apple-system,Arial,sans-serif">
+<div style="max-width:540px;margin:0 auto;padding:40px 24px">
+
+  <div style="text-align:center;margin-bottom:36px">
+    <div style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+                border-radius:12px;padding:10px 22px;margin-bottom:20px">
+      <span style="color:#fff;font-size:16px;font-weight:800">🎮&nbsp; Inversiones Arcade</span>
+    </div>
+    <h1 style="color:#f8fafc;font-size:24px;font-weight:800;margin:0 0 10px;letter-spacing:-0.5px">
+      ¡Gracias, {primer_nombre}!
+    </h1>
+    <p style="color:#94a3b8;font-size:15px;margin:0;line-height:1.6">
+      Recibimos tu solicitud. Pronto nos pondremos en contacto contigo.
+    </p>
+  </div>
+
+  <div style="background:#0c1222;border:1px solid #1e293b;border-radius:16px;padding:28px;margin-bottom:20px">
+    <p style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;margin:0 0 18px;font-weight:700">
+      ¿Qué sigue?
+    </p>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="background:rgba(59,130,246,.15);border-radius:8px;padding:8px;flex-shrink:0">
+          <span style="font-size:16px">📱</span>
+        </div>
+        <div>
+          <p style="color:#f8fafc;font-size:14px;font-weight:600;margin:0 0 4px">Te contactamos por WhatsApp</p>
+          <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5">
+            Uno de nuestros socios te escribirá en las próximas horas con toda la información.
+          </p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="background:rgba(139,92,246,.15);border-radius:8px;padding:8px;flex-shrink:0">
+          <span style="font-size:16px">📊</span>
+        </div>
+        <div>
+          <p style="color:#f8fafc;font-size:14px;font-weight:600;margin:0 0 4px">Proyecciones reales</p>
+          <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5">
+            Te compartiremos datos reales de operación: turnos jugados, ingresos y retornos actuales.
+          </p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="background:rgba(34,197,94,.12);border-radius:8px;padding:8px;flex-shrink:0">
+          <span style="font-size:16px">📝</span>
+        </div>
+        <div>
+          <p style="color:#f8fafc;font-size:14px;font-weight:600;margin:0 0 4px">Proceso legal y contratos</p>
+          <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5">
+            Te explicaremos cómo funciona la inversión, los contratos y la forma de participar.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p style="color:#475569;font-size:12px;text-align:center;margin:0;line-height:1.8">
+    ¿Tienes preguntas urgentes? Escríbenos directamente por WhatsApp.<br>
+    <span style="color:#334155">Inversiones Arcade</span>
+  </p>
+
+</div>
+</body>
+</html>"""
+
+    send_email_to(email, subject, body_text, body_html)

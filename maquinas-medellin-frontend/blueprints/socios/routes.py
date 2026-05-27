@@ -1399,10 +1399,11 @@ def actividad_reciente_socio():
 
 @socios_bp.route('/api/socio/cambiar-password', methods=['POST'])
 @handle_api_errors
-@require_login(['socio'])
+@require_login(['socio', 'admin'])
 def cambiar_password_socio():
     """
-    Cambia la contraseña del inversor autenticado desde el portal.
+    Cambia la contraseña del usuario autenticado desde el portal.
+    Accesible por role=socio y role=admin (admins también pueden cambiarse la suya aquí).
     Requiere: password_actual, password_nueva, password_confirmar.
     """
     connection = None
@@ -1413,7 +1414,6 @@ def cambiar_password_socio():
         nueva    = (data.get('password_nueva')     or '').strip()
         confirma = (data.get('password_confirmar') or '').strip()
 
-        # Validaciones de negocio (el frontend también las hace, aquí es la fuente de verdad)
         if not actual or not nueva or not confirma:
             return jsonify({'ok': False, 'error': 'Todos los campos son requeridos'}), 400
         if len(nueva) < 8:
@@ -1425,21 +1425,29 @@ def cambiar_password_socio():
 
         user_id = session.get('user_id')
         if not user_id:
-            return jsonify({'ok': False, 'error': 'Sesión inválida'}), 401
+            return jsonify({'ok': False, 'error': 'Sesión inválida. Vuelve a iniciar sesión.'}), 401
 
         connection = get_db_connection()
         cursor = get_db_cursor(connection)
 
-        # Verificar contraseña actual
-        cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        cursor.execute("SELECT id, password_hash FROM users WHERE id = %s", (user_id,))
         user = cursor.fetchone()
         if not user:
-            return jsonify({'ok': False, 'error': 'Usuario no encontrado'}), 404
+            return jsonify({'ok': False, 'error': 'Usuario no encontrado.'}), 404
 
-        if not check_password_hash(user.get('password_hash') or '', actual):
-            return jsonify({'ok': False, 'error': 'La contraseña actual es incorrecta'}), 400
+        stored_hash = user.get('password_hash') or ''
 
-        # Actualizar contraseña
+        # Si no tiene hash guardado (cuenta muy antigua con solo password plano)
+        # no podemos verificar — se bloquea el cambio por seguridad
+        if not stored_hash:
+            return jsonify({
+                'ok': False,
+                'error': 'Tu cuenta requiere configuración adicional. Contacta al administrador.',
+            }), 400
+
+        if not check_password_hash(stored_hash, actual):
+            return jsonify({'ok': False, 'error': 'La contraseña actual es incorrecta.'}), 400
+
         cursor.execute(
             "UPDATE users SET password_hash = %s WHERE id = %s",
             (generate_password_hash(nueva), user_id),
@@ -1449,12 +1457,12 @@ def cambiar_password_socio():
         return jsonify({'ok': True})
 
     except Exception as e:
-        logger.error(f"Error cambiando contraseña socio: {e}")
+        logger.error(f"Error cambiando contraseña: {e}")
         sentry_sdk.capture_exception(e)
         if connection:
             try: connection.rollback()
             except Exception: pass
-        return api_response('E001', http_status=500)
+        return jsonify({'ok': False, 'error': 'Error del servidor. Intenta de nuevo.'}), 500
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()

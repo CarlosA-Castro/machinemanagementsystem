@@ -9,7 +9,7 @@ from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.responses import handle_api_errors
 from utils.timezone import get_colombia_time
-from utils.notifications import send_whatsapp, send_bienvenida_inversor
+from utils.notifications import send_whatsapp, send_info_inversor
 from utils.location_scope import (
     build_user_location_context,
     save_location_context_to_session,
@@ -98,11 +98,11 @@ def contacto_inversor():
     """
     Recibe formulario de posibles inversores (landing → sección "Sé Parte").
 
-    Flujo:
-      - Siempre: guarda lead en contacto_inversor + WhatsApp al admin.
-      - Con email: crea socio (estado='pendiente_activacion') + usuario del
-        sistema (role='socio') + envía email de bienvenida con credenciales.
-      - Sin email: solo guarda el lead; el admin debe contactar manualmente.
+    Flujo CORRECTO:
+      - Siempre: guarda lead en contacto_inversor + notifica al admin por WhatsApp.
+      - Con email: envía email informativo al prospecto (sin credenciales).
+      - La creación de cuenta es SIEMPRE manual: el admin la hace desde
+        gestionsocios después de calificar al prospecto.
     """
     connection = None
     cursor = None
@@ -120,116 +120,37 @@ def contacto_inversor():
         connection = get_db_connection()
         cursor     = get_db_cursor(connection)
 
-        # ── 1. Guardar lead siempre ────────────────────────────────────────
+        # Guardar lead
         cursor.execute(
             """INSERT INTO contacto_inversor
                (nombre, whatsapp, email, maquinas_interes, mensaje)
                VALUES (%s, %s, %s, %s, %s)""",
             (nombre, whatsapp, email, maquinas, mensaje),
         )
-
-        codigo_socio  = None
-        username      = None
-        password_temp = None
-        cuenta_creada = False
-
-        # ── 2. Auto-registro si hay email ──────────────────────────────────
-        if email:
-            # Número correlativo para código y usuario
-            cursor.execute(
-                "SELECT MAX(CAST(SUBSTRING(codigo_socio, 5) AS UNSIGNED)) AS max_num "
-                "FROM socios WHERE codigo_socio LIKE 'SOC-%'"
-            )
-            row = cursor.fetchone()
-            num = (row['max_num'] or 0) + 1
-
-            codigo_socio  = f"SOC-{num:04d}"
-            username      = f"SOC{num:04d}"
-            password_temp = secrets.token_urlsafe(6)   # ~8 chars URL-safe
-
-            today = date.today()
-
-            # Crear usuario del sistema con role=socio
-            cursor.execute(
-                """INSERT INTO users
-                   (name, password, password_hash, role, createdBy, notes)
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                (
-                    username,
-                    '',
-                    _gen_hash(password_temp),
-                    'socio',
-                    None,
-                    f'Auto-registro via landing: {nombre} / {whatsapp}',
-                ),
-            )
-            user_id = cursor.lastrowid
-
-            # Crear socio vinculado al usuario recién creado
-            cursor.execute(
-                """INSERT INTO socios
-                   (codigo_socio, nombre, documento, tipo_documento, telefono, email,
-                    fecha_inscripcion, fecha_vencimiento, estado, notas,
-                    porcentaje_global, cuota_anual, user_id)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (
-                    codigo_socio,
-                    nombre,
-                    'PENDIENTE',                    # admin completa al activar
-                    'CC',
-                    whatsapp,
-                    email,
-                    today,
-                    today + timedelta(days=365),
-                    'pendiente_activacion',
-                    (
-                        f'Registro automático vía landing. '
-                        f'Máquinas de interés: {maquinas}.'
-                        + (f' Mensaje: {mensaje}' if mensaje else '')
-                    ),
-                    0,
-                    0,
-                    user_id,
-                ),
-            )
-            cuenta_creada = True
-
         connection.commit()
-        logger.info(
-            'Contacto inversor: %s (%s) | cuenta=%s | código=%s',
-            nombre, whatsapp, cuenta_creada, codigo_socio,
-        )
+        logger.info('Contacto inversor: %s (%s) | email=%s', nombre, whatsapp, bool(email))
 
-        # ── 3. Notificaciones (fuera de la transacción) ───────────────────
+        # Notificaciones (fuera de la transacción, en hilos)
         wpp = (
-            f"🎯 NUEVO INVERSOR\n"
+            f"🎯 NUEVO PROSPECTO\n"
             f"Nombre: {nombre}\n"
             f"WhatsApp: {whatsapp}\n"
-            f"Máquinas de interés: {maquinas}\n"
+            f"Email: {email or 'no indicado'}\n"
+            f"Máquinas: {maquinas}\n"
+            f"{'Mensaje: ' + mensaje if mensaje else ''}\n"
+            f"➡️ Revisa en gestionsocios → Prospectos"
         )
-        if cuenta_creada:
-            wpp += f"Código: {codigo_socio} | Usuario: {username}\n✅ Cuenta creada."
-            send_bienvenida_inversor(
-                nombre, email, codigo_socio, username, password_temp,
-                login_url="https://inversionesarcade.com/login",
-            )
-        else:
-            wpp += "ℹ️ Sin email — solo lead guardado."
-
         send_whatsapp(wpp)
 
-        return jsonify({
-            'ok':           True,
-            'cuenta_creada': cuenta_creada,
-            'codigo_socio':  codigo_socio,
-        })
+        if email:
+            send_info_inversor(nombre, email)
+
+        return jsonify({'ok': True})
 
     except Exception as e:
         if connection:
-            try:
-                connection.rollback()
-            except Exception:
-                pass
+            try: connection.rollback()
+            except Exception: pass
         logger.error('contacto_inversor error: %s', e, exc_info=True)
         return jsonify({'ok': False, 'error': 'Error al guardar. Intenta de nuevo.'}), 500
     finally:
