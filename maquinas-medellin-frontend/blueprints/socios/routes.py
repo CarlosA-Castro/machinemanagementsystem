@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import sentry_sdk
 from flask import Blueprint, request, jsonify, render_template, session
@@ -1390,6 +1391,69 @@ def actividad_reciente_socio():
     except Exception as e:
         logger.error(f"Error actividad reciente socio: {e}")
         sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@socios_bp.route('/api/socio/cambiar-password', methods=['POST'])
+@handle_api_errors
+@require_login(['socio'])
+def cambiar_password_socio():
+    """
+    Cambia la contraseña del inversor autenticado desde el portal.
+    Requiere: password_actual, password_nueva, password_confirmar.
+    """
+    connection = None
+    cursor = None
+    try:
+        data     = request.get_json(silent=True) or {}
+        actual   = (data.get('password_actual')    or '').strip()
+        nueva    = (data.get('password_nueva')     or '').strip()
+        confirma = (data.get('password_confirmar') or '').strip()
+
+        # Validaciones de negocio (el frontend también las hace, aquí es la fuente de verdad)
+        if not actual or not nueva or not confirma:
+            return jsonify({'ok': False, 'error': 'Todos los campos son requeridos'}), 400
+        if len(nueva) < 8:
+            return jsonify({'ok': False, 'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        if nueva != confirma:
+            return jsonify({'ok': False, 'error': 'Las contraseñas no coinciden'}), 400
+        if nueva == actual:
+            return jsonify({'ok': False, 'error': 'La nueva contraseña debe ser diferente a la actual'}), 400
+
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'ok': False, 'error': 'Sesión inválida'}), 401
+
+        connection = get_db_connection()
+        cursor = get_db_cursor(connection)
+
+        # Verificar contraseña actual
+        cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({'ok': False, 'error': 'Usuario no encontrado'}), 404
+
+        if not check_password_hash(user.get('password_hash') or '', actual):
+            return jsonify({'ok': False, 'error': 'La contraseña actual es incorrecta'}), 400
+
+        # Actualizar contraseña
+        cursor.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s",
+            (generate_password_hash(nueva), user_id),
+        )
+        connection.commit()
+        logger.info(f"Contraseña cambiada: user_id={user_id}")
+        return jsonify({'ok': True})
+
+    except Exception as e:
+        logger.error(f"Error cambiando contraseña socio: {e}")
+        sentry_sdk.capture_exception(e)
+        if connection:
+            try: connection.rollback()
+            except Exception: pass
         return api_response('E001', http_status=500)
     finally:
         if cursor:     cursor.close()

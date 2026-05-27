@@ -570,6 +570,92 @@
     .kpi-strip { grid-template-columns: 1fr 1fr; }
     .assets-grid { grid-template-columns: 1fr; }
   }
+
+  /* ── MODAL CAMBIAR CONTRASEÑA ────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(3,7,18,.78);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: auto; }
+  .modal-box {
+    background: var(--s1); border: 1px solid var(--bd2);
+    border-radius: 18px; width: 100%; max-width: 420px;
+    box-shadow: 0 28px 80px rgba(0,0,0,.65);
+    transform: translateY(18px) scale(.97);
+    transition: transform .35s cubic-bezier(.16,1,.3,1);
+  }
+  .modal-overlay.open .modal-box { transform: none; }
+  .modal-hd {
+    padding: 22px 24px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title {
+    font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .modal-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 16px; cursor: pointer; padding: 4px;
+    transition: color .2s; line-height: 1; font-family: inherit;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 20px 24px 26px; }
+  .field { margin-bottom: 15px; }
+  .field-label {
+    display: block; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); margin-bottom: 7px;
+  }
+  .field-input {
+    width: 100%; background: var(--s2); border: 1px solid var(--bd);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 10px 13px; font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color .2s; -webkit-appearance: none;
+  }
+  .field-input:focus { border-color: var(--blue); }
+  .field-input::placeholder { color: var(--muted); }
+  .pwd-error {
+    background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+    border-radius: var(--radius-sm); padding: 10px 13px;
+    font-size: 12px; color: var(--red); margin-bottom: 14px; display: none;
+  }
+  .btn-pwd-submit {
+    width: 100%; padding: 12px; border: none; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--blue), #1d4ed8);
+    color: #fff; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: opacity .2s, transform .2s;
+    font-family: inherit; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+  }
+  .btn-pwd-submit:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+  .btn-pwd-submit:disabled { opacity: .45; cursor: default; transform: none; }
+  /* Botón key en topbar */
+  .btn-key {
+    background: none; border: 1px solid var(--bd); color: var(--muted);
+    width: 34px; height: 34px; border-radius: var(--radius-sm); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .2s; font-size: 13px;
+  }
+  .btn-key:hover { border-color: var(--amber); color: var(--amber); }
+  /* Banner contraseña temporal */
+  .pwd-banner {
+    position: fixed; top: 58px; left: 0; right: 0; z-index: 90;
+    background: rgba(245,158,11,.07); border-bottom: 1px solid rgba(245,158,11,.2);
+    padding: 9px 28px; display: none;
+    align-items: center; gap: 10px; font-size: 12px; color: var(--amber);
+  }
+  .pwd-banner i { flex-shrink: 0; }
+  .pwd-banner-link {
+    color: var(--amber); font-weight: 700; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px;
+    background: none; border: none; font-family: inherit; font-size: inherit; padding: 0;
+  }
+  .page.with-banner { padding-top: 118px; }
 </style>
 </head>
 <body>
@@ -590,11 +676,57 @@
       <span class="user-name" id="topbar-nombre">Cargando...</span>
       <span class="user-code" id="topbar-codigo"></span>
     </div>
+    <button class="btn-key" onclick="abrirModalPwd()" title="Cambiar contraseña">
+      <i class="fas fa-key"></i>
+    </button>
     <button class="btn-logout" onclick="location.href='/logout'">
       <i class="fas fa-sign-out-alt"></i>
     </button>
   </div>
 </header>
+
+<!-- BANNER: contraseña temporal -->
+<div class="pwd-banner" id="pwdBanner">
+  <i class="fas fa-triangle-exclamation"></i>
+  Estás usando una contraseña temporal.
+  <button class="pwd-banner-link" onclick="abrirModalPwd()">Cámbiala ahora</button>
+  para proteger tu cuenta.
+</div>
+
+<!-- MODAL: cambiar contraseña -->
+<div class="modal-overlay" id="modalPwd" onclick="if(event.target===this)cerrarModalPwd()">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <span class="modal-title">
+        <i class="fas fa-key" style="color:var(--amber)"></i> Cambiar Contraseña
+      </span>
+      <button class="modal-close" onclick="cerrarModalPwd()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Contraseña actual</label>
+        <input type="password" class="field-input" id="pwd-actual"
+               placeholder="Tu contraseña actual" autocomplete="current-password">
+      </div>
+      <div class="field">
+        <label class="field-label">Nueva contraseña</label>
+        <input type="password" class="field-input" id="pwd-nueva"
+               placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+      </div>
+      <div class="field" style="margin-bottom:18px">
+        <label class="field-label">Confirmar nueva contraseña</label>
+        <input type="password" class="field-input" id="pwd-confirma"
+               placeholder="Repite la nueva contraseña" autocomplete="new-password">
+      </div>
+      <div class="pwd-error" id="pwdError"></div>
+      <button class="btn-pwd-submit" id="btnPwdSubmit" onclick="submitCambiarPwd()">
+        <i class="fas fa-lock"></i> Cambiar contraseña
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- TOASTS -->
 <div class="toast-stack" id="toastStack"></div>
@@ -815,6 +947,15 @@ async function loadStats() {
     $('hero-capital').textContent = fmt(capital);
     const nActivos = d.estadisticas?.inversiones_activas || 0;
     $('hero-inversiones').textContent = `${nActivos} activo${nActivos !== 1 ? 's' : ''}`;
+
+    // Banner contraseña temporal
+    if (d.socio?.estado === 'pendiente_activacion') {
+      const banner = $('pwdBanner');
+      if (banner) {
+        banner.style.display = 'flex';
+        document.querySelector('.page')?.classList.add('with-banner');
+      }
+    }
 
     const roi = +(d.estadisticas?.roi_total || 0);
     if (roi !== 0) {
@@ -1100,6 +1241,75 @@ function makeFeedItem(ev) {
     <div class="feed-amt">+${fmt(ev.participacion)}</div>
   `;
   return el;
+}
+
+// ── Modal cambiar contraseña ──────────────────────────────
+function abrirModalPwd() {
+  $('pwd-actual').value = '';
+  $('pwd-nueva').value  = '';
+  $('pwd-confirma').value = '';
+  $('pwdError').style.display = 'none';
+  $('btnPwdSubmit').disabled = false;
+  $('btnPwdSubmit').innerHTML = '<i class="fas fa-lock"></i> Cambiar contraseña';
+  $('modalPwd').classList.add('open');
+  setTimeout(() => $('pwd-actual').focus(), 320);
+}
+
+function cerrarModalPwd() {
+  $('modalPwd').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') cerrarModalPwd();
+});
+
+async function submitCambiarPwd() {
+  const actual   = $('pwd-actual').value.trim();
+  const nueva    = $('pwd-nueva').value.trim();
+  const confirma = $('pwd-confirma').value.trim();
+  const errEl    = $('pwdError');
+  const btn      = $('btnPwdSubmit');
+
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+
+  if (!actual || !nueva || !confirma) return showErr('Todos los campos son requeridos.');
+  if (nueva.length < 8) return showErr('La nueva contraseña debe tener al menos 8 caracteres.');
+  if (nueva !== confirma) return showErr('Las contraseñas no coinciden.');
+  if (nueva === actual)   return showErr('La nueva contraseña debe ser diferente a la actual.');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cambiando...';
+
+  try {
+    const r = await fetch('/api/socio/cambiar-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password_actual:    actual,
+        password_nueva:     nueva,
+        password_confirmar: confirma,
+      }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      cerrarModalPwd();
+      // Ocultar banner de contraseña temporal si estaba visible
+      const banner = $('pwdBanner');
+      if (banner) {
+        banner.style.display = 'none';
+        document.querySelector('.page')?.classList.remove('with-banner');
+      }
+      toast('Contraseña actualizada correctamente.', 'success');
+    } else {
+      showErr(d.error || 'Error al cambiar la contraseña. Intenta de nuevo.');
+    }
+  } catch {
+    showErr('Error de conexión. Intenta de nuevo.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-lock"></i> Cambiar contraseña';
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────
