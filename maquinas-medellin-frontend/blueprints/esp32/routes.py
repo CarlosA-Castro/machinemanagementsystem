@@ -184,15 +184,36 @@ def esp32_registrar_uso():
         info_actualizada = cursor.fetchone()
         turnos_restantes = info_actualizada['turns_remaining']
 
+        # Resolver nombre de estación para el log (evita "Estación None" en multi-estación)
+        station_name = None
+        if station_index is not None:
+            try:
+                cursor.execute(
+                    "SELECT station_names FROM machinetechnical WHERE machineId = %s",
+                    (machine_id,)
+                )
+                mt_row = cursor.fetchone()
+                if mt_row:
+                    names = parse_json_col(mt_row.get('station_names'), [])
+                    if names and int(station_index) < len(names):
+                        raw_st = names[int(station_index)]
+                        station_name = raw_st.get('name') if isinstance(raw_st, dict) else str(raw_st)
+                if not station_name:
+                    station_name = f'Estación {int(station_index) + 1}'
+            except Exception:
+                station_name = f'Estación {int(station_index) + 1}'
+
+        station_label_log = station_name or 'por asignar'
+
         logger.info(
             f"ESP32: Uso registrado — QR: {qr_code} | Máquina: {machine_id} | "
-            f"Estación: {station_index} | Turnos restantes: {turnos_restantes} | Usage ID: {usage_id}"
+            f"Estación: {station_label_log} | Turnos restantes: {turnos_restantes} | Usage ID: {usage_id}"
         )
 
         log_transaccion(
             tipo='turno_qr',
             categoria='operacional',
-            descripcion=f"Turno vía QR {qr_code} ({qr_name}) — Estación {station_index}",
+            descripcion=f"Turno vía QR {qr_code} ({qr_name}) — Estación {station_label_log}",
             maquina_id=machine_id,
             entidad='qr',
             entidad_id=qr_id,
@@ -201,6 +222,7 @@ def esp32_registrar_uso():
                 'qr_name': qr_name,
                 'usage_id': usage_id,
                 'station_index': station_index,
+                'station_name': station_name,
                 'turns_remaining': turnos_restantes,
                 'package_name': info_actualizada['package_name'],
                 'origen': 'esp32'
@@ -273,13 +295,59 @@ def esp32_actualizar_uso_estacion():
             })
 
         connection.commit()
+
+        # Resolver nombre de estación para actualizar el log transaccional
+        station_name = None
+        try:
+            cursor.execute(
+                "SELECT station_names FROM machinetechnical WHERE machineId = %s",
+                (machine_id,)
+            )
+            mt_row = cursor.fetchone()
+            if mt_row:
+                names = parse_json_col(mt_row.get('station_names'), [])
+                if names and int(station_index) < len(names):
+                    raw_st = names[int(station_index)]
+                    station_name = raw_st.get('name') if isinstance(raw_st, dict) else str(raw_st)
+            if not station_name:
+                station_name = f'Estación {int(station_index) + 1}'
+        except Exception:
+            station_name = f'Estación {int(station_index) + 1}'
+
+        # Actualizar el log transaccional con la estación real
+        # (el log se creó en registrar-uso con "por asignar"; ahora lo completamos)
+        try:
+            cursor.execute("""
+                UPDATE transaction_logs
+                SET
+                    datos_extra = JSON_SET(datos_extra, '$.station_index', %s, '$.station_name', %s),
+                    descripcion = CONCAT(
+                        'Turno vía QR ',
+                        JSON_UNQUOTE(JSON_EXTRACT(datos_extra, '$.qr_code')),
+                        ' (',
+                        JSON_UNQUOTE(JSON_EXTRACT(datos_extra, '$.qr_name')),
+                        ') — Estación ',
+                        %s
+                    )
+                WHERE JSON_EXTRACT(datos_extra, '$.usage_id') = %s
+                  AND tipo = 'turno_qr'
+                LIMIT 1
+            """, (station_index, station_name, station_name, usage_id))
+            connection.commit()
+            logger.info(
+                f"✅ [ESP32] Log transaccional actualizado — uso {usage_id} → {station_name}"
+            )
+        except Exception as log_err:
+            logger.warning(f"⚠️ [ESP32] No se pudo actualizar log transaccional: {log_err}")
+
         logger.info(
-            f"✅ [ESP32] Uso {usage_id} actualizado — estación {station_index} (máquina {machine_id})"
+            f"✅ [ESP32] Uso {usage_id} actualizado — estación {station_index} / {station_name} (máquina {machine_id})"
         )
 
         return api_response('S010', status='success', data={
             'usage_id': usage_id,
             'station_index': station_index,
+            'station_name': station_name,
             'machine_id': machine_id
         })
 

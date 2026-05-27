@@ -1367,8 +1367,19 @@ def listar_fallas_abiertas():
             d['station_names'] = parse_json_col(d.get('station_names'), [])
             station_names = d['station_names']
             idx = d.get('station_index')
-            if idx is not None and station_names and idx < len(station_names):
-                d['station_label'] = station_names[idx]
+            if idx is not None and station_names:
+                try:
+                    idx_int = int(idx)
+                    if 0 <= idx_int < len(station_names):
+                        raw_st = station_names[idx_int]
+                        if isinstance(raw_st, dict):
+                            d['station_label'] = raw_st.get('name') or f'Estación {idx_int + 1}'
+                        else:
+                            d['station_label'] = str(raw_st) if raw_st else f'Estación {idx_int + 1}'
+                    else:
+                        d['station_label'] = f'Estación {int(idx) + 1}'
+                except (ValueError, TypeError):
+                    d['station_label'] = f'Estación {idx}'
             elif idx is not None:
                 d['station_label'] = f'Estación {int(idx) + 1}'
             else:
