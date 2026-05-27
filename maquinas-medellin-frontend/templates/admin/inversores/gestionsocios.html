@@ -966,12 +966,13 @@
                 data: 'estado',
                 render: function(data) {
                     const estados = {
-                        'activo': { clase: 'badge-activo', texto: 'Activo' },
-                        'inactivo': { clase: 'badge-inactivo', texto: 'Inactivo' },
-                        'pendiente_pago': { clase: 'badge-pendiente', texto: 'Pendiente' },
-                        'suspendido': { clase: 'badge-inactivo', texto: 'Suspendido' }
+                        'activo':               { clase: 'badge-activo',    texto: 'Activo' },
+                        'inactivo':             { clase: 'badge-inactivo',  texto: 'Inactivo' },
+                        'pendiente_pago':       { clase: 'badge-pendiente', texto: 'Pendiente pago' },
+                        'pendiente_activacion': { clase: 'badge-pendiente', texto: '⏳ Por activar' },
+                        'suspendido':           { clase: 'badge-inactivo',  texto: 'Suspendido' }
                     };
-                    const estado = estados[data] || estados['activo'];
+                    const estado = estados[data] || { clase: 'badge-pendiente', texto: data };
                     return `<span class="badge-estado ${estado.clase}">${estado.texto}</span>`;
                 }
             },
