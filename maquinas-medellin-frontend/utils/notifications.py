@@ -284,93 +284,236 @@ def send_bienvenida_inversor(
     send_email_to(email, subject, body_text, body_html)
 
 
-def send_info_inversor(nombre: str, email: str, whatsapp_contacto: str = "") -> None:
-    """Email de confirmación de recepción para un prospecto del formulario landing.
-    NO incluye credenciales — solo agradecimiento e información de próximos pasos."""
+def send_info_inversor(
+    nombre: str,
+    email: str,
+    roi_promedio: float = None,
+) -> None:
+    """
+    Email de marketing para prospecto del formulario landing.
+    Diseño tipo 'shader hero': fondo oscuro dramático, headline con gradiente
+    cálido, badge de confianza, stat de ROI real y dos CTAs.
+    """
     primer_nombre = nombre.split()[0].capitalize() if nombre else "Inversor"
-    subject = "Recibimos tu solicitud — Inversiones Arcade"
+    subject = f"{primer_nombre}, esto es lo que tu dinero puede hacer en Inversiones Arcade"
+
+    # WhatsApp CTA — número sin el +
+    wpp_number = (ALERT_PHONE or "").lstrip('+').replace(' ', '')
+    wpp_url    = f"https://wa.me/{wpp_number}" if wpp_number else "https://wa.me/"
+
+    # ROI stat
+    roi_str  = f"{roi_promedio:.1f}%" if roi_promedio is not None else "real y verificable"
+    roi_desc = "ROI promedio de socios activos" if roi_promedio is not None else "Retorno sobre inversión"
 
     body_text = (
         f"Hola {primer_nombre},\n\n"
         f"Gracias por tu interés en Inversiones Arcade.\n\n"
-        f"Recibimos tu solicitud y uno de nuestros socios se pondrá en contacto contigo "
-        f"por WhatsApp en las próximas horas para contarte todos los detalles sobre la oportunidad de inversión.\n\n"
-        f"¿Qué puedes esperar?\n"
-        f"  • Explicación del modelo de negocio\n"
-        f"  • Información sobre las máquinas y locales\n"
-        f"  • Proyecciones financieras reales\n"
-        f"  • Proceso legal y contratos\n\n"
-        f"Si tienes preguntas urgentes, escríbenos por WhatsApp.\n\n"
+        f"Mientras uno de nuestros socios te contacta por WhatsApp, aquí te contamos qué hace "
+        f"que esta inversión sea diferente:\n\n"
+        f"🎮 MÁQUINAS ARCADE EN LOCALES ACTIVOS\n"
+        f"Tu dinero trabaja en máquinas físicas instaladas en restaurantes y centros de entretenimiento "
+        f"de Medellín, generando ingresos todos los días de la semana.\n\n"
+        f"📊 RETORNO REAL: {roi_str}\n"
+        f"No son proyecciones teóricas. Es el retorno que están recibiendo nuestros socios actuales, "
+        f"liquidado mes a mes y verificable en la plataforma.\n\n"
+        f"🔍 TRANSPARENCIA TOTAL\n"
+        f"Cada turno jugado queda registrado. Ves en tiempo real cuánto genera tu máquina, "
+        f"cuántos turnos van en el mes y cuándo llega tu liquidación.\n\n"
+        f"¿Listo para ver tus proyecciones?\n"
+        f"Simula tu inversión: https://inversionesarcade.com/#simula\n"
+        f"Habla con nosotros: {wpp_url}\n\n"
         f"— El equipo de Inversiones Arcade"
     )
 
     body_html = f"""<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Recibimos tu solicitud</title></head>
-<body style="margin:0;padding:0;background:#030712;font-family:Inter,-apple-system,Arial,sans-serif">
-<div style="max-width:540px;margin:0 auto;padding:40px 24px">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#07090f;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased">
 
-  <div style="text-align:center;margin-bottom:36px">
-    <div style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#8b5cf6);
-                border-radius:12px;padding:10px 22px;margin-bottom:20px">
-      <span style="color:#fff;font-size:16px;font-weight:800">🎮&nbsp; Inversiones Arcade</span>
+<!-- ── HERO ────────────────────────────────────────────────── -->
+<div style="background:linear-gradient(170deg,#2a0e00 0%,#1a0020 35%,#07090f 70%);
+            padding:0;overflow:hidden">
+
+  <!-- Warm radial glow overlay -->
+  <div style="background:radial-gradient(ellipse 90% 55% at 50% -5%,rgba(230,90,10,.28) 0%,transparent 65%);
+              padding:52px 28px 44px;text-align:center">
+
+    <!-- Brand pill -->
+    <div style="display:inline-block;margin-bottom:28px">
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22);
+                  border-radius:40px;padding:8px 20px;display:inline-flex;align-items:center;gap:8px">
+        <span style="font-size:15px">🎮</span>
+        <span style="color:#f59e0b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">
+          Inversiones Arcade &nbsp;·&nbsp; Medellín
+        </span>
+      </div>
     </div>
-    <h1 style="color:#f8fafc;font-size:24px;font-weight:800;margin:0 0 10px;letter-spacing:-0.5px">
-      ¡Gracias, {primer_nombre}!
+
+    <!-- Trust badge -->
+    <div style="margin-bottom:24px">
+      <div style="display:inline-block;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+                  border-radius:40px;padding:6px 16px">
+        <span style="color:#cbd5e1;font-size:12px;font-weight:500">
+          ✦ &nbsp;Socios activos recibiendo liquidaciones mensuales reales
+        </span>
+      </div>
+    </div>
+
+    <!-- Headline -->
+    <h1 style="margin:0 0 20px;font-size:40px;font-weight:900;line-height:1.08;letter-spacing:-1.5px;
+               max-width:520px;margin-left:auto;margin-right:auto">
+      <span style="color:#f1f5f9;display:block;margin-bottom:4px">
+        {primer_nombre}, tu dinero puede
+      </span>
+      <span style="background:linear-gradient(90deg,#f59e0b 0%,#f97316 55%,#ef4444 100%);
+                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                   background-clip:text;color:#f59e0b;display:block">
+        trabajar mientras tú descansas.
+      </span>
     </h1>
-    <p style="color:#94a3b8;font-size:15px;margin:0;line-height:1.6">
-      Recibimos tu solicitud. Pronto nos pondremos en contacto contigo.
-    </p>
-  </div>
 
-  <div style="background:#0c1222;border:1px solid #1e293b;border-radius:16px;padding:28px;margin-bottom:20px">
-    <p style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;margin:0 0 18px;font-weight:700">
-      ¿Qué sigue?
+    <!-- Subtitle -->
+    <p style="color:#94a3b8;font-size:16px;line-height:1.75;max-width:460px;
+              margin:0 auto 36px;font-weight:400">
+      Máquinas arcade en locales activos de Medellín. Ingresos reales,
+      <strong style="color:#e2e8f0;font-weight:600">verificables en tiempo real</strong>,
+      liquidados mes a mes.
     </p>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="background:rgba(59,130,246,.15);border-radius:8px;padding:8px;flex-shrink:0">
-          <span style="font-size:16px">📱</span>
-        </div>
-        <div>
-          <p style="color:#f8fafc;font-size:14px;font-weight:600;margin:0 0 4px">Te contactamos por WhatsApp</p>
-          <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5">
-            Uno de nuestros socios te escribirá en las próximas horas con toda la información.
-          </p>
-        </div>
+
+    <!-- ROI stat -->
+    <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);
+                border-radius:16px;padding:20px 28px;display:inline-block;margin-bottom:36px;
+                max-width:320px">
+      <div style="color:#f59e0b;font-size:42px;font-weight:900;letter-spacing:-2px;
+                  font-variant-numeric:tabular-nums;line-height:1">{roi_str}</div>
+      <div style="color:#78716c;font-size:11px;font-weight:600;text-transform:uppercase;
+                  letter-spacing:1px;margin-top:6px">{roi_desc}</div>
+    </div>
+
+    <!-- CTAs -->
+    <div style="margin-bottom:8px">
+      <!-- Primary CTA -->
+      <div style="margin-bottom:12px">
+        <a href="https://inversionesarcade.com/#simula"
+           style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#ef4444);
+                  color:#fff;text-decoration:none;padding:15px 32px;border-radius:40px;
+                  font-size:15px;font-weight:800;letter-spacing:-.2px;
+                  box-shadow:0 8px 32px rgba(245,100,10,.4)">
+          Simula tu inversión &rarr;
+        </a>
       </div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="background:rgba(139,92,246,.15);border-radius:8px;padding:8px;flex-shrink:0">
-          <span style="font-size:16px">📊</span>
-        </div>
-        <div>
-          <p style="color:#f8fafc;font-size:14px;font-weight:600;margin:0 0 4px">Proyecciones reales</p>
-          <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5">
-            Te compartiremos datos reales de operación: turnos jugados, ingresos y retornos actuales.
-          </p>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="background:rgba(34,197,94,.12);border-radius:8px;padding:8px;flex-shrink:0">
-          <span style="font-size:16px">📝</span>
-        </div>
-        <div>
-          <p style="color:#f8fafc;font-size:14px;font-weight:600;margin:0 0 4px">Proceso legal y contratos</p>
-          <p style="color:#64748b;font-size:13px;margin:0;line-height:1.5">
-            Te explicaremos cómo funciona la inversión, los contratos y la forma de participar.
-          </p>
-        </div>
+      <!-- Secondary CTA -->
+      <div>
+        <a href="{wpp_url}"
+           style="display:inline-block;background:rgba(255,255,255,.07);
+                  border:1px solid rgba(255,255,255,.14);
+                  color:#e2e8f0;text-decoration:none;padding:13px 28px;border-radius:40px;
+                  font-size:14px;font-weight:600">
+          💬 &nbsp;Hablar con un asesor
+        </a>
       </div>
     </div>
+
   </div>
-
-  <p style="color:#475569;font-size:12px;text-align:center;margin:0;line-height:1.8">
-    ¿Tienes preguntas urgentes? Escríbenos directamente por WhatsApp.<br>
-    <span style="color:#334155">Inversiones Arcade</span>
-  </p>
-
 </div>
+
+<!-- ── POR QUÉ ARCADE ──────────────────────────────────────── -->
+<div style="background:#07090f;padding:40px 28px">
+  <div style="max-width:520px;margin:0 auto">
+
+    <p style="color:#475569;font-size:10px;font-weight:700;text-transform:uppercase;
+              letter-spacing:1.2px;text-align:center;margin:0 0 28px">
+      Por qué funciona
+    </p>
+
+    <!-- Feature 1 -->
+    <div style="display:flex;gap:16px;margin-bottom:24px;align-items:flex-start">
+      <div style="background:rgba(245,158,11,.1);border-radius:12px;
+                  padding:12px;flex-shrink:0;width:44px;height:44px;
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:20px;box-sizing:border-box">🕹️</div>
+      <div>
+        <p style="color:#f1f5f9;font-size:15px;font-weight:700;margin:0 0 5px">
+          Las máquinas trabajan 7 días a la semana
+        </p>
+        <p style="color:#64748b;font-size:13px;margin:0;line-height:1.6">
+          No depende de empleados ni horarios. Cada turno jugado genera ingreso
+          automáticamente, a cualquier hora.
+        </p>
+      </div>
+    </div>
+
+    <!-- Feature 2 -->
+    <div style="display:flex;gap:16px;margin-bottom:24px;align-items:flex-start">
+      <div style="background:rgba(139,92,246,.1);border-radius:12px;
+                  padding:12px;flex-shrink:0;width:44px;height:44px;
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:20px;box-sizing:border-box">📡</div>
+      <div>
+        <p style="color:#f1f5f9;font-size:15px;font-weight:700;margin:0 0 5px">
+          Transparencia total en tiempo real
+        </p>
+        <p style="color:#64748b;font-size:13px;margin:0;line-height:1.6">
+          Ves cada turno jugado en tu portal personal. Ingresos, estado de la
+          máquina y tu participación, sin intermediarios.
+        </p>
+      </div>
+    </div>
+
+    <!-- Feature 3 -->
+    <div style="display:flex;gap:16px;margin-bottom:36px;align-items:flex-start">
+      <div style="background:rgba(34,197,94,.1);border-radius:12px;
+                  padding:12px;flex-shrink:0;width:44px;height:44px;
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:20px;box-sizing:border-box">💰</div>
+      <div>
+        <p style="color:#f1f5f9;font-size:15px;font-weight:700;margin:0 0 5px">
+          Tú defines tu porcentaje de propiedad
+        </p>
+        <p style="color:#64748b;font-size:13px;margin:0;line-height:1.6">
+          Desde el 10% hasta el 100% de una máquina. Escala a tu ritmo
+          y diversifica en múltiples locales.
+        </p>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:rgba(255,255,255,.06);margin-bottom:28px"></div>
+
+    <!-- CTA repetido -->
+    <div style="text-align:center;margin-bottom:8px">
+      <p style="color:#64748b;font-size:13px;margin:0 0 16px">
+        Uno de nuestros socios te contactará por WhatsApp en las próximas horas.<br>
+        Si prefieres no esperar:
+      </p>
+      <a href="{wpp_url}"
+         style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#f97316);
+                color:#fff;text-decoration:none;padding:13px 28px;border-radius:40px;
+                font-size:14px;font-weight:800">
+        💬 &nbsp;Escribir ahora por WhatsApp
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── FOOTER ──────────────────────────────────────────────── -->
+<div style="background:#050709;border-top:1px solid rgba(255,255,255,.05);
+            padding:24px 28px;text-align:center">
+  <div style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:8px;
+              padding:6px 14px;display:inline-block;margin-bottom:14px">
+    <span style="color:#fff;font-size:12px;font-weight:800">🎮 Inversiones Arcade</span>
+  </div>
+  <p style="color:#334155;font-size:11px;margin:0;line-height:1.7">
+    Medellín, Colombia &nbsp;·&nbsp; inversionesarcade.com<br>
+    Recibiste este correo porque dejaste tus datos en nuestro formulario de contacto.
+  </p>
+</div>
+
 </body>
 </html>"""
 

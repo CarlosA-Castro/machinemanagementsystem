@@ -143,7 +143,33 @@ def contacto_inversor():
         send_whatsapp(wpp)
 
         if email:
-            send_info_inversor(nombre, email)
+            # Consultar ROI promedio real de socios activos para el email
+            roi_promedio = None
+            try:
+                from utils.socios_finance import calcular_roi
+                roi_cursor = get_db_cursor(get_db_connection())
+                roi_cursor.execute(
+                    """
+                    SELECT s.id FROM socios s
+                    JOIN inversiones i ON i.socio_id = s.id AND i.estado = 'activa'
+                    WHERE s.estado = 'activo'
+                    LIMIT 5
+                    """
+                )
+                socios_ids = [r['id'] for r in roi_cursor.fetchall()]
+                if socios_ids:
+                    rois = []
+                    for sid in socios_ids:
+                        r = calcular_roi(roi_cursor, sid)
+                        if r and r > 0:
+                            rois.append(r)
+                    if rois:
+                        roi_promedio = round(sum(rois) / len(rois), 1)
+                roi_cursor.close()
+            except Exception:
+                pass  # Si falla, el email se manda igual sin el stat
+
+            send_info_inversor(nombre, email, roi_promedio=roi_promedio)
 
         return jsonify({'ok': True})
 
