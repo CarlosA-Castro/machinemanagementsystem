@@ -260,9 +260,9 @@ def send_bienvenida_inversor(
   </div>
 
   <!-- Aviso -->
-  <div style="background:#111827;border-left:3px solid #f59e0b;
+  <div style="background:#111827;border-left:3px solid #3b82f6;
               border-radius:8px;padding:14px 18px;margin-bottom:32px">
-    <p style="color:#f59e0b;font-size:12px;font-weight:700;margin:0 0 5px">
+    <p style="color:#3b82f6;font-size:12px;font-weight:700;margin:0 0 5px">
       ⚠️ Importante
     </p>
     <p style="color:#94a3b8;font-size:13px;margin:0;line-height:1.6">
@@ -335,19 +335,19 @@ def send_info_inversor(
 <body style="margin:0;padding:0;background:#07090f;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased">
 
 <!-- ── HERO ────────────────────────────────────────────────── -->
-<div style="background:linear-gradient(170deg,#2a0e00 0%,#1a0020 35%,#07090f 70%);
+<div style="background:linear-gradient(170deg,#020c1e 0%,#06091e 40%,#07090f 75%);
             padding:0;overflow:hidden">
 
   <!-- Warm radial glow overlay -->
-  <div style="background:radial-gradient(ellipse 90% 55% at 50% -5%,rgba(230,90,10,.28) 0%,transparent 65%);
+  <div style="background:radial-gradient(ellipse 90% 55% at 50% -5%,rgba(59,130,246,.2) 0%,transparent 65%);
               padding:52px 28px 44px;text-align:center">
 
     <!-- Brand pill -->
     <div style="display:inline-block;margin-bottom:28px">
-      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22);
+      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.22);
                   border-radius:40px;padding:8px 20px;display:inline-flex;align-items:center;gap:8px">
         <span style="font-size:15px">🎮</span>
-        <span style="color:#f59e0b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">
+        <span style="color:#3b82f6;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">
           Inversiones Arcade &nbsp;·&nbsp; Medellín
         </span>
       </div>
@@ -369,9 +369,9 @@ def send_info_inversor(
       <span style="color:#f1f5f9;display:block;margin-bottom:4px">
         {primer_nombre}, tu dinero puede
       </span>
-      <span style="background:linear-gradient(90deg,#f59e0b 0%,#f97316 55%,#ef4444 100%);
+      <span style="background:linear-gradient(90deg,#3b82f6 0%,#6366f1 55%,#8b5cf6 100%);
                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-                   background-clip:text;color:#f59e0b;display:block">
+                   background-clip:text;color:#3b82f6;display:block">
         trabajar mientras tú descansas.
       </span>
     </h1>
@@ -385,10 +385,10 @@ def send_info_inversor(
     </p>
 
     <!-- ROI stat -->
-    <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.18);
+    <div style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.18);
                 border-radius:16px;padding:20px 28px;display:inline-block;margin-bottom:36px;
                 max-width:320px">
-      <div style="color:#f59e0b;font-size:42px;font-weight:900;letter-spacing:-2px;
+      <div style="color:#3b82f6;font-size:42px;font-weight:900;letter-spacing:-2px;
                   font-variant-numeric:tabular-nums;line-height:1">{roi_str}</div>
       <div style="color:#78716c;font-size:11px;font-weight:600;text-transform:uppercase;
                   letter-spacing:1px;margin-top:6px">{roi_desc}</div>
@@ -399,10 +399,10 @@ def send_info_inversor(
       <!-- Primary CTA -->
       <div style="margin-bottom:12px">
         <a href="https://inversionesarcade.com/#simula"
-           style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#ef4444);
+           style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#8b5cf6);
                   color:#fff;text-decoration:none;padding:15px 32px;border-radius:40px;
                   font-size:15px;font-weight:800;letter-spacing:-.2px;
-                  box-shadow:0 8px 32px rgba(245,100,10,.4)">
+                  box-shadow:0 8px 32px rgba(59,130,246,.4)">
           Simula tu inversión &rarr;
         </a>
       </div>
@@ -432,7 +432,7 @@ def send_info_inversor(
 
     <!-- Feature 1 -->
     <div style="display:flex;gap:16px;margin-bottom:24px;align-items:flex-start">
-      <div style="background:rgba(245,158,11,.1);border-radius:12px;
+      <div style="background:rgba(59,130,246,.1);border-radius:12px;
                   padding:12px;flex-shrink:0;width:44px;height:44px;
                   display:flex;align-items:center;justify-content:center;
                   font-size:20px;box-sizing:border-box">🕹️</div>
@@ -491,7 +491,7 @@ def send_info_inversor(
         Si prefieres no esperar:
       </p>
       <a href="{wpp_url}"
-         style="display:inline-block;background:linear-gradient(135deg,#f59e0b,#f97316);
+         style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1);
                 color:#fff;text-decoration:none;padding:13px 28px;border-radius:40px;
                 font-size:14px;font-weight:800">
         💬 &nbsp;Escribir ahora por WhatsApp
