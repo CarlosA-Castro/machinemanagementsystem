@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+import secrets
+from datetime import datetime, date, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import sentry_sdk
@@ -20,6 +21,7 @@ from utils.socios_finance import (
     calcular_resumen_todos_socios,
 )
 from blueprints.esp32.state import get_heartbeat_fields
+from utils.notifications import send_bienvenida_inversor, send_whatsapp as _notify_wpp
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -1497,6 +1499,171 @@ def obtener_prospectos():
         logger.error(f"Error obteniendo prospectos: {e}")
         sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@socios_bp.route('/api/admin/activar-socio', methods=['POST'])
+@handle_api_errors
+@require_login(['admin'])
+def activar_socio():
+    """
+    Crea e inmediatamente activa un nuevo socio en un solo paso:
+      1. Genera código SOC-XXXX y usuario SOCxxxx con contraseña temporal
+      2. INSERT en users (role='socio')
+      3. INSERT en socios (estado='activo', user_id vinculado)
+      4. INSERT en inversiones (máquina, %, monto)
+      5. Marca prospecto como leído (si viene de contacto_inversor)
+      6. Envía email de bienvenida con credenciales (si hay email)
+      7. Notifica admin por WhatsApp
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json(silent=True) or {}
+
+        # Campos requeridos
+        nombre      = (data.get('nombre')      or '').strip()
+        documento   = (data.get('documento')   or '').strip()
+        maquina_id  = data.get('maquina_id')
+        pct         = data.get('porcentaje_inversion')
+        monto       = data.get('monto_inicial')
+        fecha_inicio = data.get('fecha_inicio')
+
+        if not nombre:
+            return jsonify({'ok': False, 'error': 'El nombre es requerido'}), 400
+        if not documento:
+            return jsonify({'ok': False, 'error': 'El documento es requerido'}), 400
+        if not maquina_id or not pct or not monto or not fecha_inicio:
+            return jsonify({'ok': False, 'error': 'Máquina, porcentaje, monto y fecha son requeridos'}), 400
+
+        tipo_doc  = (data.get('tipo_documento') or 'CC').strip()
+        telefono  = (data.get('telefono')       or '').strip()
+        email     = (data.get('email')          or '').strip() or None
+        notas     = (data.get('notas')          or '').strip()
+        prospecto_id = data.get('prospecto_id')
+
+        connection = get_db_connection()
+        cursor     = get_db_cursor(connection)
+
+        # ── 1. Generar código y credenciales ──────────────────────────
+        cursor.execute(
+            "SELECT MAX(CAST(SUBSTRING(codigo_socio, 5) AS UNSIGNED)) AS max_num "
+            "FROM socios WHERE codigo_socio LIKE 'SOC-%'"
+        )
+        row = cursor.fetchone()
+        num = (row['max_num'] or 0) + 1
+        codigo_socio  = f"SOC-{num:04d}"
+        username      = f"SOC{num:04d}"
+        password_temp = secrets.token_urlsafe(6)
+
+        # ── 2. Validar porcentaje disponible en la máquina ────────────
+        cursor.execute(
+            "SELECT COALESCE(SUM(porcentaje_inversion), 0) AS ocupado "
+            "FROM inversiones WHERE maquina_id = %s AND estado = 'activa'",
+            (maquina_id,),
+        )
+        ocupado = float(cursor.fetchone()['ocupado'] or 0)
+        disponible = 100 - ocupado
+        if float(pct) > disponible:
+            return jsonify({
+                'ok': False,
+                'error': f'Porcentaje no disponible. Solo quedan {disponible:.1f}% libres en esta máquina.',
+            }), 400
+
+        # ── 3. Crear usuario del sistema ──────────────────────────────
+        cursor.execute(
+            """INSERT INTO users
+               (name, password, password_hash, role, createdBy, notes)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (
+                username, '',
+                generate_password_hash(password_temp),
+                'socio',
+                session.get('user_id'),
+                f'Activado por admin desde panel de socios. Prospecto: {prospecto_id or "—"}',
+            ),
+        )
+        user_id = cursor.lastrowid
+
+        # ── 4. Crear socio vinculado ───────────────────────────────────
+        hoy = date.today()
+        cursor.execute(
+            """INSERT INTO socios
+               (codigo_socio, nombre, documento, tipo_documento, telefono, email,
+                fecha_inscripcion, fecha_vencimiento, estado, notas,
+                porcentaje_global, cuota_anual, user_id)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                codigo_socio, nombre, documento, tipo_doc, telefono, email,
+                hoy, hoy + timedelta(days=365),
+                'activo', notas, 0, 0, user_id,
+            ),
+        )
+        socio_id = cursor.lastrowid
+
+        # ── 5. Crear inversión ─────────────────────────────────────────
+        cursor.execute(
+            """INSERT INTO inversiones
+               (socio_id, maquina_id, porcentaje_inversion, fecha_inicio,
+                monto_inicial, estado)
+               VALUES (%s,%s,%s,%s,%s,'activa')""",
+            (socio_id, int(maquina_id), float(pct), fecha_inicio, float(monto)),
+        )
+        inversion_id = cursor.lastrowid
+
+        # ── 6. Marcar prospecto como leído ────────────────────────────
+        if prospecto_id:
+            cursor.execute(
+                "UPDATE contacto_inversor SET leido = 1 WHERE id = %s",
+                (prospecto_id,),
+            )
+
+        connection.commit()
+        logger.info(
+            'Socio activado: %s (%s) | user=%s | inv=%s | maquina=%s | pct=%s%%',
+            nombre, codigo_socio, user_id, inversion_id, maquina_id, pct,
+        )
+
+        # ── 7. Notificaciones (fuera de transacción) ───────────────────
+        credenciales_enviadas = False
+        if email:
+            try:
+                send_bienvenida_inversor(
+                    nombre, email, codigo_socio, username, password_temp,
+                    login_url="https://inversionesarcade.com/login",
+                )
+                credenciales_enviadas = True
+            except Exception as e:
+                logger.warning(f"Email de bienvenida falló: {e}")
+
+        _notify_wpp(
+            f"✅ SOCIO ACTIVADO\n"
+            f"Nombre: {nombre}\n"
+            f"Código: {codigo_socio} | Usuario: {username}\n"
+            f"Máquina: #{maquina_id} · {float(pct):.1f}%\n"
+            f"Monto: ${float(monto):,.0f} COP\n"
+            f"{'📧 Credenciales enviadas' if credenciales_enviadas else '⚠️ Sin email'}"
+        )
+
+        return jsonify({
+            'ok':                  True,
+            'socio_id':            socio_id,
+            'codigo_socio':        codigo_socio,
+            'username':            username,
+            'password_temp':       password_temp,
+            'inversion_id':        inversion_id,
+            'credenciales_enviadas': credenciales_enviadas,
+        })
+
+    except Exception as e:
+        logger.error(f"Error activando socio: {e}", exc_info=True)
+        sentry_sdk.capture_exception(e)
+        if connection:
+            try: connection.rollback()
+            except Exception: pass
+        return jsonify({'ok': False, 'error': f'Error del servidor: {str(e)}'}), 500
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()

@@ -1766,6 +1766,157 @@ document.addEventListener('DOMContentLoaded', function() {
     </script>
     <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
 
+    <!-- ── Modal Activación Guiada ─────────────────────────────── -->
+    <style>
+    .act-dot {
+        width:32px;height:32px;border-radius:50%;border:2px solid #e5e7eb;
+        background:#fff;color:#9ca3af;font-size:13px;font-weight:700;
+        display:flex;align-items:center;justify-content:center;flex-shrink:0;
+        transition:all .25s;
+    }
+    .act-dot.active { border-color:#3b82f6;background:#3b82f6;color:#fff; }
+    .act-dot.done   { border-color:#10b981;background:#10b981;color:#fff; }
+    .act-line { flex:1;height:2px;background:#e5e7eb;margin:0 6px;transition:background .25s; }
+    .act-line.done { background:#10b981; }
+    </style>
+
+    <div id="modalActivacion" class="modal-overlay">
+      <div class="modal-content" style="max-width:620px;width:95%">
+
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-5">
+          <div>
+            <h2 class="text-xl font-bold text-gray-800">
+              <i class="fas fa-user-check mr-2 text-blue-600"></i>Activar Nuevo Socio
+            </h2>
+            <p class="text-sm text-gray-400 mt-1" id="act-step-label">Paso 1 de 3 — Datos del socio</p>
+          </div>
+          <button onclick="cerrarModalActivacion()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none mt-1">&times;</button>
+        </div>
+
+        <!-- Stepper -->
+        <div class="flex items-center mb-6">
+          <div class="act-dot active" id="act-dot-1">1</div>
+          <div class="act-line" id="act-line-1"></div>
+          <div class="act-dot" id="act-dot-2">2</div>
+          <div class="act-line" id="act-line-2"></div>
+          <div class="act-dot" id="act-dot-3">3</div>
+          <span class="ml-3 text-xs text-gray-400 hidden sm:block">Datos · Inversión · Confirmar</span>
+        </div>
+
+        <!-- PASO 1: Datos del socio -->
+        <div id="act-step-1">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+              <input type="text" id="act-nombre" class="form-control" placeholder="Nombre completo del socio">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de documento *</label>
+              <select id="act-tipo-documento" class="form-control">
+                <option value="CC">Cédula de Ciudadanía</option>
+                <option value="CE">Cédula de Extranjería</option>
+                <option value="NIT">NIT</option>
+                <option value="PP">Pasaporte</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Número de documento *</label>
+              <input type="text" id="act-documento" class="form-control" placeholder="Ej: 1234567890">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">WhatsApp / Teléfono</label>
+              <input type="tel" id="act-telefono" class="form-control" placeholder="+57 300 000 0000">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" id="act-email" class="form-control" placeholder="correo@ejemplo.com">
+              <p class="text-xs text-gray-400 mt-1">Si hay email, se envían las credenciales automáticamente.</p>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Notas internas</label>
+              <textarea id="act-notas" class="form-control" rows="2" placeholder="Notas para el equipo (no se envían al socio)"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 2: Inversión -->
+        <div id="act-step-2" style="display:none">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Máquina *</label>
+              <select id="act-maquina" class="form-control">
+                <option value="">Cargando máquinas...</option>
+              </select>
+              <p id="act-pct-disponible" class="text-xs text-blue-500 mt-1 font-medium"></p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">% de propiedad *</label>
+              <input type="number" id="act-porcentaje" class="form-control"
+                     min="0.1" max="100" step="0.1" placeholder="Ej: 35">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Monto de inversión (COP) *</label>
+              <input type="number" id="act-monto" class="form-control"
+                     min="1" step="50000" placeholder="Ej: 5000000">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio *</label>
+              <input type="date" id="act-fecha" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 3: Confirmar -->
+        <div id="act-step-3" style="display:none">
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-4">
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">
+              <i class="fas fa-clipboard-check mr-1"></i>Resumen de la activación
+            </p>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-gray-500">Nombre</span><span class="font-semibold text-gray-800" id="res-nombre">—</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Documento</span><span class="font-semibold text-gray-800" id="res-documento">—</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Email</span><span class="font-semibold text-gray-800" id="res-email">—</span></div>
+              <div class="border-t border-blue-200 my-2"></div>
+              <div class="flex justify-between"><span class="text-gray-500">Máquina</span><span class="font-semibold text-gray-800" id="res-maquina">—</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">% Propiedad</span><span class="font-semibold text-blue-700 text-base" id="res-porcentaje">—</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Inversión</span><span class="font-semibold text-green-700" id="res-monto">—</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Fecha inicio</span><span class="font-semibold text-gray-800" id="res-fecha">—</span></div>
+            </div>
+          </div>
+          <div id="res-email-warning" class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 mb-2" style="display:none">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            <strong>Sin email:</strong> comparte las credenciales manualmente con el socio.
+          </div>
+          <div id="res-email-ok" class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-700 mb-2" style="display:none">
+            <i class="fas fa-envelope mr-1"></i>
+            Se enviará un email de bienvenida con credenciales de acceso al portal.
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="act-error" class="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700" style="display:none"></div>
+
+        <!-- Navegación -->
+        <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+          <button id="act-btn-back" onclick="actBack()" style="display:none"
+                  class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 btn-touch text-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Atrás
+          </button>
+          <div class="flex-1"></div>
+          <button id="act-btn-next" onclick="actNext()"
+                  class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 btn-touch text-sm font-semibold">
+            Siguiente <i class="fas fa-arrow-right ml-1"></i>
+          </button>
+          <button id="act-btn-submit" onclick="submitActivacion()" style="display:none"
+                  class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 btn-touch text-sm font-semibold">
+            <i class="fas fa-user-check mr-1"></i>Activar Socio
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ── Prospectos desde Landing ───────────────────────────── -->
     <script>
     async function cargarProspectos() {
@@ -1830,9 +1981,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="px-4 py-3 text-center">${estado}</td>
                     <td class="px-4 py-3 whitespace-nowrap">
                         ${btnLeer}
-                        <button onclick="crearSocioDesdeProspecto('${nomEsc}','${wppEsc}','${mailEsc}')"
+                        <button onclick="crearSocioDesdeProspecto('${nomEsc}','${wppEsc}','${mailEsc}',${p.id})"
                                 class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors">
-                            <i class="fas fa-user-plus mr-1"></i>Crear socio
+                            <i class="fas fa-user-check mr-1"></i>Activar socio
                         </button>
                     </td>
                 </tr>`;
@@ -1880,21 +2031,200 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function crearSocioDesdeProspecto(nombre, whatsapp, email) {
-        GestionSocios.mostrarModalNuevoSocio();
-        setTimeout(() => {
-            const form = document.getElementById('formSocio');
-            if (!form) return;
-            const n = form.querySelector('[name="nombre"]');
-            const t = form.querySelector('[name="telefono"]');
-            const e = form.querySelector('[name="email"]');
-            if (n) n.value = nombre;
-            if (t) t.value = whatsapp;
-            if (e) e.value = email;
-        }, 80);
+    // Redirige al nuevo modal de activación guiada
+    function crearSocioDesdeProspecto(nombre, whatsapp, email, prospectoId) {
+        abrirModalActivacion(nombre, whatsapp, email, prospectoId || null);
     }
 
     document.addEventListener('DOMContentLoaded', cargarProspectos);
+    </script>
+
+    <!-- ── Activación Guiada — JS ──────────────────────────────── -->
+    <script>
+    let actStep = 1;
+    let actData = {};
+    const ACT_LABELS = [
+        'Paso 1 de 3 — Datos del socio',
+        'Paso 2 de 3 — Asignar inversión',
+        'Paso 3 de 3 — Confirmar y activar',
+    ];
+    const fmtCOP = n => new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(+n || 0);
+
+    function abrirModalActivacion(nombre = '', whatsapp = '', email = '', prospectoId = null) {
+        actStep = 1;
+        actData = { prospecto_id: prospectoId };
+
+        document.getElementById('act-nombre').value    = nombre;
+        document.getElementById('act-telefono').value  = whatsapp;
+        document.getElementById('act-email').value     = email;
+        document.getElementById('act-documento').value = '';
+        document.getElementById('act-notas').value     = '';
+        document.getElementById('act-porcentaje').value = '';
+        document.getElementById('act-monto').value     = '';
+        document.getElementById('act-fecha').value     = new Date().toISOString().split('T')[0];
+        document.getElementById('act-pct-disponible').textContent = '';
+        document.getElementById('act-error').style.display = 'none';
+
+        cargarMaquinasActivacion();
+        renderActStep();
+        document.getElementById('modalActivacion').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModalActivacion() {
+        document.getElementById('modalActivacion').classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    function renderActStep() {
+        [1, 2, 3].forEach(s => {
+            document.getElementById(`act-step-${s}`).style.display = s === actStep ? 'block' : 'none';
+            const dot = document.getElementById(`act-dot-${s}`);
+            dot.className = 'act-dot' + (s === actStep ? ' active' : s < actStep ? ' done' : '');
+            if (s < actStep) dot.innerHTML = '<i class="fas fa-check" style="font-size:11px"></i>';
+            else dot.textContent = s;
+        });
+        [1, 2].forEach(s => {
+            document.getElementById(`act-line-${s}`).className = 'act-line' + (s < actStep ? ' done' : '');
+        });
+        document.getElementById('act-step-label').textContent    = ACT_LABELS[actStep - 1];
+        document.getElementById('act-btn-back').style.display    = actStep > 1 ? 'block' : 'none';
+        document.getElementById('act-btn-next').style.display    = actStep < 3 ? 'block' : 'none';
+        document.getElementById('act-btn-submit').style.display  = actStep === 3 ? 'block' : 'none';
+        document.getElementById('act-error').style.display       = 'none';
+    }
+
+    function actShowError(msg) {
+        const el = document.getElementById('act-error');
+        el.textContent = msg;
+        el.style.display = 'block';
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function actNext() {
+        document.getElementById('act-error').style.display = 'none';
+
+        if (actStep === 1) {
+            const nombre = document.getElementById('act-nombre').value.trim();
+            const doc    = document.getElementById('act-documento').value.trim();
+            if (!nombre) return actShowError('El nombre del socio es requerido.');
+            if (!doc)    return actShowError('El número de documento es requerido.');
+            actData.nombre          = nombre;
+            actData.documento       = doc;
+            actData.tipo_documento  = document.getElementById('act-tipo-documento').value;
+            actData.telefono        = document.getElementById('act-telefono').value.trim();
+            actData.email           = document.getElementById('act-email').value.trim() || null;
+            actData.notas           = document.getElementById('act-notas').value.trim();
+            actStep = 2;
+            renderActStep();
+
+        } else if (actStep === 2) {
+            const maquinaId = document.getElementById('act-maquina').value;
+            const pct       = parseFloat(document.getElementById('act-porcentaje').value);
+            const monto     = parseFloat(document.getElementById('act-monto').value);
+            const fecha     = document.getElementById('act-fecha').value;
+            if (!maquinaId)                    return actShowError('Selecciona una máquina.');
+            if (!pct || pct <= 0 || pct > 100) return actShowError('El porcentaje debe estar entre 0.1 y 100.');
+            if (!monto || monto <= 0)          return actShowError('El monto de inversión debe ser mayor a cero.');
+            if (!fecha)                         return actShowError('La fecha de inicio es requerida.');
+            actData.maquina_id           = parseInt(maquinaId);
+            actData.porcentaje_inversion = pct;
+            actData.monto_inicial        = monto;
+            actData.fecha_inicio         = fecha;
+            const sel = document.getElementById('act-maquina');
+            actData.maquina_nombre = sel.options[sel.selectedIndex]?.text || '';
+            renderResumenActivacion();
+            actStep = 3;
+            renderActStep();
+        }
+    }
+
+    function actBack() {
+        if (actStep > 1) { actStep--; renderActStep(); }
+    }
+
+    function renderResumenActivacion() {
+        document.getElementById('res-nombre').textContent     = actData.nombre;
+        document.getElementById('res-documento').textContent  = `${actData.tipo_documento} ${actData.documento}`;
+        document.getElementById('res-email').textContent      = actData.email || 'Sin email';
+        document.getElementById('res-maquina').textContent    = actData.maquina_nombre;
+        document.getElementById('res-porcentaje').textContent = `${actData.porcentaje_inversion}%`;
+        document.getElementById('res-monto').textContent      = fmtCOP(actData.monto_inicial);
+        document.getElementById('res-fecha').textContent      = actData.fecha_inicio;
+        document.getElementById('res-email-warning').style.display = actData.email ? 'none' : 'block';
+        document.getElementById('res-email-ok').style.display      = actData.email ? 'block' : 'none';
+    }
+
+    async function cargarMaquinasActivacion() {
+        const sel = document.getElementById('act-maquina');
+        sel.innerHTML = '<option value="">Cargando máquinas...</option>';
+        try {
+            const res = await fetch('/api/maquinas');
+            if (!res.ok) throw new Error();
+            const maquinas = await res.json();
+            sel.innerHTML = '<option value="">— Selecciona una máquina —</option>' +
+                maquinas.map(m => `<option value="${m.id}">${m.name}${m.location_name ? ' — ' + m.location_name : ''}</option>`).join('');
+
+            // Mostrar porcentaje disponible al seleccionar máquina
+            sel.onchange = async () => {
+                const mid = sel.value;
+                const info = document.getElementById('act-pct-disponible');
+                if (!mid) { info.textContent = ''; return; }
+                try {
+                    const r = await fetch(`/api/socios/<int:0>/inversiones`.replace('<int:0>', '0') ||
+                        `/api/inversiones?maquina_id=${mid}`);
+                    // Fallback: consultar porcentaje disponible via endpoint de inversiones
+                    const r2 = await fetch(`/api/maquinas/${mid}`);
+                    if (r2.ok) {
+                        const mq = await r2.json();
+                        const ocupado = (mq.porcentaje_ocupado || 0);
+                        const disp = (100 - ocupado).toFixed(1);
+                        info.textContent = `${disp}% disponible · ${(+ocupado).toFixed(1)}% asignado`;
+                    }
+                } catch { info.textContent = ''; }
+            };
+        } catch {
+            sel.innerHTML = '<option value="">Error al cargar máquinas</option>';
+        }
+    }
+
+    async function submitActivacion() {
+        const btn = document.getElementById('act-btn-submit');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Activando...';
+        document.getElementById('act-error').style.display = 'none';
+
+        try {
+            const res = await fetch('/api/admin/activar-socio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(actData),
+            });
+            const d = await res.json();
+            if (d.ok) {
+                cerrarModalActivacion();
+                const emailInfo = d.credenciales_enviadas
+                    ? '📧 Credenciales enviadas al email del socio.'
+                    : '⚠️ Sin email — comparte las credenciales manualmente:';
+                alert(
+                    `✅ Socio activado exitosamente\n\n` +
+                    `Código: ${d.codigo_socio}\n` +
+                    `Usuario: ${d.username}\n` +
+                    `Contraseña temporal: ${d.password_temp}\n\n` +
+                    emailInfo
+                );
+                GestionSocios.actualizarDatos();
+                cargarProspectos();
+            } else {
+                actShowError(d.error || 'Error al activar socio. Intenta de nuevo.');
+            }
+        } catch {
+            actShowError('Error de conexión. Intenta de nuevo.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-user-check mr-1"></i>Activar Socio';
+        }
+    }
     </script>
 </body>
 </html>
