@@ -10,6 +10,7 @@ from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from middleware.logging_mw import log_transaccion
 from utils.auth import require_login
+from utils.location_scope import get_active_location
 from utils.helpers import parse_json_col
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
@@ -1175,6 +1176,310 @@ def esp32_sync_offline():
         logger.error(f"Error en sync-offline: {e}")
         sentry_sdk.capture_exception(e)
         return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+# ── Reporte automático de hardware desde ESP32 ───────────────────────────────
+
+@esp32_bp.route('/api/esp32/report-hardware', methods=['POST'])
+@require_machine_token
+@handle_api_errors
+def esp32_report_hardware():
+    """
+    El ESP32 llama a este endpoint (junto con o después del heartbeat) para
+    reportar su versión de firmware, memoria total y memoria libre.
+    Body: { machine_id, firmware_version, total_heap, free_heap, components (opcional) }
+    Actualiza hardware_module donde machine_id coincide; si no existe el módulo, no falla.
+    """
+    connection = None
+    cursor = None
+    try:
+        data             = request.get_json(silent=True) or {}
+        machine_id       = data.get('machine_id')
+        firmware_version = data.get('firmware_version')
+        total_heap       = data.get('total_heap')
+        free_heap        = data.get('free_heap')
+        components       = data.get('components')  # lista JSON opcional
+
+        if not machine_id:
+            return jsonify({'status': 'error', 'message': 'machine_id requerido'}), 400
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'status': 'error', 'message': 'db'}), 500
+        cursor = get_db_cursor(connection)
+
+        cursor.execute(
+            "SELECT id FROM hardware_module WHERE machine_id = %s LIMIT 1",
+            (machine_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            cursor.execute(
+                """
+                UPDATE hardware_module
+                SET firmware_version = COALESCE(%s, firmware_version),
+                    total_heap       = COALESCE(%s, total_heap),
+                    free_heap        = COALESCE(%s, free_heap),
+                    components       = COALESCE(%s, components),
+                    last_seen        = NOW()
+                WHERE id = %s
+                """,
+                (
+                    firmware_version,
+                    total_heap,
+                    free_heap,
+                    json.dumps(components) if components is not None else None,
+                    row['id'],
+                ),
+            )
+            connection.commit()
+
+        return jsonify({'status': 'ok'})
+
+    except Exception as e:
+        logger.error(f"[ESP32] Error report-hardware: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+# ── CRUD admin — Módulos Hardware ─────────────────────────────────────────────
+
+@esp32_bp.route('/api/admin/hardware-modules', methods=['GET'])
+@require_login(['admin'])
+@handle_api_errors
+def admin_list_hardware_modules():
+    """Lista todos los módulos hardware con su máquina asociada."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        active_id, _ = get_active_location()
+
+        query = """
+            SELECT
+                hm.id, hm.module_code, hm.machine_id,
+                m.name  AS machine_name,
+                l.id    AS location_id,
+                l.name  AS location_name,
+                hm.status, hm.firmware_version,
+                hm.total_heap, hm.free_heap,
+                hm.components, hm.notes, hm.last_seen,
+                hm.created_at, hm.updated_at
+            FROM hardware_module hm
+            LEFT JOIN machine m  ON hm.machine_id = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+        """
+        params = []
+        if active_id is not None:
+            query += " WHERE (m.location_id = %s OR hm.machine_id IS NULL)"
+            params.append(active_id)
+        query += " ORDER BY hm.module_code ASC"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        modules = []
+        for r in rows:
+            d = dict(r)
+            if isinstance(d.get('components'), str):
+                try:
+                    d['components'] = json.loads(d['components'])
+                except Exception:
+                    d['components'] = []
+            if d.get('last_seen'):
+                d['last_seen'] = d['last_seen'].isoformat()
+            if d.get('created_at'):
+                d['created_at'] = d['created_at'].isoformat()
+            if d.get('updated_at'):
+                d['updated_at'] = d['updated_at'].isoformat()
+            modules.append(d)
+
+        return jsonify({'status': 'success', 'data': modules})
+
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/admin/hardware-modules', methods=['POST'])
+@require_login(['admin'])
+@handle_api_errors
+def admin_create_hardware_module():
+    """Crea un nuevo módulo hardware."""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json(silent=True) or {}
+        module_code = (data.get('module_code') or '').strip()
+        if not module_code:
+            return jsonify({'status': 'error', 'message': 'module_code requerido'}), 400
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute(
+            """
+            INSERT INTO hardware_module
+                (module_code, machine_id, status, firmware_version,
+                 total_heap, free_heap, components, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                module_code,
+                data.get('machine_id') or None,
+                data.get('status', 'activo'),
+                data.get('firmware_version') or None,
+                data.get('total_heap') or None,
+                data.get('free_heap') or None,
+                json.dumps(data['components']) if data.get('components') else None,
+                data.get('notes') or None,
+            ),
+        )
+        new_id = cursor.lastrowid
+        connection.commit()
+        return jsonify({'status': 'success', 'id': new_id}), 201
+
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        if 'Duplicate entry' in str(e):
+            return jsonify({'status': 'error', 'message': f'El código {data.get("module_code")} ya existe'}), 409
+        raise
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/admin/hardware-modules/<int:module_id>', methods=['GET'])
+@require_login(['admin'])
+@handle_api_errors
+def admin_get_hardware_module(module_id):
+    """Devuelve un módulo por ID."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute(
+            """
+            SELECT hm.*, m.name AS machine_name, l.name AS location_name
+            FROM hardware_module hm
+            LEFT JOIN machine m  ON hm.machine_id = m.id
+            LEFT JOIN location l ON m.location_id = l.id
+            WHERE hm.id = %s
+            """,
+            (module_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'status': 'error', 'message': 'Módulo no encontrado'}), 404
+
+        d = dict(row)
+        if isinstance(d.get('components'), str):
+            try:
+                d['components'] = json.loads(d['components'])
+            except Exception:
+                d['components'] = []
+        for k in ('last_seen', 'created_at', 'updated_at'):
+            if d.get(k):
+                d[k] = d[k].isoformat()
+
+        return jsonify({'status': 'success', 'data': d})
+
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/admin/hardware-modules/<int:module_id>', methods=['PUT'])
+@require_login(['admin'])
+@handle_api_errors
+def admin_update_hardware_module(module_id):
+    """Edita un módulo hardware (campos editables por admin)."""
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json(silent=True) or {}
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT id FROM hardware_module WHERE id = %s", (module_id,))
+        if not cursor.fetchone():
+            return jsonify({'status': 'error', 'message': 'Módulo no encontrado'}), 404
+
+        cursor.execute(
+            """
+            UPDATE hardware_module SET
+                module_code      = COALESCE(%s, module_code),
+                machine_id       = %s,
+                status           = COALESCE(%s, status),
+                firmware_version = COALESCE(%s, firmware_version),
+                total_heap       = COALESCE(%s, total_heap),
+                free_heap        = COALESCE(%s, free_heap),
+                components       = COALESCE(%s, components),
+                notes            = %s
+            WHERE id = %s
+            """,
+            (
+                data.get('module_code') or None,
+                data.get('machine_id') or None,
+                data.get('status') or None,
+                data.get('firmware_version') or None,
+                data.get('total_heap') or None,
+                data.get('free_heap') or None,
+                json.dumps(data['components']) if data.get('components') is not None else None,
+                data.get('notes'),
+                module_id,
+            ),
+        )
+        connection.commit()
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        raise
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/admin/hardware-modules/<int:module_id>', methods=['DELETE'])
+@require_login(['admin'])
+@handle_api_errors
+def admin_delete_hardware_module(module_id):
+    """Elimina un módulo hardware."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("DELETE FROM hardware_module WHERE id = %s", (module_id,))
+        if cursor.rowcount == 0:
+            return jsonify({'status': 'error', 'message': 'Módulo no encontrado'}), 404
+        connection.commit()
+        return jsonify({'status': 'success'})
+
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()

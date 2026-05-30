@@ -185,6 +185,21 @@ def mostrar_consola_completa():
 # FASE 3: /admin/inversores/gestionsocios se migra junto con el blueprint partners
 
 
+# ── Módulos Hardware ESP32 ────────────────────────────────────────────────────
+
+@admin_bp.route('/admin/esp32/modulos')
+@require_login(['admin'])
+def mostrar_gestion_esp32():
+    hora_colombia = get_colombia_time()
+    return render_template(
+        'admin/esp32/gestionesp32.html',
+        nombre_usuario=session.get('user_name', 'Administrador'),
+        local_usuario=session.get('user_local', 'Sistema'),
+        hora_actual=hora_colombia.strftime('%H:%M:%S'),
+        fecha_actual=hora_colombia.strftime('%Y-%m-%d'),
+    )
+
+
 # ── Firmware OTA ──────────────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/firmware/gestionfirmware')
