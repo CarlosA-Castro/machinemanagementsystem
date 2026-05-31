@@ -1188,10 +1188,11 @@ def esp32_sync_offline():
 @handle_api_errors
 def esp32_report_hardware():
     """
-    El ESP32 llama a este endpoint (junto con o después del heartbeat) para
-    reportar su versión de firmware, memoria total y memoria libre.
+    El ESP32 llama a este endpoint cada STATUS_UPDATE_MS para reportar su estado.
     Body: { machine_id, firmware_version, total_heap, free_heap, components (opcional) }
-    Actualiza hardware_module donde machine_id coincide; si no existe el módulo, no falla.
+    - Si ya existe un hardware_module para esta máquina → actualiza.
+    - Si NO existe → lo crea automáticamente con module_code = MOD-{machine_id:03d}.
+    El admin solo necesita revisar / etiquetar; nunca crear manualmente.
     """
     connection = None
     cursor = None
@@ -1201,7 +1202,7 @@ def esp32_report_hardware():
         firmware_version = data.get('firmware_version')
         total_heap       = data.get('total_heap')
         free_heap        = data.get('free_heap')
-        components       = data.get('components')  # lista JSON opcional
+        components       = data.get('components')
 
         if not machine_id:
             return jsonify({'status': 'error', 'message': 'machine_id requerido'}), 400
@@ -1216,7 +1217,11 @@ def esp32_report_hardware():
             (machine_id,)
         )
         row = cursor.fetchone()
+
+        comps_json = json.dumps(components) if components else None
+
         if row:
+            # Módulo ya existe → actualizar solo los campos que reporta el ESP32
             cursor.execute(
                 """
                 UPDATE hardware_module
@@ -1227,16 +1232,32 @@ def esp32_report_hardware():
                     last_seen        = NOW()
                 WHERE id = %s
                 """,
-                (
-                    firmware_version,
-                    total_heap,
-                    free_heap,
-                    json.dumps(components) if components is not None else None,
-                    row['id'],
-                ),
+                (firmware_version, total_heap, free_heap, comps_json, row['id']),
             )
-            connection.commit()
+        else:
+            # Módulo no existe → crearlo automáticamente
+            module_code = f"MOD-{int(machine_id):03d}"
+            # Garantizar unicidad si el código ya existe por alguna razón
+            cursor.execute(
+                "SELECT COUNT(*) AS cnt FROM hardware_module WHERE module_code = %s",
+                (module_code,)
+            )
+            if cursor.fetchone()['cnt'] > 0:
+                module_code = f"MOD-{int(machine_id):03d}-{int(machine_id)}"
 
+            cursor.execute(
+                """
+                INSERT INTO hardware_module
+                    (module_code, machine_id, status, firmware_version,
+                     total_heap, free_heap, components, last_seen)
+                VALUES (%s, %s, 'activo', %s, %s, %s, %s, NOW())
+                """,
+                (module_code, machine_id, firmware_version,
+                 total_heap, free_heap, comps_json),
+            )
+            logger.info(f"[hardware_module] Auto-creado {module_code} para máquina {machine_id}")
+
+        connection.commit()
         return jsonify({'status': 'ok'})
 
     except Exception as e:
