@@ -515,7 +515,7 @@ const ESP32Mgr = {
         document.getElementById('modalId').value = m.id;
         document.getElementById('f-code').value = m.module_code || '';
         document.getElementById('f-status').value = m.status || 'activo';
-        document.getElementById('f-machine').value = m.machine_id || '';
+        document.getElementById('f-machine').value = m.machine_id ? String(m.machine_id) : '';
         document.getElementById('f-notes').value = m.notes || '';
 
         // Panel de datos auto-reportados
@@ -526,7 +526,7 @@ const ESP32Mgr = {
             const freeKB  = m.free_heap  ? Math.round(m.free_heap  / 1024) + ' KB' : '—';
             const totalKB = m.total_heap ? Math.round(m.total_heap / 1024) + ' KB' : '—';
             document.getElementById('mi-ram').textContent = `${freeKB} / ${totalKB}`;
-            document.getElementById('mi-seen').textContent = m.last_seen ? this.relativeTime(m.last_seen) : '—';
+            document.getElementById('mi-seen').innerHTML = m.last_seen ? this.relativeTime(m.last_seen) : '—';
         } else {
             autoInfo.classList.add('hidden');
         }
