@@ -290,3 +290,59 @@ def firmware_activar(firmware_id: int):
         f"— FORCE_OTA enviado a {notified} máquina(s)"
     )
     return jsonify({'ok': True, 'active_id': firmware_id, 'machines_notified': notified}), 200
+
+
+@firmware_bp.route('/api/admin/firmware/<int:firmware_id>/deploy-select', methods=['POST'])
+@require_login(['admin'])
+@handle_api_errors
+def firmware_deploy_select(firmware_id: int):
+    """
+    Envía FORCE_OTA solo a las máquinas indicadas en machine_ids.
+    NO cambia la versión activa global — solo despacha el comando a las
+    máquinas seleccionadas para que descarguen este firmware específico.
+    Body: { machine_ids: [1, 3, 7] }
+    """
+    from flask import request as _req
+    data       = _req.get_json(silent=True) or {}
+    machine_ids = data.get('machine_ids', [])
+    if not machine_ids or not isinstance(machine_ids, list):
+        return jsonify({'error': 'machine_ids requerido (lista de IDs)'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'db_error'}), 500
+    cur = get_db_cursor(conn)
+
+    cur.execute("SELECT id, filename FROM firmware WHERE id = %s", (firmware_id,))
+    firmware = cur.fetchone()
+    if not firmware:
+        cur.close(); conn.close()
+        return jsonify({'error': 'Versión no encontrada'}), 404
+
+    if not _firmware_file_exists(firmware['filename']):
+        cur.close(); conn.close()
+        return jsonify({'error': 'El archivo .bin no existe en el servidor'}), 409
+
+    triggered_by = f"firmware_select_v{firmware_id}_u{session.get('user_id', 0)}"
+    notified = 0
+    for mid in machine_ids:
+        try:
+            mid_int = int(mid)
+        except (TypeError, ValueError):
+            continue
+        cur.execute(
+            "INSERT INTO esp32_commands "
+            "  (machine_id, command, parameters, triggered_by, status, triggered_at) "
+            "VALUES (%s, 'FORCE_OTA', '{}', %s, 'queued', NOW())",
+            (mid_int, triggered_by),
+        )
+        notified += 1
+
+    conn.commit()
+    cur.close(); conn.close()
+
+    logger.info(
+        f"Firmware {firmware_id} deploy selectivo por user {session.get('user_id')} "
+        f"— FORCE_OTA enviado a {notified} máquina(s) seleccionadas: {machine_ids}"
+    )
+    return jsonify({'ok': True, 'firmware_id': firmware_id, 'machines_notified': notified}), 200
