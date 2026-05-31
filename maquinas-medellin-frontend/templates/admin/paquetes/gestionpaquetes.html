@@ -255,9 +255,12 @@
                             <i class="fas fa-calendar mr-2 ml-4"></i><span id="fechaActual"></span>
                         </p>
                     </div>
-                    <div class="mt-4 lg:mt-0 flex gap-3">
+                    <div class="mt-4 lg:mt-0 flex gap-3 flex-wrap">
                         <button onclick="PaquetesApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
                             <i class="fas fa-sync-alt mr-2"></i>Actualizar
+                        </button>
+                        <button onclick="CampaignMgr.openCreate()" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 btn-touch">
+                            <i class="fas fa-bolt mr-2"></i>Nueva Campaña
                         </button>
                         <button onclick="PaquetesApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
                             <i class="fas fa-plus mr-2"></i>Nuevo Paquete
@@ -265,6 +268,9 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Banner campañas activas ahora -->
+            <div id="bannerCampanas" class="hidden mb-4"></div>
 
             <!-- Estadísticas rápidas -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -331,6 +337,23 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- ── Sección Campañas ──────────────────────────────────────── -->
+            <div class="glass-card mt-4">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+                    <h2 class="text-xl font-semibold text-gray-800">
+                        <i class="fas fa-bolt mr-2 text-orange-500"></i>Campañas de Precios
+                    </h2>
+                    <button onclick="CampaignMgr.reload()" class="text-sm text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-sync-alt mr-1"></i>Actualizar
+                    </button>
+                </div>
+                <div id="campaignsTable">
+                    <div class="text-center py-8 text-gray-400">
+                        <div class="loading mx-auto mb-2"></div>Cargando campañas…
+                    </div>
                 </div>
             </div>
         </main>
@@ -896,6 +919,8 @@
                 setTimeout(() => toast.remove(), 4000);
             },
 
+            showToast: function(mensaje, tipo) { this.mostrarAlerta(mensaje, tipo); },
+
             mostrarError: function(mensaje) {
                 this.mostrarAlerta(mensaje, 'error');
             }
@@ -931,5 +956,591 @@
     })();
     </script>
     <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL CAMPAÑA
+═══════════════════════════════════════════════════════ -->
+<div id="campaignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+<div style="background:white;border-radius:16px;padding:2rem;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <h2 style="font-size:1.2rem;font-weight:700;color:#1f2937;" id="campaignModalTitle">Nueva Campaña</h2>
+        <button onclick="CampaignMgr.closeModal()" style="background:none;border:none;font-size:1.5rem;color:#9ca3af;cursor:pointer;">&times;</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div style="grid-column:1/-1">
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Nombre de la campaña *</label>
+            <input id="c-name" type="text" placeholder="ej: Happy Hour Jueves, Día Gratis Aniversario"
+                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo de horario</label>
+            <select id="c-schedule-type" onchange="CampaignMgr.onScheduleChange()"
+                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+                <option value="once">Una sola vez</option>
+                <option value="recurring">Recurrente (días de semana)</option>
+                <option value="flash">Flash — activar ahora</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Prioridad</label>
+            <input id="c-priority" type="number" value="0" min="0" max="99"
+                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+            <p style="font-size:.7rem;color:#9ca3af;margin-top:2px;">Mayor número = prevalece sobre otras campañas</p>
+        </div>
+    </div>
+
+    <!-- Fechas (once / recurring) -->
+    <div id="c-dates-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Fecha inicio</label>
+            <input id="c-date-from" type="date" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+        </div>
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Fecha fin <span style="font-weight:400;color:#9ca3af;">(vacío = sin límite)</span></label>
+            <input id="c-date-to" type="date" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+        </div>
+    </div>
+
+    <!-- Horas -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Hora inicio <span style="font-weight:400;color:#9ca3af;">(vacío = todo el día)</span></label>
+            <input id="c-time-from" type="time" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+        </div>
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Hora fin</label>
+            <input id="c-time-to" type="time" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+        </div>
+    </div>
+
+    <!-- Días de semana (solo recurring) -->
+    <div id="c-days-row" style="display:none;margin-bottom:1rem;">
+        <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Días de la semana</label>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((d,i) =>
+                `<label style="cursor:pointer;"><input type="checkbox" class="c-day" value="${i}" style="margin-right:4px;">${d}</label>`
+            ).join('')}
+        </div>
+    </div>
+
+    <!-- Flash: duración -->
+    <div id="c-flash-row" style="display:none;margin-bottom:1rem;">
+        <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Duración del flash (horas)</label>
+        <input id="c-flash-hours" type="number" value="2" min="0.5" max="12" step="0.5"
+            style="width:120px;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+    </div>
+
+    <hr style="margin:1rem 0;border-color:#f3f4f6;">
+
+    <!-- Regla de descuento -->
+    <h3 style="font-size:.9rem;font-weight:700;color:#374151;margin-bottom:.75rem;">
+        <i class="fas fa-tag" style="color:#f59e0b;margin-right:6px;"></i>Tipo de beneficio
+    </h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo</label>
+            <select id="c-rule-type" onchange="CampaignMgr.onRuleTypeChange()"
+                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+                <option value="free">🎁 Gratis (precio = $0)</option>
+                <option value="discount_pct">% Descuento porcentual</option>
+                <option value="discount_fixed">$ Descuento valor fijo</option>
+                <option value="fixed_price">💲 Precio fijo especial</option>
+                <option value="bonus_turns">🎮 Turnos extra (bonus)</option>
+                <option value="buy_x_get_y">🛒 Compra X lleva Y</option>
+            </select>
+        </div>
+        <div id="c-rule-value-wrap">
+            <!-- Se llena dinámicamente según el tipo -->
+        </div>
+    </div>
+
+    <!-- Paquetes que aplica -->
+    <div style="margin-bottom:1.25rem;">
+        <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Aplica a</label>
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:.5rem;">
+            <label style="cursor:pointer;font-size:.875rem;"><input type="radio" name="c-applies" value="all_packages" checked style="margin-right:4px;"> Todos los paquetes</label>
+            <label style="cursor:pointer;font-size:.875rem;"><input type="radio" name="c-applies" value="specific_packages" style="margin-right:4px;"> Paquetes específicos</label>
+        </div>
+        <div id="c-pkg-select" style="display:none;border:1px solid #e5e7eb;border-radius:8px;max-height:160px;overflow-y:auto;padding:.5rem;">
+            <!-- Checkboxes de paquetes -->
+        </div>
+    </div>
+
+    <div id="c-description-wrap" style="margin-bottom:1.25rem;">
+        <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Nota interna</label>
+        <textarea id="c-description" rows="2" placeholder="Contexto interno de esta campaña..."
+            style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;box-sizing:border-box;"></textarea>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:.75rem;">
+        <button onclick="CampaignMgr.closeModal()"
+            style="padding:.5rem 1.25rem;background:#f3f4f6;border:none;border-radius:8px;cursor:pointer;font-size:.875rem;">
+            Cancelar
+        </button>
+        <button onclick="CampaignMgr.save()"
+            style="padding:.5rem 1.25rem;background:#f97316;color:white;border:none;border-radius:8px;cursor:pointer;font-size:.875rem;font-weight:600;">
+            <i class="fas fa-save" style="margin-right:6px;"></i>Guardar campaña
+        </button>
+    </div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// CampaignMgr — gestión de campañas de precios
+// ══════════════════════════════════════════════════════════════════════════════
+const CampaignMgr = {
+    all:       [],
+    packages:  [],
+    editingId: null,
+
+    RULE_LABELS: {
+        free:           '🎁 Gratis',
+        discount_pct:   '% Descuento',
+        discount_fixed: '$ Descuento fijo',
+        fixed_price:    '💲 Precio fijo',
+        bonus_turns:    '🎮 Turnos extra',
+        buy_x_get_y:    '🛒 Compra X lleva Y',
+    },
+
+    SCHED_LABELS: {
+        once:      'Una vez',
+        recurring: 'Recurrente',
+        flash:     'Flash',
+    },
+
+    DAYS: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],
+
+    async init() {
+        await this.loadPackages();
+        await this.reload();
+        await this.loadBanner();
+        // Recargar banner cada 60s
+        setInterval(() => this.loadBanner(), 60000);
+    },
+
+    async loadPackages() {
+        try {
+            const r = await fetch('/api/paquetes');
+            const d = await r.json();
+            this.packages = Array.isArray(d) ? d : (d.data || d.paquetes || []);
+        } catch(e) { console.error('loadPackages', e); }
+    },
+
+    async reload() {
+        try {
+            const r = await fetch('/api/admin/campaigns');
+            const d = await r.json();
+            this.all = d.data || [];
+            this.render();
+        } catch(e) {
+            document.getElementById('campaignsTable').innerHTML =
+                '<p style="color:#ef4444;padding:1rem;">Error cargando campañas</p>';
+        }
+    },
+
+    async loadBanner() {
+        try {
+            const r = await fetch('/api/admin/campaigns/activas-ahora');
+            const d = await r.json();
+            const activas = d.data || [];
+            const banner  = document.getElementById('bannerCampanas');
+            if (!activas.length) { banner.classList.add('hidden'); return; }
+            banner.classList.remove('hidden');
+            banner.innerHTML = `
+                <div style="background:linear-gradient(135deg,#fef3c7,#fed7aa);border:1px solid #f59e0b;
+                            border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:flex-start;gap:.75rem;">
+                    <i class="fas fa-bolt" style="color:#f59e0b;font-size:1.25rem;margin-top:2px;flex-shrink:0;"></i>
+                    <div>
+                        <p style="font-weight:700;color:#92400e;margin-bottom:4px;">
+                            ⚡ ${activas.length} campaña(s) activa(s) ahora mismo
+                        </p>
+                        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                            ${activas.map(c => `
+                                <span style="background:white;border:1px solid #f59e0b;border-radius:20px;
+                                             padding:2px 10px;font-size:.75rem;font-weight:600;color:#92400e;">
+                                    ${c.name} — ${this.RULE_LABELS[c.rule_type] || c.rule_type}
+                                    ${c.time_to ? `hasta ${c.time_to}` : ''}
+                                </span>`).join('')}
+                        </div>
+                    </div>
+                </div>`;
+        } catch(e) {}
+    },
+
+    render() {
+        const container = document.getElementById('campaignsTable');
+        if (!this.all.length) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:3rem;color:#9ca3af;">
+                    <i class="fas fa-bolt" style="font-size:2.5rem;margin-bottom:.75rem;display:block;opacity:.3;"></i>
+                    <p style="font-size:.9rem;">No hay campañas creadas todavía.</p>
+                    <p style="font-size:.8rem;margin-top:.25rem;">Crea una para ofrecer descuentos, turnos gratis o dinámicas especiales.</p>
+                </div>`;
+            return;
+        }
+
+        const now = new Date();
+        container.innerHTML = `
+            <div style="overflow-x:auto;">
+            <table style="width:100%;font-size:.85rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:2px solid #f3f4f6;text-align:left;color:#6b7280;font-size:.75rem;text-transform:uppercase;">
+                        <th style="padding:.5rem .75rem;">Campaña</th>
+                        <th style="padding:.5rem .75rem;">Beneficio</th>
+                        <th style="padding:.5rem .75rem;">Horario</th>
+                        <th style="padding:.5rem .75rem;">Paquetes</th>
+                        <th style="padding:.5rem .75rem;">Usos</th>
+                        <th style="padding:.5rem .75rem;">Estado</th>
+                        <th style="padding:.5rem .75rem;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${this.all.map(c => this.rowHtml(c)).join('')}
+                </tbody>
+            </table>
+            </div>`;
+    },
+
+    rowHtml(c) {
+        const rule    = (c.rules || [])[0] || {};
+        const rtype   = rule.rule_type || '—';
+        const rval    = rule.rule_value || {};
+        const benefit = this.benefitLabel(rtype, rval);
+        const sched   = this.schedLabel(c);
+        const pkgs    = rule.applies_to === 'all_packages'
+            ? '<span style="color:#6b7280;font-style:italic;">Todos</span>'
+            : (rule.package_ids || []).length + ' paquetes';
+
+        const statusBg    = c.is_active ? '#d1fae5' : '#f3f4f6';
+        const statusColor = c.is_active ? '#065f46' : '#6b7280';
+        const statusTxt   = c.is_active ? 'Activa' : 'Pausada';
+
+        return `
+        <tr style="border-bottom:1px solid #f9fafb;transition:background .1s;"
+            onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background=''">
+            <td style="padding:.65rem .75rem;">
+                <div style="font-weight:600;color:#1f2937;">${c.name}</div>
+                ${c.location_name ? `<div style="font-size:.72rem;color:#9ca3af;"><i class="fas fa-map-marker-alt"></i> ${c.location_name}</div>` : '<div style="font-size:.72rem;color:#9ca3af;">Todos los locales</div>'}
+                ${c.priority > 0 ? `<div style="font-size:.7rem;color:#f59e0b;">★ Prioridad ${c.priority}</div>` : ''}
+            </td>
+            <td style="padding:.65rem .75rem;">
+                <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;">${benefit}</span>
+            </td>
+            <td style="padding:.65rem .75rem;font-size:.8rem;color:#374151;">${sched}</td>
+            <td style="padding:.65rem .75rem;font-size:.8rem;color:#374151;">${pkgs}</td>
+            <td style="padding:.65rem .75rem;font-size:.85rem;font-weight:600;color:#4f46e5;">${c.redemptions || 0}</td>
+            <td style="padding:.65rem .75rem;">
+                <span style="background:${statusBg};color:${statusColor};padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;">${statusTxt}</span>
+            </td>
+            <td style="padding:.65rem .75rem;">
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                    ${c.schedule_type !== 'flash' ? `
+                    <button onclick="CampaignMgr.flash(${c.id},'${c.name}')" title="Activar Flash ahora"
+                        style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;
+                               padding:3px 8px;font-size:.72rem;cursor:pointer;">
+                        ⚡ Flash
+                    </button>` : ''}
+                    <button onclick="CampaignMgr.toggle(${c.id})" title="${c.is_active ? 'Pausar' : 'Activar'}"
+                        style="background:${c.is_active ? '#fee2e2' : '#d1fae5'};
+                               color:${c.is_active ? '#991b1b' : '#065f46'};
+                               border:1px solid ${c.is_active ? '#fca5a5' : '#6ee7b7'};
+                               border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;">
+                        ${c.is_active ? '⏸ Pausar' : '▶ Activar'}
+                    </button>
+                    <button onclick="CampaignMgr.openEdit(${c.id})"
+                        style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;
+                               border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;">
+                        ✏️
+                    </button>
+                    <button onclick="CampaignMgr.del(${c.id},'${c.name.replace(/'/g, "\\\'")}')"
+                        style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;
+                               border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;">
+                        🗑️
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    },
+
+    benefitLabel(rtype, rval) {
+        switch(rtype) {
+            case 'free':           return '🎁 Gratis';
+            case 'discount_pct':   return `${rval.pct || 0}% descuento`;
+            case 'discount_fixed': return `$${(rval.amount||0).toLocaleString('es-CO')} menos`;
+            case 'fixed_price':    return `Precio fijo $${(rval.price||0).toLocaleString('es-CO')}`;
+            case 'bonus_turns':    return `+${rval.bonus||0} turnos extra`;
+            case 'buy_x_get_y':    return `Compra ${rval.buy||0} lleva ${rval.get||0}`;
+            default: return rtype;
+        }
+    },
+
+    schedLabel(c) {
+        const parts = [];
+        if (c.schedule_type === 'flash')    parts.push('⚡ Flash');
+        if (c.schedule_type === 'once')     parts.push('📅 Una vez');
+        if (c.schedule_type === 'recurring') {
+            const days = (c.schedule_config?.days || []).map(d => this.DAYS[d]).join(', ');
+            parts.push(`🔁 ${days || 'Todos los días'}`);
+        }
+        if (c.date_from) parts.push(`Desde ${c.date_from}`);
+        if (c.date_to)   parts.push(`Hasta ${c.date_to}`);
+        if (c.time_from && c.time_to) parts.push(`${c.time_from}–${c.time_to}`);
+        return parts.join('<br>') || '—';
+    },
+
+    // ── Modal ─────────────────────────────────────────────────────────────────
+    openCreate() {
+        this.editingId = null;
+        document.getElementById('campaignModalTitle').textContent = 'Nueva Campaña';
+        this._resetForm();
+        this._fillPackageCheckboxes([]);
+        // Fecha inicio = hoy
+        document.getElementById('c-date-from').value = new Date().toISOString().split('T')[0];
+        this.onScheduleChange();
+        this.onRuleTypeChange();
+        document.getElementById('campaignModal').style.display = 'flex';
+    },
+
+    openEdit(id) {
+        const c = this.all.find(x => x.id === id);
+        if (!c) return;
+        this.editingId = id;
+        document.getElementById('campaignModalTitle').textContent = `Editar — ${c.name}`;
+        document.getElementById('c-name').value        = c.name || '';
+        document.getElementById('c-schedule-type').value = c.schedule_type || 'once';
+        document.getElementById('c-priority').value    = c.priority || 0;
+        document.getElementById('c-date-from').value   = c.date_from || '';
+        document.getElementById('c-date-to').value     = c.date_to   || '';
+        document.getElementById('c-time-from').value   = c.time_from || '';
+        document.getElementById('c-time-to').value     = c.time_to   || '';
+        document.getElementById('c-description').value = c.description || '';
+
+        // Días recurrentes
+        const days = c.schedule_config?.days || [];
+        document.querySelectorAll('.c-day').forEach(cb => {
+            cb.checked = days.includes(parseInt(cb.value));
+        });
+
+        // Regla
+        const rule = (c.rules || [])[0] || {};
+        document.getElementById('c-rule-type').value = rule.rule_type || 'free';
+        const applies = document.querySelector(`input[name="c-applies"][value="${rule.applies_to || 'all_packages'}"]`);
+        if (applies) applies.checked = true;
+        this._fillPackageCheckboxes(rule.package_ids || []);
+
+        this.onScheduleChange();
+        this.onRuleTypeChange();
+
+        // Rellenar valor de regla
+        const rval = rule.rule_value || {};
+        const rtype = rule.rule_type;
+        if (rtype === 'discount_pct')   document.getElementById('rv-pct')?.setAttribute('value', rval.pct || '');
+        if (rtype === 'discount_fixed') document.getElementById('rv-amount')?.setAttribute('value', rval.amount || '');
+        if (rtype === 'fixed_price')    document.getElementById('rv-price')?.setAttribute('value', rval.price || '');
+        if (rtype === 'bonus_turns')    document.getElementById('rv-bonus')?.setAttribute('value', rval.bonus || '');
+        if (rtype === 'buy_x_get_y') {
+            document.getElementById('rv-buy')?.setAttribute('value', rval.buy || '');
+            document.getElementById('rv-get')?.setAttribute('value', rval.get || '');
+        }
+        setTimeout(() => {
+            if (rtype === 'discount_pct')   { const el = document.getElementById('rv-pct');    if (el) el.value = rval.pct    || ''; }
+            if (rtype === 'discount_fixed') { const el = document.getElementById('rv-amount'); if (el) el.value = rval.amount || ''; }
+            if (rtype === 'fixed_price')    { const el = document.getElementById('rv-price');  if (el) el.value = rval.price  || ''; }
+            if (rtype === 'bonus_turns')    { const el = document.getElementById('rv-bonus');  if (el) el.value = rval.bonus  || ''; }
+            if (rtype === 'buy_x_get_y') {
+                const b = document.getElementById('rv-buy'), g = document.getElementById('rv-get');
+                if (b) b.value = rval.buy || ''; if (g) g.value = rval.get || '';
+            }
+        }, 50);
+
+        document.getElementById('campaignModal').style.display = 'flex';
+    },
+
+    closeModal() { document.getElementById('campaignModal').style.display = 'none'; },
+
+    _resetForm() {
+        ['c-name','c-date-from','c-date-to','c-time-from','c-time-to','c-description'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        document.getElementById('c-schedule-type').value = 'once';
+        document.getElementById('c-priority').value = '0';
+        document.getElementById('c-rule-type').value = 'free';
+        const all = document.querySelector('input[name="c-applies"][value="all_packages"]');
+        if (all) all.checked = true;
+        document.querySelectorAll('.c-day').forEach(cb => cb.checked = false);
+    },
+
+    _fillPackageCheckboxes(selected) {
+        const wrap = document.getElementById('c-pkg-select');
+        wrap.innerHTML = this.packages.map(p => `
+            <label style="display:flex;align-items:center;gap:.5rem;padding:4px 6px;cursor:pointer;font-size:.85rem;border-bottom:1px solid #f9fafb;">
+                <input type="checkbox" class="c-pkg-cb" value="${p.id}"
+                    ${selected.includes(p.id) || selected.includes(String(p.id)) ? 'checked' : ''}>
+                <span>${p.name}</span>
+                <span style="margin-left:auto;color:#9ca3af;font-size:.75rem;">$${parseFloat(p.price).toLocaleString('es-CO')}</span>
+            </label>`).join('');
+        document.querySelectorAll('input[name="c-applies"]').forEach(r => {
+            r.addEventListener('change', () => {
+                wrap.style.display = r.value === 'specific_packages' && r.checked ? 'block' : 'none';
+            });
+        });
+        const specific = document.querySelector('input[name="c-applies"]:checked');
+        wrap.style.display = specific?.value === 'specific_packages' ? 'block' : 'none';
+    },
+
+    onScheduleChange() {
+        const stype = document.getElementById('c-schedule-type').value;
+        document.getElementById('c-dates-row').style.display  = stype === 'flash' ? 'none' : 'grid';
+        document.getElementById('c-days-row').style.display   = stype === 'recurring' ? 'block' : 'none';
+        document.getElementById('c-flash-row').style.display  = stype === 'flash' ? 'block' : 'none';
+    },
+
+    onRuleTypeChange() {
+        const rtype = document.getElementById('c-rule-type').value;
+        const wrap  = document.getElementById('c-rule-value-wrap');
+        const inp   = (id, label, type='number', extra='') =>
+            `<label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${label}</label>
+             <input id="${id}" type="${type}" ${extra}
+                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">`;
+        const templates = {
+            free:           `<div style="padding:.75rem;background:#f0fdf4;border-radius:8px;color:#166534;font-size:.8rem;"><i class="fas fa-gift"></i> El paquete se entregará a $0</div>`,
+            discount_pct:   inp('rv-pct', 'Porcentaje de descuento (%)', 'number', 'min="1" max="100" placeholder="10"'),
+            discount_fixed: inp('rv-amount', 'Monto a descontar ($)', 'number', 'min="100" step="100" placeholder="2000"'),
+            fixed_price:    inp('rv-price', 'Nuevo precio fijo ($)', 'number', 'min="0" step="100" placeholder="5000"'),
+            bonus_turns:    inp('rv-bonus', 'Turnos extra a agregar', 'number', 'min="1" placeholder="2"'),
+            buy_x_get_y:    `${inp('rv-buy', 'El cliente compra (turnos base)', 'number', 'min="1" placeholder="5"')}
+                             <div style="margin-top:.5rem;">${inp('rv-get', 'El cliente recibe (turnos totales)', 'number', 'min="1" placeholder="8"')}</div>`,
+        };
+        wrap.innerHTML = templates[rtype] || '';
+    },
+
+    _getRuleValue(rtype) {
+        switch(rtype) {
+            case 'discount_pct':   return { pct:    parseFloat(document.getElementById('rv-pct')?.value    || 0) };
+            case 'discount_fixed': return { amount: parseFloat(document.getElementById('rv-amount')?.value || 0) };
+            case 'fixed_price':    return { price:  parseFloat(document.getElementById('rv-price')?.value  || 0) };
+            case 'bonus_turns':    return { bonus:  parseInt(document.getElementById('rv-bonus')?.value    || 0) };
+            case 'buy_x_get_y':    return { buy: parseInt(document.getElementById('rv-buy')?.value || 0), get: parseInt(document.getElementById('rv-get')?.value || 0) };
+            default: return {};
+        }
+    },
+
+    async save() {
+        const name = document.getElementById('c-name').value.trim();
+        if (!name) { alert('El nombre es obligatorio'); return; }
+
+        const stype = document.getElementById('c-schedule-type').value;
+        const rtype = document.getElementById('c-rule-type').value;
+
+        const days = [];
+        document.querySelectorAll('.c-day:checked').forEach(cb => days.push(parseInt(cb.value)));
+
+        const appliesto = document.querySelector('input[name="c-applies"]:checked')?.value || 'all_packages';
+        const pkgIds    = appliesto === 'specific_packages'
+            ? [...document.querySelectorAll('.c-pkg-cb:checked')].map(cb => parseInt(cb.value))
+            : [];
+
+        const payload = {
+            name,
+            description:     document.getElementById('c-description').value.trim() || null,
+            schedule_type:   stype,
+            schedule_config: stype === 'recurring' ? { days } : {},
+            date_from:       document.getElementById('c-date-from').value || null,
+            date_to:         document.getElementById('c-date-to').value   || null,
+            time_from:       document.getElementById('c-time-from').value || null,
+            time_to:         document.getElementById('c-time-to').value   || null,
+            priority:        parseInt(document.getElementById('c-priority').value) || 0,
+            is_active:       1,
+            rule: {
+                applies_to:  appliesto,
+                package_ids: pkgIds,
+                rule_type:   rtype,
+                rule_value:  this._getRuleValue(rtype),
+            },
+        };
+
+        const url    = this.editingId ? `/api/admin/campaigns/${this.editingId}` : '/api/admin/campaigns';
+        const method = this.editingId ? 'PUT' : 'POST';
+
+        try {
+            const r = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify(payload),
+            });
+            const d = await r.json();
+            if (!r.ok) { alert(d.error || 'Error guardando'); return; }
+
+            // Si es flash, activarlo inmediatamente
+            if (stype === 'flash') {
+                const fid = d.id || this.editingId;
+                const hours = parseFloat(document.getElementById('c-flash-hours')?.value || 2);
+                await fetch(`/api/admin/campaigns/${fid}/flash`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                    body: JSON.stringify({ hours }),
+                });
+            }
+
+            this.closeModal();
+            await this.reload();
+            await this.loadBanner();
+            PaquetesApp.showToast(this.editingId ? 'Campaña actualizada' : '⚡ Campaña creada', 'success');
+        } catch(e) {
+            alert('Error de conexión');
+        }
+    },
+
+    async toggle(id) {
+        try {
+            const r = await fetch(`/api/admin/campaigns/${id}/toggle`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            });
+            const d = await r.json();
+            await this.reload();
+            await this.loadBanner();
+            PaquetesApp.showToast(d.is_active ? '▶ Campaña activada' : '⏸ Campaña pausada', 'info');
+        } catch(e) { alert('Error'); }
+    },
+
+    async flash(id, name) {
+        const hours = prompt(`¿Cuántas horas activar "${name}" en modo Flash?`, '2');
+        if (!hours) return;
+        try {
+            const r = await fetch(`/api/admin/campaigns/${id}/flash`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                body: JSON.stringify({ hours: parseFloat(hours) }),
+            });
+            const d = await r.json();
+            await this.reload();
+            await this.loadBanner();
+            PaquetesApp.showToast(`⚡ Flash activo: ${d.time_from}–${d.time_to}`, 'success');
+        } catch(e) { alert('Error'); }
+    },
+
+    async del(id, name) {
+        if (!confirm(`¿Eliminar la campaña "${name}"? Se perderán los datos de analítica.`)) return;
+        try {
+            await fetch(`/api/admin/campaigns/${id}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            });
+            await this.reload();
+            await this.loadBanner();
+            PaquetesApp.showToast('Campaña eliminada', 'warning');
+        } catch(e) { alert('Error'); }
+    },
+};
+
+// Arrancar cuando PaquetesApp ya cargó
+document.addEventListener('DOMContentLoaded', () => {
+    // Esperar un tick para que PaquetesApp inicie primero
+    setTimeout(() => CampaignMgr.init(), 300);
+});
+</script>
 </body>
 </html>

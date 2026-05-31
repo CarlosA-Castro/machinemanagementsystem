@@ -220,6 +220,7 @@ def create_app() -> Flask:
     from blueprints.logs.routes        import logs_bp
     from blueprints.devoluciones.routes import devoluciones_bp
     from blueprints.firmware.routes    import firmware_bp
+    from blueprints.campaigns.routes  import campaigns_bp
 
     for blueprint in (
         auth_bp,
@@ -243,6 +244,7 @@ def create_app() -> Flask:
         logs_bp,
         devoluciones_bp,
         firmware_bp,
+        campaigns_bp,
     ):
         app.register_blueprint(blueprint)
 

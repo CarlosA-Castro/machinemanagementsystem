@@ -15,6 +15,7 @@ from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
 from utils.validators import validate_required_fields
 from utils.location_scope import get_active_location, user_can_view_all
+from blueprints.campaigns.routes import get_active_campaign_for_package, record_redemption
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -309,8 +310,24 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
             logger.error(f"Paquete {paquete_id} no encontrado")
             return []
 
-        turns_paquete = paquete['turns']
+        turns_paquete  = paquete['turns']
+        precio_paquete = float(paquete['price'])
         nombre_paquete = paquete['name']
+
+        # ── Aplicar campaña activa si existe ──────────────────────────────────
+        location_id_activo = session.get('active_location_id')
+        campaign_result = get_active_campaign_for_package(
+            paquete_id, location_id_activo, cursor
+        )
+        if campaign_result:
+            turns_paquete  = campaign_result['final_turns']
+            precio_paquete = campaign_result['final_price']
+            logger.info(
+                f"[campaign] Aplicando '{campaign_result['campaign_name']}' "
+                f"a paquete {paquete_id}: {campaign_result['original_turns']}t "
+                f"→ {turns_paquete}t | ${campaign_result['original_price']:,.0f} "
+                f"→ ${precio_paquete:,.0f}"
+            )
 
         cursor.execute("""
             SELECT counter_value FROM globalcounter
@@ -373,6 +390,13 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
                 (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real, payment_method)
                 VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s)
             """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre, payment_method))
+
+            # Registrar redención de campaña si aplica
+            if campaign_result:
+                record_redemption(
+                    cursor, campaign_result,
+                    nuevo_codigo, user_id, location_id_activo
+                )
 
         connection.commit()
 
