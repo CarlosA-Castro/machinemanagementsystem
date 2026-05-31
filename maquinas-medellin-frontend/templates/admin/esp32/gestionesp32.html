@@ -354,26 +354,33 @@ const ESP32Mgr = {
             if (s) s.textContent = new Date().toLocaleTimeString('es-CO', { hour12: false });
         }, 1000);
 
-        await this.loadMachines();
         await this.loadModules();
         setInterval(() => this.loadModules(), 30000);
     },
 
-    async loadMachines() {
+    async loadMachines(selectedId = null) {
+        const sel = document.getElementById('f-machine');
+        sel.innerHTML = '<option value="">⏳ Cargando máquinas...</option>';
         try {
             const r = await fetch('/api/admin/machines');
-            if (!r.ok) return;
+            if (!r.ok) throw new Error(r.status);
             const d = await r.json();
             this.machines = Array.isArray(d) ? d : (d.machines || d.data || []);
-            const sel = document.getElementById('f-machine');
             sel.innerHTML = '<option value="">— Sin asignar —</option>';
             this.machines.forEach(m => {
                 const o = document.createElement('option');
-                o.value = m.id;
+                o.value = String(m.id);
                 o.textContent = `#${m.id} — ${m.name}`;
                 sel.appendChild(o);
             });
-        } catch (e) { console.error('loadMachines', e); }
+            if (selectedId) sel.value = String(selectedId);
+            if (this.machines.length === 0) {
+                sel.innerHTML = '<option value="">⚠️ Sin máquinas disponibles en este local</option>';
+            }
+        } catch (e) {
+            console.error('loadMachines', e);
+            sel.innerHTML = '<option value="">❌ Error cargando máquinas</option>';
+        }
     },
 
     async loadModules() {
@@ -515,8 +522,9 @@ const ESP32Mgr = {
         document.getElementById('modalId').value = m.id;
         document.getElementById('f-code').value = m.module_code || '';
         document.getElementById('f-status').value = m.status || 'activo';
-        document.getElementById('f-machine').value = m.machine_id ? String(m.machine_id) : '';
         document.getElementById('f-notes').value = m.notes || '';
+        // Cargar máquinas y pre-seleccionar la asignada
+        this.loadMachines(m.machine_id || null);
 
         // Panel de datos auto-reportados
         const autoInfo = document.getElementById('modalAutoInfo');
@@ -590,13 +598,19 @@ const ESP32Mgr = {
         if (!id)   { this.toast('Error: módulo sin ID', 'error'); return; }
 
         // Solo se envían los campos que el admin controla; firmware/RAM los gestiona el ESP32
+        const sel = document.getElementById('f-machine');
+        // Si el dropdown no cargó opciones (solo el placeholder de error/carga), no enviamos
+        // machine_id para no pisar el valor existente en BD
+        const machinesLoaded = this.machines.length > 0;
         const payload = {
             module_code: code,
             status:      document.getElementById('f-status').value,
-            machine_id:  document.getElementById('f-machine').value || null,
             notes:       document.getElementById('f-notes').value.trim() || null,
             components:  this.getComponentsFromForm(),
         };
+        if (machinesLoaded) {
+            payload.machine_id = sel.value || null;
+        }
 
         const url    = `/api/admin/hardware-modules/${id}`;
         const method = 'PUT';
