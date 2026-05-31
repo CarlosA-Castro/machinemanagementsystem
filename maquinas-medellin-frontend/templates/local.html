@@ -848,37 +848,92 @@ fetch('/api/mis-permisos')
         document.getElementById('modalSelectorPaquetes').classList.remove('flex');
       },
 
-      cargarPaquetesParaSelector: function() {
+      campanasActivas: [],
+
+      cargarPaquetesParaSelector: async function() {
         const container = document.getElementById('paquetes-container-selector');
         container.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto mb-2"></div><p class="text-gray-600">Cargando paquetes...</p></div>';
-        fetch('/api/paquetes', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(res => res.json())
-        .then(paquetes => { this.paquetesData = paquetes; this.renderizarPaquetesEnSelector(paquetes); })
-        .catch(err => { container.innerHTML = `<div class="col-span-full text-center py-8"><p class="text-gray-600">Error al cargar paquetes</p><button onclick="LocalApp.cargarPaquetesParaSelector()" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded">Reintentar</button></div>`; });
+        try {
+          // Cargar paquetes y campañas activas en paralelo
+          const [resPaq, resCamp] = await Promise.all([
+            fetch('/api/paquetes', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+            fetch('/api/admin/campaigns/activas-ahora', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(() => null),
+          ]);
+          const paquetes = await resPaq.json();
+          this.campanasActivas = resCamp ? ((await resCamp.json()).data || []) : [];
+          this.paquetesData = paquetes;
+          this.renderizarPaquetesEnSelector(paquetes);
+        } catch(err) {
+          container.innerHTML = `<div class="col-span-full text-center py-8"><p class="text-gray-600">Error al cargar paquetes</p><button onclick="LocalApp.cargarPaquetesParaSelector()" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded">Reintentar</button></div>`;
+        }
+      },
+
+      _getCampaignForPackage: function(packageId) {
+        for (const c of (this.campanasActivas || [])) {
+          if (!c.rule_type) continue;
+          return c; // primer campaña activa aplica (ya viene ordenada por prioridad del backend)
+        }
+        return null;
       },
 
       renderizarPaquetesEnSelector: function(paquetes) {
         const container = document.getElementById('paquetes-container-selector');
         container.innerHTML = '';
+
+        // Banner campaña activa
+        if (this.campanasActivas && this.campanasActivas.length) {
+          const banner = document.createElement('div');
+          banner.className = 'col-span-full';
+          banner.innerHTML = `<div style="background:linear-gradient(135deg,#fef3c7,#fed7aa);border:1px solid #f59e0b;border-radius:10px;padding:.6rem 1rem;margin-bottom:.5rem;font-size:.8rem;font-weight:600;color:#92400e;">
+            ⚡ Campaña activa: ${this.campanasActivas.map(c => c.name).join(', ')}
+          </div>`;
+          container.appendChild(banner);
+        }
+
         paquetes.filter(p => p.isActive !== false && p.isActive !== 0).forEach(paquete => {
+          const applied = this._applycamp_fn(paquete);
           const button = document.createElement('button');
           button.className = 'btnPaquete btn-touch';
-          button.innerHTML = `<div class="font-bold text-lg">P${paquete.id}</div><div class="paquete-info"><div class="font-semibold text-green-600">${paquete.turns} turnos</div><div class="font-semibold text-blue-600">$${paquete.price.toLocaleString('es-CO')}</div><div class="text-xs text-gray-500 mt-1">${paquete.name}</div></div>`;
-          button.onclick = () => this.seleccionarPaquete(paquete);
+          const priceHtml = applied.campaign
+            ? `<div style="text-decoration:line-through;color:#9ca3af;font-size:.75rem;">$${parseFloat(paquete.price).toLocaleString('es-CO')}</div>
+               <div class="font-semibold" style="color:#dc2626;">$${parseFloat(applied.finalPrice).toLocaleString('es-CO')}</div>
+               <div style="background:#fef3c7;color:#92400e;border-radius:8px;font-size:.65rem;padding:1px 5px;margin-top:2px;">⚡ ${applied.campaign.name}</div>`
+            : `<div class="font-semibold text-blue-600">$${parseFloat(paquete.price).toLocaleString('es-CO')}</div>`;
+          const turnsHtml = applied.finalTurns !== parseInt(paquete.turns)
+            ? `<div><span style="text-decoration:line-through;color:#9ca3af;">${paquete.turns}</span> → <span style="color:#16a34a;font-weight:700;">${applied.finalTurns}</span> turnos</div>`
+            : `<div class="font-semibold text-green-600">${paquete.turns} turnos</div>`;
+          button.innerHTML = `<div class="font-bold text-lg">P${paquete.id}</div><div class="paquete-info">${turnsHtml}${priceHtml}<div class="text-xs text-gray-500 mt-1">${paquete.name}</div></div>`;
+          button.onclick = () => this.seleccionarPaquete(applied);
           container.appendChild(button);
         });
       },
 
+      _applycamp_fn: function(paquete) {
+        const camp = this._getCampaignForPackage(paquete.id);
+        if (!camp) return { ...paquete, finalPrice: parseFloat(paquete.price), finalTurns: parseInt(paquete.turns), campaign: null };
+        const rtype = camp.rule_type, rval = camp.rule_value || {};
+        let finalPrice = parseFloat(paquete.price), finalTurns = parseInt(paquete.turns);
+        if (rtype === 'free')           finalPrice = 0;
+        else if (rtype === 'discount_pct')   finalPrice = Math.round(finalPrice * (1-(rval.pct||0)/100)/100)*100;
+        else if (rtype === 'discount_fixed') finalPrice = Math.max(0, finalPrice-(rval.amount||0));
+        else if (rtype === 'fixed_price')    finalPrice = rval.price||finalPrice;
+        else if (rtype === 'bonus_turns')    finalTurns += rval.bonus||0;
+        else if (rtype === 'buy_x_get_y')    finalTurns = rval.get||finalTurns;
+        return { ...paquete, finalPrice, finalTurns, campaign: camp };
+      },
+
       seleccionarPaquete: function(paquete) {
         this.paqueteSeleccionado = paquete;
-        document.getElementById('paqueteIdSeleccionado').value = paquete.id;
-        document.getElementById('paquetePrecioSeleccionado').value = paquete.price;
-        document.getElementById('paqueteTurnosSeleccionado').value = paquete.turns;
-        document.getElementById('paqueteSeleccionadoTexto').innerHTML = `<span class="font-bold">P${paquete.id}</span> - ${paquete.name}`;
+        const precio  = paquete.finalPrice !== undefined ? paquete.finalPrice : paquete.price;
+        const turnos  = paquete.finalTurns !== undefined ? paquete.finalTurns : paquete.turns;
+        document.getElementById('paqueteIdSeleccionado').value    = paquete.id;
+        document.getElementById('paquetePrecioSeleccionado').value = precio;
+        document.getElementById('paqueteTurnosSeleccionado').value = turnos;
+        document.getElementById('paqueteSeleccionadoTexto').innerHTML = `<span class="font-bold">P${paquete.id}</span> - ${paquete.name}${paquete.campaign ? ' ⚡' : ''}`;
         document.getElementById('infoPaqueteSeleccionado').classList.remove('hidden');
-        document.getElementById('infoPaqueteNombre').textContent = `P${paquete.id} - ${paquete.name}`;
-        document.getElementById('infoPaquetePrecio').textContent = `$${paquete.price.toLocaleString('es-CO')}`;
-        document.getElementById('infoPaqueteTurnos').textContent = `${paquete.turns} turnos`;
+        document.getElementById('infoPaqueteNombre').textContent  = `P${paquete.id} - ${paquete.name}`;
+        document.getElementById('infoPaquetePrecio').textContent  = `$${parseFloat(precio).toLocaleString('es-CO')}${paquete.campaign ? ' (campaña)' : ''}`;
+        document.getElementById('infoPaqueteTurnos').textContent  = `${turnos} turnos`;
         this.cerrarSelectorPaquetes();
       },
 

@@ -385,17 +385,23 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
                 VALUES (LAST_INSERT_ID(), %s, %s, %s)
             """, (turns_paquete, turns_paquete, paquete_id))
 
+            _final_price   = campaign_result['final_price']   if campaign_result else None
+            _campaign_id   = campaign_result['campaign_id']   if campaign_result else None
+
             cursor.execute("""
                 INSERT INTO qrhistory
-                (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real, payment_method)
-                VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s)
-            """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre, payment_method))
+                (qr_code, user_id, user_name, local, fecha_hora, qr_name,
+                 es_venta_real, payment_method, final_price, campaign_id)
+                VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s)
+            """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre,
+                  payment_method, _final_price, _campaign_id))
 
-            # Registrar redención de campaña si aplica
+            # Registrar redención de campaña para analítica
             if campaign_result:
                 record_redemption(
                     cursor, campaign_result,
-                    nuevo_codigo, user_id, location_id_activo
+                    nuevo_codigo, user_id, location_id_activo,
+                    package_id=paquete_id
                 )
 
         connection.commit()

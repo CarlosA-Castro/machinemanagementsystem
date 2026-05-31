@@ -206,7 +206,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
             tp.turns AS turnos_por_paquete,
             tp.price AS precio_unitario,
             COUNT(DISTINCT qh.qr_code) AS paquetes_vendidos,
-            COUNT(DISTINCT qh.qr_code) * COALESCE(MAX(tp.price), 0) AS ingresos_totales
+            SUM(COALESCE(qh.final_price, tp.price)) AS ingresos_totales
         FROM qrhistory qh
         JOIN qrcode qr ON qr.code = qh.qr_code
         JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -326,7 +326,7 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
             COUNT(DISTINCT qr.id) AS qrs_utilizados,
             COALESCE(SUM(
                 CASE WHEN tp.price IS NOT NULL AND COALESCE(tp.turns, 0) > 0
-                     THEN tp.price / tp.turns
+                     THEN COALESCE(qh.final_price, tp.price) / tp.turns
                      ELSE COALESCE(m.valor_por_turno, 3000.00)
                 END
             ), 0) AS ingresos_estimados
@@ -335,6 +335,7 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
         JOIN qrcode  qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+        LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
         WHERE DATE(tu.usedAt) BETWEEN %s AND %s
         GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante, {admin_col}
         ORDER BY ingresos_estimados DESC
@@ -365,10 +366,11 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
             COALESCE(tp.turns, 0) AS turnos_por_paquete,
             COUNT(tu.id) AS turnos_usados,
             COUNT(DISTINCT qr.id) AS qrs_utilizados,
-            COALESCE(SUM(tp.price / NULLIF(tp.turns, 0)), 0) AS ingresos_estimados
+            COALESCE(SUM(COALESCE(qh.final_price, tp.price) / NULLIF(tp.turns, 0)), 0) AS ingresos_estimados
         FROM turnusage tu
         JOIN qrcode qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+        LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
         WHERE DATE(tu.usedAt) BETWEEN %s AND %s
           AND qr.turnPackageId IS NOT NULL
           AND qr.turnPackageId != 1
@@ -536,7 +538,7 @@ def _build_propietarios_distribution(cursor, fecha_inicio, fecha_fin):
             m.id AS maquina_id,
             m.name AS maquina_nombre,
             mp.porcentaje_propiedad,
-            COALESCE(SUM(tp.price / NULLIF(tp.turns, 0)), 0) AS ingresos_estimados,
+            COALESCE(SUM(COALESCE(qh.final_price, tp.price) / NULLIF(tp.turns, 0)), 0) AS ingresos_estimados,
             COUNT(tu.id) AS turnos_usados
         FROM maquinapropietario mp
         JOIN propietarios p ON mp.propietario_id = p.id
@@ -544,6 +546,7 @@ def _build_propietarios_distribution(cursor, fecha_inicio, fecha_fin):
         LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) BETWEEN %s AND %s
         LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+        LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad
         ORDER BY ingresos_estimados DESC
         """,
@@ -595,10 +598,10 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
             mp.porcentaje_propiedad,
             tp.id AS paquete_id,
             tp.name AS paquete_nombre,
-            tp.price AS precio_unitario,
+            COALESCE(qh.final_price, tp.price) AS precio_unitario,
             tp.turns AS turnos_paquete,
             COUNT(tu.id) AS turnos_jugados,
-            COUNT(tu.id) * COALESCE(tp.price / NULLIF(tp.turns, 0), 0) AS total_paquete,
+            COUNT(tu.id) * COALESCE(COALESCE(qh.final_price, tp.price) / NULLIF(tp.turns, 0), 0) AS total_paquete,
             COALESCE(mpr.porcentaje_restaurante, 35.00) AS pct_negocio,
             {admin_expr} AS pct_admin
         FROM qrhistory qh
@@ -614,7 +617,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
           AND qr.turnPackageId != 1
           AND qh.es_venta_real = TRUE
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad,
-                 tp.id, tp.name, tp.price, tp.turns,
+                 tp.id, tp.name, qh.final_price, tp.price, tp.turns,
                  mpr.porcentaje_restaurante, {admin_expr}
         ORDER BY p.nombre, m.name, turnos_jugados DESC
         """,

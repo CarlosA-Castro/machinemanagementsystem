@@ -154,7 +154,7 @@ def get_active_campaign_for_package(package_id, location_id, cursor):
     return None
 
 
-def record_redemption(cursor, result, qr_code, user_id, location_id):
+def record_redemption(cursor, result, qr_code, user_id, location_id, package_id=None):
     """Registra en campaign_redemption para analítica."""
     try:
         cursor.execute("""
@@ -165,7 +165,7 @@ def record_redemption(cursor, result, qr_code, user_id, location_id):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             result['campaign_id'], result['rule_id'],
-            None, qr_code, user_id, location_id,
+            package_id, qr_code, user_id, location_id,
             result['original_turns'], result['final_turns'],
             result['original_price'], result['final_price'],
         ))
