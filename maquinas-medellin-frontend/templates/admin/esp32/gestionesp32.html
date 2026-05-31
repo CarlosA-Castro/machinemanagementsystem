@@ -362,20 +362,32 @@ const ESP32Mgr = {
         const sel = document.getElementById('f-machine');
         sel.innerHTML = '<option value="">⏳ Cargando máquinas...</option>';
         try {
-            const r = await fetch('/api/admin/machines');
+            const r = await fetch('/api/admin/hardware-modules/machines');
             if (!r.ok) throw new Error(r.status);
             const d = await r.json();
-            this.machines = Array.isArray(d) ? d : (d.machines || d.data || []);
+            this.machines = Array.isArray(d) ? d : [];
             sel.innerHTML = '<option value="">— Sin asignar —</option>';
+            // Agrupar por local
+            const byLocal = {};
             this.machines.forEach(m => {
-                const o = document.createElement('option');
-                o.value = String(m.id);
-                o.textContent = `#${m.id} — ${m.name}`;
-                sel.appendChild(o);
+                const loc = m.location_name || 'Sin local';
+                if (!byLocal[loc]) byLocal[loc] = [];
+                byLocal[loc].push(m);
+            });
+            Object.entries(byLocal).forEach(([loc, mqs]) => {
+                const grp = document.createElement('optgroup');
+                grp.label = loc;
+                mqs.forEach(m => {
+                    const o = document.createElement('option');
+                    o.value = String(m.id);
+                    o.textContent = `#${m.id} — ${m.name}`;
+                    grp.appendChild(o);
+                });
+                sel.appendChild(grp);
             });
             if (selectedId) sel.value = String(selectedId);
             if (this.machines.length === 0) {
-                sel.innerHTML = '<option value="">⚠️ Sin máquinas disponibles en este local</option>';
+                sel.innerHTML = '<option value="">⚠️ Sin máquinas en el sistema</option>';
             }
         } catch (e) {
             console.error('loadMachines', e);

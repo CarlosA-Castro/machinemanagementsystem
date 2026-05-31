@@ -1268,6 +1268,43 @@ def esp32_report_hardware():
         if connection: connection.close()
 
 
+# ── Listado de máquinas para el selector del modal ───────────────────────────
+
+@esp32_bp.route('/api/admin/hardware-modules/machines', methods=['GET'])
+@require_login(['admin'])
+@handle_api_errors
+def admin_machines_for_modules():
+    """
+    Devuelve TODAS las máquinas del sistema (sin filtro de local) para el
+    selector del modal de módulos. Un módulo físico puede estar en cualquier
+    local y el admin necesita ver todas las opciones.
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify([]), 500
+        cursor = get_db_cursor(connection)
+        cursor.execute("""
+            SELECT m.id, m.name, m.status,
+                   COALESCE(l.name, 'Sin local') AS location_name
+            FROM machine m
+            LEFT JOIN location l ON m.location_id = l.id
+            ORDER BY l.name, m.name
+        """)
+        rows = cursor.fetchall()
+        return jsonify([{
+            'id':            r['id'],
+            'name':          r['name'],
+            'status':        r['status'],
+            'location_name': r['location_name'],
+        } for r in rows])
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 # ── CRUD admin — Módulos Hardware ─────────────────────────────────────────────
 
 @esp32_bp.route('/api/admin/hardware-modules', methods=['GET'])
