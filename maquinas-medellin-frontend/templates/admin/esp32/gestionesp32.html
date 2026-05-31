@@ -364,7 +364,7 @@ const ESP32Mgr = {
             const r = await fetch('/api/admin/machines');
             if (!r.ok) return;
             const d = await r.json();
-            this.machines = d.machines || d.data || [];
+            this.machines = Array.isArray(d) ? d : (d.machines || d.data || []);
             const sel = document.getElementById('f-machine');
             sel.innerHTML = '<option value="">— Sin asignar —</option>';
             this.machines.forEach(m => {
