@@ -64,7 +64,7 @@ def obtener_logs_transaccional_consolidado():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               AND qh.es_venta_real = TRUE{_name_clause}
             """,
             (fecha_inicio, fecha_fin, *_name_p),
@@ -111,7 +111,7 @@ def obtener_logs_transaccional_consolidado():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               AND qh.es_venta_real = TRUE{_name_clause}
             ORDER BY qh.fecha_hora DESC
             LIMIT 200
@@ -146,7 +146,7 @@ def obtener_logs_transaccional_consolidado():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               AND qh.es_venta_real = TRUE{_name_clause}
             GROUP BY tp.id, tp.name
             ORDER BY cantidad DESC
@@ -246,7 +246,7 @@ def obtener_logs_transaccional_consolidado():
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) = %s
                   AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
+                  
                   AND qh.es_venta_real = TRUE{_name_clause}
                 GROUP BY HOUR(qh.fecha_hora)
                 ORDER BY periodo
@@ -280,7 +280,7 @@ def obtener_logs_transaccional_consolidado():
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
+                  
                   AND qh.es_venta_real = TRUE{_name_clause}
                 GROUP BY DATE(qh.fecha_hora)
                 ORDER BY periodo

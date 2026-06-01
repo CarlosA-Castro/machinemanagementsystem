@@ -41,7 +41,7 @@ def obtener_contador_global_vendidos():
             JOIN qrcode qr ON qr.code = qh.qr_code
             WHERE DATE(qh.fecha_hora) = %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
         """ + loc_cond, [fecha] + loc_val)
         resultado = cursor.fetchone()
 
@@ -52,7 +52,7 @@ def obtener_contador_global_vendidos():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
         """ + loc_cond, [fecha] + loc_val)
         ventas = cursor.fetchone()
 
@@ -103,7 +103,7 @@ def obtener_contador_global_escaneados():
 
         cursor.execute("""
             SELECT
-                COUNT(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1 THEN 1 END) as con_paquete,
+                COUNT(CASE WHEN qr.turnPackageId IS NOT NULL  THEN 1 END) as con_paquete,
                 COUNT(CASE WHEN qr.turnPackageId IS NULL OR qr.turnPackageId = 1 THEN 1 END) as sin_paquete
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -218,7 +218,7 @@ def obtener_contador_global_resumen():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
         """ + loc_cond, [fecha] + loc_val)
         ventas = cursor.fetchone()
 

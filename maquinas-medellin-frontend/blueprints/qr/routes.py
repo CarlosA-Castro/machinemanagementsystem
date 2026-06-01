@@ -522,10 +522,10 @@ def actualizar_contador_diario(fecha=None):
             INSERT INTO ContadorDiario (fecha, qr_vendidos, valor_ventas, qr_escaneados, turnos_utilizados, fallas_reportadas)
             SELECT
                 %s as fecha,
-                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL 
                           AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
                           THEN qh.qr_code END) as qr_vendidos,
-                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL 
                            AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
                            THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_ventas,
                 COUNT(DISTINCT qh.qr_code) as qr_escaneados,
@@ -1792,7 +1792,7 @@ def obtener_estadisticas_tiempo_real():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
         """, (fecha,))
 
@@ -2119,7 +2119,7 @@ def ventas_dia():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
         """, tuple(loc_params))
@@ -2136,7 +2136,7 @@ def ventas_dia():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) = %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
             GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
@@ -2378,7 +2378,7 @@ def obtener_ventas():
             LEFT JOIN campaign c ON c.id = qh.campaign_id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
             ORDER BY qh.fecha_hora DESC
@@ -2402,7 +2402,7 @@ def obtener_ventas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
         """, (fecha_inicio, fecha_fin, *loc_params))
@@ -2418,7 +2418,7 @@ def obtener_ventas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
             GROUP BY tp.id, tp.name
@@ -2437,7 +2437,7 @@ def obtener_ventas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
             GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
@@ -2464,7 +2464,7 @@ def obtener_ventas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
             GROUP BY COALESCE(NULLIF(TRIM(qh.user_name), ''), 'Sin vendedor')
@@ -2493,7 +2493,7 @@ def obtener_ventas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
         """, (fecha_inicio, fecha_fin, *loc_params))
@@ -2512,7 +2512,7 @@ def obtener_ventas():
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                 AND qr.turnPackageId IS NOT NULL
-                AND qr.turnPackageId != 1
+                
                 AND qh.es_venta_real = TRUE
                 {loc_clause}
                 GROUP BY HOUR(qh.fecha_hora)
@@ -2530,7 +2530,7 @@ def obtener_ventas():
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                 AND qr.turnPackageId IS NOT NULL
-                AND qr.turnPackageId != 1
+                
                 AND qh.es_venta_real = TRUE
                 {loc_clause}
                 GROUP BY DATE(qh.fecha_hora)
@@ -2552,7 +2552,7 @@ def obtener_ventas():
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
-            AND qr.turnPackageId != 1
+            
             AND qh.es_venta_real = TRUE
             {loc_clause}
         """, (fecha_inicio_ayer, fecha_fin_ayer, *loc_params))

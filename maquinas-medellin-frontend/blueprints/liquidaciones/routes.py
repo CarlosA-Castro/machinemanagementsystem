@@ -213,7 +213,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
         WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
           AND qh.es_venta_real = TRUE
           AND qr.turnPackageId IS NOT NULL
-          AND qr.turnPackageId != 1
+          
         GROUP BY tp.id, tp.name, tp.turns, tp.price
         ORDER BY paquetes_vendidos DESC
         """,
@@ -236,7 +236,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
               AND qh2.es_venta_real = TRUE
         )
           AND qr.turnPackageId IS NOT NULL
-          AND qr.turnPackageId != 1
+          
         GROUP BY qr.turnPackageId
         """,
         (fecha_inicio, fecha_fin),
@@ -296,7 +296,7 @@ def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
         WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
           AND qh.es_venta_real = TRUE
           AND qr.turnPackageId IS NOT NULL
-          AND qr.turnPackageId != 1
+          
         GROUP BY m.id, m.name
         ORDER BY turnos_jugados DESC
         LIMIT 3
@@ -373,7 +373,7 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
         WHERE DATE(tu.usedAt) BETWEEN %s AND %s
           AND qr.turnPackageId IS NOT NULL
-          AND qr.turnPackageId != 1
+          
         GROUP BY tu.machineId, tp.id, tp.name, tp.turns
         ORDER BY ingresos_estimados DESC
         """,
@@ -614,7 +614,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
         WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
           AND qr.turnPackageId IS NOT NULL
-          AND qr.turnPackageId != 1
+          
           AND qh.es_venta_real = TRUE
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad,
                  tp.id, tp.name, qh.final_price, tp.price, tp.turns,
@@ -713,7 +713,7 @@ def _build_period_comparison(cursor, fecha_inicio, fecha_fin):
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qh.es_venta_real = TRUE
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
             """,
             (start, end),
         )
@@ -923,7 +923,7 @@ def calcular_liquidacion():
                 LEFT JOIN propietarios p ON mp.propietario_id = p.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
+                  
                   AND qh.es_venta_real = TRUE
                   {loc_cond}
                 ORDER BY qh.fecha_hora DESC
@@ -950,7 +950,7 @@ def calcular_liquidacion():
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
+                  
                   AND qh.es_venta_real = TRUE
                 ORDER BY qh.fecha_hora DESC
                 """,
@@ -984,7 +984,7 @@ def calcular_liquidacion():
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
+                  
                   AND qh.es_venta_real = TRUE
                   {loc_cond}
                 GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
@@ -1003,7 +1003,7 @@ def calcular_liquidacion():
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  AND qr.turnPackageId != 1
+                  
                   AND qh.es_venta_real = TRUE
                 GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
                 ORDER BY valor_total DESC, total_ventas DESC
@@ -1112,7 +1112,7 @@ def obtener_ventas_liquidadas():
                JOIN turnpackage tp ON qr.turnPackageId = tp.id
                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                  AND qr.turnPackageId IS NOT NULL
-                 AND qr.turnPackageId != 1
+                 
                  AND qh.es_venta_real = TRUE""",
             [fecha_inicio, fecha_fin],
             column='location_id', table_alias='tp',
@@ -1168,7 +1168,7 @@ def obtener_ventas_liquidadas():
             {mp_join}
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               AND qh.es_venta_real = TRUE
               {loc_cond_v}
             ORDER BY qh.fecha_hora DESC

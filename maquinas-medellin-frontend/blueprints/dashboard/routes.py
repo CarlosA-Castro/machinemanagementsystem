@@ -96,7 +96,7 @@ def obtener_estadisticas_dashboard():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               AND qh.es_venta_real = TRUE
               {loc_and_qrh}
         """, q_ingresos_params)
@@ -125,7 +125,7 @@ def obtener_estadisticas_dashboard():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               {loc_and_qrh}
         """, q_ticket_params)
         ticket = cursor.fetchone()
@@ -143,7 +143,7 @@ def obtener_estadisticas_dashboard():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               AND qh.es_venta_real = TRUE
               {loc_and_qrh}
             GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
@@ -173,7 +173,7 @@ def obtener_estadisticas_dashboard():
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
               AND qr.turnPackageId IS NOT NULL
-              AND qr.turnPackageId != 1
+              
               {loc_and_qrh}
         """, q_ant_params)
         anterior = cursor.fetchone()
@@ -245,7 +245,7 @@ def obtener_graficas_dashboard():
                 LEFT JOIN qrcode qr ON qr.code = qh.qr_code
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                  AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                  AND qr.turnPackageId IS NOT NULL 
                   AND qh.es_venta_real = TRUE {loc_and_qrh}
                 GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%m')
                 ORDER BY fecha
@@ -259,7 +259,7 @@ def obtener_graficas_dashboard():
                 LEFT JOIN qrcode qr ON qr.code = qh.qr_code
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                  AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                  AND qr.turnPackageId IS NOT NULL 
                   AND qh.es_venta_real = TRUE {loc_and_qrh}
                 GROUP BY DATE_FORMAT(qh.fecha_hora, '%Y-%u')
                 ORDER BY fecha
@@ -273,7 +273,7 @@ def obtener_graficas_dashboard():
                 LEFT JOIN qrcode qr ON qr.code = qh.qr_code
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-                  AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                  AND qr.turnPackageId IS NOT NULL 
                   AND qh.es_venta_real = TRUE {loc_and_qrh}
                 GROUP BY DATE(qh.fecha_hora)
                 ORDER BY fecha
@@ -293,7 +293,7 @@ def obtener_graficas_dashboard():
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-              AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+              AND qr.turnPackageId IS NOT NULL 
               AND qh.es_venta_real = TRUE {loc_and_qrh}
             GROUP BY tp.id, tp.name
             ORDER BY ingresos DESC LIMIT 10
@@ -518,7 +518,7 @@ def obtener_ventas_recientes():
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+            WHERE qr.turnPackageId IS NOT NULL 
               AND qh.es_venta_real = TRUE
               {filtros_fecha} {loc_and_qrh}
             ORDER BY qh.fecha_hora DESC LIMIT 50
@@ -580,9 +580,9 @@ def obtener_resumen_dashboard():
 
         cursor.execute(f"""
             SELECT
-                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN qh.qr_code END) as vendidos_hoy,
-                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_hoy
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -607,9 +607,9 @@ def obtener_resumen_dashboard():
 
         cursor.execute(f"""
             SELECT
-                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN qh.qr_code END) as vendidos_ayer,
-                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_ayer
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -649,7 +649,7 @@ def obtener_resumen_dashboard():
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+            WHERE qr.turnPackageId IS NOT NULL 
             {loc_and_qrh}
             ORDER BY qh.fecha_hora DESC LIMIT 5
         """, [loc_name] if loc_name else [])
@@ -731,9 +731,9 @@ def obtener_estadisticas_rango_fechas():
             SELECT
                 DATE(qh.fecha_hora) as fecha,
                 COUNT(DISTINCT qh.qr_code) as total_escaneados,
-                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN qh.qr_code END) as vendidos,
-                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_ventas,
                 COUNT(tu.id) as turnos_utilizados
             FROM qrhistory qh
@@ -749,9 +749,9 @@ def obtener_estadisticas_rango_fechas():
         cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_escaneados,
-                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN qh.qr_code END) as total_vendidos,
-                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+                COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL 
                           THEN COALESCE(qh.final_price, tp.price) END), 0) as total_valor_ventas,
                 COUNT(DISTINCT tu.id) as total_turnos_utilizados
             FROM qrhistory qh
@@ -780,7 +780,7 @@ def obtener_estadisticas_rango_fechas():
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
-              AND qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
+              AND qr.turnPackageId IS NOT NULL 
               {loc_and_qrh}
             GROUP BY tp.id, tp.name
             ORDER BY veces_vendido DESC LIMIT 10
