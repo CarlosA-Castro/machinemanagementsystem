@@ -1810,49 +1810,37 @@ def obtener_historial_completo():
 
         cursor = get_db_cursor(connection)
 
-        if session.get('user_role') == 'admin':
-            cursor.execute("""
+        base_select = """
                 SELECT
-                    h.id,
-                    h.qr_code,
-                    h.user_name,
-                    h.qr_name,
-                    h.fecha_hora,
-                    h.payment_method,
+                    h.id, h.qr_code, h.user_name, h.qr_name,
+                    h.fecha_hora, h.payment_method,
                     qr.turnPackageId,
-                    tp.name as package_name,
-                    tp.price as precio_paquete,
-                    ut.turns_remaining
+                    tp.name  AS package_name,
+                    tp.price AS precio_base,
+                    COALESCE(h.final_price, tp.price) AS precio_paquete,
+                    h.final_price,
+                    h.campaign_id,
+                    c.name   AS campaign_name,
+                    cr.rule_type AS campaign_type,
+                    ut.turns_remaining,
+                    ut.total_turns
                 FROM qrhistory h
                 LEFT JOIN qrcode qr ON qr.code = h.qr_code
                 LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
                 LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
-               WHERE h.local = %s
-               AND h.es_venta_real = TRUE
-               ORDER BY h.fecha_hora DESC
-            LIMIT 100
+                LEFT JOIN campaign c ON c.id = h.campaign_id
+                LEFT JOIN campaign_rule cr ON cr.campaign_id = c.id
+        """
+        if session.get('user_role') == 'admin':
+            cursor.execute(base_select + """
+               WHERE h.local = %s AND h.es_venta_real = TRUE
+               ORDER BY h.fecha_hora DESC LIMIT 100
             """, (local,))
         else:
-            cursor.execute("""
-                SELECT
-                    h.id,
-                    h.qr_code,
-                    h.user_name,
-                    h.qr_name,
-                    h.fecha_hora,
-                    h.payment_method,
-                    qr.turnPackageId,
-                    tp.name as package_name,
-                    tp.price as precio_paquete,
-                    ut.turns_remaining
-                FROM qrhistory h
-                LEFT JOIN qrcode qr ON qr.code = h.qr_code
-                LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
-                LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            cursor.execute(base_select + """
                 WHERE (h.user_id = %s OR h.local = %s)
                 AND h.es_venta_real = TRUE
-                ORDER BY h.fecha_hora DESC
-                LIMIT 50
+                ORDER BY h.fecha_hora DESC LIMIT 50
             """, (user_id, local))
 
         historial = cursor.fetchall()
@@ -1868,6 +1856,7 @@ def obtener_historial_completo():
 
             item['es_venta'] = item['turnPackageId'] is not None and item['turnPackageId'] != 1
             item['payment_method_label'] = _payment_method_label(item.get('payment_method'))
+            item['is_campaign'] = item.get('campaign_id') is not None
 
         logger.info(f"Historial obtenido: {len(historial)} registros")
         return jsonify(historial)

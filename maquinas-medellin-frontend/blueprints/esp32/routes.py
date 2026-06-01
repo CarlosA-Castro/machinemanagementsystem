@@ -175,12 +175,32 @@ def esp32_registrar_uso():
         connection.commit()
 
         cursor.execute("""
-            SELECT ut.turns_remaining, tp.name as package_name
+            SELECT ut.turns_remaining, tp.name as package_name,
+                   ut.total_turns
             FROM userturns ut
             JOIN qrcode qr ON qr.id = ut.qr_code_id
             LEFT JOIN turnpackage tp ON ut.package_id = tp.id
             WHERE ut.qr_code_id = %s
         """, (qr_id,))
+
+        # Consultar si este QR fue vendido con campaña activa
+        _campaign_name = None
+        _campaign_type = None
+        try:
+            cursor.execute("""
+                SELECT c.name, cr.rule_type
+                FROM qrhistory qh
+                JOIN campaign c ON c.id = qh.campaign_id
+                JOIN campaign_rule cr ON cr.campaign_id = c.id
+                WHERE qh.qr_code = %s AND qh.campaign_id IS NOT NULL
+                LIMIT 1
+            """, (qr_code,))
+            camp_row = cursor.fetchone()
+            if camp_row:
+                _campaign_name = camp_row['name']
+                _campaign_type = camp_row['rule_type']
+        except Exception:
+            pass  # Si campaign table no existe aún, no bloquear
 
         info_actualizada = cursor.fetchone()
         turnos_restantes = info_actualizada['turns_remaining']
@@ -238,6 +258,7 @@ def esp32_registrar_uso():
             status='success',
             data={
                 'turns_remaining': turnos_restantes,
+                'total_turns': int(info_actualizada.get('total_turns') or turnos_restantes),
                 'package_name': info_actualizada['package_name'],
                 'qr_name': qr_name,
                 'qr_code': qr_code,
@@ -245,6 +266,9 @@ def esp32_registrar_uso():
                 'usage_id': usage_id,
                 'station_index': station_index,
                 'expiration_epoch': exp_epoch,
+                'campaign_name': _campaign_name,
+                'campaign_type': _campaign_type,
+                'is_campaign': _campaign_name is not None,
             }
         )
 

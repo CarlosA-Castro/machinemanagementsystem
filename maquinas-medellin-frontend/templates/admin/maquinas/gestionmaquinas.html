@@ -2815,7 +2815,8 @@
                             const jKey = j.id || juegosOrdenados.indexOf(j);
                             const tuvoPor = juegosConFalla.has(jKey);
                             const failBadge = tuvoPor ? `<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium"><i class="fas fa-exclamation-triangle mr-0.5"></i>con falla</span>` : '';
-                            const cardBg = tuvoPor ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-100';
+                            const campBadge = j.is_campaign ? `<span style="background:#fef3c7;color:#92400e;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:8px;">⚡ ${j.campaign_name||'Campaña'}</span>` : '';
+                            const cardBg = tuvoPor ? 'bg-orange-50 border-orange-200' : (j.is_campaign ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100');
                             listaHtml += `
                                 <div class="flex items-start gap-3 p-3 ${cardBg} border rounded-lg">
                                     <div class="mt-0.5 w-6 h-6 flex items-center justify-center bg-green-500 rounded-full flex-shrink-0">
@@ -2826,6 +2827,7 @@
                                             <span class="text-sm font-medium text-green-800">Juego</span>
                                             ${stLabel}
                                             ${failBadge}
+                                            ${campBadge}
                                             ${j.qr_name ? `<span class="text-xs text-gray-500">${j.qr_name}</span>` : ''}
                                         </div>
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">

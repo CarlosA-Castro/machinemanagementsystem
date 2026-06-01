@@ -616,13 +616,17 @@ fetch('/api/mis-permisos')
               }
               const fila = document.createElement('tr');
               fila.className = 'history-row border-b border-gray-100 hover:bg-gray-50';
+              const campBadge = item.is_campaign
+                ? `<span style="background:#fef3c7;color:#92400e;font-size:.65rem;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">⚡ ${item.campaign_name||'Campaña'}</span>`
+                : '';
               fila.innerHTML = `
                 <td class="p-3 text-center">${index + 1}</td>
                 <td class="p-3 font-mono text-sm">${qrCode}</td>
                 <td class="p-3">
-                  <div class="flex items-center">
+                  <div class="flex items-center flex-wrap gap-1">
                     <span class="truncate max-w-[120px]">${qrName}</span>
-                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded ml-2">VENTA</span>
+                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">VENTA</span>
+                    ${campBadge}
                   </div>
                 </td>
                 <td class="p-3">

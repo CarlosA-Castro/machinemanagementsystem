@@ -813,15 +813,21 @@ def obtener_turnusage_recientes():
         query = """
             SELECT
                 tu.id, tu.qrCodeId, tu.machineId, tu.station_index, tu.usedAt,
-                COALESCE(m.name, 'Máquina desconocida') as machine_name,
-                COALESCE(qr.code, '') as qr_code,
-                COALESCE(qr.qr_name, '') as qr_name,
-                COALESCE(tp.name, 'Sin paquete') as package_name,
-                tu.turns_remaining_after as turns_remaining
+                COALESCE(m.name, 'Máquina desconocida') AS machine_name,
+                COALESCE(qr.code, '')  AS qr_code,
+                COALESCE(qr.qr_name, '') AS qr_name,
+                COALESCE(tp.name, 'Sin paquete') AS package_name,
+                tu.turns_remaining_after AS turns_remaining,
+                qh.campaign_id,
+                c.name  AS campaign_name,
+                cr.rule_type AS campaign_type
             FROM turnusage tu
-            LEFT JOIN machine m  ON tu.machineId  = m.id
-            LEFT JOIN qrcode qr  ON tu.qrCodeId   = qr.id
-            LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN machine m      ON tu.machineId      = m.id
+            LEFT JOIN qrcode qr      ON tu.qrCodeId       = qr.id
+            LEFT JOIN turnpackage tp  ON qr.turnPackageId  = tp.id
+            LEFT JOIN qrhistory qh   ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
+            LEFT JOIN campaign c     ON c.id = qh.campaign_id
+            LEFT JOIN campaign_rule cr ON cr.campaign_id = c.id
             WHERE 1=1
         """
         params = []
@@ -851,6 +857,7 @@ def obtener_turnusage_recientes():
             d = dict(j)
             if d.get('usedAt') and hasattr(d['usedAt'], 'isoformat'):
                 d['usedAt'] = d['usedAt'].isoformat()
+            d['is_campaign'] = d.get('campaign_id') is not None
             resultado.append(d)
 
         return jsonify(resultado)
