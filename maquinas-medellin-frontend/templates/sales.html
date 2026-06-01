@@ -306,8 +306,11 @@
                 </div>
             </div>
 
+            <!-- Banner campañas activas -->
+            <div id="bannerCampañasSales" class="hidden mb-4"></div>
+
             <!-- Estadísticas principales -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 stat-grid">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6 stat-grid">
                 <div class="stat-card glass-card border-l-blue-500">
                     <div class="flex items-center">
                         <div class="bg-blue-100 p-3 rounded-lg mr-4">
@@ -342,11 +345,22 @@
                             <p id="ticketPromedio" class="text-2xl font-bold text-gray-800">$0</p>
                         </div>
                     </div>
-                    <div class="mt-2 text-sm text-gray-600">
-                        Por transacción
-                    </div>
+                    <div class="mt-2 text-sm text-gray-600">Por transacción</div>
                 </div>
-                 </div>
+
+                <div class="stat-card glass-card border-l-orange-500">
+                    <div class="flex items-center">
+                        <div class="bg-orange-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-bolt text-orange-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Ventas con Campaña</p>
+                            <p id="statCampañas" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm text-orange-600" id="statDescuentos">$0 en descuentos</div>
+                </div>
+            </div>
 
             <div class="glass-card mb-6">
                 <div class="flex items-center justify-between mb-4">
@@ -425,6 +439,7 @@
                                 <th class="p-3 font-semibold">Pago</th>
                                 <th class="p-3 font-semibold">Precio</th>
                                 <th class="p-3 font-semibold">Turnos</th>
+                                <th class="p-3 font-semibold">Campaña</th>
                                 <th class="p-3 font-semibold">Vendedor</th>
                                 <th class="p-3 font-semibold">Estado</th>
                                 <th class="p-3 font-semibold">Acciones</th>
@@ -925,16 +940,41 @@
 
         // Actualizar tabla CON NOMBRE QR
         this.actualizarTabla(data.ventas);
+
+        // Banner y stats de campañas
+        this.actualizarCampañas(data.cuadre_caja || {});
+    },
+
+    actualizarCampañas: function(cuadre) {
+        const n = cuadre.ventas_con_campaña || 0;
+        const desc = cuadre.total_descuentos || 0;
+        document.getElementById('statCampañas').textContent = n;
+        document.getElementById('statDescuentos').textContent =
+            desc > 0 ? `${this.formatearMoneda(desc)} en descuentos` : 'Sin descuentos';
+
+        const banner = document.getElementById('bannerCampañasSales');
+        if (n > 0) {
+            banner.classList.remove('hidden');
+            banner.innerHTML = `
+                <div style="background:linear-gradient(135deg,#fef3c7,#fed7aa);border:1px solid #f59e0b;
+                            border-radius:12px;padding:.75rem 1.25rem;display:flex;align-items:center;gap:.75rem;">
+                    <i class="fas fa-bolt" style="color:#f59e0b;font-size:1.1rem;flex-shrink:0;"></i>
+                    <span style="font-size:.875rem;font-weight:600;color:#92400e;">
+                        ⚡ ${n} venta(s) con campaña en este período — ${this.formatearMoneda(desc)} en descuentos aplicados
+                    </span>
+                </div>`;
+        } else {
+            banner.classList.add('hidden');
+        }
     },
 
     actualizarEstadisticas: function(estadisticas) {
-        document.getElementById('totalVentas').textContent = 
+        document.getElementById('totalVentas').textContent =
             this.formatearMoneda(estadisticas.total_ventas);
-        document.getElementById('totalPaquetes').textContent = 
+        document.getElementById('totalPaquetes').textContent =
             estadisticas.total_paquetes;
-        document.getElementById('ticketPromedio').textContent = 
+        document.getElementById('ticketPromedio').textContent =
             this.formatearMoneda(estadisticas.ticket_promedio);
-        
     },
 
     actualizarResumenMetodos: function(metodos) {
@@ -1139,7 +1179,9 @@
             fila.innerHTML = `
                 <td class="p-3 text-sm">${venta.fecha}</td>
                 <td class="p-3 text-sm font-mono">${venta.hora}</td>
-                <td class="p-3 font-medium text-sm">${venta.paquete}</td>
+                <td class="p-3 font-medium text-sm">
+                    ${venta.paquete}
+                </td>
                 <td class="p-3 text-sm">
                     <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                         ${venta.qr_nombre || 'Sin nombre'}
@@ -1151,8 +1193,28 @@
                     </span>
                     ${auditHtml}
                 </td>
-                <td class="p-3 text-sm">${this.formatearMoneda(venta.precio)}</td>
-                <td class="p-3 text-center text-sm">${venta.turnos}</td>
+                <td class="p-3 text-sm">
+                    ${venta.tiene_campaña
+                        ? `<div style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">${this.formatearMoneda(venta.precio_base)}</div>
+                           <div class="font-bold ${venta.precio === 0 ? 'text-green-600' : 'text-orange-600'}">${venta.precio === 0 ? '🎁 GRATIS' : this.formatearMoneda(venta.precio)}</div>`
+                        : this.formatearMoneda(venta.precio)
+                    }
+                </td>
+                <td class="p-3 text-center text-sm">
+                    ${venta.tiene_campaña && venta.turnos !== venta.turnos_base
+                        ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">${venta.turnos_base}</span>
+                           <span class="font-bold text-green-600 ml-1">${venta.turnos}</span>`
+                        : venta.turnos
+                    }
+                </td>
+                <td class="p-3 text-sm">
+                    ${venta.tiene_campaña
+                        ? `<span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:12px;font-size:.72rem;font-weight:600;white-space:nowrap;">
+                               ⚡ ${venta.campaign_name || 'Campaña'}
+                           </span>`
+                        : '<span class="text-gray-300 text-xs">—</span>'
+                    }
+                </td>
                 <td class="p-3 text-sm">${venta.vendedor}</td>
                 <td class="p-3">
                     <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">

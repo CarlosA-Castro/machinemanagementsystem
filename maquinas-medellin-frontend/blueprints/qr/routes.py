@@ -1919,12 +1919,18 @@ def obtener_historial_qr(qr_code):
                 h.fecha_hora,
                 qr.turnPackageId,
                 tp.name as package_name,
-                tp.price as precio_paquete,
-                ut.turns_remaining
+                tp.price as precio_base,
+                COALESCE(h.final_price, tp.price) as precio_paquete,
+                h.final_price,
+                h.campaign_id,
+                c.name as campaign_name,
+                ut.turns_remaining,
+                ut.total_turns
             FROM qrhistory h
             LEFT JOIN qrcode qr ON qr.code = h.qr_code
             LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
             LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            LEFT JOIN campaign c ON c.id = h.campaign_id
             WHERE h.qr_code = %s
             {loc_clause}
             ORDER BY h.fecha_hora DESC
@@ -2307,14 +2313,21 @@ def obtener_ventas():
                 qh.payment_method_update_reason,
                 COALESCE(NULLIF(u.name, ''), '') AS payment_method_updated_by_name,
                 tp.name as paquete,
-                tp.price as precio,
-                tp.turns as turnos,
+                tp.price as precio_base,
+                COALESCE(qh.final_price, tp.price) as precio,
+                tp.turns as turnos_base,
+                ut.total_turns as turnos,
                 qh.user_name as vendedor,
-                'Completada' as estado
+                'Completada' as estado,
+                qh.campaign_id,
+                c.name as campaign_name,
+                qh.final_price
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN userturns ut ON ut.qr_code_id = qr.id
             LEFT JOIN users u ON u.id = qh.payment_method_updated_by
+            LEFT JOIN campaign c ON c.id = qh.campaign_id
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
             AND qr.turnPackageId IS NOT NULL
             AND qr.turnPackageId != 1
@@ -2328,12 +2341,14 @@ def obtener_ventas():
         cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_paquetes,
-                COALESCE(SUM(tp.price), 0) as total_ventas,
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as total_ventas,
                 CASE
                     WHEN COUNT(DISTINCT qh.qr_code) > 0 THEN
-                        COALESCE(SUM(tp.price), 0) / COUNT(DISTINCT qh.qr_code)
+                        COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) / COUNT(DISTINCT qh.qr_code)
                     ELSE 0
-                END as ticket_promedio
+                END as ticket_promedio,
+                COUNT(DISTINCT CASE WHEN qh.campaign_id IS NOT NULL THEN qh.qr_code END) as ventas_con_campaña,
+                COALESCE(SUM(CASE WHEN qh.campaign_id IS NOT NULL THEN tp.price - COALESCE(qh.final_price, tp.price) ELSE 0 END), 0) as total_descuentos
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -2368,7 +2383,7 @@ def obtener_ventas():
             SELECT
                 COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
-                COALESCE(SUM(tp.price), 0) as valor_total
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as valor_total
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -2395,7 +2410,7 @@ def obtener_ventas():
             SELECT
                 COALESCE(NULLIF(TRIM(qh.user_name), ''), 'Sin vendedor') as vendedor,
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
-                COALESCE(SUM(tp.price), 0) as valor_total
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as valor_total
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -2483,7 +2498,7 @@ def obtener_ventas():
         cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as paquetes_ayer,
-                COALESCE(SUM(tp.price), 0) as ventas_ayer
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ventas_ayer
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -2523,6 +2538,9 @@ def obtener_ventas():
             if ultima_venta else None
         )
 
+        ventas_con_campaña  = int(estadisticas_data.get('ventas_con_campaña') or 0)
+        total_descuentos    = float(estadisticas_data.get('total_descuentos') or 0)
+
         cuadre_caja = {
             'total_recaudo': total_ventas_hoy,
             'total_paquetes': int(total_paquetes_hoy or 0),
@@ -2532,6 +2550,8 @@ def obtener_ventas():
             'ventas_sin_metodo': int(caja_data.get('ventas_sin_metodo') or 0),
             'primera_venta': primera_venta_str,
             'ultima_venta': ultima_venta_str,
+            'ventas_con_campaña': ventas_con_campaña,
+            'total_descuentos': total_descuentos,
         }
 
         graficos = {
@@ -2558,9 +2578,15 @@ def obtener_ventas():
                 'qr_nombre': venta['qr_name'] or 'Sin nombre',
                 **audit_data,
                 'precio': float(venta['precio']),
-                'turnos': venta['turnos'],
+                'precio_base': float(venta['precio_base']),
+                'turnos': int(venta['turnos'] or venta['turnos_base'] or 0),
+                'turnos_base': int(venta['turnos_base'] or 0),
                 'vendedor': venta['vendedor'],
-                'estado': venta['estado']
+                'estado': venta['estado'],
+                'campaign_id': venta['campaign_id'],
+                'campaign_name': venta['campaign_name'],
+                'tiene_campaña': venta['campaign_id'] is not None,
+                'descuento': round(float(venta['precio_base']) - float(venta['precio']), 2) if venta['campaign_id'] else 0,
             })
 
         logger.info(f"Ventas obtenidas: {len(ventas_formateadas)} registros")

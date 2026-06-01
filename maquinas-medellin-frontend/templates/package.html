@@ -528,21 +528,17 @@
       scannerActivo: false,
       qrInfoData: null,
 
-      // Cargar paquetes desde la base de datos
+      campanasActivas: [],
+
+      // Cargar paquetes y campañas activas
       cargarPaquetes: async function() {
         try {
-          const response = await fetch('/api/paquetes', {
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          });
-          
-          if (!response.ok) {
-            throw new Error('Error en la respuesta del servidor');
-          }
-          
-          const paquetes = await response.json();
-          
+          const [resPaq, resCamp] = await Promise.all([
+            fetch('/api/paquetes', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+            fetch('/api/admin/campaigns/activas-ahora', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(() => null),
+          ]);
+          const paquetes = await resPaq.json();
+          this.campanasActivas = resCamp ? ((await resCamp.json()).data || []) : [];
           this.paquetesData = paquetes;
           this.renderizarPaquetes(paquetes);
         } catch (error) {
@@ -551,23 +547,58 @@
         }
       },
 
-      // Renderizar botones de paquetes
+      _getCampaña: function() {
+        return (this.campanasActivas || [])[0] || null;
+      },
+
+      _aplicarCampaña: function(price, turns) {
+        const camp = this._getCampaña();
+        if (!camp) return { price, turns, campaign: null };
+        const rval = camp.rule_value || {}, rtype = camp.rule_type;
+        let fp = parseFloat(price), ft = parseInt(turns);
+        if (rtype === 'free')           fp = 0;
+        else if (rtype === 'discount_pct')   fp = Math.round(fp*(1-(rval.pct||0)/100)/100)*100;
+        else if (rtype === 'discount_fixed') fp = Math.max(0, fp-(rval.amount||0));
+        else if (rtype === 'fixed_price')    fp = rval.price||fp;
+        else if (rtype === 'bonus_turns')    ft += rval.bonus||0;
+        else if (rtype === 'buy_x_get_y')    ft = rval.get||ft;
+        return { price: fp, turns: ft, campaign: camp };
+      },
+
+      // Renderizar botones de paquetes con info de campaña
       renderizarPaquetes: function(paquetes) {
         const container = document.getElementById('paquetes-container');
         container.innerHTML = '';
-        
+
+        if (this.campanasActivas && this.campanasActivas.length) {
+          const banner = document.createElement('div');
+          banner.className = 'col-span-full mb-2';
+          banner.innerHTML = `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:6px 12px;font-size:.78rem;font-weight:700;color:#92400e;">
+            ⚡ Campaña activa: ${this.campanasActivas.map(c=>c.name).join(', ')}
+          </div>`;
+          container.appendChild(banner);
+        }
+
         paquetes.forEach(paquete => {
+          const applied = this._aplicarCampaña(paquete.price, paquete.turns);
           const button = document.createElement('button');
           button.className = 'btnPaquete btn-touch';
           button.id = `paquete-${paquete.id}`;
+          const priceHtml = applied.campaign
+            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">$${parseFloat(paquete.price).toLocaleString('es-CO')}</span><br>
+               <span style="color:${applied.price===0?'#16a34a':'#f97316'};font-weight:700;">${applied.price===0?'GRATIS':'$'+parseFloat(applied.price).toLocaleString('es-CO')}</span>`
+            : `$${parseFloat(paquete.price).toLocaleString('es-CO')}`;
+          const turnsHtml = applied.turns !== parseInt(paquete.turns)
+            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">${paquete.turns}</span> <span style="color:#16a34a;font-weight:700;">${applied.turns}</span>`
+            : `${applied.turns}`;
           button.innerHTML = `
             <div class="font-bold">P${paquete.id}</div>
             <div class="paquete-info">
-              ${paquete.turns} turnos<br>
-              $${paquete.price.toLocaleString()}
+              ${turnsHtml} turnos<br>${priceHtml}
+              ${applied.campaign ? `<div style="font-size:.6rem;color:#f97316;margin-top:2px;">⚡ ${applied.campaign.name}</div>` : ''}
             </div>
           `;
-          button.onclick = () => this.abrirConfirmacion(paquete.id, paquete.turns, paquete.price);
+          button.onclick = () => this.abrirConfirmacion(paquete.id, applied.turns, applied.price, parseFloat(paquete.price), parseInt(paquete.turns), applied.campaign);
           container.appendChild(button);
         });
       },
@@ -768,7 +799,7 @@
         });
       },
 
-      abrirConfirmacion: async function(id, turns, price) {
+      abrirConfirmacion: async function(id, turns, price, precioBase, turnosBase, campaign) {
         // Verificar si hay un código QR escaneado
         this.codigoQR = document.getElementById('codigoQR').value;
         
@@ -783,7 +814,7 @@
           return;
         }
         
-        this.paqueteTemp = { id, turns, price };
+        this.paqueteTemp = { id, turns, price, precioBase, turnosBase, campaign };
         
         // Mostrar información del QR en el modal
         const qrInfoModal = document.getElementById('qrInfoModal');
@@ -840,7 +871,14 @@
         }
         
         document.getElementById('paqueteSeleccionado').innerText = 'P' + id;
-        document.getElementById('precioPaquete').innerText = `Costo: $${price.toLocaleString()} - ${turns} turnos`;
+        const precioTexto = price === 0
+          ? '🎁 GRATIS'
+          : `$${parseFloat(price).toLocaleString('es-CO')}`;
+        const campañaTexto = campaign
+          ? ` <span style="background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 6px;font-size:.75rem;">⚡ ${campaign.name}</span>`
+          : '';
+        document.getElementById('precioPaquete').innerHTML =
+          `Costo: <strong>${precioTexto}</strong> - ${turns} turnos${campañaTexto}`;
         document.getElementById('modalConfirmacion').classList.remove('hidden');
       },
 

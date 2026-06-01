@@ -694,8 +694,19 @@ fetch('/api/mis-permisos')
             doc.setLineWidth(0.5);
             doc.line(5, yQR + altoQR + 18, anchoPapel - 5, yQR + altoQR + 18);
             doc.setFontSize(6); doc.setFont(undefined, 'normal');
+            // Buscar si el QR tiene campaña (del historial ya cargado)
+            const histItemReimpr = Array.isArray(window._lastHistorialData)
+              ? window._lastHistorialData.find(h => h.qr_code === codigoQR) : null;
+            let textoInfoY = yQR + altoQR + 22;
+            if (histItemReimpr && histItemReimpr.campaign_name) {
+              const campText = `Campaña: ${histItemReimpr.campaign_name}`;
+              doc.setFontSize(6); doc.setFont(undefined, 'bold');
+              doc.text(campText, (anchoPapel - doc.getTextWidth(campText)) / 2, textoInfoY);
+              textoInfoY += 4;
+            }
             const textoInfo = "Reimpresion - Presentar para canjear";
-            doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 22);
+            doc.setFont(undefined, 'normal');
+            doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, textoInfoY);
             doc.save(`QR-Reimpresion-${nombre || codigoQR}.pdf`);
             this.mostrarAlerta("✅ QR reimpreso exitosamente", "success");
           }
@@ -710,6 +721,7 @@ fetch('/api/mis-permisos')
         fetch(`/api/historial-qr/${codigo}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => { if (!res.ok) throw new Error('Error en la respuesta'); return res.json(); })
         .then(data => {
+          window._lastHistorialData = Array.isArray(data) ? data : [];
           if (data.error) { document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">${data.error}</p>`; return; }
           if (!data || data.length === 0) {
             fetch(`/api/verificar-qr/${codigo}`).then(r => r.json()).then(qrInfo => {
@@ -733,16 +745,33 @@ fetch('/api/mis-permisos')
           let html = `<ul class="space-y-3">`;
           data.forEach(item => {
             const fechaFormateada = this.formatearFechaColombia(item.fecha_hora);
-            const precioFormateado = item.precio_paquete ? `$${parseInt(item.precio_paquete).toLocaleString('es-CO')}` : 'N/A';
+            const precioBase = item.precio_base || item.precio_paquete;
+            const precioFinal = item.precio_paquete; // ya es COALESCE(final_price, tp.price)
+            const tieneCampaña = !!item.campaign_id;
+            const precioHtml = tieneCampaña
+              ? `<span>
+                   <span style="text-decoration:line-through;color:#9ca3af;font-size:.8rem;">$${parseInt(precioBase||0).toLocaleString('es-CO')}</span>
+                   <span class="font-bold ml-1" style="color:${precioFinal==0?'#16a34a':'#f97316'};">
+                     ${precioFinal==0 ? '🎁 GRATIS' : '$'+parseInt(precioFinal).toLocaleString('es-CO')}
+                   </span>
+                 </span>`
+              : `<span class="font-bold text-green-600">${precioFinal ? '$'+parseInt(precioFinal).toLocaleString('es-CO') : 'N/A'}</span>`;
+            const turnosHtml = (item.total_turns && item.total_turns != item.turns_remaining)
+              ? `<span class="font-bold text-green-600">${item.total_turns} total</span>`
+              : `<span class="font-bold ${item.turns_remaining > 0 ? 'text-green-600' : 'text-red-600'}">${item.turns_remaining ?? 0}</span>`;
             html += `
-              <li class="p-3 bg-gray-50 rounded-lg">
+              <li class="p-3 rounded-lg ${tieneCampaña ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}">
+                ${tieneCampaña ? `<div style="background:#fef3c7;border-radius:8px;padding:4px 10px;margin-bottom:8px;font-size:.78rem;font-weight:700;color:#92400e;">
+                  ⚡ Campaña: ${item.campaign_name || 'Campaña aplicada'}
+                </div>` : ''}
                 <div class="grid grid-cols-2 gap-2 text-sm">
                   <span class="font-semibold">Código QR:</span><span class="font-mono">${item.qr_code}</span>
                   <span class="font-semibold">Nombre:</span><span class="font-bold text-blue-600">${item.qr_name || 'No asignado'}</span>
                   <span class="font-semibold">Fecha y Hora:</span><span>${fechaFormateada}</span>
                   <span class="font-semibold">Usuario:</span><span>${item.user_name || 'N/A'}</span>
                   <span class="font-semibold">Paquete:</span><span>${item.package_name || 'N/A'}</span>
-                  <span class="font-semibold">Precio:</span><span class="font-bold text-green-600">${precioFormateado}</span>
+                  <span class="font-semibold">Precio cobrado:</span>${precioHtml}
+                  <span class="font-semibold">Turnos totales:</span>${turnosHtml}
                   <span class="font-semibold">Turnos restantes:</span><span class="font-bold ${item.turns_remaining > 0 ? 'text-green-600' : 'text-red-600'}">${item.turns_remaining ?? 0}</span>
                 </div>
               </li>`;
