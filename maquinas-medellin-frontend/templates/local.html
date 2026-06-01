@@ -1045,8 +1045,8 @@ fetch('/api/mis-permisos')
       generarPDF: function() {
         if (!this.validarFormulario()) return;
         const nombre = document.getElementById('nombreQR').value.trim();
-        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
-        const paquete = this.paquetesData?.find(p => p.id == paqueteId);
+        // Usar paqueteSeleccionado que ya tiene finalPrice/finalTurns/campaign de la campaña activa
+        const paquete = this.paqueteSeleccionado || this.paquetesData?.find(p => p.id == document.getElementById('paqueteIdSeleccionado').value);
         if (!paquete) { this.mostrarAlerta("❌ Error: Paquete no encontrado", "error"); return; }
         this.generarDocumento(nombre, 'pdf', paquete);
       },
@@ -1054,8 +1054,7 @@ fetch('/api/mis-permisos')
       enviarWhatsApp: function() {
         if (!this.validarFormulario()) return;
         const nombre = document.getElementById('nombreQR').value.trim();
-        const paqueteId = document.getElementById('paqueteIdSeleccionado').value;
-        const paquete = this.paquetesData?.find(p => p.id == paqueteId);
+        const paquete = this.paqueteSeleccionado || this.paquetesData?.find(p => p.id == document.getElementById('paqueteIdSeleccionado').value);
         if (!paquete) { this.mostrarAlerta("❌ Error: Paquete no encontrado", "error"); return; }
         this.generarDocumento(nombre, 'whatsapp', paquete);
       },
@@ -1109,20 +1108,44 @@ fetch('/api/mis-permisos')
                 doc.addImage(dataUrl, 'PNG', xCentrado, yQR, anchoQR, altoQR);
                 doc.setFontSize(8); doc.setFont(undefined, 'bold');
                 const numero = codigoQR.replace('QR', '');
+                // Usar precio/turnos reales (con campaña si aplica)
+                const precioReal  = paquete.finalPrice  !== undefined ? paquete.finalPrice  : parseFloat(paquete.price);
+                const turnosReal  = paquete.finalTurns  !== undefined ? paquete.finalTurns  : parseInt(paquete.turns);
+                const precioBase  = parseFloat(paquete.price);
+                const campNombre  = paquete.campaign?.name || null;
+
+                const precioTexto = precioReal === 0
+                  ? 'GRATIS'
+                  : `$${precioReal.toLocaleString('es-CO')}`;
+                const precioLinea = (campNombre && precioReal !== precioBase)
+                  ? `Precio: ${precioTexto} (base: $${precioBase.toLocaleString('es-CO')})`
+                  : `Precio: ${precioTexto}`;
+
                 const textos = [
                   { t: `Nombre: ${nombre}`, y: yQR + altoQR + 8 },
                   { t: `Código: ${codigoQR}`, y: yQR + altoQR + 12 },
                   { t: `ID: ${numero}`, y: yQR + altoQR + 16 },
                   { t: `Paquete: P${paquete.id}`, y: yQR + altoQR + 20 },
-                  { t: `Precio: $${paquete.price.toLocaleString('es-CO')}`, y: yQR + altoQR + 24 },
-                  { t: `Turnos: ${paquete.turns}`, y: yQR + altoQR + 28 }
+                  { t: precioLinea, y: yQR + altoQR + 24 },
+                  { t: `Turnos: ${turnosReal}`, y: yQR + altoQR + 28 },
                 ];
                 textos.forEach(({ t, y }) => doc.text(t, (anchoPapel - doc.getTextWidth(t)) / 2, y));
+
+                // Badge de campaña en el PDF
+                let lineaExtra = 0;
+                if (campNombre) {
+                  doc.setFontSize(6); doc.setFont(undefined, 'bold');
+                  const campTxt = `CAMPAÑA: ${campNombre}`;
+                  doc.text(campTxt, (anchoPapel - doc.getTextWidth(campTxt)) / 2, yQR + altoQR + 32);
+                  lineaExtra = 4;
+                  doc.setFont(undefined, 'normal');
+                }
+
                 doc.setLineWidth(0.5);
-                doc.line(5, yQR + altoQR + 30, anchoPapel - 5, yQR + altoQR + 30);
+                doc.line(5, yQR + altoQR + 32 + lineaExtra, anchoPapel - 5, yQR + altoQR + 32 + lineaExtra);
                 doc.setFontSize(6); doc.setFont(undefined, 'normal');
                 const textoInfo = `Vence: ${expiracionQR || '+15 dias'} - Presentar para canjear`;
-                doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 34);
+                doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 36 + lineaExtra);
               }
               setTimeout(() => generarPaginaRecursiva(i + 1), 100);
             }, 200);

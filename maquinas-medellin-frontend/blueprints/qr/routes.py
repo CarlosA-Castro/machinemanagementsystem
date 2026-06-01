@@ -375,24 +375,54 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
             nuevo_codigo = f"QR{i:04d}"
             codigos_generados.append(nuevo_codigo)
 
+            # Si el código ya existía (creado por la vista previa con turnPackageId=1),
+            # actualizamos los campos en lugar de fallar con duplicado.
             cursor.execute("""
                 INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name, expiration_date)
-                VALUES (%s, %s, %s, %s, %s, DATE_ADD(CURDATE(), INTERVAL 15 DAY))
-            """, (nuevo_codigo, turns_paquete, 1, paquete_id, nombre))
+                VALUES (%s, %s, 1, %s, %s, DATE_ADD(CURDATE(), INTERVAL 15 DAY))
+                ON DUPLICATE KEY UPDATE
+                    remainingTurns = VALUES(remainingTurns),
+                    turnPackageId  = VALUES(turnPackageId),
+                    qr_name        = VALUES(qr_name),
+                    expiration_date = VALUES(expiration_date)
+            """, (nuevo_codigo, turns_paquete, paquete_id, nombre))
 
+            # Obtener el id real del qrcode (ya sea nuevo o actualizado)
+            cursor.execute("SELECT id FROM qrcode WHERE code = %s", (nuevo_codigo,))
+            qr_row = cursor.fetchone()
+            qr_id  = qr_row['id']
+
+            # Upsert de userturns: si ya existe (del shell de preview) actualizar
             cursor.execute("""
                 INSERT INTO userturns (qr_code_id, turns_remaining, total_turns, package_id)
-                VALUES (LAST_INSERT_ID(), %s, %s, %s)
-            """, (turns_paquete, turns_paquete, paquete_id))
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    turns_remaining = VALUES(turns_remaining),
+                    total_turns     = VALUES(total_turns),
+                    package_id      = VALUES(package_id)
+            """, (qr_id, turns_paquete, turns_paquete, paquete_id))
 
             _final_price   = campaign_result['final_price']   if campaign_result else None
             _campaign_id   = campaign_result['campaign_id']   if campaign_result else None
 
+            # qrhistory: insertar como venta real.
+            # Si ya hay un registro del shell de preview (es_venta_real=FALSE),
+            # lo actualizamos marcándolo como venta real con todos sus datos.
             cursor.execute("""
                 INSERT INTO qrhistory
                 (qr_code, user_id, user_name, local, fecha_hora, qr_name,
                  es_venta_real, payment_method, final_price, campaign_id)
                 VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    user_id        = VALUES(user_id),
+                    user_name      = VALUES(user_name),
+                    local          = VALUES(local),
+                    fecha_hora     = VALUES(fecha_hora),
+                    qr_name        = VALUES(qr_name),
+                    es_venta_real  = TRUE,
+                    payment_method = VALUES(payment_method),
+                    final_price    = VALUES(final_price),
+                    campaign_id    = VALUES(campaign_id)
             """, (nuevo_codigo, user_id, user_name, local, fecha_hora_str, nombre,
                   payment_method, _final_price, _campaign_id))
 
