@@ -912,7 +912,10 @@ def calcular_liquidacion():
                     COALESCE(mpr.porcentaje_restaurante, %s) AS porcentaje_restaurante,
                     (COALESCE(qh.final_price, tp.price) * COALESCE(mpr.porcentaje_restaurante, %s) / 100) AS ingresos_restaurante,
                     (COALESCE(qh.final_price, tp.price) * (100 - COALESCE(mpr.porcentaje_restaurante, %s)) / 100) AS ingresos_proveedor,
-                    COALESCE(p.nombre, 'No asignado') AS propietario
+                    COALESCE(p.nombre, 'No asignado') AS propietario,
+                    qh.campaign_id,
+                    c.name  AS campaign_name,
+                    tp.price AS precio_base
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -921,9 +924,9 @@ def calcular_liquidacion():
                 LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
                 LEFT JOIN maquinapropietario mp ON m.id = mp.maquina_id
                 LEFT JOIN propietarios p ON mp.propietario_id = p.id
+                LEFT JOIN campaign c ON c.id = qh.campaign_id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  
                   AND qh.es_venta_real = TRUE
                   {loc_cond}
                 ORDER BY qh.fecha_hora DESC
@@ -944,13 +947,16 @@ def calcular_liquidacion():
                     %s AS porcentaje_restaurante,
                     (COALESCE(qh.final_price, tp.price) * %s / 100) AS ingresos_restaurante,
                     (COALESCE(qh.final_price, tp.price) * (100 - %s) / 100) AS ingresos_proveedor,
-                    'No asignado' AS propietario
+                    'No asignado' AS propietario,
+                    qh.campaign_id,
+                    c.name  AS campaign_name,
+                    tp.price AS precio_base
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
+                LEFT JOIN campaign c ON c.id = qh.campaign_id
                 WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
                   AND qr.turnPackageId IS NOT NULL
-                  
                   AND qh.es_venta_real = TRUE
                 ORDER BY qh.fecha_hora DESC
                 """,
@@ -958,19 +964,25 @@ def calcular_liquidacion():
                 column='location_id', table_alias='tp',
             )
         cursor.execute(datos_sql, datos_params)
-        datos_tabla = [
-            {
+        datos_tabla = []
+        for row in cursor.fetchall():
+            precio_final = float(row.get('ingresos_totales') or 0)
+            precio_base  = float(row.get('precio_base') or precio_final)
+            datos_tabla.append({
                 'fecha':                  str(row['fecha'])[:10] if row.get('fecha') else None,
                 'vendedor':               str(row.get('vendedor') or ''),
                 'payment_method':         str(row.get('payment_method') or 'sin_registrar'),
                 'payment_method_label':   _payment_method_label(row.get('payment_method')),
                 'paquete_nombre':         str(row.get('paquete_nombre') or ''),
-                'ingresos_totales':       float(row.get('ingresos_totales') or 0),
+                'ingresos_totales':       precio_final,
+                'precio_base':            precio_base,
                 'porcentaje_restaurante': float(row.get('porcentaje_restaurante') or 0),
                 'ingresos_restaurante':   float(row.get('ingresos_restaurante') or 0),
-            }
-            for row in cursor.fetchall()
-        ]
+                'campaign_id':            row.get('campaign_id'),
+                'campaign_name':          row.get('campaign_name'),
+                'is_campaign':            row.get('campaign_id') is not None,
+                'descuento':              round(precio_base - precio_final, 2),
+            })
 
         if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
             loc_cond, loc_params = _tp_location_cond()
