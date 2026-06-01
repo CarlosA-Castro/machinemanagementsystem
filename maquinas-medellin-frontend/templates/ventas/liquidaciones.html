@@ -448,6 +448,7 @@
                                         <th>Vendedor</th>
                                         <th>Pago</th>
                                         <th>Paquete</th>
+                                        <th>Campaña</th>
                                         <th class="text-right">Precio</th>
                                         <th class="text-right">
                                             % Negocio
@@ -1550,17 +1551,43 @@ function renderDetalleVentas(datos) {
     }
     empty.classList.add('hidden');
     tbody.innerHTML = datos.map(v => {
-        const fecha = v.fecha ? v.fecha.slice(0, 10) : '—';
+        const fecha    = v.fecha ? v.fecha.slice(0, 10) : '—';
         const vendedor = v.vendedor || '—';
-        const metodo = v.payment_method_label || 'Sin registrar';
-        const pctNeg = v.porcentaje_restaurante ? parseFloat(v.porcentaje_restaurante).toFixed(1) + '%' : '--';
-        const ingRest = v.ingresos_restaurante != null ? fmt(v.ingresos_restaurante) : '—';
-        return `<tr>
+        const metodo   = v.payment_method_label || 'Sin registrar';
+        const pctNeg   = v.porcentaje_restaurante ? parseFloat(v.porcentaje_restaurante).toFixed(1) + '%' : '--';
+        const ingRest  = v.ingresos_restaurante != null ? fmt(v.ingresos_restaurante) : '—';
+        const esCamp   = v.is_campaign;
+        const descuento = parseFloat(v.descuento || 0);
+
+        // Celda campaña
+        const campCell = esCamp
+            ? `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;
+                            font-size:.7rem;font-weight:700;white-space:nowrap;">
+                   ⚡ ${v.campaign_name || 'Campaña'}
+               </span>`
+            : '<span class="text-gray-300 text-xs">—</span>';
+
+        // Celda precio: si hay descuento muestra precio base tachado + precio real
+        const precioCell = esCamp
+            ? `<div style="text-align:right;">
+                   ${descuento > 0
+                     ? `<div style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">${fmt(parseFloat(v.precio_base||0))}</div>`
+                     : ''}
+                   <div class="font-semibold" style="color:${parseFloat(v.ingresos_totales||0)===0?'#16a34a':'#f97316'}">
+                       ${parseFloat(v.ingresos_totales||0) === 0 ? '🎁 GRATIS' : fmt(v.ingresos_totales)}
+                   </div>
+               </div>`
+            : `<div class="text-right font-semibold">${fmt(v.ingresos_totales)}</div>`;
+
+        const rowBg = esCamp ? 'background:#fffbeb;' : '';
+
+        return `<tr style="${rowBg}">
             <td class="text-xs text-gray-500">${fecha}</td>
             <td class="font-medium">${vendedor}</td>
             <td><span class="badge ${metodo === 'Sin registrar' ? 'badge-red' : 'badge-blue'}">${metodo}</span></td>
             <td>${v.paquete_nombre || 'Sin paquete'}</td>
-            <td class="text-right font-semibold">${fmt(v.ingresos_totales)}</td>
+            <td>${campCell}</td>
+            <td>${precioCell}</td>
             <td class="text-right text-xs text-green-700">${pctNeg}</td>
             <td class="text-right text-green-700">${ingRest}</td>
         </tr>`;

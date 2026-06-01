@@ -1153,6 +1153,8 @@ def obtener_ventas_liquidadas():
                 (COALESCE(qh.final_price, tp.price) * {admin_expr} / 100) AS monto_admin,
                 (COALESCE(qh.final_price, tp.price) * (100 - COALESCE(mpr.porcentaje_restaurante, {RESTAURANT_PERCENTAGE_DEFAULT}) - {admin_expr}) / 100) AS monto_utilidad,
                 qh.campaign_id,
+                c.name  AS campaign_name,
+                cr.rule_type AS campaign_type,
                 COALESCE(p.nombre, 'No asignado') AS propietario,
                 COALESCE(mp.porcentaje_propiedad, 0) AS porcentaje_propiedad
             FROM qrhistory qh
@@ -1160,6 +1162,8 @@ def obtener_ventas_liquidadas():
             JOIN turnpackage  tp ON qr.turnPackageId = tp.id
             LEFT JOIN (SELECT qrCodeId, MIN(machineId) AS machineId FROM turnusage GROUP BY qrCodeId) tu ON qr.id = tu.qrCodeId
             LEFT JOIN machine    m ON tu.machineId   = m.id
+            LEFT JOIN campaign   c  ON c.id  = qh.campaign_id
+            LEFT JOIN campaign_rule cr ON cr.campaign_id = c.id
             {mpr_join}
             {mp_join}
             WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
@@ -1172,7 +1176,15 @@ def obtener_ventas_liquidadas():
             """
         params = [fecha_inicio, fecha_fin] + loc_params_v + [por_pagina, offset]
         cursor.execute(query, params)
-        ventas = cursor.fetchall()
+        ventas_raw = cursor.fetchall()
+        ventas = []
+        for v in ventas_raw:
+            d = dict(v)
+            d['is_campaign']   = d.get('campaign_id') is not None
+            d['campaign_name'] = d.get('campaign_name') or None
+            d['campaign_type'] = d.get('campaign_type') or None
+            d['descuento']     = round(_to_float(d.get('precio_base', 0)) - _to_float(d.get('precio_unitario', 0)), 2)
+            ventas.append(d)
 
         total_ingresos  = sum(_to_float(v['precio_unitario']) for v in ventas)
         total_negocio   = sum(_to_float(v['monto_negocio'])   for v in ventas)
