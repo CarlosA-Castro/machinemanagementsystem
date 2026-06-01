@@ -809,24 +809,53 @@ def generar_qr():
 @handle_api_errors
 @require_login(['admin', 'cajero'])
 def obtener_siguiente_qr():
-    """Obtener el siguiente código QR disponible con manejo de reinicio"""
-    siguiente_codigo = generar_codigo_qr()
+    """
+    Devuelve el PRÓXIMO código QR disponible para mostrar en la vista previa.
+    NO crea ni reserva el código — solo lee el contador actual + 1.
+    El ID real se asigna únicamente al confirmar la venta (/api/generar-qr).
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E001', http_status=500)
+        cursor = get_db_cursor(connection)
 
-    if not siguiente_codigo:
-        return api_response('E001', http_status=500)
+        # Leer el contador actual SIN modificarlo ni crear ningún registro
+        cursor.execute(
+            "SELECT counter_value FROM globalcounter WHERE counter_type = 'QR_CODE'"
+        )
+        row = cursor.fetchone()
+        contador_actual = row['counter_value'] if row else 0
 
-    numero_qr = int(siguiente_codigo[2:])
+        # También verificar el MAX real para evitar colisiones
+        cursor.execute(
+            "SELECT MAX(CAST(SUBSTRING(code, 3) AS UNSIGNED)) AS max_real FROM qrcode"
+        )
+        max_row = cursor.fetchone()
+        max_real = max_row['max_real'] or 0
 
-    return api_response(
-        'S001',
-        status='success',
-        data={
-            'siguiente_codigo': siguiente_codigo,
-            'numero_qr': numero_qr,
-            'es_reinicio': numero_qr == 1,
-            'mensaje': '¡Contador reiniciado!' if numero_qr == 1 else None
-        }
-    )
+        proximo = max(contador_actual, max_real) + 1
+        if proximo > 9999:
+            proximo = 1
+
+        siguiente_codigo = f"QR{proximo:04d}"
+
+        return api_response(
+            'S001',
+            status='success',
+            data={
+                'siguiente_codigo': siguiente_codigo,
+                'numero_qr': proximo,
+                'es_reinicio': proximo == 1,
+                'mensaje': '¡Contador reiniciado!' if proximo == 1 else None,
+                'nota': 'Previsualización — el código real se asigna al confirmar la venta'
+            }
+        )
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
 
 
 @qr_bp.route('/api/paquetes', methods=['GET'])
