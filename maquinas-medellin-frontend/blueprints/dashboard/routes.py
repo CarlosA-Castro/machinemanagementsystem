@@ -89,7 +89,7 @@ def obtener_estadisticas_dashboard():
         if loc_name: q_ingresos_params.append(loc_name)
         cursor.execute(f"""
             SELECT
-                COALESCE(SUM(tp.price), 0) as ingresos_totales,
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ingresos_totales,
                 COUNT(DISTINCT qh.qr_code) as paquetes_vendidos
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -117,7 +117,7 @@ def obtener_estadisticas_dashboard():
             SELECT
                 CASE
                     WHEN COUNT(DISTINCT qh.qr_code) > 0
-                    THEN COALESCE(SUM(tp.price), 0) / COUNT(DISTINCT qh.qr_code)
+                    THEN COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) / COUNT(DISTINCT qh.qr_code)
                     ELSE 0
                 END as ticket_promedio
             FROM qrhistory qh
@@ -137,7 +137,7 @@ def obtener_estadisticas_dashboard():
             SELECT
                 COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
-                COALESCE(SUM(tp.price), 0) as valor_total
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as valor_total
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -166,7 +166,7 @@ def obtener_estadisticas_dashboard():
         if loc_name: q_ant_params.append(loc_name)
         cursor.execute(f"""
             SELECT
-                COALESCE(SUM(tp.price), 0) as ingresos_anterior,
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ingresos_anterior,
                 COUNT(DISTINCT qh.qr_code) as paquetes_anterior
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -240,7 +240,7 @@ def obtener_graficas_dashboard():
             cursor.execute(f"""
                 SELECT DATE_FORMAT(qh.fecha_hora, '%Y-%m') as fecha,
                        COUNT(DISTINCT qh.qr_code) as ventas,
-                       COALESCE(SUM(tp.price), 0) as ingresos
+                       COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ingresos
                 FROM qrhistory qh
                 LEFT JOIN qrcode qr ON qr.code = qh.qr_code
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -254,7 +254,7 @@ def obtener_graficas_dashboard():
             cursor.execute(f"""
                 SELECT DATE_FORMAT(qh.fecha_hora, '%Y-S%u') as fecha,
                        COUNT(DISTINCT qh.qr_code) as ventas,
-                       COALESCE(SUM(tp.price), 0) as ingresos
+                       COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ingresos
                 FROM qrhistory qh
                 LEFT JOIN qrcode qr ON qr.code = qh.qr_code
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -268,7 +268,7 @@ def obtener_graficas_dashboard():
             cursor.execute(f"""
                 SELECT DATE(qh.fecha_hora) as fecha,
                        COUNT(DISTINCT qh.qr_code) as ventas,
-                       COALESCE(SUM(tp.price), 0) as ingresos
+                       COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ingresos
                 FROM qrhistory qh
                 LEFT JOIN qrcode qr ON qr.code = qh.qr_code
                 LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -288,7 +288,7 @@ def obtener_graficas_dashboard():
         cursor.execute(f"""
             SELECT tp.name as paquete,
                    COUNT(DISTINCT qh.qr_code) as cantidad,
-                   SUM(tp.price) as ingresos
+                   SUM(COALESCE(qh.final_price, tp.price)) as ingresos
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -307,7 +307,7 @@ def obtener_graficas_dashboard():
         cursor.execute(f"""
             SELECT m.name as maquina,
                    COUNT(tu.id) as usos,
-                   COALESCE(SUM(tp.price), 0) as ingresos
+                   COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as ingresos
             FROM machine m
             LEFT JOIN turnusage tu ON tu.machineId = m.id
                 AND DATE(tu.usedAt) BETWEEN %s AND %s
@@ -583,7 +583,7 @@ def obtener_resumen_dashboard():
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                           THEN qh.qr_code END) as vendidos_hoy,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                          THEN tp.price END), 0) as valor_hoy
+                          THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_hoy
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -610,7 +610,7 @@ def obtener_resumen_dashboard():
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                           THEN qh.qr_code END) as vendidos_ayer,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                          THEN tp.price END), 0) as valor_ayer
+                          THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_ayer
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -734,7 +734,7 @@ def obtener_estadisticas_rango_fechas():
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                           THEN qh.qr_code END) as vendidos,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                          THEN tp.price END), 0) as valor_ventas,
+                          THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_ventas,
                 COUNT(tu.id) as turnos_utilizados
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -752,7 +752,7 @@ def obtener_estadisticas_rango_fechas():
                 COUNT(DISTINCT CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                           THEN qh.qr_code END) as total_vendidos,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
-                          THEN tp.price END), 0) as total_valor_ventas,
+                          THEN COALESCE(qh.final_price, tp.price) END), 0) as total_valor_ventas,
                 COUNT(DISTINCT tu.id) as total_turnos_utilizados
             FROM qrhistory qh
             LEFT JOIN qrcode qr ON qr.code = qh.qr_code
@@ -775,7 +775,7 @@ def obtener_estadisticas_rango_fechas():
         cursor.execute(f"""
             SELECT tp.name as paquete_nombre,
                    COUNT(DISTINCT qh.qr_code) as veces_vendido,
-                   SUM(tp.price) as valor_total
+                   SUM(COALESCE(qh.final_price, tp.price)) as valor_total
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id

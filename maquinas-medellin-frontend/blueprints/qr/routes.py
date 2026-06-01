@@ -497,7 +497,7 @@ def actualizar_contador_diario(fecha=None):
                           THEN qh.qr_code END) as qr_vendidos,
                 COALESCE(SUM(CASE WHEN qr.turnPackageId IS NOT NULL AND qr.turnPackageId != 1
                            AND qh.es_venta_real = TRUE  -- SOLO VENTAS REALES
-                           THEN tp.price END), 0) as valor_ventas,
+                           THEN COALESCE(qh.final_price, tp.price) END), 0) as valor_ventas,
                 COUNT(DISTINCT qh.qr_code) as qr_escaneados,
                 COUNT(DISTINCT tu.id) as turnos_utilizados,
                 COUNT(DISTINCT mf.id) as fallas_reportadas
@@ -1727,7 +1727,7 @@ def obtener_estadisticas_tiempo_real():
 
         cursor.execute("""
             SELECT COUNT(DISTINCT qh.qr_code) as vendidos_hoy,
-                   COALESCE(SUM(tp.price), 0) as valor_hoy
+                   COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as valor_hoy
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -2065,7 +2065,7 @@ def ventas_dia():
         cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
-                COALESCE(SUM(tp.price), 0) as valor_total
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as valor_total
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -2082,7 +2082,7 @@ def ventas_dia():
             SELECT
                 COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') as payment_method,
                 COUNT(DISTINCT qh.qr_code) as total_ventas,
-                COALESCE(SUM(tp.price), 0) as valor_total
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) as valor_total
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id

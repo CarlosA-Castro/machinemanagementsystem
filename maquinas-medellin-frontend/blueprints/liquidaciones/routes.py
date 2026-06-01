@@ -706,7 +706,7 @@ def _build_period_comparison(cursor, fecha_inicio, fecha_fin):
             """
             SELECT
                 COUNT(DISTINCT qh.qr_code) AS total_ventas,
-                COALESCE(SUM(tp.price), 0) AS total_ingresos
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS total_ingresos
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -908,10 +908,10 @@ def calcular_liquidacion():
                     tp.name AS paquete_nombre,
                     tp.turns AS turnos_usados,
                     COALESCE(m.name, 'No especificada') AS maquina_nombre,
-                    tp.price AS ingresos_totales,
+                    COALESCE(qh.final_price, tp.price) AS ingresos_totales,
                     COALESCE(mpr.porcentaje_restaurante, %s) AS porcentaje_restaurante,
-                    (tp.price * COALESCE(mpr.porcentaje_restaurante, %s) / 100) AS ingresos_restaurante,
-                    (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, %s)) / 100) AS ingresos_proveedor,
+                    (COALESCE(qh.final_price, tp.price) * COALESCE(mpr.porcentaje_restaurante, %s) / 100) AS ingresos_restaurante,
+                    (COALESCE(qh.final_price, tp.price) * (100 - COALESCE(mpr.porcentaje_restaurante, %s)) / 100) AS ingresos_proveedor,
                     COALESCE(p.nombre, 'No asignado') AS propietario
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
@@ -940,10 +940,10 @@ def calcular_liquidacion():
                     tp.name AS paquete_nombre,
                     tp.turns AS turnos_usados,
                     'No especificada' AS maquina_nombre,
-                    tp.price AS ingresos_totales,
+                    COALESCE(qh.final_price, tp.price) AS ingresos_totales,
                     %s AS porcentaje_restaurante,
-                    (tp.price * %s / 100) AS ingresos_restaurante,
-                    (tp.price * (100 - %s) / 100) AS ingresos_proveedor,
+                    (COALESCE(qh.final_price, tp.price) * %s / 100) AS ingresos_restaurante,
+                    (COALESCE(qh.final_price, tp.price) * (100 - %s) / 100) AS ingresos_proveedor,
                     'No asignado' AS propietario
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
@@ -978,7 +978,7 @@ def calcular_liquidacion():
                 SELECT
                     COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
                     COUNT(DISTINCT qh.qr_code) AS total_ventas,
-                    COALESCE(SUM(tp.price), 0) AS valor_total
+                    COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS valor_total
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -997,7 +997,7 @@ def calcular_liquidacion():
                 SELECT
                     COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
                     COUNT(DISTINCT qh.qr_code) AS total_ventas,
-                    COALESCE(SUM(tp.price), 0) AS valor_total
+                    COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS valor_total
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
@@ -1144,13 +1144,15 @@ def obtener_ventas_liquidadas():
                 qh.user_name AS vendedor,
                 tp.name AS paquete_nombre,
                 tp.turns AS turnos_paquete,
-                tp.price AS precio_unitario,
+                COALESCE(qh.final_price, tp.price) AS precio_unitario,
+                tp.price AS precio_base,
                 COALESCE(m.name, 'Máquina no especificada') AS maquina_nombre,
                 COALESCE(mpr.porcentaje_restaurante, {RESTAURANT_PERCENTAGE_DEFAULT}) AS pct_negocio,
                 {admin_expr} AS pct_admin,
-                (tp.price * COALESCE(mpr.porcentaje_restaurante, {RESTAURANT_PERCENTAGE_DEFAULT}) / 100) AS monto_negocio,
-                (tp.price * {admin_expr} / 100) AS monto_admin,
-                (tp.price * (100 - COALESCE(mpr.porcentaje_restaurante, {RESTAURANT_PERCENTAGE_DEFAULT}) - {admin_expr}) / 100) AS monto_utilidad,
+                (COALESCE(qh.final_price, tp.price) * COALESCE(mpr.porcentaje_restaurante, {RESTAURANT_PERCENTAGE_DEFAULT}) / 100) AS monto_negocio,
+                (COALESCE(qh.final_price, tp.price) * {admin_expr} / 100) AS monto_admin,
+                (COALESCE(qh.final_price, tp.price) * (100 - COALESCE(mpr.porcentaje_restaurante, {RESTAURANT_PERCENTAGE_DEFAULT}) - {admin_expr}) / 100) AS monto_utilidad,
+                qh.campaign_id,
                 COALESCE(p.nombre, 'No asignado') AS propietario,
                 COALESCE(mp.porcentaje_propiedad, 0) AS porcentaje_propiedad
             FROM qrhistory qh
