@@ -536,7 +536,7 @@ fetch('/api/mis-permisos')
       },
 
       actualizarVentasDia: function() {
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = new Date().toLocaleDateString('sv', {timeZone:'America/Bogota'});
         fetch(`/api/ventas-dia?fecha=${hoy}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => { if (!res.ok) throw new Error('Error servidor'); return res.json(); })
         .then(data => {

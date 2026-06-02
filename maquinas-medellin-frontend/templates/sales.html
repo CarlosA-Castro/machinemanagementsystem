@@ -763,35 +763,35 @@
 
         switch(rango) {
             case 'hoy':
-                fechaInicio = ahora.toISOString().split('T')[0];
+                fechaInicio = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 fechaFin = fechaInicio;
                 break;
                 
             case 'ayer':
                 const ayer = new Date(ahora);
                 ayer.setDate(ahora.getDate() - 1);
-                fechaInicio = ayer.toISOString().split('T')[0];
+                fechaInicio = ayer.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 fechaFin = fechaInicio;
                 break;
                 
             case 'semana':
                 const inicioSemana = new Date(ahora);
                 inicioSemana.setDate(ahora.getDate() - ahora.getDay());
-                fechaInicio = inicioSemana.toISOString().split('T')[0];
-                fechaFin = ahora.toISOString().split('T')[0];
+                fechaInicio = inicioSemana.toLocaleDateString('sv', {timeZone:'America/Bogota'});
+                fechaFin = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 break;
                 
             case 'mes':
                 const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-                fechaInicio = inicioMes.toISOString().split('T')[0];
-                fechaFin = ahora.toISOString().split('T')[0];
+                fechaInicio = inicioMes.toLocaleDateString('sv', {timeZone:'America/Bogota'});
+                fechaFin = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 break;
                 
             case 'quincena':
                 const dia = ahora.getDate();
                 const inicioQuincena = new Date(ahora.getFullYear(), ahora.getMonth(), dia <= 15 ? 1 : 16);
-                fechaInicio = inicioQuincena.toISOString().split('T')[0];
-                fechaFin = ahora.toISOString().split('T')[0];
+                fechaInicio = inicioQuincena.toLocaleDateString('sv', {timeZone:'America/Bogota'});
+                fechaFin = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 break;
                 
             case 'personalizado':

@@ -675,14 +675,14 @@
 
         switch(rango) {
             case 'hoy':
-                fechaInicio = ahora.toISOString().split('T')[0];
+                fechaInicio = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 fechaFin = fechaInicio;
                 break;
                 
             case 'ayer':
                 const ayer = new Date(ahora);
                 ayer.setDate(ahora.getDate() - 1);
-                fechaInicio = ayer.toISOString().split('T')[0];
+                fechaInicio = ayer.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 fechaFin = fechaInicio;
                 break;
                 
@@ -690,13 +690,13 @@
                 const inicioSemana = new Date(ahora);
                 inicioSemana.setDate(ahora.getDate() - ahora.getDay());
                 fechaInicio = inicioSemana.toISOString().split('T')[0];
-                fechaFin = ahora.toISOString().split('T')[0];
+                fechaFin = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 break;
                 
             case 'mes':
                 const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
                 fechaInicio = inicioMes.toISOString().split('T')[0];
-                fechaFin = ahora.toISOString().split('T')[0];
+                fechaFin = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
                 break;
                 
             case 'personalizado':
@@ -1169,7 +1169,7 @@ configurarFechasIniciales: function() {
     // Declarar inicioMes antes de usarlo
     const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
     const inicioMesStr = inicioMes.toISOString().split('T')[0];
-    const hoyStr = ahora.toISOString().split('T')[0];
+    const hoyStr = ahora.toLocaleDateString('sv', {timeZone:'America/Bogota'});
 
     this.configurarRango('mes');
 
