@@ -47,6 +47,9 @@
             <button onclick="cargarLogs()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
                 <i class="fa fa-refresh"></i> Actualizar
             </button>
+            <button onclick="exportarCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                <i class="fa fa-download"></i> Exportar CSV
+            </button>
             <button onclick="confirmarLimpiar()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
                 <i class="fa fa-trash"></i> Limpiar todo
             </button>
@@ -154,6 +157,8 @@
 </div>
 
 <script>
+let currentRows = [];
+
 const BADGE_CLASSES = {
     BOOT:       'badge-boot',
     HEARTBEAT:  'badge-heartbeat',
@@ -205,6 +210,7 @@ async function cargarLogs() {
 
     // Stats
     const rows = json.data;
+    currentRows = rows;
     document.getElementById('stat-total').textContent   = rows.length;
     document.getElementById('stat-devices').textContent = json.devices.length;
     document.getElementById('stat-errors').textContent  = rows.filter(r => r.event === 'ERROR').length;
@@ -248,6 +254,38 @@ async function ejecutarLimpiar() {
         alert(`Limpiado: ${json.deleted} registros eliminados.`);
         cargarLogs();
     }
+}
+
+function exportarCSV() {
+    if (currentRows.length === 0) { alert('No hay datos para exportar.'); return; }
+
+    const modulo   = document.getElementById('f-device').options[document.getElementById('f-device').selectedIndex].text;
+    const desde    = document.getElementById('f-desde').value || 'todos';
+    const hasta    = document.getElementById('f-hasta').value || 'todos';
+    const filename = `logs_${modulo}_${desde}_${hasta}.csv`.replace(/\s+/g, '_');
+
+    const header = ['fecha_hora', 'modulo', 'maquina', 'evento', 'mensaje', 'heap_bytes', 'rssi_dbm', 'uptime_s'];
+    const lines  = [header.join(',')];
+
+    for (const r of currentRows) {
+        const msg = (r.message || '').replace(/"/g, '""');
+        lines.push([
+            r.created_at,
+            r.module_code,
+            r.machine_name,
+            r.event,
+            `"${msg}"`,
+            r.free_heap  ?? '',
+            r.wifi_rssi  ?? '',
+            r.uptime_s   ?? '',
+        ].join(','));
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
 }
 
 // Cargar al abrir y auto-refresh cada 30 s
