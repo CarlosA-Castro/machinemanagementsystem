@@ -1642,7 +1642,8 @@ def api_device_logs():
         event       = request.args.get('event', '').strip()
         fecha_inicio = request.args.get('fecha_inicio', '')
         fecha_fin    = request.args.get('fecha_fin', '')
-        limit        = min(int(request.args.get('limit', 500)), 2000)
+        export_all   = request.args.get('export') == '1'
+        limit        = 999999 if export_all else min(int(request.args.get('limit', 500)), 2000)
 
         where_clauses = []
         params = []

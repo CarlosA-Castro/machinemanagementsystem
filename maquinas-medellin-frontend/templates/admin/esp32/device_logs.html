@@ -256,18 +256,42 @@ async function ejecutarLimpiar() {
     }
 }
 
-function exportarCSV() {
-    if (currentRows.length === 0) { alert('No hay datos para exportar.'); return; }
+async function exportarCSV() {
+    const moduloSel = document.getElementById('f-device');
+    const modulo    = moduloSel.options[moduloSel.selectedIndex].text;
+    const desde     = document.getElementById('f-desde').value || 'todos';
+    const hasta     = document.getElementById('f-hasta').value || 'todos';
+    const filename  = `logs_${modulo}_${desde}_${hasta}.csv`.replace(/\s+/g, '_');
 
-    const modulo   = document.getElementById('f-device').options[document.getElementById('f-device').selectedIndex].text;
-    const desde    = document.getElementById('f-desde').value || 'todos';
-    const hasta    = document.getElementById('f-hasta').value || 'todos';
-    const filename = `logs_${modulo}_${desde}_${hasta}.csv`.replace(/\s+/g, '_');
+    // Indicar que está cargando
+    const btn = document.querySelector('button[onclick="exportarCSV()"]');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Exportando...';
+    btn.disabled = true;
+
+    // Fetch SIN límite con los mismos filtros activos
+    const params = new URLSearchParams({
+        device_id:    document.getElementById('f-device').value,
+        event:        document.getElementById('f-event').value,
+        fecha_inicio: document.getElementById('f-desde').value,
+        fecha_fin:    document.getElementById('f-hasta').value,
+        export:       '1',
+    });
+
+    const res  = await fetch('/api/esp32/device-logs?' + params);
+    const json = await res.json();
+
+    btn.innerHTML = originalHTML;
+    btn.disabled  = false;
+
+    if (json.status !== 'success' || json.data.length === 0) {
+        alert('No hay datos para exportar.'); return;
+    }
 
     const header = ['fecha_hora', 'modulo', 'maquina', 'evento', 'mensaje', 'heap_bytes', 'rssi_dbm', 'uptime_s'];
     const lines  = [header.join(',')];
 
-    for (const r of currentRows) {
+    for (const r of json.data) {
         const msg = (r.message || '').replace(/"/g, '""');
         lines.push([
             r.created_at,
@@ -281,7 +305,7 @@ function exportarCSV() {
         ].join(','));
     }
 
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href = url; a.download = filename; a.click();
