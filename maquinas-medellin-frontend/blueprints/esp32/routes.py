@@ -1565,3 +1565,154 @@ def admin_delete_hardware_module(module_id):
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()
+
+
+# ── Logs de prueba de módulos ESP32 ──────────────────────────────────────────
+
+@esp32_bp.route('/api/esp32/device-log', methods=['POST'])
+def esp32_device_log():
+    """
+    El ESP32 envía un log de evento aquí.
+    Sin autenticación — el módulo puede estar en cualquier red.
+    Body JSON: { device_id, event, message?, free_heap?, wifi_rssi?, uptime_s? }
+    """
+    connection = None
+    cursor = None
+    try:
+        data = request.get_json(silent=True) or {}
+        device_id = (data.get('device_id') or '').strip()
+        event     = (data.get('event')     or '').strip()
+
+        if not device_id or not event:
+            return jsonify({'status': 'error', 'message': 'device_id y event son requeridos'}), 400
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'status': 'error', 'message': 'db'}), 500
+        cursor = get_db_cursor(connection)
+
+        cursor.execute(
+            """
+            INSERT INTO device_test_log
+                (device_id, event, message, free_heap, wifi_rssi, uptime_s)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                device_id,
+                event,
+                data.get('message') or None,
+                data.get('free_heap') or None,
+                data.get('wifi_rssi') or None,
+                data.get('uptime_s') or None,
+            ),
+        )
+        connection.commit()
+        return jsonify({'status': 'ok'}), 201
+
+    except Exception as e:
+        logger.error(f"[device-log] Error guardando log: {e}")
+        if connection:
+            connection.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/device-logs', methods=['GET'])
+@require_login(['admin'])
+def device_logs_page():
+    """Página HTML con la tabla de logs de prueba de módulos."""
+    from flask import render_template
+    return render_template('admin/esp32/device_logs.html')
+
+
+@esp32_bp.route('/api/esp32/device-logs', methods=['GET'])
+@require_login(['admin'])
+@handle_api_errors
+def api_device_logs():
+    """
+    Devuelve logs de device_test_log con filtros opcionales.
+    Query params: device_id, event, fecha_inicio (YYYY-MM-DD), fecha_fin, limit (default 500)
+    """
+    connection = None
+    cursor = None
+    try:
+        device_id   = request.args.get('device_id', '').strip()
+        event       = request.args.get('event', '').strip()
+        fecha_inicio = request.args.get('fecha_inicio', '')
+        fecha_fin    = request.args.get('fecha_fin', '')
+        limit        = min(int(request.args.get('limit', 500)), 2000)
+
+        where_clauses = []
+        params = []
+
+        if device_id:
+            where_clauses.append("device_id = %s")
+            params.append(device_id)
+        if event:
+            where_clauses.append("event = %s")
+            params.append(event)
+        if fecha_inicio:
+            where_clauses.append("created_at >= %s")
+            params.append(f"{fecha_inicio} 00:00:00")
+        if fecha_fin:
+            where_clauses.append("created_at <= %s")
+            params.append(f"{fecha_fin} 23:59:59")
+
+        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'status': 'error'}), 500
+        cursor = get_db_cursor(connection)
+
+        cursor.execute(
+            f"""
+            SELECT id, device_id, event, message, free_heap, wifi_rssi, uptime_s, created_at
+            FROM device_test_log
+            {where_sql}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            params + [limit],
+        )
+        rows = cursor.fetchall()
+
+        # Obtener lista de device_ids únicos para el filtro del frontend
+        cursor.execute("SELECT DISTINCT device_id FROM device_test_log ORDER BY device_id")
+        devices = [r['device_id'] for r in cursor.fetchall()]
+
+        data = []
+        for r in rows:
+            d = dict(r)
+            d['created_at'] = d['created_at'].strftime('%Y-%m-%d %H:%M:%S') if d.get('created_at') else ''
+            data.append(d)
+
+        return jsonify({'status': 'success', 'data': data, 'devices': devices, 'total': len(data)})
+
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@esp32_bp.route('/api/esp32/device-logs/clear', methods=['DELETE'])
+@require_login(['admin'])
+@handle_api_errors
+def api_device_logs_clear():
+    """Elimina todos los logs de device_test_log (útil antes de una nueva sesión de pruebas)."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'status': 'error'}), 500
+        cursor = get_db_cursor(connection)
+        cursor.execute("DELETE FROM device_test_log")
+        deleted = cursor.rowcount
+        connection.commit()
+        logger.info(f"[device-logs] Admin limpió {deleted} registros de device_test_log")
+        return jsonify({'status': 'success', 'deleted': deleted})
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()

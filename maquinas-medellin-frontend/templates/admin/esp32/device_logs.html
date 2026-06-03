@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Logs de Prueba - Panel de Administración</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #1e3a5f 0%, #0f2027 100%); min-height: 100vh; }
+        .glass-card {
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(5px);
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.1); padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .badge-boot      { background:#dbeafe; color:#1e40af; }
+        .badge-heartbeat { background:#d1fae5; color:#065f46; }
+        .badge-qr_scan   { background:#ede9fe; color:#5b21b6; }
+        .badge-wifi_retry{ background:#fef3c7; color:#92400e; }
+        .badge-wifi_ok   { background:#d1fae5; color:#065f46; }
+        .badge-error     { background:#fee2e2; color:#991b1b; }
+        .badge-default   { background:#f3f4f6; color:#374151; }
+        .badge { padding:2px 8px; border-radius:9999px; font-size:0.75rem; font-weight:600; text-transform:uppercase; }
+        #tabla-body tr:hover { background: #f0f9ff; }
+        .stat-card { background:rgba(255,255,255,0.12); border-radius:12px; padding:1rem; color:white; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+<div class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- Encabezado -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+            <a href="/admin" class="text-white opacity-70 hover:opacity-100 transition">
+                <i class="fa fa-arrow-left text-lg"></i>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Logs de Prueba — Módulos ESP32</h1>
+                <p class="text-blue-200 text-sm">Sesión de 24 h — eventos enviados por los módulos en prueba</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="cargarLogs()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                <i class="fa fa-refresh"></i> Actualizar
+            </button>
+            <button onclick="confirmarLimpiar()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                <i class="fa fa-trash"></i> Limpiar todo
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats rápidas -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="stats-grid">
+        <div class="stat-card text-center">
+            <div class="text-3xl font-bold" id="stat-total">—</div>
+            <div class="text-xs opacity-70 mt-1">Total eventos</div>
+        </div>
+        <div class="stat-card text-center">
+            <div class="text-3xl font-bold" id="stat-devices">—</div>
+            <div class="text-xs opacity-70 mt-1">Módulos activos</div>
+        </div>
+        <div class="stat-card text-center">
+            <div class="text-3xl font-bold text-red-300" id="stat-errors">—</div>
+            <div class="text-xs opacity-70 mt-1">Errores</div>
+        </div>
+        <div class="stat-card text-center">
+            <div class="text-3xl font-bold text-yellow-300" id="stat-reboots">—</div>
+            <div class="text-xs opacity-70 mt-1">Reboots</div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="glass-card">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Módulo</label>
+                <select id="f-device" onchange="cargarLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Evento</label>
+                <select id="f-event" onchange="cargarLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todos</option>
+                    <option value="BOOT">BOOT</option>
+                    <option value="HEARTBEAT">HEARTBEAT</option>
+                    <option value="QR_SCAN">QR_SCAN</option>
+                    <option value="WIFI_OK">WIFI_OK</option>
+                    <option value="WIFI_RETRY">WIFI_RETRY</option>
+                    <option value="ERROR">ERROR</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Desde</label>
+                <input type="date" id="f-desde" onchange="cargarLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Hasta</label>
+                <input type="date" id="f-hasta" onchange="cargarLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Límite</label>
+                <select id="f-limit" onchange="cargarLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    <option value="200">200</option>
+                    <option value="500" selected>500</option>
+                    <option value="1000">1000</option>
+                    <option value="2000">2000</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="glass-card overflow-x-auto">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-sm text-gray-500" id="resultado-count">Cargando...</span>
+            <span class="text-xs text-gray-400">Auto-refresh cada 30 s</span>
+        </div>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 text-xs uppercase">
+                    <th class="px-3 py-2 text-left">Hora</th>
+                    <th class="px-3 py-2 text-left">Módulo</th>
+                    <th class="px-3 py-2 text-left">Evento</th>
+                    <th class="px-3 py-2 text-left">Mensaje</th>
+                    <th class="px-3 py-2 text-right">Heap (b)</th>
+                    <th class="px-3 py-2 text-right">RSSI</th>
+                    <th class="px-3 py-2 text-right">Uptime</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body">
+                <tr><td colspan="7" class="text-center py-8 text-gray-400">Cargando logs...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Modal confirmar limpiar -->
+<div id="modal-limpiar" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+        <h3 class="text-lg font-bold text-gray-800 mb-2">¿Limpiar todos los logs?</h3>
+        <p class="text-gray-500 text-sm mb-5">Esta acción elimina permanentemente todos los registros de <code class="bg-gray-100 px-1 rounded">device_test_log</code>. Úsalo antes de iniciar una nueva sesión de pruebas.</p>
+        <div class="flex gap-3 justify-end">
+            <button onclick="cerrarModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+            <button onclick="ejecutarLimpiar()" class="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium">Sí, limpiar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const BADGE_CLASSES = {
+    BOOT:       'badge-boot',
+    HEARTBEAT:  'badge-heartbeat',
+    QR_SCAN:    'badge-qr_scan',
+    WIFI_RETRY: 'badge-wifi_retry',
+    WIFI_OK:    'badge-wifi_ok',
+    ERROR:      'badge-error',
+};
+
+function badge(event) {
+    const cls = BADGE_CLASSES[event] || 'badge-default';
+    return `<span class="badge ${cls}">${event}</span>`;
+}
+
+function fmtUptime(s) {
+    if (s == null) return '—';
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+    return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+function fmtHora(dt) {
+    return dt ? dt.replace('T', ' ').substring(0, 19) : '—';
+}
+
+async function cargarLogs() {
+    const params = new URLSearchParams({
+        device_id:    document.getElementById('f-device').value,
+        event:        document.getElementById('f-event').value,
+        fecha_inicio: document.getElementById('f-desde').value,
+        fecha_fin:    document.getElementById('f-hasta').value,
+        limit:        document.getElementById('f-limit').value,
+    });
+
+    const res  = await fetch('/api/esp32/device-logs?' + params);
+    const json = await res.json();
+
+    if (json.status !== 'success') {
+        document.getElementById('tabla-body').innerHTML =
+            '<tr><td colspan="7" class="text-center py-8 text-red-500">Error cargando datos</td></tr>';
+        return;
+    }
+
+    // Actualizar selector de módulos
+    const sel = document.getElementById('f-device');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todos</option>' +
+        json.devices.map(d => `<option value="${d}" ${d===cur?'selected':''}>${d}</option>`).join('');
+
+    // Stats
+    const rows = json.data;
+    document.getElementById('stat-total').textContent   = rows.length;
+    document.getElementById('stat-devices').textContent = json.devices.length;
+    document.getElementById('stat-errors').textContent  = rows.filter(r => r.event === 'ERROR').length;
+    document.getElementById('stat-reboots').textContent = rows.filter(r => r.event === 'BOOT').length;
+    document.getElementById('resultado-count').textContent = `${rows.length} registros`;
+
+    if (rows.length === 0) {
+        document.getElementById('tabla-body').innerHTML =
+            '<tr><td colspan="7" class="text-center py-8 text-gray-400">Sin registros con estos filtros</td></tr>';
+        return;
+    }
+
+    document.getElementById('tabla-body').innerHTML = rows.map(r => `
+        <tr class="border-t border-gray-100">
+            <td class="px-3 py-2 font-mono text-xs text-gray-500 whitespace-nowrap">${r.created_at}</td>
+            <td class="px-3 py-2 font-mono text-xs font-semibold text-blue-700">${r.device_id}</td>
+            <td class="px-3 py-2">${badge(r.event)}</td>
+            <td class="px-3 py-2 text-xs text-gray-600 max-w-xs truncate" title="${r.message||''}">${r.message || '—'}</td>
+            <td class="px-3 py-2 text-right font-mono text-xs">${r.free_heap != null ? r.free_heap.toLocaleString() : '—'}</td>
+            <td class="px-3 py-2 text-right font-mono text-xs ${r.wifi_rssi != null && r.wifi_rssi < -75 ? 'text-orange-500' : ''}">${r.wifi_rssi != null ? r.wifi_rssi + ' dBm' : '—'}</td>
+            <td class="px-3 py-2 text-right font-mono text-xs">${fmtUptime(r.uptime_s)}</td>
+        </tr>
+    `).join('');
+}
+
+function confirmarLimpiar() {
+    document.getElementById('modal-limpiar').classList.remove('hidden');
+}
+function cerrarModal() {
+    document.getElementById('modal-limpiar').classList.add('hidden');
+}
+async function ejecutarLimpiar() {
+    cerrarModal();
+    const res = await fetch('/api/esp32/device-logs/clear', {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+    });
+    const json = await res.json();
+    if (json.status === 'success') {
+        alert(`Limpiado: ${json.deleted} registros eliminados.`);
+        cargarLogs();
+    }
+}
+
+// Cargar al abrir y auto-refresh cada 30 s
+cargarLogs();
+setInterval(cargarLogs, 30000);
+</script>
+</body>
+</html>
