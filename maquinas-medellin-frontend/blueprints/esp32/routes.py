@@ -1669,19 +1669,32 @@ def api_device_logs():
 
         cursor.execute(
             f"""
-            SELECT id, device_id, event, message, free_heap, wifi_rssi, uptime_s, created_at
-            FROM device_test_log
+            SELECT
+                d.id, d.device_id,
+                COALESCE(hm.module_code, CONCAT('ID-', d.device_id)) AS module_code,
+                COALESCE(m.name, '—') AS machine_name,
+                d.event, d.message, d.free_heap, d.wifi_rssi, d.uptime_s, d.created_at
+            FROM device_test_log d
+            LEFT JOIN hardware_module hm ON hm.machine_id = CAST(d.device_id AS UNSIGNED)
+            LEFT JOIN machine m ON m.id = CAST(d.device_id AS UNSIGNED)
             {where_sql}
-            ORDER BY created_at DESC
+            ORDER BY d.created_at DESC
             LIMIT %s
             """,
             params + [limit],
         )
         rows = cursor.fetchall()
 
-        # Obtener lista de device_ids únicos para el filtro del frontend
-        cursor.execute("SELECT DISTINCT device_id FROM device_test_log ORDER BY device_id")
-        devices = [r['device_id'] for r in cursor.fetchall()]
+        # Módulos únicos con su module_code para el filtro del frontend
+        cursor.execute("""
+            SELECT DISTINCT d.device_id,
+                COALESCE(hm.module_code, CONCAT('ID-', d.device_id)) AS module_code
+            FROM device_test_log d
+            LEFT JOIN hardware_module hm ON hm.machine_id = CAST(d.device_id AS UNSIGNED)
+            ORDER BY d.device_id
+        """)
+        devices = [{'device_id': r['device_id'], 'module_code': r['module_code']}
+                   for r in cursor.fetchall()]
 
         data = []
         for r in rows:
