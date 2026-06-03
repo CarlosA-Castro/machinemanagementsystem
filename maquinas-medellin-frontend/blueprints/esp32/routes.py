@@ -1648,16 +1648,16 @@ def api_device_logs():
         params = []
 
         if device_id:
-            where_clauses.append("device_id = %s")
+            where_clauses.append("d.device_id = %s")
             params.append(device_id)
         if event:
-            where_clauses.append("event = %s")
+            where_clauses.append("d.event = %s")
             params.append(event)
         if fecha_inicio:
-            where_clauses.append("created_at >= %s")
+            where_clauses.append("d.created_at >= %s")
             params.append(f"{fecha_inicio} 00:00:00")
         if fecha_fin:
-            where_clauses.append("created_at <= %s")
+            where_clauses.append("d.created_at <= %s")
             params.append(f"{fecha_fin} 23:59:59")
 
         where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
