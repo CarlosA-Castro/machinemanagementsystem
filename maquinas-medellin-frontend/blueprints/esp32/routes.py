@@ -1024,6 +1024,7 @@ def esp32_machine_technical(machine_id):
                 COALESCE(mt.game_duration_seconds, 60) as game_duration_seconds,
                 COALESCE(mt.reset_time_seconds, 5) as reset_time_seconds,
                 m.name as machine_name,
+                m.status as machine_status,
                 COALESCE(l.name, 'Sin ubicación') as location_name,
                 MAX(tu.usedAt) as last_play_time
             FROM machine m
@@ -1031,7 +1032,7 @@ def esp32_machine_technical(machine_id):
             LEFT JOIN location l ON m.location_id = l.id
             LEFT JOIN turnusage tu ON tu.machineId = m.id
             WHERE m.id = %s
-            GROUP BY m.id, m.name, l.name, mt.credits_virtual,
+            GROUP BY m.id, m.name, m.status, l.name, mt.credits_virtual,
                      mt.credits_machine, mt.game_duration_seconds, mt.reset_time_seconds
         """, (machine_id,))
 
@@ -1050,6 +1051,7 @@ def esp32_machine_technical(machine_id):
                 'credits_machine': tech_data['credits_machine'],
                 'game_duration_seconds': tech_data['game_duration_seconds'],
                 'reset_time_seconds': tech_data['reset_time_seconds'],
+                'machine_status': tech_data['machine_status'],
                 'last_play_time': tech_data['last_play_time'].isoformat() if tech_data['last_play_time'] else None,
                 'machine_id': machine_id
             }
