@@ -1696,6 +1696,19 @@ def guardar_technical_maquina(maquina_id):
             except Exception as cmd_err:
                 logger.warning(f"No se pudo encolar UPDATE_STATION_NAMES: {cmd_err}")
 
+        # Encolar RELOAD_CONFIG: el ESP32 recargará pines y config técnica
+        # desde el servidor sin reiniciar ni borrar nada.
+        try:
+            cursor.execute("""
+                INSERT INTO esp32_commands
+                    (machine_id, command, parameters, triggered_by, status, triggered_at)
+                VALUES (%s, 'RELOAD_CONFIG', '{}', 'admin_technical_save', 'queued', NOW())
+            """, (maquina_id,))
+            connection.commit()
+            logger.info(f"Comando RELOAD_CONFIG encolado para máquina {maquina_id}")
+        except Exception as cmd_err:
+            logger.warning(f"No se pudo encolar RELOAD_CONFIG: {cmd_err}")
+
         return api_response('S003', status='success')
 
     except Exception as e:
