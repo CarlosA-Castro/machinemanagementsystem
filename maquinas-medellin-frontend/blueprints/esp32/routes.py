@@ -1576,7 +1576,7 @@ def esp32_device_log():
     """
     El ESP32 envía un log de evento aquí.
     Sin autenticación — el módulo puede estar en cualquier red.
-    Body JSON: { device_id, event, message?, free_heap?, wifi_rssi?, uptime_s?, voltage_mv? }
+    Body JSON: { device_id, event, message?, free_heap?, wifi_rssi?, uptime_s? }
     """
     connection = None
     cursor = None
@@ -1596,8 +1596,8 @@ def esp32_device_log():
         cursor.execute(
             """
             INSERT INTO device_test_log
-                (device_id, event, message, free_heap, wifi_rssi, uptime_s, voltage_mv)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (device_id, event, message, free_heap, wifi_rssi, uptime_s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (
                 device_id,
@@ -1606,7 +1606,6 @@ def esp32_device_log():
                 data.get('free_heap') or None,
                 data.get('wifi_rssi') or None,
                 data.get('uptime_s') or None,
-                data.get('voltage_mv') or None,
             ),
         )
         connection.commit()
@@ -1677,7 +1676,7 @@ def api_device_logs():
                 d.id, d.device_id,
                 COALESCE(hm.module_code, CONCAT('ID-', d.device_id)) AS module_code,
                 COALESCE(m.name, '—') AS machine_name,
-                d.event, d.message, d.free_heap, d.wifi_rssi, d.uptime_s, d.voltage_mv, d.created_at
+                d.event, d.message, d.free_heap, d.wifi_rssi, d.uptime_s, d.created_at
             FROM device_test_log d
             LEFT JOIN hardware_module hm ON hm.machine_id = CAST(d.device_id AS UNSIGNED)
             LEFT JOIN machine m ON m.id = CAST(d.device_id AS UNSIGNED)

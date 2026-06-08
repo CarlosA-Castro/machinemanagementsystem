@@ -133,12 +133,11 @@
                     <th class="px-3 py-2 text-left">Mensaje</th>
                     <th class="px-3 py-2 text-right">Heap (b)</th>
                     <th class="px-3 py-2 text-right">RSSI</th>
-                    <th class="px-3 py-2 text-right">Voltaje</th>
                     <th class="px-3 py-2 text-right">Uptime</th>
                 </tr>
             </thead>
             <tbody id="tabla-body">
-                <tr><td colspan="9" class="text-center py-8 text-gray-400">Cargando logs...</td></tr>
+                <tr><td colspan="8" class="text-center py-8 text-gray-400">Cargando logs...</td></tr>
             </tbody>
         </table>
     </div>
@@ -199,7 +198,7 @@ async function cargarLogs() {
 
     if (json.status !== 'success') {
         document.getElementById('tabla-body').innerHTML =
-            '<tr><td colspan="9" class="text-center py-8 text-red-500">Error cargando datos</td></tr>';
+            '<tr><td colspan="8" class="text-center py-8 text-red-500">Error cargando datos</td></tr>';
         return;
     }
 
@@ -220,7 +219,7 @@ async function cargarLogs() {
 
     if (rows.length === 0) {
         document.getElementById('tabla-body').innerHTML =
-            '<tr><td colspan="9" class="text-center py-8 text-gray-400">Sin registros con estos filtros</td></tr>';
+            '<tr><td colspan="8" class="text-center py-8 text-gray-400">Sin registros con estos filtros</td></tr>';
         return;
     }
 
@@ -233,7 +232,6 @@ async function cargarLogs() {
             <td class="px-3 py-2 text-xs text-gray-600 max-w-xs truncate" title="${r.message||''}">${r.message || '—'}</td>
             <td class="px-3 py-2 text-right font-mono text-xs">${r.free_heap != null ? r.free_heap.toLocaleString() : '—'}</td>
             <td class="px-3 py-2 text-right font-mono text-xs ${r.wifi_rssi != null && r.wifi_rssi < -75 ? 'text-orange-500' : ''}">${r.wifi_rssi != null ? r.wifi_rssi + ' dBm' : '—'}</td>
-            <td class="px-3 py-2 text-right font-mono text-xs ${r.voltage_mv != null && r.voltage_mv < 3000 ? 'text-red-500 font-bold' : r.voltage_mv != null && r.voltage_mv < 3200 ? 'text-orange-500' : ''}">${r.voltage_mv != null ? (r.voltage_mv / 1000).toFixed(2) + ' V' : '—'}</td>
             <td class="px-3 py-2 text-right font-mono text-xs">${fmtUptime(r.uptime_s)}</td>
         </tr>
     `).join('');
@@ -290,7 +288,7 @@ async function exportarCSV() {
         alert('No hay datos para exportar.'); return;
     }
 
-    const header = ['fecha_hora', 'modulo', 'maquina', 'evento', 'mensaje', 'heap_bytes', 'rssi_dbm', 'voltage_mv', 'voltage_v', 'uptime_s'];
+    const header = ['fecha_hora', 'modulo', 'maquina', 'evento', 'mensaje', 'heap_bytes', 'rssi_dbm', 'uptime_s'];
     const lines  = [header.join(',')];
 
     for (const r of json.data) {
@@ -301,11 +299,9 @@ async function exportarCSV() {
             r.machine_name,
             r.event,
             `"${msg}"`,
-            r.free_heap   ?? '',
-            r.wifi_rssi   ?? '',
-            r.voltage_mv  ?? '',
-            r.voltage_mv  != null ? (r.voltage_mv / 1000).toFixed(3) : '',
-            r.uptime_s    ?? '',
+            r.free_heap  ?? '',
+            r.wifi_rssi  ?? '',
+            r.uptime_s   ?? '',
         ].join(','));
     }
 
