@@ -149,26 +149,56 @@ def esp32_registrar_uso():
         if not turnos_data or turnos_data['turns_remaining'] <= 0:
             return api_response('Q003', http_status=400)
 
-        turns_after = turnos_data['turns_remaining'] - 1
+        turnos_restantes_actual = turnos_data['turns_remaining']
 
-        # Insertar con station_index y turns_remaining_after (V36); fallback si columna no existe
-        try:
-            cursor.execute("""
-                INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, usedAt)
-                VALUES (%s, %s, %s, %s, NOW())
-            """, (qr_id, machine_id, station_index, turns_after))
-        except Exception:
-            cursor.execute("""
-                INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt)
-                VALUES (%s, %s, %s, NOW())
-            """, (qr_id, machine_id, station_index))
+        # Créditos por jugada de esta máquina: cuántos turnos descuenta cada uso.
+        cursor.execute(
+            "SELECT credits_machine FROM machinetechnical WHERE machine_id = %s",
+            (machine_id,)
+        )
+        _mt = cursor.fetchone()
+        credits_needed = int(_mt['credits_machine']) if (_mt and _mt.get('credits_machine')) else 1
+        if credits_needed < 1:
+            credits_needed = 1
 
-        usage_id = cursor.lastrowid
-        logger.info(f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}")
+        # Turnos insuficientes para el cobro de esta máquina → rechazar con mensaje claro.
+        # HTTP 200 + status:error a propósito: así el ESP32 muestra el mensaje en la TFT.
+        # (Con 4xx el firmware lo trata como error de red, reintenta y puede caer a caché).
+        if turnos_restantes_actual < credits_needed:
+            msg = (f"Este juego necesita {credits_needed} turnos y te "
+                   f"queda{'n' if turnos_restantes_actual != 1 else ''} {turnos_restantes_actual}")
+            logger.warning(
+                f"ESP32: turnos insuficientes — QR {qr_code}, necesita {credits_needed}, "
+                f"tiene {turnos_restantes_actual}"
+            )
+            return jsonify({'status': 'error', 'code': 'Q003', 'message': msg}), 200
+
+        # Descontar N turnos = insertar N filas en turnusage. El modelo de ingresos
+        # (liquidaciones/socios/ContadorDiario) cuenta filas de turnusage, así que N filas
+        # mantienen el cobro coherente automáticamente, sin tocar esa lógica.
+        usage_id = None
+        for _i in range(credits_needed):
+            turns_after = turnos_restantes_actual - (_i + 1)
+            try:
+                cursor.execute("""
+                    INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, usedAt)
+                    VALUES (%s, %s, %s, %s, NOW())
+                """, (qr_id, machine_id, station_index, turns_after))
+            except Exception:
+                cursor.execute("""
+                    INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt)
+                    VALUES (%s, %s, %s, NOW())
+                """, (qr_id, machine_id, station_index))
+            usage_id = cursor.lastrowid
+
+        logger.info(
+            f"✅ USAGE_ID generado: {usage_id}, Estación: {station_index}, "
+            f"créditos descontados: {credits_needed}"
+        )
 
         cursor.execute(
-            "UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s",
-            (qr_id,)
+            "UPDATE userturns SET turns_remaining = turns_remaining - %s WHERE qr_code_id = %s",
+            (credits_needed, qr_id)
         )
         cursor.execute("UPDATE machine SET dateLastQRUsed = NOW() WHERE id = %s", (machine_id,))
 

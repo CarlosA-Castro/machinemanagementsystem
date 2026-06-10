@@ -772,11 +772,7 @@
                 <div id="tab-tecnico-content" class="tab-content hidden">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Créditos Virtuales</label>
-                            <input type="number" id="creditsVirtual" min="1" value="1" class="w-full border border-gray-300 rounded-lg p-3">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Créditos Máquina</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Créditos Máquina (turnos que descuenta por jugada)</label>
                             <input type="number" id="creditsMachine" min="1" value="1" class="w-full border border-gray-300 rounded-lg p-3">
                         </div>
                     </div>
@@ -794,22 +790,11 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Juego</label>
-                            <select id="gameType" class="w-full border border-gray-300 rounded-lg p-3">
-                                <option value="time_based">Basado en tiempo</option>
-                                <option value="instant">Instantáneo</option>
-                            </select>
-                        </div>
-                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Opciones</label>
                             <div class="space-y-2 mt-2">
                                 <label class="flex items-center">
                                     <input type="checkbox" id="hasFailureReport" class="mr-2" checked>
                                     <span class="text-sm">Permitir reporte de fallas</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="checkbox" id="showStationSelection" class="mr-2">
-                                    <span class="text-sm">Mostrar selección de estación en TFT</span>
                                 </label>
                                 <label class="flex items-center">
                                     <input type="checkbox" id="invertDisplay" class="mr-2" checked>
@@ -1357,13 +1342,10 @@
             getDefaultTechnical: function(maquina) {
                 return {
                     machine_subtype: 'simple',
-                    game_type: 'time_based',
-                    credits_virtual: 1,
                     credits_machine: 1,
                     game_duration_seconds: 180,
                     reset_time_seconds: 5,
                     has_failure_report: true,
-                    show_station_selection: false,
                     invert_display: true,
                     station_names: [maquina.name],
                     relay_pins: [26, -1, -1, -1]
@@ -1578,7 +1560,6 @@
                 document.getElementById('modalTitulo').textContent = 'Nueva Máquina';
                 document.getElementById('maquinaId').value = '';
                 document.getElementById('formMaquina').reset();
-                document.getElementById('creditsVirtual').value = '1';
                 document.getElementById('creditsMachine').value = '1';
                 document.getElementById('gameDurationSeconds').value = '180';
                 document.getElementById('resetTimeSeconds').value = '5';
@@ -1630,13 +1611,10 @@
                     
                     const machineSubtype = techData.data?.machine_subtype || 'simple';
                     document.getElementById('machineSubtype').value = machineSubtype;
-                    document.getElementById('gameType').value = techData.data?.game_type || 'time_based';
-                    document.getElementById('creditsVirtual').value = techData.data?.credits_virtual || 1;
                     document.getElementById('creditsMachine').value = techData.data?.credits_machine || 1;
                     document.getElementById('gameDurationSeconds').value = techData.data?.game_duration_seconds || 180;
                     document.getElementById('resetTimeSeconds').value = techData.data?.reset_time_seconds || 5;
                     document.getElementById('hasFailureReport').checked = techData.data?.has_failure_report !== false;
-                    document.getElementById('showStationSelection').checked = techData.data?.show_station_selection || false;
                     document.getElementById('invertDisplay').checked = techData.data?.invert_display !== false;
                     
                     this.estaciones = [];
@@ -1977,13 +1955,10 @@
                 
                 const datosTecnicos = {
                     machine_subtype: document.getElementById('machineSubtype').value,
-                    game_type: document.getElementById('gameType').value,
-                    credits_virtual: parseInt(document.getElementById('creditsVirtual').value),
                     credits_machine: parseInt(document.getElementById('creditsMachine').value),
                     game_duration_seconds: parseInt(document.getElementById('gameDurationSeconds').value),
                     reset_time_seconds: parseInt(document.getElementById('resetTimeSeconds').value),
                     has_failure_report: document.getElementById('hasFailureReport').checked,
-                    show_station_selection: document.getElementById('showStationSelection').checked,
                     invert_display: document.getElementById('invertDisplay').checked,
                     relay_pins: relayPins
                 };
