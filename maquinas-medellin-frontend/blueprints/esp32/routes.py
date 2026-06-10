@@ -619,7 +619,7 @@ def esp32_machine_config(machine_id):
                     mt.game_duration_seconds, mt.reset_time_seconds,
                     mt.machine_subtype, mt.station_names,
                     mt.game_type, mt.has_failure_report,
-                    mt.show_station_selection,
+                    mt.show_station_selection, mt.invert_display,
                     (SELECT MAX(usedAt) FROM turnusage WHERE machineId = m.id) as last_play_time
                 FROM machine m
                 LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
@@ -635,7 +635,7 @@ def esp32_machine_config(machine_id):
                     mt.game_duration_seconds, mt.reset_time_seconds,
                     mt.machine_subtype, mt.station_names,
                     mt.game_type, mt.has_failure_report,
-                    mt.show_station_selection,
+                    mt.show_station_selection, mt.invert_display,
                     (SELECT MAX(usedAt) FROM turnusage WHERE machineId = m.id) as last_play_time
                 FROM machine m
                 LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
@@ -693,6 +693,7 @@ def esp32_machine_config(machine_id):
             'game_type': config['game_type'] or 'time_based',
             'has_failure_report': bool(config['has_failure_report']),
             'show_station_selection': bool(config['show_station_selection']),
+            'invert_display': bool(config.get('invert_display', 1)),
             'last_play_time': config['last_play_time'],
             'active_failure_stations': active_failure_stations
         }

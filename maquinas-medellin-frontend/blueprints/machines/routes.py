@@ -614,7 +614,7 @@ def obtener_maquina(maquina_id):
                 m.*, l.name as location_name,
                 COALESCE(mpr.porcentaje_restaurante, 35.00) as porcentaje_restaurante,
                 mt.machine_subtype, mt.station_names,
-                mt.has_failure_report, mt.show_station_selection
+                mt.has_failure_report, mt.show_station_selection, mt.invert_display
             FROM machine m
             LEFT JOIN location l ON m.location_id = l.id
             LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
@@ -710,6 +710,7 @@ def obtener_maquina(maquina_id):
             'machine_subtype':          maquina.get('machine_subtype', 'simple') or 'simple',
             'station_names':            parse_json_col(maquina.get('station_names'), []),
             'show_station_selection':   bool(maquina.get('show_station_selection', False)),
+            'invert_display':           bool(maquina.get('invert_display', True)),
             'active_failure_stations':  active_failure_stations,
             'machine_level_failures':   machine_level_failures,
             'stations_in_maintenance':  parse_json_col(maquina.get('stations_in_maintenance'), []),
@@ -1643,6 +1644,7 @@ def guardar_technical_maquina(maquina_id):
             data.get('game_type', 'time_based'),
             data.get('has_failure_report', True),
             data.get('show_station_selection', False),
+            data.get('invert_display', True),
         )
 
         if existe:
@@ -1651,6 +1653,7 @@ def guardar_technical_maquina(maquina_id):
                 SET credits_virtual=%s, credits_machine=%s, game_duration_seconds=%s,
                     reset_time_seconds=%s, machine_subtype=%s, station_names=%s,
                     game_type=%s, has_failure_report=%s, show_station_selection=%s,
+                    invert_display=%s,
                     updated_at=NOW()
                 WHERE machine_id=%s
             """, (*params_comunes, maquina_id))
@@ -1659,8 +1662,8 @@ def guardar_technical_maquina(maquina_id):
                 INSERT INTO machinetechnical
                     (machine_id, credits_virtual, credits_machine, game_duration_seconds,
                      reset_time_seconds, machine_subtype, station_names, game_type,
-                     has_failure_report, show_station_selection)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     has_failure_report, show_station_selection, invert_display)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (maquina_id, *params_comunes))
 
         connection.commit()

@@ -811,6 +811,10 @@
                                     <input type="checkbox" id="showStationSelection" class="mr-2">
                                     <span class="text-sm">Mostrar selección de estación en TFT</span>
                                 </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="invertDisplay" class="mr-2" checked>
+                                    <span class="text-sm">Invertir colores de pantalla (si el fondo se ve blanco, desactívalo)</span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1360,6 +1364,7 @@
                     reset_time_seconds: 5,
                     has_failure_report: true,
                     show_station_selection: false,
+                    invert_display: true,
                     station_names: [maquina.name],
                     relay_pins: [26, -1, -1, -1]
                 };
@@ -1632,6 +1637,7 @@
                     document.getElementById('resetTimeSeconds').value = techData.data?.reset_time_seconds || 5;
                     document.getElementById('hasFailureReport').checked = techData.data?.has_failure_report !== false;
                     document.getElementById('showStationSelection').checked = techData.data?.show_station_selection || false;
+                    document.getElementById('invertDisplay').checked = techData.data?.invert_display !== false;
                     
                     this.estaciones = [];
                     
@@ -1978,6 +1984,7 @@
                     reset_time_seconds: parseInt(document.getElementById('resetTimeSeconds').value),
                     has_failure_report: document.getElementById('hasFailureReport').checked,
                     show_station_selection: document.getElementById('showStationSelection').checked,
+                    invert_display: document.getElementById('invertDisplay').checked,
                     relay_pins: relayPins
                 };
                 
