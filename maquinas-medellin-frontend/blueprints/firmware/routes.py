@@ -346,3 +346,53 @@ def firmware_deploy_select(firmware_id: int):
         f"— FORCE_OTA enviado a {notified} máquina(s) seleccionadas: {machine_ids}"
     )
     return jsonify({'ok': True, 'firmware_id': firmware_id, 'machines_notified': notified}), 200
+
+
+@firmware_bp.route('/api/admin/firmware/<int:firmware_id>', methods=['DELETE'])
+@require_login(['admin'])
+@handle_api_errors
+def firmware_delete(firmware_id: int):
+    """
+    Borra una versión de firmware: elimina la fila en BD y el .bin en disco.
+    NO permite borrar la versión activa — los ESP32 la descargan por OTA y
+    quedarían apuntando a un archivo inexistente. Hay que activar otra primero.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'db_error'}), 500
+    cur = get_db_cursor(conn)
+
+    cur.execute("SELECT id, version, filename, is_active FROM firmware WHERE id = %s", (firmware_id,))
+    firmware = cur.fetchone()
+    if not firmware:
+        cur.close(); conn.close()
+        return jsonify({'error': 'Versión no encontrada'}), 404
+
+    if firmware['is_active']:
+        cur.close(); conn.close()
+        return jsonify({
+            'error': 'No se puede borrar la versión activa. Activa otra versión primero, luego podrás borrar esta.'
+        }), 409
+
+    cur.execute("DELETE FROM firmware WHERE id = %s", (firmware_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    # Borrar el .bin del disco (después del commit en BD).
+    # Si el archivo ya no existe, no es un error: la fila ya quedó eliminada.
+    file_path = os.path.join(FIRMWARE_DIR, firmware['filename'])
+    file_removed = False
+    if os.path.isfile(file_path):
+        try:
+            os.remove(file_path)
+            file_removed = True
+        except OSError as exc:
+            logger.error("Firmware %s borrado en BD pero falló borrar archivo %s: %s",
+                         firmware_id, firmware['filename'], exc)
+
+    logger.info(
+        f"Firmware {firmware_id} (v{firmware['version']}, {firmware['filename']}) "
+        f"borrado por user {session.get('user_id')} — archivo_borrado={file_removed}"
+    )
+    return jsonify({'ok': True, 'id': firmware_id, 'file_removed': file_removed}), 200
