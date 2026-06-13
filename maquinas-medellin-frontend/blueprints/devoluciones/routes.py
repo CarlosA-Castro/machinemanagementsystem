@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, session
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_login
+from utils.helpers import parse_json_col
 from utils.location_scope import get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, parse_db_datetime
@@ -81,42 +82,120 @@ def obtener_historial_completo_qr(qr_code):
         )
         devolucion_data = cursor.fetchone()
 
-        cursor.execute(
-            """
-            SELECT
-                tu.id as usage_id,
-                tu.usedAt as fecha_hora,
-                tu.machineId as machine_id,
-                m.name as machine_name,
-                m.status as machine_status
-            FROM turnusage tu
-            JOIN machine m ON tu.machineId = m.id
-            WHERE tu.qrCodeId = %s
-            ORDER BY tu.usedAt DESC
-            """,
-            (qr_data['qr_id'],),
-        )
-        juegos = cursor.fetchall()
+        try:
+            cursor.execute(
+                """
+                SELECT
+                    tu.id as usage_id,
+                    tu.usedAt as fecha_hora,
+                    tu.machineId as machine_id,
+                    tu.station_index,
+                    tu.turns_remaining_after,
+                    m.name as machine_name,
+                    m.status as machine_status,
+                    mt.credits_machine,
+                    mt.machine_subtype,
+                    mt.station_names
+                FROM turnusage tu
+                JOIN machine m ON tu.machineId = m.id
+                LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                WHERE tu.qrCodeId = %s
+                ORDER BY tu.usedAt DESC
+                """,
+                (qr_data['qr_id'],),
+            )
+            juegos = cursor.fetchall()
+        except Exception:
+            # Fallback si las columnas station_index/turns_remaining_after o la
+            # tabla machinetechnical aún no existen en este entorno
+            cursor.execute(
+                """
+                SELECT
+                    tu.id as usage_id,
+                    tu.usedAt as fecha_hora,
+                    tu.machineId as machine_id,
+                    NULL as station_index,
+                    NULL as turns_remaining_after,
+                    m.name as machine_name,
+                    m.status as machine_status,
+                    NULL as credits_machine,
+                    NULL as machine_subtype,
+                    NULL as station_names
+                FROM turnusage tu
+                JOIN machine m ON tu.machineId = m.id
+                WHERE tu.qrCodeId = %s
+                ORDER BY tu.usedAt DESC
+                """,
+                (qr_data['qr_id'],),
+            )
+            juegos = cursor.fetchall()
+
+        total_turns = qr_data['total_turns'] or 0
 
         historial_juegos = []
-        for juego in juegos:
+        for indice, juego in enumerate(juegos):
             juego_id = juego['usage_id']
             machine_id = juego['machine_id']
             fecha_juego = juego['fecha_hora']
 
-            cursor.execute(
-                """
-                SELECT COUNT(*) as usos_previos
-                FROM turnusage
-                WHERE qrCodeId = %s AND usedAt < %s
-                """,
-                (qr_data['qr_id'], fecha_juego),
-            )
-            usos_previos = cursor.fetchone()['usos_previos']
-            turnos_antes = (qr_data['total_turns'] or 0) - usos_previos
-            turnos_despues = turnos_antes - 1
-            if turnos_despues < 0:
-                turnos_despues = 0
+            # Cuántos turnos cobra la máquina por jugada (config actual)
+            credits_machine = juego.get('credits_machine')
+            credits_machine = int(credits_machine) if credits_machine else 1
+
+            # Etiqueta de estación para máquinas multi-estación
+            station_index = juego.get('station_index')
+            es_multi = (juego.get('machine_subtype') or 'simple') != 'simple'
+            station_label = None
+            if station_index is not None:
+                station_names = parse_json_col(juego.get('station_names'), [])
+                try:
+                    idx = int(station_index)
+                    raw = station_names[idx] if 0 <= idx < len(station_names) else None
+                    if isinstance(raw, dict):
+                        station_label = raw.get('name') or f'Estación {idx + 1}'
+                    else:
+                        station_label = raw or f'Estación {idx + 1}'
+                except Exception:
+                    station_label = None
+
+            # Antes/después reales: turns_remaining_after es la fuente de verdad
+            # exacta (lo que quedó tras esa jugada). "Antes" se reconstruye desde
+            # la jugada cronológicamente anterior (la siguiente en esta lista DESC),
+            # o desde el total del paquete si es la primera jugada.
+            ta = juego.get('turns_remaining_after')
+            juego_anterior = juegos[indice + 1] if indice + 1 < len(juegos) else None
+            after_anterior = juego_anterior.get('turns_remaining_after') if juego_anterior else None
+
+            if after_anterior is not None:
+                turnos_antes = after_anterior
+            elif juego_anterior is None:
+                turnos_antes = total_turns
+            elif ta is not None:
+                turnos_antes = ta + credits_machine
+            else:
+                # Registros antiguos sin turns_remaining_after: cálculo legacy
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as usos_previos
+                    FROM turnusage
+                    WHERE qrCodeId = %s AND usedAt < %s
+                    """,
+                    (qr_data['qr_id'], fecha_juego),
+                )
+                usos_previos = cursor.fetchone()['usos_previos']
+                turnos_antes = total_turns - usos_previos
+
+            if ta is not None:
+                turnos_despues = ta
+            else:
+                turnos_despues = max(turnos_antes - credits_machine, 0)
+
+            # Guarda contra inconsistencias (p.ej. devolución intermedia que
+            # subió los turnos): nunca mostrar "después" mayor que "antes".
+            if turnos_antes < turnos_despues:
+                turnos_antes = turnos_despues + credits_machine
+
+            turnos_consumidos = max(turnos_antes - turnos_despues, 0)
 
             cursor.execute(
                 """
@@ -196,8 +275,16 @@ def obtener_historial_completo_qr(qr_code):
                         'id': machine_id,
                         'nombre': juego['machine_name'],
                         'estado': juego['machine_status'],
+                        'es_multi': es_multi,
+                        'estacion_index': station_index,
+                        'estacion_label': station_label,
+                        'cobro_por_jugada': credits_machine,
                     },
-                    'turnos': {'antes': turnos_antes, 'despues': turnos_despues},
+                    'turnos': {
+                        'antes': turnos_antes,
+                        'despues': turnos_despues,
+                        'consumidos': turnos_consumidos,
+                    },
                     'falla': {'hubo': hubo_falla, 'forzada': falla_forzada, 'id': falla_id},
                     'uso_posterior': {
                         'hubo': alguien_jugo_despues,

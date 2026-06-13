@@ -119,30 +119,69 @@
       font-weight: 500;
     }
     
-    /* TARJETAS HORIZONTALES */
+    /* LISTA VERTICAL DE JUEGOS (línea de tiempo) */
     .machines-horizontal {
       display: flex;
-      overflow-x: auto;
-      gap: 1rem;
-      padding: 0.5rem 0.25rem 1.5rem 0.25rem;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 62vh;
+      overflow-y: auto;
+      padding: 0.25rem 0.25rem 0.25rem 0.25rem;
       scrollbar-width: thin;
       -webkit-overflow-scrolling: touch;
     }
-    
+
     .machine-horizontal-card {
-      min-width: 320px;
-      max-width: 360px;
-      flex: 0 0 auto;
+      width: 100%;
       background: white;
-      border-radius: 12px;
-      border-left: 6px solid;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      padding: 1.25rem;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      border-left: 5px solid;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      padding: 1rem 1.15rem;
     }
-    
+
     .machine-horizontal-card.apto { border-left-color: #10b981; }
     .machine-horizontal-card.no-apto { border-left-color: #ef4444; }
     .machine-horizontal-card.sin-reporte { border-left-color: #f59e0b; }
+
+    /* CHIP DE ESTACIÓN / TIPO DE MÁQUINA */
+    .station-chip {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .station-chip.multi { background: #d1fae5; color: #065f46; }
+    .station-chip.simple { background: #f1efe8; color: #5f5e5a; }
+
+    /* FRANJA DE TURNOS ANTES -> DESPUÉS */
+    .turns-strip {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      margin: 0.6rem 0;
+    }
+    .turns-strip .ts-num {
+      display: flex; flex-direction: column; align-items: center; line-height: 1.1;
+    }
+    .turns-strip .ts-label { font-size: 0.62rem; color: #6b7280; letter-spacing: 0.05em; }
+    .turns-strip .ts-value { font-size: 1.4rem; font-weight: 700; color: #111827; }
+    .turns-strip .ts-arrow { color: #9ca3af; }
+    .turns-strip .ts-cost { margin-left: auto; text-align: right; }
+    .turns-strip .ts-delta { font-size: 0.85rem; font-weight: 700; color: #dc2626; display: block; }
+    .turns-strip .ts-cost-note { font-size: 0.65rem; color: #6b7280; }
+
+    /* AVISO: ALGUIEN JUGÓ DESPUÉS */
+    .warn-after {
+      background: #fef2f2; color: #b91c1c; border-radius: 8px;
+      padding: 0.4rem 0.6rem; font-size: 0.72rem; margin: 0.2rem 0 0.5rem 0;
+      display: flex; align-items: flex-start; gap: 6px;
+    }
     
     .qr-input {
       width: 100%;
@@ -232,7 +271,7 @@
         padding: 1rem !important;
       }
       
-      .machine-horizontal-card { min-width: 280px; }
+      .machine-horizontal-card { width: 100%; padding: 0.9rem 1rem; }
       
       .sidebar-nav {
         display: flex;
@@ -461,7 +500,7 @@
         <div id="historial-container" class="glass-card hidden">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-semibold">
-              <i class="fas fa-history text-blue-600 mr-2"></i>Línea de tiempo por máquina
+              <i class="fas fa-history text-blue-600 mr-2"></i>Historial de juegos <span class="text-xs font-normal text-gray-500">(más reciente primero)</span>
             </h2>
             <span id="games-counter" class="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700">
               <i class="fas fa-gamepad mr-1 text-blue-600"></i>
@@ -725,7 +764,7 @@
         historial.forEach((juego) => {
           let borderClass = '';
           let badgeHtml = '';
-          
+
           if (juego.validacion.estado === 'APTO') {
             borderClass = 'apto';
             badgeHtml = `<span class="badge-apto"><i class="fas fa-check-circle mr-1"></i>APTO</span>`;
@@ -736,24 +775,48 @@
             borderClass = 'sin-reporte';
             badgeHtml = `<span class="badge-sin-reporte"><i class="fas fa-exclamation-triangle mr-1"></i>SIN REPORTE</span>`;
           }
-          
+
           let fallaBadge = '';
           if (juego.falla.hubo) {
-            fallaBadge = juego.falla.forzada 
+            fallaBadge = juego.falla.forzada
               ? `<span class="badge-info"><i class="fas fa-exclamation-triangle text-yellow-600 mr-1"></i>Dev. forzada</span>`
               : `<span class="badge-info"><i class="fas fa-check-circle text-green-600 mr-1"></i>Reportado TFT</span>`;
           } else {
             fallaBadge = `<span class="badge-info"><i class="fas fa-circle text-gray-500 mr-1"></i>Sin reporte</span>`;
           }
-          
+
+          // Chip de estación (multi) o "máquina simple"
+          let estacionChip = '';
+          if (juego.machine.es_multi) {
+            const label = juego.machine.estacion_label || 'Estación ?';
+            estacionChip = `<span class="station-chip multi"><i class="fas fa-location-dot mr-1"></i>${label}</span>`;
+          } else {
+            estacionChip = `<span class="station-chip simple">Máquina simple</span>`;
+          }
+
+          // Turnos antes/después y cobro de la máquina
+          const antes = (juego.turnos.antes !== null && juego.turnos.antes !== undefined) ? juego.turnos.antes : '?';
+          const despues = (juego.turnos.despues !== null && juego.turnos.despues !== undefined) ? juego.turnos.despues : '?';
+          const cobro = juego.machine.cobro_por_jugada || 1;
+          const consumidos = (juego.turnos.consumidos !== null && juego.turnos.consumidos !== undefined) ? juego.turnos.consumidos : cobro;
+
+          // Aviso de uso posterior
+          const avisoPosterior = juego.uso_posterior.hubo ? `
+            <div class="warn-after">
+              <i class="fas fa-triangle-exclamation mt-0.5"></i>
+              <span>Alguien jugó con éxito después: <strong>${juego.uso_posterior.fecha_formateada || ''}</strong> — la máquina sí funcionaba.</span>
+            </div>
+          ` : '';
+
           html += `
             <div class="machine-horizontal-card ${borderClass}">
-              <!-- HEADER -->
-              <div class="flex justify-between items-start mb-3">
+              <!-- HEADER: máquina + estación + fecha + estado -->
+              <div class="flex justify-between items-start gap-2 mb-1">
                 <div>
-                  <div class="flex items-center gap-1.5">
+                  <div class="flex items-center gap-1.5 flex-wrap">
                     <i class="fas fa-gamepad text-gray-700"></i>
                     <h3 class="font-semibold text-gray-900">${juego.machine.nombre}</h3>
+                    ${estacionChip}
                   </div>
                   <div class="timestamp mt-0.5">
                     <i class="far fa-clock"></i>
@@ -762,56 +825,44 @@
                 </div>
                 ${badgeHtml}
               </div>
-              
-              <!-- TURNOS: SOLO ANTES Y DESPUÉS -->
-              <div class="grid grid-cols-2 gap-3 mb-3">
-                <div class="bg-gray-100 p-3 rounded-lg text-center">
-                  <p class="text-xs text-gray-600 uppercase tracking-wider">ANTES</p>
-                  <p class="text-2xl font-bold text-gray-900">${juego.turnos.antes || '?'}</p>
-                </div>
-                <div class="bg-gray-100 p-3 rounded-lg text-center">
-                  <p class="text-xs text-gray-600 uppercase tracking-wider">DESPUÉS</p>
-                  <p class="text-2xl font-bold text-gray-900">${juego.turnos.despues || juego.turnos.antes - 1 || '?'}</p>
-                </div>
-              </div>
-              
-              <!-- ESTADO DE FALLA -->
-              <div class="border-t border-gray-200 pt-2 mt-1">
-                <div class="flex justify-between items-center">
-                  <span class="text-xs text-gray-600">Falla en máquina:</span>
-                  ${fallaBadge}
-                </div>
-                
-                ${juego.uso_posterior.hubo ? `
-                  <div class="flex items-center gap-1.5 mt-1.5 text-xs">
-                    <span class="status-dot red"></span>
-                    <span class="text-gray-600">Alguien jugó después: ${juego.uso_posterior.fecha_formateada || ''}</span>
-                  </div>
-                ` : ''}
-              </div>
-              
-             <!-- BOTÓN DE DEVOLUCIÓN DENTRO DE LA TARJETA -->
-<div class="mt-4 pt-2 border-t border-gray-200">
-  <button 
-    id="btn-devolver-${juego.usage_id}"
-    onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}', this)"
-    class="btn-refund-card ${juego.validacion.estado === 'NO_APTO' ? 'opacity-70' : ''}"
-  >
-    <i class="fas fa-rotate-left"></i>
-    ${juego.validacion.estado === 'APTO' ? 'Devolver 1 turno' : juego.validacion.estado === 'NO_APTO' ? 'Forzar devolución' : 'Devolver 1 turno'}
-  </button>
-  <p class="text-xs text-center mt-1.5 ${
-    juego.validacion.estado === 'APTO' ? 'text-green-600' : 
-    juego.validacion.estado === 'NO_APTO' ? 'text-red-500' : 
-    'text-yellow-600'
-  }">
-    ${juego.validacion.mensaje || ''}
-  </p>
-</div> 
 
+              <!-- FRANJA DE TURNOS: ANTES -> DESPUÉS + COBRO -->
+              <div class="turns-strip">
+                <div class="ts-num"><span class="ts-label">ANTES</span><span class="ts-value">${antes}</span></div>
+                <i class="fas fa-arrow-right ts-arrow"></i>
+                <div class="ts-num"><span class="ts-label">DESPUÉS</span><span class="ts-value">${despues}</span></div>
+                <div class="ts-cost">
+                  <span class="ts-delta">−${consumidos} turno${consumidos === 1 ? '' : 's'}</span>
+                  <span class="ts-cost-note">la máquina cobra ${cobro}/jugada</span>
+                </div>
+              </div>
+
+              ${avisoPosterior}
+
+              <!-- ESTADO DE FALLA + BOTÓN -->
+              <div class="border-t border-gray-200 pt-2 mt-1 flex items-center justify-between gap-3 flex-wrap">
+                <span class="text-xs text-gray-600 flex items-center gap-1">Falla en máquina: ${fallaBadge}</span>
+                <button
+                  id="btn-devolver-${juego.usage_id}"
+                  onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}', this)"
+                  class="btn-refund-card ${juego.validacion.estado === 'NO_APTO' ? 'opacity-70' : ''}"
+                  style="width:auto; flex:0 0 auto;"
+                >
+                  <i class="fas fa-rotate-left"></i>
+                  ${juego.validacion.estado === 'NO_APTO' ? 'Forzar devolución' : 'Devolver 1 turno'}
+                </button>
+              </div>
+              <p class="text-xs mt-1.5 ${
+                juego.validacion.estado === 'APTO' ? 'text-green-600' :
+                juego.validacion.estado === 'NO_APTO' ? 'text-red-500' :
+                'text-yellow-600'
+              }">
+                ${juego.validacion.mensaje || ''}
+              </p>
+            </div>
           `;
         });
-        
+
         this.machinesContainer.innerHTML = html;
       },
       
