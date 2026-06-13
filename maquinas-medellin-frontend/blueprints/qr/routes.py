@@ -1120,24 +1120,55 @@ def registrar_uso():
 
         station_index = data.get('station_index', None)
 
-        turns_after = turnos_data['turns_remaining'] - 1
+        turnos_restantes_actual = turnos_data['turns_remaining']
 
-        # Insertar turno usado (con station_index y turns_remaining_after si las columnas existen)
-        try:
-            cursor.execute(
-                "INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after) VALUES (%s, %s, %s, %s)",
-                (qr_id, machine_id, station_index, turns_after)
+        # Créditos por jugada de esta máquina: cuántos turnos descuenta cada uso.
+        # (Misma lógica que /api/esp32/registrar-uso para mantener consistencia.)
+        cursor.execute(
+            "SELECT credits_machine FROM machinetechnical WHERE machine_id = %s",
+            (machine_id,)
+        )
+        _mt = cursor.fetchone()
+        credits_needed = int(_mt['credits_machine']) if (_mt and _mt.get('credits_machine')) else 1
+        if credits_needed < 1:
+            credits_needed = 1
+
+        # Turnos insuficientes para el cobro de esta máquina → rechazar con mensaje claro.
+        if turnos_restantes_actual < credits_needed:
+            return api_response(
+                'Q003',
+                status='error',
+                http_status=400,
+                data={'message': (
+                    f"Este juego necesita {credits_needed} turnos y "
+                    f"te queda{'n' if turnos_restantes_actual != 1 else ''} {turnos_restantes_actual}"
+                )},
             )
-        except Exception:
+
+        # Descontar N turnos = insertar N filas en turnusage. El modelo de ingresos
+        # (liquidaciones/socios/ContadorDiario) cuenta filas de turnusage, así que N filas
+        # mantienen el cobro coherente automáticamente, sin tocar esa lógica.
+        for _i in range(credits_needed):
+            turns_after = turnos_restantes_actual - (_i + 1)
+            # Insertar turno usado (con station_index y turns_remaining_after si las columnas existen)
             try:
                 cursor.execute(
-                    "INSERT INTO turnusage (qrCodeId, machineId, station_index) VALUES (%s, %s, %s)",
-                    (qr_id, machine_id, station_index)
+                    "INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after) VALUES (%s, %s, %s, %s)",
+                    (qr_id, machine_id, station_index, turns_after)
                 )
             except Exception:
-                cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
+                try:
+                    cursor.execute(
+                        "INSERT INTO turnusage (qrCodeId, machineId, station_index) VALUES (%s, %s, %s)",
+                        (qr_id, machine_id, station_index)
+                    )
+                except Exception:
+                    cursor.execute("INSERT INTO turnusage (qrCodeId, machineId) VALUES (%s, %s)", (qr_id, machine_id))
 
-        cursor.execute("UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s", (qr_id,))
+        cursor.execute(
+            "UPDATE userturns SET turns_remaining = turns_remaining - %s WHERE qr_code_id = %s",
+            (credits_needed, qr_id)
+        )
 
         # Resetear contador de fallas consecutivas para esta estación (juego exitoso = contador a 0)
         station_key = str(station_index) if station_index is not None else 'all'
@@ -1157,13 +1188,16 @@ def registrar_uso():
 
         connection.commit()
 
-        logger.info(f"Turno usado - QR: {qr_code}, Máquina: {machine_id}, Estación: {station_index}")
+        logger.info(
+            f"Turno usado - QR: {qr_code}, Máquina: {machine_id}, Estación: {station_index}, "
+            f"créditos descontados: {credits_needed}"
+        )
 
         return api_response(
             'S010',
             status='success',
             data={
-                'turns_remaining': turnos_data['turns_remaining'] - 1
+                'turns_remaining': turnos_restantes_actual - credits_needed
             }
         )
 
