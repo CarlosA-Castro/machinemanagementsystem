@@ -129,6 +129,7 @@ class MessageService:
             'E005': {'type': 'error',   'text': 'Parámetros inválidos'},
             'E006': {'type': 'error',   'text': 'Error de conexión a la base de datos'},
             'A001': {'type': 'error',   'text': 'Credenciales inválidas'},
+            'D001': {'type': 'error',   'text': 'El turno de este juego ya fue devuelto'},
             'S001': {'type': 'success', 'text': 'Operación exitosa'},
         }
         entry = defaults.get(message_code, {

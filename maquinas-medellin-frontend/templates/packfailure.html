@@ -182,6 +182,19 @@
       padding: 0.4rem 0.6rem; font-size: 0.72rem; margin: 0.2rem 0 0.5rem 0;
       display: flex; align-items: flex-start; gap: 6px;
     }
+
+    /* ESTADO: TURNO YA DEVUELTO (APTO, no requiere acción) */
+    .ya-devuelto {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.85rem; font-weight: 600; color: #065f46;
+      background: #d1fae5; padding: 0.45rem 0.9rem; border-radius: 0.5rem;
+    }
+
+    /* BOTÓN FORZAR (NO_APTO, override) */
+    .btn-refund-card.btn-forzar {
+      background: transparent; color: #b91c1c; border: 1px solid #b91c1c;
+    }
+    .btn-refund-card.btn-forzar:hover { background: #fef2f2; }
     
     .qr-input {
       width: 100%;
@@ -839,18 +852,22 @@
 
               ${avisoPosterior}
 
-              <!-- ESTADO DE FALLA + BOTÓN -->
+              <!-- ESTADO DE FALLA + ACCIÓN -->
               <div class="border-t border-gray-200 pt-2 mt-1 flex items-center justify-between gap-3 flex-wrap">
                 <span class="text-xs text-gray-600 flex items-center gap-1">Falla en máquina: ${fallaBadge}</span>
-                <button
-                  id="btn-devolver-${juego.usage_id}"
-                  onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}', this)"
-                  class="btn-refund-card ${juego.validacion.estado === 'NO_APTO' ? 'opacity-70' : ''}"
-                  style="width:auto; flex:0 0 auto;"
-                >
-                  <i class="fas fa-rotate-left"></i>
-                  ${juego.validacion.estado === 'NO_APTO' ? 'Forzar devolución' : 'Devolver 1 turno'}
-                </button>
+                ${
+                  juego.validacion.estado === 'APTO'
+                  ? `<span class="ya-devuelto"><i class="fas fa-check-circle"></i> Turno ya devuelto</span>`
+                  : `<button
+                       id="btn-devolver-${juego.usage_id}"
+                       onclick="PackFailureApp.procesarDevolucionDesdeJuego(${juego.usage_id}, ${juego.machine.id}, '${juego.fecha_formateada}', this)"
+                       class="btn-refund-card ${juego.validacion.estado === 'NO_APTO' ? 'btn-forzar' : ''}"
+                       style="width:auto; flex:0 0 auto;"
+                     >
+                       <i class="fas fa-${juego.validacion.estado === 'NO_APTO' ? 'triangle-exclamation' : 'rotate-left'}"></i>
+                       ${juego.validacion.estado === 'NO_APTO' ? 'Forzar devolución' : 'Devolver 1 turno'}
+                     </button>`
+                }
               </div>
               <p class="text-xs mt-1.5 ${
                 juego.validacion.estado === 'APTO' ? 'text-green-600' :
