@@ -814,6 +814,7 @@ def obtener_turnusage_recientes():
         query = """
             SELECT
                 tu.id, tu.qrCodeId, tu.machineId, tu.station_index, tu.usedAt,
+                tu.play_id,
                 COALESCE(m.name, 'Máquina desconocida') AS machine_name,
                 COALESCE(qr.code, '')  AS qr_code,
                 COALESCE(qr.qr_name, '') AS qr_name,
@@ -906,6 +907,7 @@ def obtener_machinefailures_recientes():
                 COALESCE(mf.notes, '') as notes,
                 COALESCE(mf.is_forced, 0) as is_forced,
                 COALESCE(mf.forced_by, '') as forced_by,
+                mf.play_id,
                 COALESCE(qr.code, '') as qr_code,
                 COALESCE(qr.qr_name, '') as qr_name,
                 mt.station_names

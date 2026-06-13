@@ -1,6 +1,7 @@
 import calendar
 import logging
 import time
+import uuid
 from datetime import date, datetime
 
 import sentry_sdk
@@ -176,14 +177,17 @@ def esp32_registrar_uso():
         # Descontar N turnos = insertar N filas en turnusage. El modelo de ingresos
         # (liquidaciones/socios/ContadorDiario) cuenta filas de turnusage, así que N filas
         # mantienen el cobro coherente automáticamente, sin tocar esa lógica.
+        # play_id: token compartido por las N filas de esta jugada (para agrupar
+        # y ligar la falla a la jugada exacta, sin heurística por tiempo).
+        play_id = uuid.uuid4().hex
         usage_id = None
         for _i in range(credits_needed):
             turns_after = turnos_restantes_actual - (_i + 1)
             try:
                 cursor.execute("""
-                    INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, usedAt)
-                    VALUES (%s, %s, %s, %s, NOW())
-                """, (qr_id, machine_id, station_index, turns_after))
+                    INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, play_id, usedAt)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                """, (qr_id, machine_id, station_index, turns_after, play_id))
             except Exception:
                 cursor.execute("""
                     INSERT INTO turnusage (qrCodeId, machineId, station_index, usedAt)
@@ -821,16 +825,25 @@ def esp32_reportar_falla():
             usage_id = ultimo_uso['id']
             logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
 
-        # Registrar la falla en machinefailures (con station_index)
+        # play_id de la jugada a la que pertenece esta falla (vía el usage_id resuelto)
+        play_id = None
+        try:
+            cursor.execute("SELECT play_id FROM turnusage WHERE id = %s", (usage_id,))
+            _pr = cursor.fetchone()
+            play_id = _pr['play_id'] if _pr else None
+        except Exception:
+            play_id = None
+
+        # Registrar la falla en machinefailures (con station_index y play_id)
         effective_station = station_index if station_index is not None else 0
         try:
             cursor.execute("""
                 INSERT INTO machinefailures
                 (qr_code_id, machine_id, machine_name, turnos_devueltos, notes,
-                 is_forced, forced_by, station_index)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                 is_forced, forced_by, station_index, play_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (qr_id, machine_id, machine_name, turnos_devueltos, notes,
-                  0, None, effective_station))
+                  0, None, effective_station, play_id))
         except Exception:
             # Fallback si la columna station_index no existe aún
             cursor.execute("""
@@ -1210,12 +1223,13 @@ def esp32_sync_offline():
                 "UPDATE userturns SET turns_remaining = turns_remaining - 1 WHERE qr_code_id = %s",
                 (qr_id,)
             )
+            play_id = uuid.uuid4().hex
             cursor.execute(
                 """
-                INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, usedAt)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, play_id, usedAt)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (qr_id, machine_id, station_index, turns_after, played_at),
+                (qr_id, machine_id, station_index, turns_after, play_id, played_at),
             )
             results.append({'qr_code': qr_code, 'status': 'ok', 'turns_remaining': turns_after})
 

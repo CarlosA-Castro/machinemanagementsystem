@@ -2735,9 +2735,12 @@
                     const reportesData = reportesRes.ok ? await reportesRes.json() : {};
                     const reportes = reportesData.reportes || [];
 
+                    // Agrupar jugadas multi-crédito (N filas de turnusage = 1 jugada)
+                    const juegosAgrupados = agruparJuegosPorJugada(juegos);
+
                     // Unificar y ordenar por fecha desc
                     const eventos = [
-                        ...juegos.map(j => ({ tipo: 'juego', fecha: new Date(j.usedAt || 0), datos: j })),
+                        ...juegosAgrupados.map(j => ({ tipo: 'juego', fecha: new Date(j.usedAt || 0), datos: j })),
                         ...fallas.map(f => ({ tipo: 'falla', fecha: new Date(f.reported_at || f.reportedAt || 0), datos: f })),
                         ...reportes.map(r => ({ tipo: 'reporte', fecha: new Date(r.reportedAt || 0), datos: r }))
                     ].sort((a, b) => b.fecha - a.fecha);
@@ -2753,7 +2756,7 @@
                     let resumenHtml = `
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                             <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                                <div class="text-2xl font-bold text-green-700">${juegos.length}</div>
+                                <div class="text-2xl font-bold text-green-700">${juegosAgrupados.length}</div>
                                 <div class="text-xs text-green-600">Juegos totales</div>
                             </div>
                             <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
@@ -2761,7 +2764,7 @@
                                 <div class="text-xs text-red-600">Fallas totales${reportes.length > 0 ? ` <span class="text-orange-500">(${reportes.length} reportadas)</span>` : ''}</div>
                             </div>
                             ${esMulti ? stationNames.map((sn, si) => {
-                                const jEst = juegos.filter(j => j.station_index == si || (si === 0 && j.station_index === undefined)).length;
+                                const jEst = juegosAgrupados.filter(j => j.station_index == si || (si === 0 && j.station_index === undefined)).length;
                                 return `<div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
                                     <div class="text-xl font-bold text-indigo-700">${jEst}</div>
                                     <div class="text-xs text-indigo-600">${sn}</div>
@@ -2769,23 +2772,8 @@
                             }).join('') : ''}
                         </div>`;
 
-                    // Pre-procesar: marcar juegos que tuvieron falla asociada.
-                    // Un juego "tuvo falla" si existe una falla en la misma estación con
-                    // reported_at entre usedAt del juego y usedAt del siguiente juego (o +10 min).
-                    const juegosOrdenados = [...juegos].sort((a, b) => new Date(a.usedAt||0) - new Date(b.usedAt||0));
-                    const juegosConFalla = new Set();
-                    juegosOrdenados.forEach((j, idx) => {
-                        const inicio = new Date(j.usedAt || 0).getTime();
-                        const siguiente = juegosOrdenados[idx + 1];
-                        const fin = siguiente ? new Date(siguiente.usedAt || 0).getTime() : inicio + 600000;
-                        const stJ = j.station_index ?? 0;
-                        const tuvoPor = fallas.some(f => {
-                            const tF = new Date(f.reported_at || f.reportedAt || 0).getTime();
-                            const stF = f.station_index ?? 0;
-                            return stF === stJ && tF >= inicio && tF < fin;
-                        });
-                        if (tuvoPor) juegosConFalla.add(j.id || idx);
-                    });
+                    // Marcar jugadas que tuvieron una falla reportada (mismo helper que el global)
+                    const juegosConFalla = marcarJuegosConFalla(juegosAgrupados, fallas);
 
                     // Lista de eventos
                     let listaHtml = `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">`;
@@ -2795,8 +2783,8 @@
                             const j = ev.datos;
                             const stIdx = j.station_index ?? 0;
                             const stLabel = esMulti ? `<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">${stationNames[stIdx] || `Est.${stIdx+1}`}</span>` : '';
-                            const jKey = j.id || juegosOrdenados.indexOf(j);
-                            const tuvoPor = juegosConFalla.has(jKey);
+                            const tuvoPor = juegosConFalla.has(j.id);
+                            const descN = j.turnos_descontados || 1;
                             const failBadge = tuvoPor ? `<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium"><i class="fas fa-exclamation-triangle mr-0.5"></i>con falla</span>` : '';
                             const campBadge = j.is_campaign ? `<span style="background:#fef3c7;color:#92400e;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:8px;">⚡ ${j.campaign_name||'Campaña'}</span>` : '';
                             const cardBg = tuvoPor ? 'bg-orange-50 border-orange-200' : (j.is_campaign ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100');
@@ -2816,7 +2804,8 @@
                                         <div class="text-xs text-gray-500 mt-0.5 flex gap-3 flex-wrap">
                                             <span><i class="far fa-clock mr-1"></i>${fechaStr}</span>
                                             ${j.qr_code ? `<span><i class="fas fa-qrcode mr-1"></i>${j.qr_code.substring(0,10)}...</span>` : ''}
-                                            ${j.turns_remaining !== undefined ? `<span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
+                                            <span class="text-gray-600">descontó ${descN} turno${descN === 1 ? '' : 's'}</span>
+                                            ${j.turns_remaining != null ? `<span class="text-green-600">quedaron ${j.turns_remaining}</span>` : ''}
                                         </div>
                                     </div>
                                 </div>`;
@@ -3151,6 +3140,95 @@
         };
 
 
+        // ── Helpers de historial ────────────────────────────────────────────────
+        // Agrupa las N filas de turnusage de una misma jugada (credits_machine inserta
+        // 1 fila por turno descontado) en un solo registro con turnos_descontados y los
+        // turnos que quedaron al final.
+        function agruparJuegosPorJugada(juegos) {
+            const VENTANA_MS = 5000; // filas de la misma jugada se insertan en el mismo segundo
+            const orden = [...juegos].sort((a, b) =>
+                (new Date(a.usedAt || 0) - new Date(b.usedAt || 0)) || ((a.id || 0) - (b.id || 0)));
+            const grupos = [];
+            let actual = null;
+            orden.forEach(j => {
+                const t = new Date(j.usedAt || 0).getTime();
+                const stJ = (j.station_index ?? null);
+                let mismaJugada = false;
+                if (actual) {
+                    if (j.play_id != null && actual.play_id != null) {
+                        // Exacto: misma jugada = mismo play_id
+                        mismaJugada = (j.play_id === actual.play_id);
+                    } else if (j.play_id == null && actual.play_id == null) {
+                        // Datos antiguos sin play_id: heurística por tiempo
+                        const consecutivo = (actual.turns_remaining != null && j.turns_remaining != null)
+                            ? (j.turns_remaining === actual.turns_remaining - 1)
+                            : true;
+                        mismaJugada = actual.qrCodeId === j.qrCodeId
+                            && String(actual.machineId) === String(j.machineId)
+                            && actual._stIdx === stJ
+                            && (t - actual._tUlt) <= VENTANA_MS
+                            && consecutivo;
+                    }
+                }
+                if (mismaJugada) {
+                    actual.turnos_descontados += 1;
+                    actual._tUlt = t;
+                    if (j.turns_remaining != null) actual.turns_remaining = j.turns_remaining; // el más reciente = el menor = final
+                    actual._ids.push(j.id);
+                } else {
+                    actual = {
+                        ...j,
+                        _stIdx: stJ,
+                        _tUlt: t,
+                        _ids: [j.id],
+                        turnos_descontados: 1,
+                        turns_remaining: (j.turns_remaining != null ? j.turns_remaining : null),
+                    };
+                    grupos.push(actual);
+                }
+            });
+            return grupos;
+        }
+
+        // Marca qué jugadas tuvieron una falla reportada: misma máquina y estación, con
+        // reported_at dentro de la ventana [inicio de la jugada, inicio de la siguiente).
+        function marcarJuegosConFalla(juegosAgrupados, fallas) {
+            const orden = [...juegosAgrupados].sort((a, b) =>
+                new Date(a.usedAt || 0) - new Date(b.usedAt || 0));
+            const conFalla = new Set();
+            // Exacto: play_ids que tienen una falla asociada
+            const fallasConPlayId = new Set((fallas || [])
+                .filter(f => f.play_id != null).map(f => String(f.play_id)));
+            const fallasSinPlayId = (fallas || []).filter(f => f.play_id == null);
+            orden.forEach((j, idx) => {
+                // 1) Match exacto por play_id (datos nuevos)
+                if (j.play_id != null && fallasConPlayId.has(String(j.play_id))) {
+                    conFalla.add(j.id);
+                    return;
+                }
+                // 2) Heurística por tiempo para fallas/juegos antiguos sin play_id.
+                //    La ventana cierra con el siguiente juego de la MISMA máquina y estación.
+                const inicio = new Date(j.usedAt || 0).getTime();
+                const stJ = j.station_index ?? 0;
+                let fin = inicio + 600000;
+                for (let k = idx + 1; k < orden.length; k++) {
+                    const o = orden[k];
+                    if (String(o.machineId) === String(j.machineId) && (o.station_index ?? 0) === stJ) {
+                        fin = new Date(o.usedAt || 0).getTime();
+                        break;
+                    }
+                }
+                const hit = fallasSinPlayId.some(f => {
+                    const tF = new Date(f.reported_at || f.reportedAt || 0).getTime();
+                    const stF = f.station_index ?? 0;
+                    return String(f.machine_id ?? f.machineId) === String(j.machineId)
+                        && stF === stJ && tF >= inicio && tF < fin;
+                });
+                if (hit) conFalla.add(j.id);
+            });
+            return conFalla;
+        }
+
         const HistorialManager = {
             juegos: [],
             fallas: [],
@@ -3209,6 +3287,10 @@
                     fallas = fallas.filter(f => String(f.machine_id || f.machineId) === maqId);
                 }
 
+                // Agrupar jugadas multi-crédito y marcar las que tuvieron falla
+                juegos = agruparJuegosPorJugada(juegos);
+                const juegosConFalla = marcarJuegosConFalla(juegos, fallas);
+
                 if (bloqJ) bloqJ.style.display = filtro === 'fallas' ? 'none' : '';
                 if (bloqF) bloqF.style.display = filtro === 'juegos' ? 'none' : '';
                 if (cntJ) cntJ.textContent = juegos.length;
@@ -3227,15 +3309,19 @@
                         const stNamesJ = rawStJ.map((s, i) => (s && typeof s === 'object') ? (s.name || `Est.${i+1}`) : String(s || `Est.${i+1}`));
                         const stIdxJ = j.station_index;
                         const stLabelJ = (esMultiJ && stIdxJ != null) ? (stNamesJ[stIdxJ] || `Est.${stIdxJ+1}`) : null;
+                        const descN = j.turnos_descontados || 1;
+                        const tuvoFalla = juegosConFalla.has(j.id);
                         return `<div class="border-b border-gray-100 last:border-0 py-2">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <i class="fas fa-play text-green-500 text-xs flex-shrink-0"></i>
                                 <span class="text-sm font-medium text-gray-800">${j.machine_name || '—'}</span>
                                 ${stLabelJ ? `<span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${stLabelJ}</span>` : ''}
                                 ${j.qr_name ? `<span class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">${j.qr_name}</span>` : ''}
+                                ${tuvoFalla ? '<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium"><i class="fas fa-exclamation-triangle mr-0.5"></i>con falla</span>' : ''}
                             </div>
                             <div class="text-xs text-gray-500 pl-5 mt-0.5">${hora} · ${dia}
-                                ${j.turns_remaining != null ? ` · <span class="text-green-600">${j.turns_remaining} turnos tras uso</span>` : ''}
+                                · <span class="text-gray-600">descontó ${descN} turno${descN === 1 ? '' : 's'}</span>
+                                ${j.turns_remaining != null ? ` · <span class="text-green-600">quedaron ${j.turns_remaining}</span>` : ''}
                             </div>
                         </div>`;
                     }).join('');

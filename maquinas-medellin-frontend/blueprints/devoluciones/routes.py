@@ -466,24 +466,31 @@ def procesar_devolucion_unica():
             return api_response('E002', http_status=404, data={'message': 'Registro de uso no encontrado'})
 
         fecha_juego = uso_data['usedAt']
+        play_id = uso_data.get('play_id')
 
         # Guard POR JUEGO (no por QR): ¿este juego ya tiene una devolución/falla
         # asociada? Cuando la máquina reporta la falla, el ESP32 ya devuelve el turno
         # automáticamente y deja una fila en machinefailures. Reembolsar de nuevo sería
-        # doble devolución. Se usa el mismo criterio de emparejamiento que el historial:
-        # misma máquina y ±30 min del juego.
+        # doble devolución. Con play_id el emparejamiento es exacto; si el juego es
+        # antiguo (sin play_id) se cae a la heurística de misma máquina y ±30 min.
         # 'Forzar' (is_forced) omite el guard a propósito: es un override del cajero/admin.
         if not is_forced:
-            cursor.execute(
-                """
-                SELECT COUNT(*) as total
-                FROM machinefailures
-                WHERE qr_code_id = %s
-                  AND machine_id = %s
-                  AND ABS(TIMESTAMPDIFF(MINUTE, reported_at, %s)) < 30
-                """,
-                (qr_id, machine_id, fecha_juego),
-            )
+            if play_id:
+                cursor.execute(
+                    "SELECT COUNT(*) as total FROM machinefailures WHERE play_id = %s",
+                    (play_id,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT COUNT(*) as total
+                    FROM machinefailures
+                    WHERE qr_code_id = %s
+                      AND machine_id = %s
+                      AND ABS(TIMESTAMPDIFF(MINUTE, reported_at, %s)) < 30
+                    """,
+                    (qr_id, machine_id, fecha_juego),
+                )
             ya_devuelto = cursor.fetchone()['total']
             if ya_devuelto >= 1:
                 logger.warning(
@@ -502,25 +509,35 @@ def procesar_devolucion_unica():
                     },
                 )
 
-        # reported_at = fecha del juego: así esta devolución queda asociada al juego
-        # (el historial la empareja por ±30 min) y al recargar el juego pasa a "ya devuelto".
-        cursor.execute(
-            """
-            INSERT INTO machinefailures
-                (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by, reported_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                qr_id,
-                machine_id,
-                uso_data['machine_name'],
-                1,
-                notes,
-                1 if is_forced else 0,
-                forced_by if is_forced else None,
-                fecha_juego,
-            ),
-        )
+        # play_id liga la devolución a la jugada. reported_at = fecha del juego para que,
+        # en juegos antiguos sin play_id, el historial siga emparejando por ±30 min y el
+        # juego pase a "ya devuelto" al recargar.
+        try:
+            cursor.execute(
+                """
+                INSERT INTO machinefailures
+                    (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by, reported_at, play_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    qr_id, machine_id, uso_data['machine_name'], 1, notes,
+                    1 if is_forced else 0, forced_by if is_forced else None,
+                    fecha_juego, play_id,
+                ),
+            )
+        except Exception:
+            cursor.execute(
+                """
+                INSERT INTO machinefailures
+                    (qr_code_id, machine_id, machine_name, turnos_devueltos, notes, is_forced, forced_by, reported_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    qr_id, machine_id, uso_data['machine_name'], 1, notes,
+                    1 if is_forced else 0, forced_by if is_forced else None,
+                    fecha_juego,
+                ),
+            )
         failure_id = cursor.lastrowid
 
         cursor.execute(

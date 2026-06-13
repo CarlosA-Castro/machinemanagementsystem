@@ -1,5 +1,6 @@
 import logging
 import traceback
+import uuid
 from datetime import datetime, timedelta
 
 import mysql.connector
@@ -1148,13 +1149,15 @@ def registrar_uso():
         # Descontar N turnos = insertar N filas en turnusage. El modelo de ingresos
         # (liquidaciones/socios/ContadorDiario) cuenta filas de turnusage, así que N filas
         # mantienen el cobro coherente automáticamente, sin tocar esa lógica.
+        # play_id: token compartido por las N filas de esta jugada.
+        play_id = uuid.uuid4().hex
         for _i in range(credits_needed):
             turns_after = turnos_restantes_actual - (_i + 1)
-            # Insertar turno usado (con station_index y turns_remaining_after si las columnas existen)
+            # Insertar turno usado (con station_index, turns_remaining_after y play_id si las columnas existen)
             try:
                 cursor.execute(
-                    "INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after) VALUES (%s, %s, %s, %s)",
-                    (qr_id, machine_id, station_index, turns_after)
+                    "INSERT INTO turnusage (qrCodeId, machineId, station_index, turns_remaining_after, play_id) VALUES (%s, %s, %s, %s, %s)",
+                    (qr_id, machine_id, station_index, turns_after, play_id)
                 )
             except Exception:
                 try:
@@ -1263,6 +1266,26 @@ def reportar_falla():
         if 'is_forced'     in columnas_existentes: campos.append('is_forced');     valores.append(1 if is_forced else 0)
         if 'forced_by'     in columnas_existentes: campos.append('forced_by');     valores.append(forced_by or None)
         if 'station_index' in columnas_existentes: campos.append('station_index'); valores.append(station_index)
+        if 'play_id'       in columnas_existentes:
+            # Ligar la falla a la última jugada de este QR en esta máquina/estación
+            play_id = None
+            if actual_machine_id is not None:
+                try:
+                    if station_index is not None:
+                        cursor.execute(
+                            "SELECT play_id FROM turnusage WHERE qrCodeId=%s AND machineId=%s AND station_index=%s ORDER BY usedAt DESC, id DESC LIMIT 1",
+                            (qr_id, actual_machine_id, station_index)
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT play_id FROM turnusage WHERE qrCodeId=%s AND machineId=%s ORDER BY usedAt DESC, id DESC LIMIT 1",
+                            (qr_id, actual_machine_id)
+                        )
+                    _pr = cursor.fetchone()
+                    play_id = _pr['play_id'] if _pr else None
+                except Exception:
+                    play_id = None
+            campos.append('play_id'); valores.append(play_id)
 
         placeholders = ', '.join(['%s'] * len(campos))
         cursor.execute(f"INSERT INTO machinefailures ({', '.join(campos)}) VALUES ({placeholders})", valores)
