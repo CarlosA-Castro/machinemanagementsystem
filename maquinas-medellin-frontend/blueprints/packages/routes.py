@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.location_scope import get_active_location, user_can_view_all
 from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
@@ -17,7 +17,7 @@ packages_bp = Blueprint('packages', __name__)
 
 @packages_bp.route('/api/paquetes', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('paquetes')
 def listar_paquetes():
     connection = None
     cursor = None
@@ -53,7 +53,7 @@ def listar_paquetes():
 
 @packages_bp.route('/api/paquetes/<int:paquete_id>', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('paquetes')
 def obtener_paquete(paquete_id):
     """Obtener un paquete específico"""
     connection = None
@@ -83,7 +83,7 @@ def obtener_paquete(paquete_id):
 
 @packages_bp.route('/api/paquetes', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('paquetes')
 @validate_required_fields(['name', 'turns', 'price'])
 def crear_paquete():
     """Crear un nuevo paquete"""
@@ -139,7 +139,7 @@ def crear_paquete():
 
 @packages_bp.route('/api/paquetes/<int:paquete_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('paquetes')
 @validate_required_fields(['name', 'turns', 'price'])
 def actualizar_paquete(paquete_id):
     """Actualizar un paquete existente"""
@@ -194,7 +194,7 @@ def actualizar_paquete(paquete_id):
 
 @packages_bp.route('/api/paquetes/<int:paquete_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('paquetes')
 def eliminar_paquete(paquete_id):
     """Eliminar un paquete"""
     connection = None

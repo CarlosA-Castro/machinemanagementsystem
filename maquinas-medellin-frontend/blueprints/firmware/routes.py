@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.location_scope import get_active_location
 from utils.responses import handle_api_errors
 
@@ -89,7 +89,7 @@ def firmware_download():
 # ── Endpoints admin ───────────────────────────────────────────────────────────
 
 @firmware_bp.route('/api/admin/firmware', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def firmware_list():
     """Lista todas las versiones de firmware registradas."""
@@ -120,7 +120,7 @@ def firmware_list():
 
 
 @firmware_bp.route('/api/admin/firmware/upload', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def firmware_upload():
     """Sube un .bin y registra la versión en BD. No la activa automáticamente."""
@@ -171,7 +171,7 @@ def firmware_upload():
 
 
 @firmware_bp.route('/api/admin/machines/<int:machine_id>/reset-config', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def machine_reset_config(machine_id: int):
     """
@@ -208,7 +208,7 @@ def machine_reset_config(machine_id: int):
 
 
 @firmware_bp.route('/api/admin/machines', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def machines_list_simple():
     """Lista de máquinas del local activo para el panel de firmware."""
@@ -231,7 +231,7 @@ def machines_list_simple():
 
 
 @firmware_bp.route('/api/admin/firmware/<int:firmware_id>/activar', methods=['PUT'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def firmware_activar(firmware_id: int):
     """
@@ -293,7 +293,7 @@ def firmware_activar(firmware_id: int):
 
 
 @firmware_bp.route('/api/admin/firmware/<int:firmware_id>/deploy-select', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def firmware_deploy_select(firmware_id: int):
     """
@@ -349,7 +349,7 @@ def firmware_deploy_select(firmware_id: int):
 
 
 @firmware_bp.route('/api/admin/firmware/<int:firmware_id>', methods=['DELETE'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def firmware_delete(firmware_id: int):
     """

@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify, render_template, session, json
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_login, require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
@@ -1091,7 +1091,7 @@ def obtener_historial_mantenimientos():
 
 @machines_bp.route('/api/maquinas/reparaciones', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def listar_reparaciones():
     """Lista el historial de reparaciones técnicas registradas por el encargado."""
     connection = None
@@ -1188,7 +1188,7 @@ def listar_reparaciones():
 
 @machines_bp.route('/api/maquinas/reparaciones', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def crear_reparacion():
     """Registra una reparación técnica real.
     Si tipo='correctivo' y resuelve_fallas=true, marca como resueltas todas las
@@ -1292,7 +1292,7 @@ def crear_reparacion():
 
 @machines_bp.route('/api/maquinas/fallas-abiertas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def listar_fallas_abiertas():
     """Fallas sin resolver de ambas fuentes: ESP32/TFT (machinefailures) y cajero (errorreport).
     Devuelve campo source='esp32' o 'cajero' para que el frontend los distinga.
@@ -1410,7 +1410,7 @@ def listar_fallas_abiertas():
 
 @machines_bp.route('/api/imagenes/maquinas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def listar_imagenes_maquinas():
     """Listar imágenes disponibles para máquinas."""
     try:
@@ -1430,7 +1430,7 @@ def listar_imagenes_maquinas():
 
 @machines_bp.route('/api/maquinas', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @validate_required_fields(['name', 'type', 'location_id'])
 def crear_maquina():
     """Crear una nueva máquina."""
@@ -1493,7 +1493,7 @@ def crear_maquina():
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @validate_required_fields(['name', 'type', 'status', 'location_id'])
 def actualizar_maquina(maquina_id):
     """Actualizar una máquina existente."""
@@ -1562,7 +1562,7 @@ def actualizar_maquina(maquina_id):
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def eliminar_maquina(maquina_id):
     """Eliminar una máquina y sus FK relacionadas."""
     connection = None
@@ -1622,7 +1622,7 @@ def eliminar_maquina(maquina_id):
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>/technical', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def guardar_technical_maquina(maquina_id):
     """Guardar configuración técnica de la máquina."""
     connection = None
@@ -1726,7 +1726,7 @@ def guardar_technical_maquina(maquina_id):
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>/propietarios', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def guardar_propietarios_maquina(maquina_id):
     """Reemplazar propietarios de la máquina."""
     connection = None
@@ -1760,7 +1760,7 @@ def guardar_propietarios_maquina(maquina_id):
 
 @machines_bp.route('/api/maquinas/ingresar-turno', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @validate_required_fields(['machine_id', 'machine_name'])
 def ingresar_turno_manual():
     """
@@ -1880,7 +1880,7 @@ def ingresar_turno_manual():
 
 @machines_bp.route('/api/maquinas/reiniciar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @validate_required_fields(['machine_id', 'machine_name'])
 def reiniciar_maquina_manual():
     """
@@ -2089,7 +2089,7 @@ def registrar_log_accion():
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>/reportes', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def obtener_reportes_maquina(maquina_id):
     """Obtener reportes de fallas de una máquina específica"""
     connection = None
@@ -2255,14 +2255,14 @@ def obtener_estadisticas_maquina(maquina_id):
 # ── Informe de conectividad ───────────────────────────────────────────────────
 
 @machines_bp.route('/admin/conectividad', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def conectividad_page():
     """Página del informe de conectividad de máquinas."""
     return render_template('admin/conectividad/informe_conectividad.html')
 
 
 @machines_bp.route('/api/admin/connectivity', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def connectivity_report():
     """
@@ -2449,7 +2449,7 @@ def connectivity_report():
 # ── API Gateway — gestión de tokens ESP32 ────────────────────────────────────
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>/token', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def get_machine_token(maquina_id):
     """
@@ -2484,7 +2484,7 @@ def get_machine_token(maquina_id):
 
 
 @machines_bp.route('/api/maquinas/<int:maquina_id>/token/regenerar', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def regenerar_machine_token(maquina_id):
     """

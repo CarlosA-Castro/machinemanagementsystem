@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.messages import MessageService
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import parse_db_datetime
@@ -19,7 +19,7 @@ messages_bp = Blueprint('messages', __name__)
 
 @messages_bp.route('/api/mensajes', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def obtener_mensajes():
     """Obtener todos los mensajes del sistema"""
     connection = None
@@ -57,7 +57,7 @@ def obtener_mensajes():
 
 @messages_bp.route('/api/mensajes', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @validate_required_fields(['message_code', 'message_type', 'message_text'])
 def crear_mensaje():
     """Crear un nuevo mensaje"""
@@ -116,7 +116,7 @@ def crear_mensaje():
 
 @messages_bp.route('/api/mensajes/<int:mensaje_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def actualizar_mensaje(mensaje_id):
     """Actualizar un mensaje existente"""
     connection = None
@@ -184,7 +184,7 @@ def actualizar_mensaje(mensaje_id):
 
 @messages_bp.route('/api/mensajes/<int:mensaje_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def eliminar_mensaje(mensaje_id):
     """Eliminar un mensaje"""
     connection = None
@@ -231,7 +231,7 @@ def eliminar_mensaje(mensaje_id):
 
 @messages_bp.route('/api/mensajes/recargar-cache', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def recargar_cache_mensajes():
     """Forzar recarga del cache de mensajes"""
     try:
@@ -245,7 +245,7 @@ def recargar_cache_mensajes():
 
 @messages_bp.route('/api/mensajes/buscar', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def buscar_mensajes():
     """Buscar mensajes con filtros"""
     connection = None
@@ -311,7 +311,7 @@ def buscar_mensajes():
 
 @messages_bp.route('/api/mensajes/validar-codigo/<codigo>', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def validar_codigo_mensaje(codigo):
     """Validar si un código de mensaje está disponible"""
     connection = None

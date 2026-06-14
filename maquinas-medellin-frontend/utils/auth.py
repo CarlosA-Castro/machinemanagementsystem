@@ -170,3 +170,84 @@ def get_user_permissions() -> list:
     except Exception as e:
         logger.error(f"Error obteniendo permisos del usuario: {e}")
         return []
+
+
+# ── Vocabulario de permisos (fuente única para backend y UI) ──────────────────
+
+# Acceso de lectura por sección/dominio. Permiso = 'ver_<seccion>'.
+SECCIONES = [
+    'dashboard', 'usuarios', 'maquinas', 'paquetes',
+    'locales', 'liquidaciones', 'logs', 'mensajes', 'socios',
+]
+
+# Acciones globales (transversales a todas las secciones).
+ACCIONES = ['ver', 'crear', 'editar', 'eliminar', 'reportes', 'configurar']
+
+# Permiso master para entrar al panel admin.
+PERMISO_ADMIN = 'admin_panel'
+
+# Acción exigida según el método HTTP (None = solo se exige la sección).
+_ACTION_BY_METHOD = {
+    'GET': None, 'HEAD': None, 'OPTIONS': None,
+    'POST': 'crear', 'PUT': 'editar', 'PATCH': 'editar', 'DELETE': 'eliminar',
+}
+
+
+def require_admin_access(section=None, action='auto'):
+    """
+    Decorador RBAC para endpoints del panel admin (reemplaza a
+    require_login(['admin']) cuando se quiere control por sección y acción).
+
+    Flujo:
+      1. Exige sesión activa.
+      2. El rol 'admin' hace bypass total (acceso completo).
+      3. 'admin_restaurante' nunca entra al admin (regla histórica, igual que cajero).
+      4. Exige el permiso master 'admin_panel'.
+      5. Si se indica `section` (ej. 'usuarios'), exige 'ver_<section>'.
+      6. Exige la acción:
+         - action='auto' (default): se infiere del método HTTP
+           (POST→crear, PUT/PATCH→editar, DELETE→eliminar, GET→ninguna).
+         - action=None: no exige acción (solo sección).
+         - action='<permiso>': exige ese permiso explícito (ej. 'configurar'
+           para POSTs que son acciones de control y no creación de registros).
+    """
+    def _denegar(message=None):
+        # API (XHR) → 403 JSON; navegación de página → redirect a /local
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            data = {'message': message} if message else None
+            return api_response('E004', http_status=403, data=data)
+        return redirect('/local')
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not session.get('logged_in'):
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return api_response('A004', http_status=401)
+                return redirect('/login')
+
+            user_role = session.get('user_role')
+
+            # admin: acceso total, sin más comprobaciones
+            if user_role == 'admin':
+                return func(*args, **kwargs)
+
+            # admin_restaurante: equivalente a cajero, nunca admin
+            if user_role == 'admin_restaurante':
+                return _denegar()
+
+            permisos = get_user_permissions()
+
+            if PERMISO_ADMIN not in permisos:
+                return _denegar()
+
+            if section and f'ver_{section}' not in permisos:
+                return _denegar(f'Sin acceso a la sección: {section}')
+
+            req_action = _ACTION_BY_METHOD.get(request.method) if action == 'auto' else action
+            if req_action and req_action not in permisos:
+                return _denegar(f'Sin permiso para: {req_action}')
+
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator

@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 
@@ -17,7 +17,7 @@ roles_bp = Blueprint('roles', __name__)
 
 @roles_bp.route('/api/roles/sistema', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def obtener_roles_sistema():
     """Obtener todos los roles del sistema"""
     connection = None
@@ -60,7 +60,7 @@ def obtener_roles_sistema():
 
 @roles_bp.route('/api/roles/agregar-automatico', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def agregar_nuevo_rol_automatico():
     """Crear un nuevo rol automáticamente"""
     connection = None
@@ -130,9 +130,83 @@ def agregar_nuevo_rol_automatico():
         if connection: connection.close()
 
 
+@roles_bp.route('/api/roles/<rol_id>', methods=['PUT'])
+@handle_api_errors
+@require_admin_access('usuarios')
+def actualizar_rol(rol_id):
+    """Editar un rol existente (no permite editar 'admin', que es inmutable)."""
+    if rol_id == 'admin':
+        return api_response('E005', http_status=400,
+                            data={'message': 'El rol administrador es inmutable y no se puede editar'})
+
+    connection = None
+    cursor = None
+    try:
+        data         = request.get_json() or {}
+        nombre       = (data.get('nombre') or '').strip()
+        descripcion  = (data.get('descripcion') or '').strip()
+        nivel_acceso = data.get('nivel_acceso', 'bajo')
+        permisos     = data.get('permisos', [])
+        color        = data.get('color', 'gray')
+        icono        = data.get('icono', 'user')
+
+        if not nombre:
+            return api_response('E005', http_status=400, data={'message': 'El nombre del rol es requerido'})
+        if not isinstance(permisos, list):
+            return api_response('E005', http_status=400, data={'message': 'Permisos inválidos'})
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        cursor.execute("SELECT id FROM roles WHERE id = %s", (rol_id,))
+        if not cursor.fetchone():
+            return api_response('E002', http_status=404, data={'message': 'Rol no encontrado'})
+
+        cursor.execute("""
+            UPDATE roles
+            SET nombre = %s, descripcion = %s, color = %s,
+                icono = %s, nivel_acceso = %s, permisos = %s
+            WHERE id = %s
+        """, (
+            nombre,
+            descripcion or f'Rol {nombre}',
+            color,
+            icono,
+            nivel_acceso,
+            json.dumps(permisos),
+            rol_id,
+        ))
+        connection.commit()
+        logger.info(f"Rol actualizado: {rol_id} permisos={permisos}")
+
+        return jsonify({
+            'success': True,
+            'rol': {
+                'id': rol_id,
+                'nombre': nombre,
+                'descripcion': descripcion,
+                'nivel_acceso': nivel_acceso,
+                'permisos': permisos,
+            },
+            'message': f'Rol "{nombre}" actualizado correctamente'
+        })
+
+    except Exception as e:
+        logger.error(f"Error actualizando rol: {e}")
+        if connection:
+            connection.rollback()
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
 @roles_bp.route('/api/roles/<rol_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def eliminar_rol(rol_id):
     """Eliminar un rol (no permite eliminar 'admin')"""
     roles_protegidos = ['admin']

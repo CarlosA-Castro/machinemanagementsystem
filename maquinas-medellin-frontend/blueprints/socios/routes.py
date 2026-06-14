@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify, render_template, session
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_login, require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
@@ -101,7 +101,7 @@ def mostrar_panel_socio():
 
 
 @socios_bp.route('/admin/inversores/gestionsocios')
-@require_login(['admin'])
+@require_admin_access('socios')
 def mostrar_gestion_socios():
     hora_colombia = get_colombia_time()
     return render_template(
@@ -150,7 +150,7 @@ def obtener_socio_actual():
 
 @socios_bp.route('/api/socios', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_todos_socios():
     connection = None
     cursor = None
@@ -174,7 +174,7 @@ def obtener_todos_socios():
 
 @socios_bp.route('/api/socios/completos', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_socios_completos():
     connection = None
     cursor = None
@@ -216,7 +216,7 @@ def obtener_socios_completos():
 
 @socios_bp.route('/api/socios/<int:socio_id>', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_socio(socio_id):
     connection = None
     cursor = None
@@ -272,7 +272,7 @@ def obtener_socio(socio_id):
 
 @socios_bp.route('/api/socios', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 @validate_required_fields(['nombre', 'documento', 'fecha_inscripcion', 'fecha_vencimiento'])
 def crear_socio():
     connection = None
@@ -332,7 +332,7 @@ def crear_socio():
 
 @socios_bp.route('/api/socios/<int:socio_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 @validate_required_fields(['nombre', 'documento', 'fecha_inscripcion', 'fecha_vencimiento'])
 def actualizar_socio(socio_id):
     connection = None
@@ -398,7 +398,7 @@ def actualizar_socio(socio_id):
 
 @socios_bp.route('/api/socios/<int:socio_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def eliminar_socio(socio_id):
     connection = None
     cursor = None
@@ -449,7 +449,7 @@ def eliminar_socio(socio_id):
 
 @socios_bp.route('/api/socios/estadisticas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_estadisticas_socios():
     connection = None
     cursor = None
@@ -504,7 +504,7 @@ def obtener_estadisticas_socios():
 
 @socios_bp.route('/api/socios/top', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_top_socios():
     connection = None
     cursor = None
@@ -545,7 +545,7 @@ def obtener_top_socios():
 
 @socios_bp.route('/api/socios/recientes', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_socios_recientes():
     connection = None
     cursor = None
@@ -576,7 +576,7 @@ def obtener_socios_recientes():
 
 @socios_bp.route('/api/socios/<int:socio_id>/inversiones', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_inversiones_socio(socio_id):
     connection = None
     cursor = None
@@ -614,7 +614,7 @@ def obtener_inversiones_socio(socio_id):
 
 @socios_bp.route('/api/socios/<int:socio_id>/pagos', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_pagos_socio(socio_id):
     connection = None
     cursor = None
@@ -645,7 +645,7 @@ def obtener_pagos_socio(socio_id):
 
 @socios_bp.route('/api/socios/<int:socio_id>/ingresos/ultimos', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_ultimos_ingresos_socio(socio_id):
     connection = None
     cursor = None
@@ -1030,7 +1030,7 @@ def _parse_periodo(args):
 
 @socios_bp.route('/api/socios/resumen-financiero', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def resumen_financiero_socios():
     """Todos los socios activos con su participación real en el período."""
     connection = None
@@ -1060,7 +1060,7 @@ def resumen_financiero_socios():
 
 @socios_bp.route('/api/socios/por-local', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def socios_por_local():
     """Socios filtrados por local: resuelto via inversiones → machine → location."""
     connection = None
@@ -1124,7 +1124,7 @@ def socios_por_local():
 
 @socios_bp.route('/api/socios/<int:socio_id>/financiero', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def detalle_financiero_socio(socio_id):
     """Detalle financiero completo de un socio: período, por máquina, por local, ROI."""
     connection = None
@@ -1474,7 +1474,7 @@ def cambiar_password_socio():
 
 @socios_bp.route('/api/admin/prospectos', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_prospectos():
     """Lista todos los leads de contacto_inversor, nuevos primero."""
     connection = None
@@ -1506,7 +1506,7 @@ def obtener_prospectos():
 
 @socios_bp.route('/api/admin/activar-socio', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def activar_socio():
     """
     Crea e inmediatamente activa un nuevo socio en un solo paso:
@@ -1671,7 +1671,7 @@ def activar_socio():
 
 @socios_bp.route('/api/admin/prospectos/<int:prospecto_id>/leer', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def marcar_prospecto_leido(prospecto_id):
     """Marca un lead de contacto_inversor como leído."""
     connection = None

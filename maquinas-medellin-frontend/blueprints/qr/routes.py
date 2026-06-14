@@ -10,7 +10,7 @@ from flask import Blueprint, request, jsonify, session, json, redirect
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from middleware.logging_mw import log_transaccion
-from utils.auth import require_login
+from utils.auth import require_login, require_admin_access
 from utils.helpers import parse_json_col
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
@@ -670,7 +670,7 @@ def obtener_estado_contador():
 
 @qr_bp.route('/api/contador-qr/reiniciar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @validate_required_fields(['nuevo_valor'])
 def reiniciar_contador():
     """Reiniciar el contador de QR (solo administradores)"""
@@ -2904,7 +2904,7 @@ def reportar_falla_maquina():
 
 @qr_bp.route('/api/reportes/<int:reporte_id>/resolver', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def resolver_reporte(reporte_id):
     """Marcar un reporte como resuelto"""
     connection = None

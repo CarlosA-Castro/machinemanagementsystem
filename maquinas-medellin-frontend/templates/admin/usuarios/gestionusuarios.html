@@ -306,12 +306,12 @@
             </div>
 
             <div class="border-t pt-4">
-                <h3 class="text-lg font-semibold mb-3">Crear Nuevo Rol</h3>
+                <h3 class="text-lg font-semibold mb-3" id="formRolTitulo">Crear Nuevo Rol</h3>
                 <form id="formRol" onsubmit="RolesApp.crearNuevoRol(event)">
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-user-tag mr-2"></i>Nombre del Rol *</label>
-                            <input type="text" id="nombreRol" required class="w-full border border-gray-300 rounded-lg p-3 text-base" placeholder="Ej: supervisor, auditor, gerente">
+                            <input type="text" id="nombreRol" required class="w-full border border-gray-300 rounded-lg p-3 text-base disabled:bg-gray-100 disabled:text-gray-500" placeholder="Ej: supervisor, auditor, gerente">
                             <p class="text-xs text-gray-500 mt-1">Solo letras minúsculas y guiones bajos (_)</p>
                         </div>
                         <div>
@@ -343,6 +343,10 @@
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerMaquinas" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver máquinas</span></label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerLiquidaciones" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver liquidaciones</span></label>
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerLogs" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver logs</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerPaquetes" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver paquetes</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerLocales" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver locales</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerMensajes" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver mensajes</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="permisoVerSocios" class="h-4 w-4 text-purple-600 rounded"><span class="text-sm text-gray-700">Ver socios</span></label>
                                 </div>
                             </div>
                         </div>
@@ -359,7 +363,7 @@
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
-                        <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-plus-circle mr-2"></i>Crear Rol</button>
+                        <button type="submit" id="btnSubmitRol" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-plus-circle mr-2"></i>Crear Rol</button>
                         <button type="button" onclick="RolesApp.cerrarModal()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 btn-touch"><i class="fas fa-times mr-2"></i>Cancelar</button>
                     </div>
                 </form>
@@ -751,6 +755,20 @@
     };
 
     const RolesApp = {
+        editandoRolId: null,
+        rolesCache: [],
+
+        // Mapa permiso → id del checkbox en el formulario
+        PERMISO_CHECKBOX: {
+            ver: 'permisoVer', crear: 'permisoCrear', editar: 'permisoEditar',
+            eliminar: 'permisoEliminar', reportes: 'permisoReportes', configurar: 'permisoConfigurar',
+            admin_panel: 'permisoAdminPanel', ver_dashboard: 'permisoVerDashboard',
+            ver_usuarios: 'permisoVerUsuarios', ver_maquinas: 'permisoVerMaquinas',
+            ver_liquidaciones: 'permisoVerLiquidaciones', ver_logs: 'permisoVerLogs',
+            ver_paquetes: 'permisoVerPaquetes', ver_locales: 'permisoVerLocales',
+            ver_mensajes: 'permisoVerMensajes', ver_socios: 'permisoVerSocios',
+        },
+
         init: function() { console.log("RolesApp inicializado"); },
 
         mostrarModalCrearRol: function() {
@@ -762,7 +780,7 @@
         cerrarModal: function() {
             document.getElementById('modalRoles').classList.add('hidden');
             document.getElementById('modalRoles').classList.remove('flex');
-            document.getElementById('formRol').reset();
+            this.cancelarEdicion();
         },
 
         cargarRolesSistema: async function() {
@@ -778,6 +796,7 @@
         },
 
         mostrarRoles: function(roles) {
+            this.rolesCache = roles || [];
             const rolesLista = document.getElementById('rolesLista');
             if (!roles || roles.length === 0) {
                 rolesLista.innerHTML = `<div class="col-span-3 text-center py-4"><p class="text-gray-600">No se encontraron roles</p></div>`;
@@ -803,6 +822,7 @@
                             </div>
                             <div class="flex items-center gap-1">
                                 <span class="text-xs px-2 py-0.5 rounded-full bg-white bg-opacity-75 whitespace-nowrap">${rol.total_usuarios || 0} usuarios</span>
+                                ${rol.id !== 'admin' ? `<button onclick="RolesApp.editarRol('${rol.id}')" class="text-indigo-500 hover:text-indigo-700 ml-1" title="Editar"><i class="fas fa-pen text-xs"></i></button>` : ''}
                                 ${rol.id !== 'admin' ? `<button onclick="RolesApp.eliminarRol('${rol.id}', '${rol.nombre}')" class="text-red-500 hover:text-red-700 ml-1" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>` : ''}
                             </div>
                         </div>
@@ -822,10 +842,10 @@
 
         mostrarRolesFallback: function() {
             this.mostrarRoles([
-                { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso completo', color: 'purple', icono: 'user-shield', total_usuarios: 0, permisos: ['ver','crear','editar','eliminar','reportes','configurar','admin_panel'], nivel_acceso: 'administrador' },
-                { id: 'cajero', nombre: 'Cajero', descripcion: 'Ventas y QR', color: 'blue', icono: 'cash-register', total_usuarios: 0, permisos: ['ver','crear'], nivel_acceso: 'medio' },
-                { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión restaurante', color: 'teal', icono: 'store', total_usuarios: 0, permisos: ['ver','crear','editar','reportes','admin_panel'], nivel_acceso: 'alto' },
-                { id: 'socio', nombre: 'Socio', descripcion: 'Reportes financieros', color: 'pink', icono: 'user-tie', total_usuarios: 0, permisos: ['ver','reportes'], nivel_acceso: 'bajo' }
+                { id: 'admin', nombre: 'Administrador', descripcion: 'Acceso total al sistema', color: 'purple', icono: 'user-shield', total_usuarios: 0, permisos: ['ver','crear','editar','eliminar','reportes','configurar','admin_panel','ver_dashboard','ver_usuarios','ver_maquinas','ver_paquetes','ver_locales','ver_liquidaciones','ver_logs','ver_mensajes','ver_socios'], nivel_acceso: 'administrador' },
+                { id: 'cajero', nombre: 'Cajero', descripcion: 'Gestión de ventas y turnos', color: 'blue', icono: 'cash-register', total_usuarios: 0, permisos: ['ver','crear'], nivel_acceso: 'medio' },
+                { id: 'admin_restaurante', nombre: 'Admin Restaurante', descripcion: 'Gestión restaurante - equivalente a cajero', color: 'teal', icono: 'store', total_usuarios: 0, permisos: ['ver','crear'], nivel_acceso: 'medio' },
+                { id: 'socio', nombre: 'Socio', descripcion: 'Visualización de rendimientos propios', color: 'pink', icono: 'user-tie', total_usuarios: 0, permisos: ['ver'], nivel_acceso: 'bajo' }
             ]);
         },
 
@@ -845,60 +865,120 @@
             } catch (error) { console.error(error); this.mostrarAlerta('Error de conexión', 'error'); }
         },
 
+        // Lee los checkboxes del formulario → array de permisos
+        leerPermisosDeFormulario: function() {
+            const permisos = [];
+            for (const [permiso, chkId] of Object.entries(this.PERMISO_CHECKBOX)) {
+                const chk = document.getElementById(chkId);
+                if (chk && chk.checked) permisos.push(permiso);
+            }
+            return permisos;
+        },
+
+        // Marca/desmarca los checkboxes a partir de un array de permisos
+        marcarPermisos: function(permisos) {
+            const set = new Set(Array.isArray(permisos) ? permisos : []);
+            for (const [permiso, chkId] of Object.entries(this.PERMISO_CHECKBOX)) {
+                const chk = document.getElementById(chkId);
+                if (chk) chk.checked = set.has(permiso);
+            }
+        },
+
+        // Entra en modo edición y precarga el formulario con los datos del rol
+        editarRol: function(rolId) {
+            const rol = (this.rolesCache || []).find(r => r.id === rolId);
+            if (!rol) { this.mostrarError('No se encontró el rol a editar'); return; }
+            if (rolId === 'admin') { this.mostrarError('El rol administrador es inmutable'); return; }
+
+            this.editandoRolId = rolId;
+            this.editandoRolNombre = rol.nombre || rolId;
+
+            const inputNombre = document.getElementById('nombreRol');
+            inputNombre.value = rolId;
+            inputNombre.disabled = true;
+            document.getElementById('descripcionRol').value = rol.descripcion || '';
+            document.getElementById('nivelAcceso').value = rol.nivel_acceso || 'bajo';
+            this.marcarPermisos(rol.permisos);
+
+            document.getElementById('formRolTitulo').textContent = `Editar Rol: ${rol.nombre || rolId}`;
+            document.getElementById('btnSubmitRol').innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Cambios';
+            document.getElementById('formRol').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+
+        // Sale del modo edición y restaura el formulario a "crear"
+        cancelarEdicion: function() {
+            this.editandoRolId = null;
+            this.editandoRolNombre = null;
+            const form = document.getElementById('formRol');
+            if (form) form.reset();
+            const inputNombre = document.getElementById('nombreRol');
+            if (inputNombre) inputNombre.disabled = false;
+            const titulo = document.getElementById('formRolTitulo');
+            if (titulo) titulo.textContent = 'Crear Nuevo Rol';
+            const btn = document.getElementById('btnSubmitRol');
+            if (btn) btn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Crear Rol';
+        },
+
+        // Handler de submit: crea (POST) o edita (PUT) según el modo
         crearNuevoRol: async function(event) {
             event.preventDefault();
-            const nombreRol = document.getElementById('nombreRol').value.trim().toLowerCase();
+            const editando = !!this.editandoRolId;
             const descripcion = document.getElementById('descripcionRol').value.trim();
             const nivelAcceso = document.getElementById('nivelAcceso').value;
+            const nombreRol = editando
+                ? this.editandoRolId
+                : document.getElementById('nombreRol').value.trim().toLowerCase();
 
-            if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
-            if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
-            if (nombreRol.length > 50) { this.mostrarError('Máximo 50 caracteres'); return; }
+            if (!editando) {
+                if (!nombreRol) { this.mostrarError('El nombre del rol es requerido'); return; }
+                if (!/^[a-z_]+$/.test(nombreRol)) { this.mostrarError('Solo letras minúsculas y guiones bajos (_)'); return; }
+                if (nombreRol.length > 50) { this.mostrarError('Máximo 50 caracteres'); return; }
+            }
             if (!nivelAcceso) { this.mostrarError('Selecciona un nivel de acceso'); return; }
 
-            const permisos = [];
-            if (document.getElementById('permisoVer').checked) permisos.push('ver');
-            if (document.getElementById('permisoCrear').checked) permisos.push('crear');
-            if (document.getElementById('permisoEditar').checked) permisos.push('editar');
-            if (document.getElementById('permisoEliminar').checked) permisos.push('eliminar');
-            if (document.getElementById('permisoReportes').checked) permisos.push('reportes');
-            if (document.getElementById('permisoConfigurar').checked) permisos.push('configurar');
-            if (document.getElementById('permisoAdminPanel').checked) permisos.push('admin_panel');
-            if (document.getElementById('permisoVerDashboard').checked) permisos.push('ver_dashboard');
-            if (document.getElementById('permisoVerUsuarios').checked) permisos.push('ver_usuarios');
-            if (document.getElementById('permisoVerMaquinas').checked) permisos.push('ver_maquinas');
-            if (document.getElementById('permisoVerLiquidaciones').checked) permisos.push('ver_liquidaciones');
-            if (document.getElementById('permisoVerLogs').checked) permisos.push('ver_logs');
+            const permisos = this.leerPermisosDeFormulario();
+            const nombre = editando
+                ? (this.editandoRolNombre || nombreRol)
+                : (nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace(/_/g,' '));
 
-            const nombre = nombreRol.charAt(0).toUpperCase() + nombreRol.slice(1).replace(/_/g,' ');
             const btnSubmit = event.target.querySelector('button[type="submit"]');
             const textoOriginal = btnSubmit.innerHTML;
+            let exito = false;
             btnSubmit.disabled = true;
-            btnSubmit.innerHTML = '<div class="loading mr-2" style="display:inline-block"></div>Creando...';
+            btnSubmit.innerHTML = `<div class="loading mr-2" style="display:inline-block"></div>${editando ? 'Guardando...' : 'Creando...'}`;
+
+            const url = editando ? `/api/roles/${nombreRol}` : '/api/roles/agregar-automatico';
+            const method = editando ? 'PUT' : 'POST';
+            const body = editando
+                ? { nombre, descripcion: descripcion || `Rol ${nombre}`, nivel_acceso: nivelAcceso, permisos, color: this.getColorPorNivel(nivelAcceso), icono: 'user' }
+                : { nuevo_rol: nombreRol, nombre, descripcion: descripcion || `Rol ${nombre}`, nivel_acceso: nivelAcceso, permisos, color: this.getColorPorNivel(nivelAcceso), icono: 'user' };
 
             try {
-                const response = await fetch('/api/roles/agregar-automatico', {
-                    method: 'POST',
+                const response = await fetch(url, {
+                    method,
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ nuevo_rol: nombreRol, nombre, descripcion: descripcion || `Rol ${nombre}`, nivel_acceso: nivelAcceso, permisos, color: this.getColorPorNivel(nivelAcceso), icono: 'user' })
+                    body: JSON.stringify(body)
                 });
                 const data = await response.json();
                 if (response.ok && data.success) {
-                    this.mostrarAlerta(`Rol "${data.rol.nombre}" creado correctamente`, 'success');
-                    document.getElementById('formRol').reset();
-                    ['rol','filtroRol'].forEach(id => {
-                        const sel = document.getElementById(id);
-                        if (sel && !sel.querySelector(`option[value="${nombreRol}"]`)) {
-                            const opt = document.createElement('option');
-                            opt.value = nombreRol; opt.textContent = nombre;
-                            sel.appendChild(opt);
-                        }
-                    });
+                    exito = true;
+                    this.mostrarAlerta(`Rol "${data.rol.nombre}" ${editando ? 'actualizado' : 'creado'} correctamente`, 'success');
+                    this.cancelarEdicion();
+                    if (!editando) {
+                        ['rol','filtroRol'].forEach(id => {
+                            const sel = document.getElementById(id);
+                            if (sel && !sel.querySelector(`option[value="${nombreRol}"]`)) {
+                                const opt = document.createElement('option');
+                                opt.value = nombreRol; opt.textContent = nombre;
+                                sel.appendChild(opt);
+                            }
+                        });
+                    }
                     this.cargarRolesSistema();
-                } else { this.mostrarError(data.message || 'Error al crear el rol'); }
+                } else { this.mostrarError(data.message || `Error al ${editando ? 'actualizar' : 'crear'} el rol`); }
             } catch (error) { console.error(error); this.mostrarError('Error de conexión'); }
-            finally { btnSubmit.disabled = false; btnSubmit.innerHTML = textoOriginal; }
+            finally { btnSubmit.disabled = false; if (!exito) btnSubmit.innerHTML = textoOriginal; }
         },
 
         getColorPorNivel: function(nivel) {

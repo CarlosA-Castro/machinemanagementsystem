@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, session
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.helpers import parse_json_col
 from utils.responses import handle_api_errors
 from utils.timezone import get_colombia_time
@@ -178,7 +178,7 @@ def record_redemption(cursor, result, qr_code, user_id, location_id, package_id=
 # ─────────────────────────────────────────────────────────────────────────────
 
 @campaigns_bp.route('/api/admin/campaigns', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def list_campaigns():
     conn = get_db_connection()
@@ -239,7 +239,7 @@ def list_campaigns():
 
 
 @campaigns_bp.route('/api/admin/campaigns/activas-ahora', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def campaigns_activas_ahora():
     """Devuelve campañas que están activas en este momento (para banner en UI)."""
@@ -312,7 +312,7 @@ def campaigns_activas_ahora():
 
 
 @campaigns_bp.route('/api/admin/campaigns', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def create_campaign():
     data = request.get_json(silent=True) or {}
@@ -376,7 +376,7 @@ def create_campaign():
 
 
 @campaigns_bp.route('/api/admin/campaigns/<int:cid>', methods=['PUT'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def update_campaign(cid):
     import json as _json
@@ -446,7 +446,7 @@ def update_campaign(cid):
 
 
 @campaigns_bp.route('/api/admin/campaigns/<int:cid>', methods=['DELETE'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def delete_campaign(cid):
     conn = get_db_connection()
@@ -464,7 +464,7 @@ def delete_campaign(cid):
 
 
 @campaigns_bp.route('/api/admin/campaigns/<int:cid>/toggle', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def toggle_campaign(cid):
     """Activa o desactiva una campaña instantáneamente."""
@@ -487,7 +487,7 @@ def toggle_campaign(cid):
 
 
 @campaigns_bp.route('/api/admin/campaigns/<int:cid>/flash', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def flash_campaign(cid):
     """
@@ -527,7 +527,7 @@ def flash_campaign(cid):
 
 
 @campaigns_bp.route('/api/admin/campaigns/stats', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('mensajes')
 @handle_api_errors
 def campaign_stats():
     """Analítica: total redimido, ahorro total, top campañas."""

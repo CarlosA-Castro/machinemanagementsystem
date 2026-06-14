@@ -17,6 +17,7 @@ import csv
 import zipfile
 import traceback
 from factory import create_app
+from utils.auth import require_admin_access
 from utils.transactions import log_transaction as shared_log_transaction
 from utils.logs import (
     log_app_event as shared_log_app_event,
@@ -752,7 +753,7 @@ def check_alerts(level, message, module):
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/transaccional-consolidado', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_logs_transaccional_consolidado():
     """
     Endpoint consolidado para la pÃ¡gina de Logs Transaccionales.
@@ -1046,7 +1047,7 @@ def obtener_logs_transaccional_consolidado():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/consola-completa', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_logs_consola():
     """Obtener logs de mÃºltiples fuentes - VERSIÃ“N CORREGIDA"""
     try:
@@ -1405,7 +1406,7 @@ def obtener_logs_consola():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/estadisticas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_estadisticas_logs():
     """Obtener estadÃ­sticas de logs - VERSIÃ“N CORREGIDA"""
     try:
@@ -1507,7 +1508,7 @@ def obtener_estadisticas_logs():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/config', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_config_logs():
     """Obtener configuraciÃ³n de logs"""
     try:
@@ -1539,7 +1540,7 @@ def obtener_config_logs():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/config', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 @validate_required_fields(['config_key', 'config_value'])
 def actualizar_config_logs():
     """Actualizar configuraciÃ³n de logs"""
@@ -1586,7 +1587,7 @@ def actualizar_config_logs():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/alertas', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 @validate_required_fields(['alert_type', 'alert_message', 'condition'])
 def crear_alerta_logs():
     """Crear nueva alerta"""
@@ -1628,7 +1629,7 @@ def crear_alerta_logs():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/alertas/<int:alerta_id>/toggle', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def toggle_alerta_logs(alerta_id):
     """Activar/desactivar alerta"""
     try:
@@ -1666,7 +1667,7 @@ def toggle_alerta_logs(alerta_id):
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/limpiar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def limpiar_logs_sistema():
     """Limpiar logs antiguos"""
     try:
@@ -1725,7 +1726,7 @@ def limpiar_logs_sistema():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/exportar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def exportar_logs_sistema():
     """Exportar logs a archivo"""
     try:
@@ -1875,7 +1876,7 @@ def exportar_logs_sistema():
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/errores/<int:error_id>/resolver', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def resolver_error_log(error_id):
     """Marcar error como resuelto"""
     try:
@@ -1913,7 +1914,7 @@ def resolver_error_log(error_id):
 # Migrado a blueprints/logs/routes.py
 # @app.route('/api/logs/dashboard', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_dashboard_logs():
     """Obtener datos para dashboard de logs"""
     try:

@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request, session
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.location_scope import apply_location_filter, apply_location_name_filter
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
@@ -825,7 +825,7 @@ def _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin):
 
 @liquidaciones_bp.route('/api/liquidaciones/calcular', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def calcular_liquidacion():
     """Calcular liquidación detallada: modelo 3-way negocio / admin / utilidad."""
     connection = None
@@ -1093,7 +1093,7 @@ def calcular_liquidacion():
 
 @liquidaciones_bp.route('/api/ventas-liquidadas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def obtener_ventas_liquidadas():
     """Listado paginado de transacciones con distribución 3-way."""
     connection = None
@@ -1230,7 +1230,7 @@ def obtener_ventas_liquidadas():
 
 @liquidaciones_bp.route('/api/liquidaciones/gastos', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def obtener_gastos():
     """Listar gastos informativos del período."""
     connection = None
@@ -1255,7 +1255,7 @@ def obtener_gastos():
 
 @liquidaciones_bp.route('/api/liquidaciones/gastos', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def registrar_gasto():
     """Registrar un gasto informativo."""
     connection = None
@@ -1291,7 +1291,7 @@ def registrar_gasto():
 
 @liquidaciones_bp.route('/api/liquidaciones/gastos/<int:gasto_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def eliminar_gasto(gasto_id):
     """Eliminar un gasto informativo."""
     connection = None
@@ -1316,7 +1316,7 @@ def eliminar_gasto(gasto_id):
 
 @liquidaciones_bp.route('/api/liquidaciones/cerrar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def cerrar_liquidacion():
     """Guardar cierre oficial de liquidación en cierre_liquidacion."""
     connection = None
@@ -1412,7 +1412,7 @@ def cerrar_liquidacion():
 
 @liquidaciones_bp.route('/api/liquidaciones/historial', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def obtener_historial():
     """Últimas N liquidaciones cerradas para gráfica e histórico."""
     connection = None
@@ -1439,7 +1439,7 @@ def obtener_historial():
 
 @liquidaciones_bp.route('/api/liquidaciones/maquinas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def obtener_liquidaciones_maquinas():
     connection = None
     cursor = None
@@ -1474,7 +1474,7 @@ def obtener_liquidaciones_maquinas():
 
 @liquidaciones_bp.route('/api/liquidaciones/maquinas/catalogo', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def obtener_catalogo_maquinas_liquidacion():
     connection = None
     cursor = None
@@ -1526,7 +1526,7 @@ def obtener_catalogo_maquinas_liquidacion():
 
 @liquidaciones_bp.route('/api/liquidaciones/maquinas', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 @validate_required_fields(['fecha', 'maquina_id', 'turnos_retirados'])
 def registrar_liquidacion_maquina():
     connection = None
@@ -1595,7 +1595,7 @@ def registrar_liquidacion_maquina():
 
 @liquidaciones_bp.route('/api/liquidaciones/maquinas/<int:maquina_id>/porcentajes', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def actualizar_porcentajes_maquina(maquina_id):
     """Guardar porcentaje_restaurante y porcentaje_admin para una máquina."""
     connection = None
@@ -1658,7 +1658,7 @@ def actualizar_porcentajes_maquina(maquina_id):
 
 @liquidaciones_bp.route('/api/liquidaciones/verificar-tablas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def verificar_tablas_liquidaciones():
     """Diagnóstico de tablas y columnas del módulo de liquidaciones."""
     connection = None

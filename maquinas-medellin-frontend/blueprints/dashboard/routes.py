@@ -7,7 +7,7 @@ from flask import Blueprint, request, jsonify, session, json
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from middleware.logging_mw import log_transaccion
-from utils.auth import require_login, get_user_permissions
+from utils.auth import require_login, get_user_permissions, require_admin_access
 from utils.messages import MessageService
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time, format_datetime_for_db, parse_db_datetime
@@ -357,7 +357,7 @@ def obtener_graficas_dashboard():
 
 @dashboard_bp.route('/api/maquinas/<int:maquina_id>/resolver-falla', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('dashboard')
 def resolver_falla_maquina(maquina_id):
     """Resolver falla de máquina: reactivar, limpiar reportes y enviar RESUME al ESP32"""
     connection = None
@@ -816,7 +816,7 @@ def obtener_estadisticas_rango_fechas():
 
 @dashboard_bp.route('/api/usuarios/<int:usuario_id>/estado', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('dashboard')
 def cambiar_estado_usuario(usuario_id):
     """Cambiar estado activo/inactivo de un usuario"""
     connection = None
@@ -864,7 +864,7 @@ def cambiar_estado_usuario(usuario_id):
 
 @dashboard_bp.route('/api/usuarios/estadisticas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('dashboard')
 def obtener_estadisticas_usuarios():
     """Obtener estadísticas de usuarios"""
     connection = None

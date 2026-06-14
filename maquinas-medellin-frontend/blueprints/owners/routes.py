@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
 
@@ -16,7 +16,7 @@ owners_bp = Blueprint('owners', __name__)
 
 @owners_bp.route('/api/propietarios', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_propietarios():
     """Obtener todos los propietarios"""
     connection = None
@@ -57,7 +57,7 @@ def obtener_propietarios():
 
 @owners_bp.route('/api/propietarios/<int:propietario_id>', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def obtener_propietario(propietario_id):
     """Obtener un propietario específico"""
     connection = None
@@ -104,7 +104,7 @@ def obtener_propietario(propietario_id):
 
 @owners_bp.route('/api/propietarios', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 @validate_required_fields(['nombre'])
 def crear_propietario():
     """Crear un nuevo propietario"""
@@ -150,7 +150,7 @@ def crear_propietario():
 
 @owners_bp.route('/api/propietarios/<int:propietario_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 @validate_required_fields(['nombre'])
 def actualizar_propietario(propietario_id):
     """Actualizar un propietario existente"""
@@ -201,7 +201,7 @@ def actualizar_propietario(propietario_id):
 
 @owners_bp.route('/api/propietarios/<int:propietario_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def eliminar_propietario(propietario_id):
     """Eliminar un propietario"""
     connection = None

@@ -4,7 +4,7 @@ from flask import Blueprint, request, session
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.transactions import log_transaction
 from utils.validators import validate_required_fields
@@ -16,7 +16,7 @@ pagos_bp = Blueprint('pagos', __name__)
 
 @pagos_bp.route('/api/pagoscuotas', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 @validate_required_fields(['socio_id', 'anio', 'monto'])
 def crear_pago_cuota():
     connection = None
@@ -104,7 +104,7 @@ def crear_pago_cuota():
 
 @pagos_bp.route('/api/pagoscuotas/<int:pago_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def actualizar_pago_cuota(pago_id):
     connection = None
     cursor = None
@@ -149,7 +149,7 @@ def actualizar_pago_cuota(pago_id):
 
 @pagos_bp.route('/api/pagoscuotas/<int:pago_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def eliminar_pago_cuota(pago_id):
     connection = None
     cursor = None

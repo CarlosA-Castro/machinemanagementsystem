@@ -3,7 +3,7 @@ import logging
 from flask import Blueprint, session, redirect, render_template
 
 from config import LOGGER_NAME
-from utils.auth import get_user_permissions, require_login
+from utils.auth import get_user_permissions, require_admin_access
 from utils.timezone import get_colombia_time
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -47,7 +47,7 @@ def mostrar_gestion_usuarios():
 
 
 @admin_bp.route('/admin/paquetes/gestionpaquetes')
-@require_login(['admin'])
+@require_admin_access('paquetes')
 def mostrar_gestion_paquetes():
     return render_template(
         'admin/paquetes/gestionpaquetes.html',
@@ -58,7 +58,7 @@ def mostrar_gestion_paquetes():
 
 @admin_bp.route('/admin/locales/listalocales')
 @admin_bp.route('/admin/locales/gestionlocales')
-@require_login(['admin'])
+@require_admin_access('locales')
 def mostrar_gestion_locales():
     return render_template(
         'admin/locales/gestionlocales.html',
@@ -101,7 +101,7 @@ def mostrar_liquidaciones():
 
 
 @admin_bp.route('/admin/ventas/reportes')
-@require_login(['admin'])
+@require_admin_access('liquidaciones')
 def mostrar_reportes():
     hora_colombia = get_colombia_time()
     return render_template(
@@ -116,7 +116,7 @@ def mostrar_reportes():
 # ── Mensajes ──────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/mensajes/gestionmensajes')
-@require_login(['admin'])
+@require_admin_access('mensajes')
 def mostrar_gestion_mensajes():
     hora_colombia = get_colombia_time()
     return render_template(
@@ -188,7 +188,7 @@ def mostrar_consola_completa():
 # ── Módulos Hardware ESP32 ────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/esp32/modulos')
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def mostrar_gestion_esp32():
     hora_colombia = get_colombia_time()
     return render_template(
@@ -203,7 +203,7 @@ def mostrar_gestion_esp32():
 # ── Firmware OTA ──────────────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/firmware/gestionfirmware')
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def mostrar_gestion_firmware():
     hora_colombia = get_colombia_time()
     return render_template(

@@ -4,7 +4,7 @@ from flask import Blueprint, request, session
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.transactions import log_transaction
 from utils.validators import validate_required_fields
@@ -16,7 +16,7 @@ inversiones_bp = Blueprint('inversiones', __name__)
 
 @inversiones_bp.route('/api/inversiones', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 @validate_required_fields(['socio_id', 'maquina_id', 'porcentaje_inversion', 'fecha_inicio', 'monto_inicial'])
 def crear_inversion():
     connection = None
@@ -113,7 +113,7 @@ def crear_inversion():
 
 @inversiones_bp.route('/api/inversiones/<int:inversion_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('socios')
 def actualizar_inversion(inversion_id):
     connection = None
     cursor = None

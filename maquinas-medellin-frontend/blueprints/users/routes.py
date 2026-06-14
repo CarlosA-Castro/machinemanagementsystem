@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash
 
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.responses import api_response, handle_api_errors
 from utils.validators import validate_required_fields
 from utils.location_scope import apply_location_filter, get_active_location, user_can_view_all
@@ -19,7 +19,7 @@ users_bp = Blueprint('users', __name__)
 # ── Debug ─────────────────────────────────────────────────────────────────────
 
 @users_bp.route('/debug/usuarios')
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def debug_usuarios():
     """Debug: ver usuarios en formato crudo."""
     connection = None
@@ -59,7 +59,7 @@ def debug_usuarios():
 
 @users_bp.route('/api/usuarios', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def obtener_usuarios():
     """Obtener todos los usuarios."""
     logger.info(f"API Usuarios llamada por: {session.get('user_name')}")
@@ -126,7 +126,7 @@ def obtener_usuarios():
 
 @users_bp.route('/api/usuarios/<int:usuario_id>', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def obtener_usuario(usuario_id):
     """Obtener un usuario específico."""
     connection = None
@@ -165,7 +165,7 @@ def obtener_usuario(usuario_id):
 
 @users_bp.route('/api/usuarios', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 @validate_required_fields(['name', 'password', 'role'])
 def crear_usuario():
     connection = None
@@ -233,7 +233,7 @@ def crear_usuario():
 
 @users_bp.route('/api/usuarios/<int:usuario_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 @validate_required_fields(['name', 'role'])
 def actualizar_usuario(usuario_id):
     connection = None
@@ -307,7 +307,7 @@ def actualizar_usuario(usuario_id):
 
 @users_bp.route('/api/usuarios/<int:usuario_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('usuarios')
 def eliminar_usuario(usuario_id):
     """Eliminar un usuario. No permite auto-eliminación."""
     if usuario_id == session.get('user_id'):

@@ -12,7 +12,7 @@ from flask import Blueprint, jsonify, request, send_file, session
 
 from config import LOGGER_NAME, LOG_FILE
 from database import get_db_connection, get_db_cursor
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.location_scope import get_active_location, user_can_view_all
 from utils.logs import log_app_event
 from utils.responses import api_response, handle_api_errors
@@ -26,7 +26,7 @@ logs_bp = Blueprint('logs', __name__)
 
 @logs_bp.route('/api/logs/transaccional-consolidado', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_logs_transaccional_consolidado():
     connection = None
     cursor = None
@@ -383,7 +383,7 @@ def obtener_logs_transaccional_consolidado():
 
 @logs_bp.route('/api/logs/consola-completa', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_logs_consola():
     connection = None
     cursor = None
@@ -695,7 +695,7 @@ def obtener_logs_consola():
 
 @logs_bp.route('/api/logs/estadisticas', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_estadisticas_logs():
     connection = None
     cursor = None
@@ -802,7 +802,7 @@ def obtener_estadisticas_logs():
 
 @logs_bp.route('/api/logs/config', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_config_logs():
     connection = None
     cursor = None
@@ -831,7 +831,7 @@ def obtener_config_logs():
 
 @logs_bp.route('/api/logs/config', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 @validate_required_fields(['config_key', 'config_value'])
 def actualizar_config_logs():
     connection = None
@@ -878,7 +878,7 @@ def actualizar_config_logs():
 
 @logs_bp.route('/api/logs/alertas', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 @validate_required_fields(['alert_type', 'alert_message', 'condition'])
 def crear_alerta_logs():
     connection = None
@@ -921,7 +921,7 @@ def crear_alerta_logs():
 
 @logs_bp.route('/api/logs/alertas/<int:alerta_id>/toggle', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def toggle_alerta_logs(alerta_id):
     connection = None
     cursor = None
@@ -966,7 +966,7 @@ def toggle_alerta_logs(alerta_id):
 
 @logs_bp.route('/api/logs/limpiar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def limpiar_logs_sistema():
     connection = None
     cursor = None
@@ -1039,7 +1039,7 @@ def limpiar_logs_sistema():
 
 @logs_bp.route('/api/logs/rotar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def rotar_logs_sistema():
     try:
         handlers_rotados = 0
@@ -1078,7 +1078,7 @@ def rotar_logs_sistema():
 
 @logs_bp.route('/api/logs/exportar', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def exportar_logs_sistema():
     connection = None
     cursor = None
@@ -1216,7 +1216,7 @@ def exportar_logs_sistema():
 
 @logs_bp.route('/api/logs/errores/<int:error_id>/resolver', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def resolver_error_log(error_id):
     connection = None
     cursor = None
@@ -1261,7 +1261,7 @@ def resolver_error_log(error_id):
 
 @logs_bp.route('/api/logs/dashboard', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('logs')
 def obtener_dashboard_logs():
     connection = None
     cursor = None
@@ -1381,7 +1381,7 @@ def obtener_dashboard_logs():
 
 
 @logs_bp.route('/admin/logs/backup-manual', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('logs')
 def backup_logs_manual():
     try:
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')

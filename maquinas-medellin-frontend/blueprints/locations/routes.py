@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from blueprints.esp32.state import get_heartbeat_fields
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.helpers import parse_json_col
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
@@ -83,7 +83,7 @@ def _admin_expr(tiene_admin_col):
 
 @locations_bp.route('/api/locales', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('locales')
 def obtener_locales():
     """Obtener todos los locales con estadísticas"""
     connection = None
@@ -151,7 +151,7 @@ def obtener_locales():
 
 @locations_bp.route('/api/locales/dashboard-fase4', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('locales')
 def obtener_dashboard_locales_fase4():
     """Consolida KPIs operativos, técnicos y de rentabilidad para gestión multi-local."""
     connection = None
@@ -655,7 +655,7 @@ def obtener_dashboard_locales_fase4():
 
 @locations_bp.route('/api/locales/<int:local_id>', methods=['GET'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('locales')
 def obtener_local(local_id):
     """Obtener un local específico"""
     connection = None
@@ -694,7 +694,7 @@ def obtener_local(local_id):
 
 @locations_bp.route('/api/locales', methods=['POST'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('locales')
 @validate_required_fields(['name', 'address', 'city'])
 def crear_local():
     """Crear un nuevo local"""
@@ -742,7 +742,7 @@ def crear_local():
 
 @locations_bp.route('/api/locales/<int:local_id>', methods=['PUT'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('locales')
 @validate_required_fields(['name', 'address', 'city'])
 def actualizar_local(local_id):
     """Actualizar un local existente"""
@@ -796,7 +796,7 @@ def actualizar_local(local_id):
 
 @locations_bp.route('/api/locales/<int:local_id>', methods=['DELETE'])
 @handle_api_errors
-@require_login(['admin'])
+@require_admin_access('locales')
 def eliminar_local(local_id):
     """Eliminar un local"""
     connection = None

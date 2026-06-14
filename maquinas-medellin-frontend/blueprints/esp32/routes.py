@@ -10,7 +10,7 @@ from flask import Blueprint, request, jsonify, json
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from middleware.logging_mw import log_transaccion
-from utils.auth import require_login
+from utils.auth import require_admin_access
 from utils.location_scope import get_active_location
 from utils.helpers import parse_json_col
 from utils.responses import api_response, handle_api_errors
@@ -1342,7 +1342,7 @@ def esp32_report_hardware():
 # ── Listado de máquinas para el selector del modal ───────────────────────────
 
 @esp32_bp.route('/api/admin/hardware-modules/machines', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def admin_machines_for_modules():
     """
@@ -1379,7 +1379,7 @@ def admin_machines_for_modules():
 # ── CRUD admin — Módulos Hardware ─────────────────────────────────────────────
 
 @esp32_bp.route('/api/admin/hardware-modules', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def admin_list_hardware_modules():
     """Lista todos los módulos hardware con su máquina asociada."""
@@ -1440,7 +1440,7 @@ def admin_list_hardware_modules():
 
 
 @esp32_bp.route('/api/admin/hardware-modules', methods=['POST'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def admin_create_hardware_module():
     """Crea un nuevo módulo hardware."""
@@ -1491,7 +1491,7 @@ def admin_create_hardware_module():
 
 
 @esp32_bp.route('/api/admin/hardware-modules/<int:module_id>', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def admin_get_hardware_module(module_id):
     """Devuelve un módulo por ID."""
@@ -1535,7 +1535,7 @@ def admin_get_hardware_module(module_id):
 
 
 @esp32_bp.route('/api/admin/hardware-modules/<int:module_id>', methods=['PUT'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def admin_update_hardware_module(module_id):
     """Edita un módulo hardware (campos editables por admin)."""
@@ -1591,7 +1591,7 @@ def admin_update_hardware_module(module_id):
 
 
 @esp32_bp.route('/api/admin/hardware-modules/<int:module_id>', methods=['DELETE'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def admin_delete_hardware_module(module_id):
     """Elimina un módulo hardware."""
@@ -1667,7 +1667,7 @@ def esp32_device_log():
 
 
 @esp32_bp.route('/device-logs', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 def device_logs_page():
     """Página HTML con la tabla de logs de prueba de módulos."""
     from flask import render_template
@@ -1675,7 +1675,7 @@ def device_logs_page():
 
 
 @esp32_bp.route('/api/esp32/device-logs', methods=['GET'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def api_device_logs():
     """
@@ -1758,7 +1758,7 @@ def api_device_logs():
 
 
 @esp32_bp.route('/api/esp32/device-logs/clear', methods=['DELETE'])
-@require_login(['admin'])
+@require_admin_access('maquinas')
 @handle_api_errors
 def api_device_logs_clear():
     """Elimina todos los logs de device_test_log (útil antes de una nueva sesión de pruebas)."""
