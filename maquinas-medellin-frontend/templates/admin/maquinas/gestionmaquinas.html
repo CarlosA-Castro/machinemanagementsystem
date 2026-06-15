@@ -330,7 +330,7 @@
                         <button onclick="MaquinaManager.actualizarTodo()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
                             <i class="fas fa-sync-alt mr-2"></i>Actualizar Todo
                         </button>
-                        <button onclick="MaquinaManager.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                        <button onclick="MaquinaManager.mostrarModalCrear()" data-perm="crear" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
                             <i class="fas fa-plus mr-2"></i>Nueva Máquina
                         </button>
                     </div>
@@ -1466,7 +1466,7 @@
                             <td class="py-3 px-4 text-sm text-gray-600">${maquina.location_name || 'N/A'}</td>
                             <td class="py-3 px-4">
                                 <div class="flex justify-center space-x-1">
-                                    <div class="action-btn-wrap">
+                                    <div class="action-btn-wrap" data-perm="editar">
                                         <button onclick="MaquinaManager.editarMaquina(${maquina.id})" class="action-button text-blue-600 hover:text-blue-800" title="Editar máquina">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -1498,7 +1498,7 @@
                                         </button>
                                         <span class="action-btn-label text-purple-600">Token</span>
                                     </div>
-                                    <div class="action-btn-wrap">
+                                    <div class="action-btn-wrap" data-perm="eliminar">
                                         <button onclick="MaquinaManager.eliminarMaquina(${maquina.id}, '${maquina.name.replace(/'/g, "\\'")}')" class="action-button text-red-600 hover:text-red-800" title="Eliminar máquina">
                                             <i class="fas fa-trash"></i>
                                         </button>

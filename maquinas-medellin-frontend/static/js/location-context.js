@@ -266,16 +266,35 @@ const LocationContext = (() => {
     'nav-gestion-logs':        'ver_logs',
   };
 
+  let _permSet = null;     // Set de permisos del usuario (null hasta cargar)
+  let _esAdmin = false;
+
   function _aplicarPermisosSidebar(ctx) {
     try {
-      if (!ctx || ctx.user_role === 'admin') return;          // admin ve todo
-      const permisos = Array.isArray(ctx.permisos) ? ctx.permisos : [];
-      const set = new Set(permisos);
+      _esAdmin = !!(ctx && ctx.user_role === 'admin');
+      const permisos = (ctx && Array.isArray(ctx.permisos)) ? ctx.permisos : [];
+      _permSet = new Set(permisos);
+
+      // Exponer permisos globalmente para que las páginas oculten botones de acción
+      window.USER_PERMISOS = permisos;
+      window.USER_ROLE = ctx ? ctx.user_role : null;
+      window.userPuede = (p) => _esAdmin || _permSet.has(p);
+
+      // Ocultar botones/elementos marcados con data-perm que el rol no tenga
+      _procesarDataPerm(document);
+      _observarNuevosBotones();
+
+      // Avisar a la página por si renderiza contenido dinámico (filas, etc.)
+      document.dispatchEvent(new CustomEvent('permisos:listo', {
+        detail: { permisos, user_role: window.USER_ROLE, esAdmin: _esAdmin },
+      }));
+
+      if (_esAdmin) return;                                    // admin ve todo el sidebar
 
       Object.entries(NAV_PERMISO).forEach(([navId, permiso]) => {
-        if (set.has(permiso)) return;
+        if (_permSet.has(permiso)) return;
         document.querySelectorAll('[id="' + navId + '"]').forEach((el) => {
-          el.classList.add('hidden');
+          el.style.display = 'none';                           // inline: gana al CSS de .nav-link
         });
       });
 
@@ -285,17 +304,42 @@ const LocationContext = (() => {
     }
   }
 
+  // Oculta dentro de `root` los elementos con [data-perm="..."] que el rol no tenga.
+  // data-perm puede listar varios permisos separados por coma/espacio (se exigen todos).
+  function _procesarDataPerm(root) {
+    if (_esAdmin || !_permSet || !root || !root.querySelectorAll) return;
+    const nodos = [];
+    if (root.nodeType === 1 && root.hasAttribute && root.hasAttribute('data-perm')) nodos.push(root);
+    root.querySelectorAll('[data-perm]').forEach((el) => nodos.push(el));
+    nodos.forEach((el) => {
+      const requeridos = el.getAttribute('data-perm').split(/[,\s]+/).filter(Boolean);
+      if (!requeridos.every((p) => _permSet.has(p))) el.style.display = 'none';
+    });
+  }
+
+  // Observa el DOM y oculta botones data-perm que se rendericen dinámicamente
+  // (filas de tablas, modales, etc.) después de cargar los permisos.
+  function _observarNuevosBotones() {
+    if (_esAdmin || typeof MutationObserver === 'undefined') return;
+    const obs = new MutationObserver((mutaciones) => {
+      mutaciones.forEach((m) => {
+        m.addedNodes.forEach((n) => { if (n.nodeType === 1) _procesarDataPerm(n); });
+      });
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+
   // Oculta los encabezados de sección (Gestión/Sistema/Logs) que quedaron sin
   // ningún enlace visible debajo.
   function _ocultarDivisoresVacios() {
     document.querySelectorAll('nav').forEach((nav) => {
       let divider = null;
       let visibles = 0;
-      const cerrar = () => { if (divider && visibles === 0) divider.classList.add('hidden'); };
+      const cerrar = () => { if (divider && visibles === 0) divider.style.display = 'none'; };
       Array.from(nav.children).forEach((el) => {
         const esDivider = el.tagName === 'DIV' && /uppercase/.test(el.className);
         if (esDivider) { cerrar(); divider = el; visibles = 0; }
-        else if (el.classList.contains('nav-link') && !el.classList.contains('hidden')) {
+        else if (el.classList.contains('nav-link') && el.style.display !== 'none') {
           visibles++;
         }
       });
