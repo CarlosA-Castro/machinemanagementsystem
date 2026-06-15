@@ -23,6 +23,7 @@ const LocationContext = (() => {
         return;
       }
       _ctx = await res.json();
+      _aplicarPermisosSidebar(_ctx);
       _renderBar();
     } catch (e) {
       _setNombreLocal('No disponible');
@@ -242,6 +243,64 @@ const LocationContext = (() => {
     toast.textContent = mensaje;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
+  }
+
+  // ── Sidebar según permisos del rol ──────────────────────────────────────────
+  // Cada enlace del sidebar (por su id nav-*) requiere un permiso. Si el rol no
+  // lo tiene, se oculta. El rol 'admin' ve todo. 'nav-local' siempre visible.
+  const NAV_PERMISO = {
+    'nav-dashboard':           'admin_panel',
+    'nav-usuarios':            'ver_usuarios',
+    'nav-maquinas':            'ver_maquinas',
+    'nav-paquetes':            'ver_paquetes',
+    'nav-locales':             'ver_locales',
+    'nav-mensajes':            'ver_mensajes',
+    'nav-liquidaciones':       'ver_liquidaciones',
+    'nav-socios':              'ver_socios',
+    'nav-firmware':            'ver_maquinas',
+    'nav-conectividad':        'ver_maquinas',
+    'nav-esp32':               'ver_maquinas',
+    'nav-device-logs':         'ver_maquinas',
+    'nav-logs-transaccionales':'ver_logs',
+    'nav-consola':             'ver_logs',
+    'nav-gestion-logs':        'ver_logs',
+  };
+
+  function _aplicarPermisosSidebar(ctx) {
+    try {
+      if (!ctx || ctx.user_role === 'admin') return;          // admin ve todo
+      const permisos = Array.isArray(ctx.permisos) ? ctx.permisos : [];
+      const set = new Set(permisos);
+
+      Object.entries(NAV_PERMISO).forEach(([navId, permiso]) => {
+        if (set.has(permiso)) return;
+        document.querySelectorAll('[id="' + navId + '"]').forEach((el) => {
+          el.classList.add('hidden');
+        });
+      });
+
+      _ocultarDivisoresVacios();
+    } catch (e) {
+      console.warn('[LocationContext] No se pudo filtrar el sidebar:', e);
+    }
+  }
+
+  // Oculta los encabezados de sección (Gestión/Sistema/Logs) que quedaron sin
+  // ningún enlace visible debajo.
+  function _ocultarDivisoresVacios() {
+    document.querySelectorAll('nav').forEach((nav) => {
+      let divider = null;
+      let visibles = 0;
+      const cerrar = () => { if (divider && visibles === 0) divider.classList.add('hidden'); };
+      Array.from(nav.children).forEach((el) => {
+        const esDivider = el.tagName === 'DIV' && /uppercase/.test(el.className);
+        if (esDivider) { cerrar(); divider = el; visibles = 0; }
+        else if (el.classList.contains('nav-link') && !el.classList.contains('hidden')) {
+          visibles++;
+        }
+      });
+      cerrar();
+    });
   }
 
   return { init, toggleDropdown, cerrarDropdown, cambiarLocal, verTodos };

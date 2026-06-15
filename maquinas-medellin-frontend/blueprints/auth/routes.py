@@ -426,10 +426,14 @@ def redirect_login():
 
 @auth_bp.route('/api/session/contexto-local')
 def api_contexto_local():
-    """Retorna el contexto de local activo de la sesión actual."""
+    """Retorna el contexto de local activo + permisos del rol (para el sidebar)."""
     if not session.get('logged_in'):
         return jsonify({'error': 'No autenticado'}), 401
-    return jsonify(get_location_context_for_frontend())
+    from utils.auth import get_user_permissions
+    ctx = get_location_context_for_frontend()
+    ctx['permisos'] = get_user_permissions()
+    ctx['user_role'] = session.get('user_role')
+    return jsonify(ctx)
 
 
 @auth_bp.route('/api/session/locales-disponibles')
