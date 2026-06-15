@@ -130,7 +130,7 @@
                     </div>
                     <div class="mt-4 lg:mt-0 flex gap-3">
                         <button onclick="UsuariosApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch"><i class="fas fa-sync-alt mr-2"></i>Actualizar</button>
-                        <button onclick="UsuariosApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch"><i class="fas fa-plus mr-2"></i>Nuevo Usuario</button>
+                        <button onclick="UsuariosApp.mostrarModalCrear()" data-perm="crear" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch"><i class="fas fa-plus mr-2"></i>Nuevo Usuario</button>
                         <button onclick="RolesApp.mostrarModalCrearRol()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-user-tag mr-2"></i>Gestionar Roles</button>
                     </div>
                 </div>
@@ -509,13 +509,13 @@
                         <td class="p-3"><span class="px-2 py-1 rounded-full text-xs ${estadoClase}"><i class="fas ${estadoIcono} mr-1"></i>${estadoTexto}</span></td>
                         <td class="p-3 text-center">
                             <div class="flex justify-center space-x-2">
-                                <button onclick="UsuariosApp.editarUsuario(${usuario.id})" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button onclick="UsuariosApp.editarUsuario(${usuario.id})" data-perm="editar" class="text-blue-600 hover:text-blue-800 btn-touch" title="Editar"><i class="fas fa-edit"></i></button>
                                 <button onclick="UsuariosApp.cambiarEstadoUsuario(${usuario.id}, ${isActive}, '${usuario.name.replace(/'/g, "\\'")}')"
                                         class="${isActive ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'} btn-touch"
                                         title="${isActive ? 'Inhabilitar' : 'Habilitar'}">
                                     <i class="fas ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
                                 </button>
-                                <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                <button onclick="UsuariosApp.eliminarUsuario(${usuario.id}, '${usuario.name.replace(/'/g, "\\'")}')" data-perm="eliminar" class="text-red-600 hover:text-red-800 btn-touch" title="Eliminar"><i class="fas fa-trash"></i></button>
                             </div>
                         </td>
                     </tr>`;

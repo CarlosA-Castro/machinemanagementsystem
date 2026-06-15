@@ -410,7 +410,7 @@
                             <input type="text" id="filtroBusqueda" 
                                    class="flex-1 border border-gray-300 rounded-lg p-3 text-base" 
                                    placeholder="Buscar por código o texto...">
-                            <button onclick="mostrarModalCrear()" 
+                            <button onclick="mostrarModalCrear()" data-perm="crear"
                                     class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded btn-touch">
                                 <i class="fas fa-plus-circle mr-2"></i>Nuevo
                             </button>
@@ -850,11 +850,11 @@
                         <td class="p-3 text-sm text-gray-500">${fechaFormateada}</td>
                         <td class="p-3 text-center">
                             <div class="flex justify-center space-x-2">
-                                <button onclick="editarMensaje(${mensaje.id})" 
+                                <button onclick="editarMensaje(${mensaje.id})" data-perm="editar"
                                         class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
                                     <i class="fas fa-edit mr-1"></i>Editar
                                 </button>
-                                <button onclick="eliminarMensaje(${mensaje.id})"
+                                <button onclick="eliminarMensaje(${mensaje.id})" data-perm="eliminar"
                                         class="text-red-600 hover:text-red-800 text-xs btn-touch px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition">
                                     <i class="fas fa-trash mr-1"></i>Eliminar
                                 </button>

@@ -348,7 +348,7 @@
                         <button onclick="LocalesApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
                             <i class="fas fa-sync-alt mr-2"></i>Actualizar
                         </button>
-                        <button onclick="LocalesApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                        <button onclick="LocalesApp.mostrarModalCrear()" data-perm="crear" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
                             <i class="fas fa-plus mr-2"></i>Nuevo Local
                         </button>
                     </div>
@@ -1003,11 +1003,11 @@
                             </div>
 
                             <div class="flex justify-between pt-3 border-t border-gray-200">
-                                <button onclick="LocalesApp.editarLocal(${local.id})"
+                                <button onclick="LocalesApp.editarLocal(${local.id})" data-perm="editar"
                                         class="text-blue-600 hover:text-blue-800 btn-touch text-sm">
                                     <i class="fas fa-edit mr-1"></i>Editar
                                 </button>
-                                <button onclick="LocalesApp.eliminarLocal(${local.id}, '${this.escapeQuotes(local.name)}')"
+                                <button onclick="LocalesApp.eliminarLocal(${local.id}, '${this.escapeQuotes(local.name)}')" data-perm="eliminar"
                                         class="text-red-600 hover:text-red-800 btn-touch text-sm">
                                     <i class="fas fa-trash mr-1"></i>Eliminar
                                 </button>
@@ -1060,12 +1060,12 @@
                             </td>
                             <td class="p-3 text-center">
                                 <div class="flex justify-center space-x-2">
-                                    <button onclick="LocalesApp.editarLocal(${local.id})"
+                                    <button onclick="LocalesApp.editarLocal(${local.id})" data-perm="editar"
                                             class="text-blue-600 hover:text-blue-800 btn-touch"
                                             title="Editar local">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="LocalesApp.eliminarLocal(${local.id}, '${this.escapeQuotes(local.name)}')"
+                                    <button onclick="LocalesApp.eliminarLocal(${local.id}, '${this.escapeQuotes(local.name)}')" data-perm="eliminar"
                                             class="text-red-600 hover:text-red-800 btn-touch"
                                             title="Eliminar local">
                                         <i class="fas fa-trash"></i>

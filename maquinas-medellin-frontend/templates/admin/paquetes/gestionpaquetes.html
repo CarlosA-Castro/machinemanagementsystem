@@ -263,7 +263,7 @@
                         <button onclick="CampaignMgr.openCreate()" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 btn-touch">
                             <i class="fas fa-bolt mr-2"></i>Nueva Campaña
                         </button>
-                        <button onclick="PaquetesApp.mostrarModalCrear()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
+                        <button onclick="PaquetesApp.mostrarModalCrear()" data-perm="crear" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
                             <i class="fas fa-plus mr-2"></i>Nuevo Paquete
                         </button>
                     </div>
@@ -680,12 +680,12 @@
                             <td class="p-3 text-sm">${fechaCreacion.toLocaleDateString()}</td>
                             <td class="p-3 text-center">
                                 <div class="flex justify-center space-x-2">
-                                    <button onclick="PaquetesApp.editarPaquete(${paquete.id})" 
+                                    <button onclick="PaquetesApp.editarPaquete(${paquete.id})" data-perm="editar"
                                             class="text-blue-600 hover:text-blue-800 btn-touch"
                                             title="Editar paquete">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button onclick="PaquetesApp.eliminarPaquete(${paquete.id}, '${paquete.name}')" 
+                                    <button onclick="PaquetesApp.eliminarPaquete(${paquete.id}, '${paquete.name}')" data-perm="eliminar"
                                             class="text-red-600 hover:text-red-800 btn-touch"
                                             title="Eliminar paquete">
                                         <i class="fas fa-trash"></i>

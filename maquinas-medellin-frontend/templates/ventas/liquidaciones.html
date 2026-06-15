@@ -270,7 +270,7 @@
                         <button onclick="generarPDFInversionistas()" id="btnPDFInv" disabled class="btn btn-secondary btn-sm" title="Disponible al confirmar el cierre oficial">
                             <i class="fas fa-file-pdf" style="color:#7c3aed"></i>PDF Inversión
                         </button>
-                        <button onclick="abrirModalConfig()" class="btn btn-secondary btn-sm" title="Configurar porcentajes por máquina">
+                        <button onclick="abrirModalConfig()" data-perm="crear" class="btn btn-secondary btn-sm" title="Configurar porcentajes por máquina">
                             <i class="fas fa-cog"></i>
                         </button>
                     </div>
@@ -500,7 +500,7 @@
                 </div>
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-gray-700"><i class="fas fa-user-tie mr-2 text-purple-600"></i>Liquidación por Inversionista</h2>
-                    <button onclick="abrirModalConfig()" class="btn btn-secondary btn-sm">
+                    <button onclick="abrirModalConfig()" data-perm="crear" class="btn btn-secondary btn-sm">
                         <i class="fas fa-cog mr-1"></i>Configurar %
                     </button>
                 </div>
@@ -524,7 +524,7 @@
                 <div class="glass-card mb-4">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="font-bold text-gray-700"><i class="fas fa-table mr-2 text-gray-500"></i>Distribución por Máquina</h3>
-                        <button onclick="abrirModalConfig()" class="btn btn-secondary btn-sm"><i class="fas fa-cog mr-1"></i>Configurar %</button>
+                        <button onclick="abrirModalConfig()" data-perm="crear" class="btn btn-secondary btn-sm"><i class="fas fa-cog mr-1"></i>Configurar %</button>
                     </div>
                     <div class="tbl-wrap">
                         <table>
@@ -607,7 +607,7 @@
                             <p class="text-sm text-green-700 mt-1">Registra este período como liquidación oficial. Queda guardado en el histórico.</p>
                             <div id="estadoCierrePeriodo" class="text-xs text-green-800 mt-2"></div>
                         </div>
-                        <button id="btnConfirmarCierre" onclick="abrirModalCierre()" class="btn btn-success">
+                        <button id="btnConfirmarCierre" onclick="abrirModalCierre()" data-perm="crear" class="btn btn-success">
                             <i class="fas fa-lock mr-1"></i>Confirmar Cierre
                         </button>
                     </div>
@@ -1206,7 +1206,7 @@ function renderGastos(gastos) {
             <td><span class="badge ${catBadge(g.categoria)}">${g.categoria || 'otro'}</span></td>
             <td>${g.fecha}</td>
             <td class="text-right text-orange-600 font-bold">${fmt(g.monto)}</td>
-            <td><button onclick="eliminarGasto(${g.id})" class="text-red-400 hover:text-red-600 text-sm"><i class="fas fa-trash"></i></button></td>
+            <td><button onclick="eliminarGasto(${g.id})" data-perm="eliminar" class="text-red-400 hover:text-red-600 text-sm"><i class="fas fa-trash"></i></button></td>
         </tr>`).join('')}</tbody>
     </table></div>`;
 }
