@@ -251,7 +251,7 @@
       <!-- Generador de QR -->
       <div class="bg-white rounded-xl p-4 lg:p-6 shadow-md mb-4 lg:mb-6">
         <h2 class="text-lg lg:text-xl font-bold mb-4"><i class="fas fa-qrcode mr-2"></i>Generar Códigos QR</h2>
-        <button onclick="LocalApp.mostrarModalGenerador()"
+        <button onclick="LocalApp.mostrarModalGenerador()" data-perm="crear"
                 class="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg font-semibold btn-touch w-full">
           <i class="fas fa-file-pdf mr-2"></i>Generar Venta
         </button>
@@ -385,8 +385,8 @@
       </div>
       <div class="flex flex-col lg:flex-row gap-3 justify-between pt-4 border-t border-gray-200">
         <button onclick="LocalApp.generarVistaPrevia()" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 btn-touch flex-1"><i class="fas fa-eye mr-2"></i>Vista Previa</button>
-        <button onclick="LocalApp.generarPDF()" class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 btn-touch flex-1"><i class="fas fa-file-pdf mr-2"></i>Generar PDF</button>
-        <button onclick="LocalApp.enviarWhatsApp()" class="bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 btn-touch flex-1"><i class="fab fa-whatsapp mr-2"></i>Enviar WhatsApp</button>
+        <button onclick="LocalApp.generarPDF()" data-perm="crear" class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 btn-touch flex-1"><i class="fas fa-file-pdf mr-2"></i>Generar PDF</button>
+        <button onclick="LocalApp.enviarWhatsApp()" data-perm="crear" class="bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 btn-touch flex-1"><i class="fab fa-whatsapp mr-2"></i>Enviar WhatsApp</button>
         <button onclick="LocalApp.cerrarModalGenerador()" class="bg-gray-500 text-white px-4 py-3 rounded-lg hover:bg-gray-600 btn-touch flex-1"><i class="fas fa-times mr-2"></i>Cancelar</button>
       </div>
     </div>
@@ -642,7 +642,7 @@ fetch('/api/mis-permisos')
                             class="text-blue-600 hover:text-blue-800 text-xs btn-touch px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
                       <i class="fas fa-info-circle mr-1"></i>Detalles
                     </button>
-                    <button onclick="LocalApp.reimprimirQR('${qrCode.replace(/'/g, "\\'")}', '${qrName.replace(/'/g, "\\'")}')"
+                    <button onclick="LocalApp.reimprimirQR('${qrCode.replace(/'/g, "\\'")}', '${qrName.replace(/'/g, "\\'")}')" data-perm="crear"
                             class="text-green-600 hover:text-green-800 text-xs btn-touch px-2 py-1 rounded bg-green-50 hover:bg-green-100 transition">
                       <i class="fas fa-print mr-1"></i>Reimprimir
                     </button>
@@ -1395,5 +1395,6 @@ togglePermisosMobile: function() {
       setInterval(() => LocalApp.actualizarContadores(), 10000);
     });
   </script>
+  <script src="{{ asset('js/location-context.js') }}"></script>
 </body>
 </html>

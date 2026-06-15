@@ -2255,7 +2255,7 @@ def obtener_estadisticas_maquina(maquina_id):
 # ── Informe de conectividad ───────────────────────────────────────────────────
 
 @machines_bp.route('/admin/conectividad', methods=['GET'])
-@require_admin_access('maquinas')
+@require_admin_access(action='configurar')
 def conectividad_page():
     """Página del informe de conectividad de máquinas."""
     return render_template('admin/conectividad/informe_conectividad.html')

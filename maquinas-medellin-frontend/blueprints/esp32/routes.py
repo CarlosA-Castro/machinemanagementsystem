@@ -1667,7 +1667,7 @@ def esp32_device_log():
 
 
 @esp32_bp.route('/device-logs', methods=['GET'])
-@require_admin_access('maquinas')
+@require_admin_access(action='configurar')
 def device_logs_page():
     """Página HTML con la tabla de logs de prueba de módulos."""
     from flask import render_template

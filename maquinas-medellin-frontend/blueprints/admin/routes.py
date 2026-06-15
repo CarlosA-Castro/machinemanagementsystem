@@ -188,7 +188,7 @@ def mostrar_consola_completa():
 # ── Módulos Hardware ESP32 ────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/esp32/modulos')
-@require_admin_access('maquinas')
+@require_admin_access(action='configurar')
 def mostrar_gestion_esp32():
     hora_colombia = get_colombia_time()
     return render_template(
@@ -203,7 +203,7 @@ def mostrar_gestion_esp32():
 # ── Firmware OTA ──────────────────────────────────────────────────────────────
 
 @admin_bp.route('/admin/firmware/gestionfirmware')
-@require_admin_access('maquinas')
+@require_admin_access(action='configurar')
 def mostrar_gestion_firmware():
     hora_colombia = get_colombia_time()
     return render_template(

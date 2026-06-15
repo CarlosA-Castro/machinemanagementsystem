@@ -260,7 +260,7 @@
                         <button onclick="PaquetesApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch">
                             <i class="fas fa-sync-alt mr-2"></i>Actualizar
                         </button>
-                        <button onclick="CampaignMgr.openCreate()" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 btn-touch">
+                        <button onclick="CampaignMgr.openCreate()" data-perm="crear" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 btn-touch">
                             <i class="fas fa-bolt mr-2"></i>Nueva Campaña
                         </button>
                         <button onclick="PaquetesApp.mostrarModalCrear()" data-perm="crear" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch">
@@ -1238,24 +1238,24 @@ const CampaignMgr = {
             <td style="padding:.65rem .75rem;">
                 <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
                     ${c.schedule_type !== 'flash' ? `
-                    <button onclick="CampaignMgr.flash(${c.id},'${c.name}')" title="Activar Flash ahora"
+                    <button onclick="CampaignMgr.flash(${c.id},'${c.name}')" data-perm="editar" title="Activar Flash ahora"
                         style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;
                                padding:3px 8px;font-size:.72rem;cursor:pointer;">
                         ⚡ Flash
                     </button>` : ''}
-                    <button onclick="CampaignMgr.toggle(${c.id})" title="${c.is_active ? 'Pausar' : 'Activar'}"
+                    <button onclick="CampaignMgr.toggle(${c.id})" data-perm="editar" title="${c.is_active ? 'Pausar' : 'Activar'}"
                         style="background:${c.is_active ? '#fee2e2' : '#d1fae5'};
                                color:${c.is_active ? '#991b1b' : '#065f46'};
                                border:1px solid ${c.is_active ? '#fca5a5' : '#6ee7b7'};
                                border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;">
                         ${c.is_active ? '⏸ Pausar' : '▶ Activar'}
                     </button>
-                    <button onclick="CampaignMgr.openEdit(${c.id})"
+                    <button onclick="CampaignMgr.openEdit(${c.id})" data-perm="editar"
                         style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;
                                border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;">
                         ✏️
                     </button>
-                    <button onclick="CampaignMgr.del(${c.id},'${c.name.replace(/'/g, "\\\'")}')"
+                    <button onclick="CampaignMgr.del(${c.id},'${c.name.replace(/'/g, "\\\'")}')" data-perm="eliminar"
                         style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;
                                border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;">
                         🗑️
