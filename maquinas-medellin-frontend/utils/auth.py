@@ -64,11 +64,20 @@ def require_login(roles=None):
                             if 'admin' in roles and 'admin_panel' in permisos and not es_admin_restaurante:
                                 return func(*args, **kwargs)
 
+                            # Roles custom (no nativos) acceden a endpoints de cajero solo
+                            # si tienen 'ver' Y la acción que exige el método HTTP
+                            # (POST→crear, PUT/PATCH→editar, DELETE→eliminar; GET→ninguna).
+                            # Los cajeros/admin nativos pasan antes por la coincidencia
+                            # directa de rol, así que esto no afecta la operación real.
+                            req_action = _ACTION_BY_METHOD.get(request.method)
+
                             if 'cajero' in roles and 'ver' in permisos:
-                                return func(*args, **kwargs)
+                                if not req_action or req_action in permisos:
+                                    return func(*args, **kwargs)
 
                             if 'admin_restaurante' in roles and ('ver' in permisos or 'reportes' in permisos):
-                                return func(*args, **kwargs)
+                                if not req_action or req_action in permisos:
+                                    return func(*args, **kwargs)
 
                 except Exception as e:
                     logger.error(f"Error verificando permisos en require_login: {e}")

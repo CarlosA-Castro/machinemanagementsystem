@@ -737,7 +737,7 @@
               <button onclick="cerrarModal()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium btn-touch flex-1">
                 <i class="fas fa-times mr-2"></i>Cancelar
               </button>
-              <button onclick="confirmarFalla()" class="px-4 py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl font-bold text-base btn-touch flex-1 shadow-lg shadow-red-200 border-2 border-red-700">
+              <button onclick="confirmarFalla()" data-perm="crear" class="px-4 py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl font-bold text-base btn-touch flex-1 shadow-lg shadow-red-200 border-2 border-red-700">
                 <i class="fas fa-exclamation-triangle mr-2"></i>⚠ REPORTAR FALLA
               </button>
             </div>
@@ -1381,5 +1381,6 @@ function seleccionarEstacion(index, nombre) {
       }, 4000);
     }
   </script>
+  <script src="{{ asset('js/location-context.js') }}"></script>
 </body>
 </html>
