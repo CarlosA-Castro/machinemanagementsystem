@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestión de Locales - Admin</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <script src="{{ asset('js/csrf.js') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -1578,6 +1578,6 @@
         }, 1000);
     })();
     </script>
-    <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
+    <script src="{{ asset('js/location-context.js') }}"></script>
 </body>
 </html>

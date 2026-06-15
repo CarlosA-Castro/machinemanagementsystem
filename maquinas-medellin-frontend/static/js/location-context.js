@@ -308,6 +308,8 @@ const LocationContext = (() => {
   // data-perm puede listar varios permisos separados por coma/espacio (se exigen todos).
   function _procesarDataPerm(root) {
     if (_esAdmin || !_permSet || !root || !root.querySelectorAll) return;
+
+    // data-perm="crear|editar|...": exige tener todos los permisos listados
     const nodos = [];
     if (root.nodeType === 1 && root.hasAttribute && root.hasAttribute('data-perm')) nodos.push(root);
     root.querySelectorAll('[data-perm]').forEach((el) => nodos.push(el));
@@ -315,6 +317,12 @@ const LocationContext = (() => {
       const requeridos = el.getAttribute('data-perm').split(/[,\s]+/).filter(Boolean);
       if (!requeridos.every((p) => _permSet.has(p))) el.style.display = 'none';
     });
+
+    // data-solo-admin: reservado al rol admin (aquí ya sabemos que NO es admin)
+    const soloAdmin = [];
+    if (root.nodeType === 1 && root.hasAttribute && root.hasAttribute('data-solo-admin')) soloAdmin.push(root);
+    root.querySelectorAll('[data-solo-admin]').forEach((el) => soloAdmin.push(el));
+    soloAdmin.forEach((el) => { el.style.display = 'none'; });
   }
 
   // Observa el DOM y oculta botones data-perm que se rendericen dinámicamente

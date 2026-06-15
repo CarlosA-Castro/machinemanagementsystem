@@ -4,7 +4,7 @@ from datetime import timedelta
 from logging.handlers import RotatingFileHandler
 
 import sentry_sdk
-from flask import Flask
+from flask import Flask, url_for
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -193,6 +193,18 @@ def create_app() -> Flask:
     )
 
     _configure_logging(app)
+
+    # Cache-busting de estáticos: asset('js/x.js') → /static/js/x.js?v=<mtime>.
+    # Así el navegador re-descarga solo cuando el archivo cambia (sin hard refresh).
+    @app.context_processor
+    def _inject_asset():
+        def asset(filename):
+            try:
+                mtime = int(os.path.getmtime(os.path.join(base_dir, 'static', filename)))
+            except OSError:
+                mtime = 0
+            return url_for('static', filename=filename) + ('?v=%d' % mtime)
+        return {'asset': asset}
 
     app.before_request(check_session_timeout)
     app.before_request(before_request_log)

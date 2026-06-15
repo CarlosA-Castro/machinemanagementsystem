@@ -193,7 +193,7 @@ _ACTION_BY_METHOD = {
 }
 
 
-def require_admin_access(section=None, action='auto'):
+def require_admin_access(section=None, action='auto', solo_admin=False):
     """
     Decorador RBAC para endpoints del panel admin (reemplaza a
     require_login(['admin']) cuando se quiere control por sección y acción).
@@ -201,10 +201,12 @@ def require_admin_access(section=None, action='auto'):
     Flujo:
       1. Exige sesión activa.
       2. El rol 'admin' hace bypass total (acceso completo).
-      3. 'admin_restaurante' nunca entra al admin (regla histórica, igual que cajero).
-      4. Exige el permiso master 'admin_panel'.
-      5. Si se indica `section` (ej. 'usuarios'), exige 'ver_<section>'.
-      6. Exige la acción:
+      3. Si solo_admin=True, cualquier rol distinto de 'admin' es denegado
+         (para operaciones reservadas al administrador, ej. gestionar roles).
+      4. 'admin_restaurante' nunca entra al admin (regla histórica, igual que cajero).
+      5. Exige el permiso master 'admin_panel'.
+      6. Si se indica `section` (ej. 'usuarios'), exige 'ver_<section>'.
+      7. Exige la acción:
          - action='auto' (default): se infiere del método HTTP
            (POST→crear, PUT/PATCH→editar, DELETE→eliminar, GET→ninguna).
          - action=None: no exige acción (solo sección).
@@ -231,6 +233,10 @@ def require_admin_access(section=None, action='auto'):
             # admin: acceso total, sin más comprobaciones
             if user_role == 'admin':
                 return func(*args, **kwargs)
+
+            # Operación reservada solo al administrador
+            if solo_admin:
+                return _denegar('Solo el administrador puede realizar esta acción')
 
             # admin_restaurante: equivalente a cajero, nunca admin
             if user_role == 'admin_restaurante':

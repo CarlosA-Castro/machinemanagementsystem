@@ -60,7 +60,7 @@ def obtener_roles_sistema():
 
 @roles_bp.route('/api/roles/agregar-automatico', methods=['POST'])
 @handle_api_errors
-@require_admin_access('usuarios')
+@require_admin_access(solo_admin=True)
 def agregar_nuevo_rol_automatico():
     """Crear un nuevo rol automáticamente"""
     connection = None
@@ -132,7 +132,7 @@ def agregar_nuevo_rol_automatico():
 
 @roles_bp.route('/api/roles/<rol_id>', methods=['PUT'])
 @handle_api_errors
-@require_admin_access('usuarios')
+@require_admin_access(solo_admin=True)
 def actualizar_rol(rol_id):
     """Editar un rol existente (no permite editar 'admin', que es inmutable)."""
     if rol_id == 'admin':
@@ -206,7 +206,7 @@ def actualizar_rol(rol_id):
 
 @roles_bp.route('/api/roles/<rol_id>', methods=['DELETE'])
 @handle_api_errors
-@require_admin_access('usuarios')
+@require_admin_access(solo_admin=True)
 def eliminar_rol(rol_id):
     """Eliminar un rol (no permite eliminar 'admin')"""
     roles_protegidos = ['admin']

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestión de Usuarios - Admin</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+    <script src="{{ asset('js/csrf.js') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='img/logo.jpg') }}" type="image/jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -131,7 +131,7 @@
                     <div class="mt-4 lg:mt-0 flex gap-3">
                         <button onclick="UsuariosApp.actualizarLista()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 btn-touch"><i class="fas fa-sync-alt mr-2"></i>Actualizar</button>
                         <button onclick="UsuariosApp.mostrarModalCrear()" data-perm="crear" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 btn-touch"><i class="fas fa-plus mr-2"></i>Nuevo Usuario</button>
-                        <button onclick="RolesApp.mostrarModalCrearRol()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-user-tag mr-2"></i>Gestionar Roles</button>
+                        <button onclick="RolesApp.mostrarModalCrearRol()" data-solo-admin class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 btn-touch"><i class="fas fa-user-tag mr-2"></i>Gestionar Roles</button>
                     </div>
                 </div>
             </div>
@@ -1033,6 +1033,6 @@
         }, 1000);
     })();
     </script>
-    <script src="{{ url_for('static', filename='js/location-context.js') }}"></script>
+    <script src="{{ asset('js/location-context.js') }}"></script>
 </body>
 </html>
