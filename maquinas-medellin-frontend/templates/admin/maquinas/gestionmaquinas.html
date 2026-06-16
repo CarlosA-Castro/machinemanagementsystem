@@ -337,7 +337,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6 stat-grid">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 stat-grid">
                 <div class="stat-card glass-card border-l-4 border-l-green-500">
                     <div class="flex items-center">
                         <div class="bg-green-100 p-3 rounded-lg mr-4">
@@ -371,17 +371,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="stat-card glass-card border-l-4 border-l-red-500">
-                    <div class="flex items-center">
-                        <div class="bg-red-100 p-3 rounded-lg mr-4">
-                            <i class="fas fa-times-circle text-red-600 text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Máquinas Inactivas</p>
-                            <p id="maquinas-inactivas" class="text-2xl font-bold text-gray-800">0</p>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="glass-card mb-6">
@@ -398,7 +387,6 @@
                             <option value="todos">Todos los estados</option>
                             <option value="activa">Activa</option>
                             <option value="mantenimiento">Mantenimiento</option>
-                            <option value="inactiva">Inactiva</option>
                         </select>
                     </div>
                     <div>
@@ -734,7 +722,6 @@
                             <select id="estado" required class="w-full border border-gray-300 rounded-lg p-3">
                                 <option value="activa">Activa</option>
                                 <option value="mantenimiento">Mantenimiento</option>
-                                <option value="inactiva">Inactiva</option>
                             </select>
                         </div>
                     </div>
@@ -1407,7 +1394,7 @@
                 let html = '';
                 this.maquinasFiltradas.forEach(maquina => {
                     const estadoClass = `status-badge status-${maquina.status}`;
-                    const estadoText = maquina.status === 'activa' ? 'Activa' : maquina.status === 'mantenimiento' ? 'Mantenimiento' : 'Inactiva';
+                    const estadoText = maquina.status === 'activa' ? 'Activa' : 'Mantenimiento';
                     const subtipo = maquina.machine_subtype || maquina.technical?.machine_subtype || 'simple';
                     const esMulti = subtipo === 'multi_station';
                     const rawStations = maquina.station_names?.length ? maquina.station_names : (maquina.technical?.station_names || []);
@@ -1517,13 +1504,12 @@
             actualizarEstadisticas: function() {
                 const total = this.maquinas.length;
                 const activas = this.maquinas.filter(m => m.status === 'activa').length;
-                const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento').length;
-                const inactivas = this.maquinas.filter(m => m.status === 'inactiva').length;
-                
+                // 'mantenimiento' incluye lo que antes era 'inactiva' (estado fusionado)
+                const mantenimiento = this.maquinas.filter(m => m.status === 'mantenimiento' || m.status === 'inactiva').length;
+
                 document.getElementById('total-maquinas').textContent = total;
                 document.getElementById('maquinas-activas').textContent = activas;
                 document.getElementById('maquinas-mantenimiento').textContent = mantenimiento;
-                document.getElementById('maquinas-inactivas').textContent = inactivas;
             },
 
             filtrarMaquinas: function() {
@@ -2280,7 +2266,11 @@
                 }
             }
             
-            const hasFallas = station.stats.failures > 0 || stationsInMaintenance.includes(station.index);
+            // "Fuera de servicio" / mostrar "Resolver falla" SOLO si la estación está en
+            // mantenimiento: 3 fallas consecutivas del ESP32 o un reporte del cajero (ambos
+            // la meten en stations_in_maintenance). 1-2 fallas sueltas NO cuentan — la
+            // estación sigue activa y no hay nada que resolver.
+            const hasFallas = stationsInMaintenance.includes(station.index);
             html += `
                 <div class="bg-white border ${hasFallas ? 'border-red-200' : 'border-gray-200'} rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
                     <div class="flex justify-between items-start mb-3">
@@ -2324,10 +2314,11 @@
                             const partes = [];
                             if (c > 0) partes.push(`${c} cajero`);
                             if (e > 0) partes.push(`${e} ESP32`);
+                            const detalle = partes.length ? ` (${partes.join(' + ')})` : '';
                             return `
                         <button onclick="MaquinaManager.resolverFalla(${maquinaId}, ${station.index}, '${stationName}')"
                                 class="w-full mt-1 bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1">
-                            <i class="fas fa-wrench"></i> Resolver falla (${partes.join(' + ')})
+                            <i class="fas fa-wrench"></i> Resolver falla${detalle}
                         </button>`;
                         })() : ''}
                     </div>
@@ -3568,9 +3559,12 @@
                     const res = await fetch(`/api/maquinas/${mid}`);
                     if (!res.ok) return;
                     const d = await res.json();
-                    const abiertasEsp32  = (d.active_failure_stations || []).reduce((s, st) => s + (st.count || 0), 0);
-                    const abiertasMachLv = d.machine_level_failures || 0;
-                    const total = abiertasEsp32 + abiertasMachLv;
+                    // "Sin resolver" = estaciones fuera de servicio (en mantenimiento: 3 fallas
+                    // ESP32 o reporte de cajero) + reportes a nivel de máquina. Las fallas sueltas
+                    // (1-2 del ESP32) no cuentan: se auto-resuelven al siguiente juego exitoso.
+                    const estacionesFuera = (d.stations_in_maintenance || []).length;
+                    const abiertasMachLv  = d.machine_level_failures || 0;
+                    const total = estacionesFuera + abiertasMachLv;
                     if (total > 0) {
                         document.getElementById('rep-aviso-fallas-texto').textContent =
                             `Esta máquina tiene ${total} falla${total > 1 ? 's' : ''} sin resolver registrada${total > 1 ? 's' : ''} por el TFT o el cajero.`;

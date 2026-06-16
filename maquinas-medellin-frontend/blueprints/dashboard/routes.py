@@ -325,16 +325,15 @@ def obtener_graficas_dashboard():
 
         cursor.execute(f"""
             SELECT COUNT(CASE WHEN status='activa' THEN 1 END) as activas,
-                   COUNT(CASE WHEN status='mantenimiento' THEN 1 END) as mantenimiento,
-                   COUNT(CASE WHEN status='inactiva' THEN 1 END) as inactivas
+                   COUNT(CASE WHEN status IN ('mantenimiento','inactiva') THEN 1 END) as mantenimiento
             FROM machine m
             WHERE 1=1 {loc_and_m}
         """)
         estado_data   = cursor.fetchone()
+        # Solo dos estados: activa / mantenimiento (este último ya incluye lo que era 'inactiva')
         estado_maquinas = [
             estado_data['activas'] or 0,
             estado_data['mantenimiento'] or 0,
-            estado_data['inactivas'] or 0,
         ]
 
         return jsonify({
@@ -632,8 +631,7 @@ def obtener_resumen_dashboard():
         cursor.execute(f"""
             SELECT
                 COUNT(CASE WHEN status='activa'       THEN 1 END) as maquinas_activas,
-                COUNT(CASE WHEN status='mantenimiento' THEN 1 END) as maquinas_mantenimiento,
-                COUNT(CASE WHEN status='inactiva'     THEN 1 END) as maquinas_inactivas,
+                COUNT(CASE WHEN status IN ('mantenimiento','inactiva') THEN 1 END) as maquinas_mantenimiento,
                 COUNT(*) as total_maquinas
             FROM machine m
             WHERE 1=1 {loc_and_m}
@@ -672,7 +670,7 @@ def obtener_resumen_dashboard():
             'maquinas': {
                 'activas':      maquinas['maquinas_activas'] or 0,
                 'mantenimiento': maquinas['maquinas_mantenimiento'] or 0,
-                'inactivas':    maquinas['maquinas_inactivas'] or 0,
+                'inactivas':    0,   # estado fusionado en 'mantenimiento'
                 'total':        maquinas['total_maquinas'] or 0,
             },
             'reportes':     {'pendientes': reportes['reportes_pendientes'] or 0},

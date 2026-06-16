@@ -178,8 +178,7 @@ def obtener_dashboard_locales_fase4():
                 l.notas,
                 COUNT(m.id) AS maquinas_count,
                 SUM(CASE WHEN m.status = 'activa' THEN 1 ELSE 0 END) AS maquinas_activas,
-                SUM(CASE WHEN m.status = 'mantenimiento' THEN 1 ELSE 0 END) AS maquinas_mantenimiento,
-                SUM(CASE WHEN m.status = 'inactiva' THEN 1 ELSE 0 END) AS maquinas_inactivas
+                SUM(CASE WHEN m.status IN ('mantenimiento','inactiva') THEN 1 ELSE 0 END) AS maquinas_mantenimiento
             FROM location l
             LEFT JOIN machine m ON m.location_id = l.id
             GROUP BY l.id, l.name, l.address, l.city, l.status, l.telefono, l.horario, l.notas
@@ -203,7 +202,7 @@ def obtener_dashboard_locales_fase4():
                 'maquinas_count': int(row.get('maquinas_count') or 0),
                 'maquinas_activas': int(row.get('maquinas_activas') or 0),
                 'maquinas_mantenimiento': int(row.get('maquinas_mantenimiento') or 0),
-                'maquinas_inactivas': int(row.get('maquinas_inactivas') or 0),
+                'maquinas_inactivas': 0,   # estado fusionado en 'mantenimiento'
                 'esp32_online': 0,
                 'esp32_offline': 0,
                 'alertas_criticas': 0,

@@ -531,10 +531,7 @@ def obtener_maquinas_por_tipo():
                 COALESCE(m.valor_por_turno, 3000.00) as valor_por_turno,
                 COALESCE(mt.machine_subtype, 'simple') as machine_subtype,
                 mt.station_names,
-                (SELECT COUNT(DISTINCT er.station_index)
-                 FROM errorreport er
-                 WHERE er.machineId = m.id AND er.isResolved = 0
-                   AND er.station_index IS NOT NULL) as active_station_failures
+                m.stations_in_maintenance
             FROM machine m
             LEFT JOIN location l ON m.location_id = l.id
             LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
@@ -560,11 +557,15 @@ def obtener_maquinas_por_tipo():
         for m in maquinas:
             station_names_parsed = parse_json_col(m.get('station_names'), [])
             station_count = len(station_names_parsed)
-            active_station_failures = int(m.get('active_station_failures') or 0)
+            # "Fuera de servicio" = estación en mantenimiento (3 fallas ESP32 o reporte de
+            # cajero), NO una falla suelta. La máquina completa solo se cubre cuando TODAS
+            # sus estaciones están en stations_in_maintenance.
+            stations_in_maint = parse_json_col(m.get('stations_in_maintenance'), [])
+            stations_blocked = len({str(x) for x in stations_in_maint})
             todas_estaciones_fuera = (
                 m.get('machine_subtype') == 'multi_station'
                 and station_count > 0
-                and active_station_failures >= station_count
+                and stations_blocked >= station_count
             )
             info = {
                 'id':                      m['id'],
@@ -1447,7 +1448,9 @@ def crear_maquina():
 
         if tipo not in ['simulador', 'arcade', 'peluchera']:
             return api_response('E005', http_status=400, data={'message': 'Tipo de máquina inválido'})
-        if status not in ['activa', 'mantenimiento', 'inactiva']:
+        if status == 'inactiva':
+            status = 'mantenimiento'   # 'inactiva' fusionado en 'mantenimiento'
+        if status not in ['activa', 'mantenimiento']:
             return api_response('E005', http_status=400, data={'message': 'Estado inválido'})
         if not (0 <= float(porcentaje_restaurante) <= 100):
             return api_response('E005', http_status=400, data={'message': 'Porcentaje debe estar entre 0 y 100'})
@@ -1510,7 +1513,9 @@ def actualizar_maquina(maquina_id):
 
         if tipo not in ['simulador', 'arcade', 'peluchera']:
             return api_response('E005', http_status=400, data={'message': 'Tipo de máquina inválido'})
-        if status not in ['activa', 'mantenimiento', 'inactiva']:
+        if status == 'inactiva':
+            status = 'mantenimiento'   # 'inactiva' fusionado en 'mantenimiento'
+        if status not in ['activa', 'mantenimiento']:
             return api_response('E005', http_status=400, data={'message': 'Estado inválido'})
         if not (0 <= float(porcentaje_restaurante) <= 100):
             return api_response('E005', http_status=400, data={'message': 'Porcentaje debe estar entre 0 y 100'})

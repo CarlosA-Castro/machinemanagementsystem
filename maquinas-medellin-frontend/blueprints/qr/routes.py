@@ -2814,7 +2814,9 @@ def reportar_falla_maquina():
             estaciones_con_falla = row.get('estaciones_con_falla', 0)
             nuevo_estado = 'mantenimiento' if estaciones_con_falla >= n_stations else 'activa'
         else:
-            nuevo_estado = 'mantenimiento' if problem_type == 'mantenimiento' else 'inactiva'
+            # Máquina simple: cualquier falla reportada la deja en mantenimiento.
+            # (Estado unificado: solo 'activa' / 'mantenimiento'; 'inactiva' fue fusionado.)
+            nuevo_estado = 'mantenimiento'
 
         # Actualizar stations_in_maintenance
         try:

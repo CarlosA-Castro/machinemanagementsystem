@@ -656,7 +656,7 @@
     <i class="fas fa-times-circle text-red-400 text-2xl"></i>
   </div>
   <p class="text-white font-bold text-base mb-1">Máquina fuera de servicio</p>
-  <p class="text-gray-400 text-sm">Todas las estaciones tienen fallas activas. Por favor avisa al personal.</p>
+  <p class="text-gray-400 text-sm">Todas las estaciones están fuera de servicio. Por favor avisa al personal.</p>
 </div>
 
           <!-- SELECTOR DE ESTACIÓN (solo visible en máquinas multi-estación) -->
@@ -716,7 +716,6 @@
               </label>
               <select id="tipoProblema" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="mantenimiento">Requiere mantenimiento</option>
-                <option value="fuera_servicio">Fuera de servicio</option>
               </select>
             </div>
 
@@ -1105,9 +1104,9 @@ function getGradientColor(tipo) {
     estadoElemento.className = 'font-semibold text-yellow-600';
     estadoIcono.innerHTML = '<i class="fas fa-tools text-yellow-500 mr-1"></i>';
   } else {
-    estadoElemento.textContent = 'Inactiva';
-    estadoElemento.className = 'font-semibold text-red-600';
-    estadoIcono.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i>';
+    estadoElemento.textContent = 'En mantenimiento';
+    estadoElemento.className = 'font-semibold text-yellow-600';
+    estadoIcono.innerHTML = '<i class="fas fa-tools text-yellow-500 mr-1"></i>';
   }
 
   // Último juego — usa dateLastQRUsed que ya viene en /api/maquinas/{id}
@@ -1309,10 +1308,11 @@ function getGradientColor(tipo) {
   let todasNoDisponibles = true;
 
   nombres.forEach((nombre, index) => {
+    // "Fuera de servicio" = estación en mantenimiento (3 fallas ESP32 o reporte de
+    // cajero, que ya la mete en stations_in_maintenance). Una falla suelta (1-2) NO
+    // bloquea: la estación sigue disponible para reportar/jugar.
     const enMant = stationsInMaint.includes(index) || stationsInMaint.includes(String(index));
-    const tieneFallaActiva = (activeFallas[index] || 0) > 0;
-    const noDisponible = enMant || tieneFallaActiva;
-    if (!noDisponible) todasNoDisponibles = false;
+    if (!enMant) todasNoDisponibles = false;
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1320,11 +1320,7 @@ function getGradientColor(tipo) {
 
     if (enMant) {
       btn.className = 'py-3 px-4 rounded-lg border-2 border-red-400 bg-red-50 text-red-700 font-semibold text-sm btn-touch opacity-70 cursor-not-allowed';
-      btn.innerHTML = `<i class="fas fa-wrench mr-2"></i>${nombre} <span class="ml-1 text-xs font-normal opacity-75">(mantenimiento)</span>`;
-      btn.onclick = () => {};
-    } else if (tieneFallaActiva) {
-      btn.className = 'py-3 px-4 rounded-lg border-2 border-gray-500 bg-gray-800 text-gray-300 font-semibold text-sm btn-touch opacity-80 cursor-not-allowed';
-      btn.innerHTML = `<i class="fas fa-times-circle mr-2 text-red-400"></i>${nombre} <span class="ml-1 text-xs font-normal text-gray-400">(fuera de servicio)</span>`;
+      btn.innerHTML = `<i class="fas fa-wrench mr-2"></i>${nombre} <span class="ml-1 text-xs font-normal opacity-75">(fuera de servicio)</span>`;
       btn.onclick = () => {};
     } else {
       btn.className = 'py-3 px-4 rounded-lg border-2 border-orange-300 bg-orange-50 text-orange-800 font-semibold text-sm transition-all hover:border-red-500 hover:bg-red-50 hover:text-red-800 btn-touch';
