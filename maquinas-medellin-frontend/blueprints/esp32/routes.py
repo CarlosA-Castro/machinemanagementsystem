@@ -860,7 +860,13 @@ def esp32_reportar_falla():
         _maint_count = 0
         try:
             cursor.execute(
-                "SELECT consecutive_failures, stations_in_maintenance FROM machine WHERE id = %s",
+                """
+                SELECT m.consecutive_failures, m.stations_in_maintenance,
+                       mt.machine_subtype, mt.station_names
+                FROM machine m
+                LEFT JOIN machinetechnical mt ON m.id = mt.machine_id
+                WHERE m.id = %s
+                """,
                 (machine_id,)
             )
             mrow = cursor.fetchone()
@@ -883,7 +889,23 @@ def esp32_reportar_falla():
                         f"entra en MANTENIMIENTO tras {new_count} fallas consecutivas"
                     )
 
-                if new_count >= 3 and effective_station in sim:
+                # La MÁQUINA COMPLETA solo pasa a 'mantenimiento' cuando es simple,
+                # o cuando es multi-estación y TODAS sus estaciones quedaron bloqueadas.
+                # Si aún queda alguna estación disponible NO se toca m.status: la máquina
+                # sigue operativa y solo la estación afectada queda inhabilitada (vía
+                # stations_in_maintenance). Mismo criterio que /api/reportar-falla (web).
+                station_blocked = (new_count >= 3 and effective_station in sim)
+                machine_wide_maint = False
+                if station_blocked:
+                    if mrow.get('machine_subtype') == 'multi_station':
+                        _names = parse_json_col(mrow.get('station_names'), [])
+                        total_stations = len(_names) if _names else 2
+                        bloqueadas = {str(x) for x in sim}
+                        machine_wide_maint = (len(bloqueadas) >= total_stations)
+                    else:
+                        machine_wide_maint = True
+
+                if machine_wide_maint:
                     cursor.execute(
                         "UPDATE machine SET consecutive_failures = %s, stations_in_maintenance = %s, status = 'mantenimiento' WHERE id = %s",
                         (json.dumps(cf), json.dumps(sim), machine_id)
