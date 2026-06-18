@@ -1652,6 +1652,8 @@ def guardar_technical_maquina(maquina_id):
             data.get('has_failure_report', True),
             data.get('show_station_selection', False),
             data.get('invert_display', True),
+            data.get('failure_report_window_seconds', 15),
+            data.get('boot_time_seconds', 30),
         )
 
         if existe:
@@ -1660,7 +1662,7 @@ def guardar_technical_maquina(maquina_id):
                 SET credits_virtual=%s, credits_machine=%s, game_duration_seconds=%s,
                     reset_time_seconds=%s, machine_subtype=%s, station_names=%s,
                     game_type=%s, has_failure_report=%s, show_station_selection=%s,
-                    invert_display=%s,
+                    invert_display=%s, failure_report_window_seconds=%s, boot_time_seconds=%s,
                     updated_at=NOW()
                 WHERE machine_id=%s
             """, (*params_comunes, maquina_id))
@@ -1669,8 +1671,9 @@ def guardar_technical_maquina(maquina_id):
                 INSERT INTO machinetechnical
                     (machine_id, credits_virtual, credits_machine, game_duration_seconds,
                      reset_time_seconds, machine_subtype, station_names, game_type,
-                     has_failure_report, show_station_selection, invert_display)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     has_failure_report, show_station_selection, invert_display,
+                     failure_report_window_seconds, boot_time_seconds)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (maquina_id, *params_comunes))
 
         connection.commit()

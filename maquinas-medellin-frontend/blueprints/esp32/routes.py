@@ -681,6 +681,23 @@ def esp32_machine_config(machine_id):
         if not config:
             return jsonify({'status': 'error', 'code': 'M001', 'message': 'Máquina no encontrada'}), 404
 
+        # Tiempos nuevos (V64) — consulta aparte y tolerante: si la migración aún no
+        # se aplicó en este entorno, no rompe el config que el ESP32 poll-ea constantemente.
+        failure_report_window_seconds = 15
+        boot_time_seconds = 30
+        try:
+            cursor.execute(
+                "SELECT failure_report_window_seconds, boot_time_seconds "
+                "FROM machinetechnical WHERE machine_id = %s",
+                (machine_id,)
+            )
+            _tw = cursor.fetchone()
+            if _tw:
+                failure_report_window_seconds = _tw.get('failure_report_window_seconds') or 15
+                boot_time_seconds = _tw.get('boot_time_seconds') or 30
+        except Exception:
+            logger.warning("machinetechnical sin columnas V64 (failure_report_window/boot) — usando defaults")
+
         # Procesar station_names (JSON string → array)
         station_names = []
         if config['station_names']:
@@ -722,6 +739,8 @@ def esp32_machine_config(machine_id):
             'credits_machine': config['credits_machine'] or 1,
             'game_duration_seconds': config['game_duration_seconds'] or 180,
             'reset_time_seconds': config['reset_time_seconds'] or 5,
+            'failure_report_window_seconds': failure_report_window_seconds,
+            'boot_time_seconds': boot_time_seconds,
             'machine_subtype': config['machine_subtype'] or 'simple',
             'station_names': station_names,
             'game_type': config['game_type'] or 'time_based',
