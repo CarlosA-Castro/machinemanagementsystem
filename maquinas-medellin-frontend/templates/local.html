@@ -415,7 +415,52 @@
     const LocalApp = {
       paquetesData: [],
       paqueteSeleccionado: null,
-      
+
+      // Instrucciones para el cliente — se imprimen en la tirilla, la vista previa y WhatsApp.
+      textoComoJugar: 'Escanea este QR en la pantalla de la máquina para iniciar tu turno.',
+      textoFalla: 'Si el juego falla, repórtalo desde el botón del módulo de la máquina o acércate al cajero.',
+
+      // Aplana el QR sobre fondo blanco opaco + quiet zone y lo exporta como JPEG.
+      // La térmica (3nStar) imprimía el QR en blanco con el PNG crudo del canvas;
+      // JPEG sin canal alfa + margen blanco asegura impresión sólida y lectura por el GM67.
+      qrOpacoDataUrl: function(canvas) {
+        const margen = Math.round(canvas.width * 0.10); // quiet zone ~4 módulos
+        const out = document.createElement('canvas');
+        out.width  = canvas.width  + margen * 2;
+        out.height = canvas.height + margen * 2;
+        const ctx = out.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, out.width, out.height);
+        ctx.drawImage(canvas, margen, margen);
+        return out.toDataURL('image/jpeg', 1.0);
+      },
+
+      // Dibuja texto centrado (con saltos automáticos) en el ticket; devuelve la nueva Y.
+      escribirCentrado: function(doc, texto, anchoPapel, y, salto) {
+        doc.splitTextToSize(texto, anchoPapel - 8).forEach(l => {
+          doc.text(l, (anchoPapel - doc.getTextWidth(l)) / 2, y);
+          y += salto;
+        });
+        return y;
+      },
+
+      // Bloque de instrucciones al pie de la tirilla (cómo jugar + qué hacer ante fallas).
+      agregarInstruccionesTicket: function(doc, anchoPapel, y) {
+        doc.setLineWidth(0.5);
+        doc.line(5, y, anchoPapel - 5, y);
+        y += 4;
+        doc.setFontSize(6); doc.setFont(undefined, 'bold');
+        y = this.escribirCentrado(doc, 'COMO JUGAR', anchoPapel, y, 3);
+        doc.setFont(undefined, 'normal');
+        y = this.escribirCentrado(doc, this.textoComoJugar, anchoPapel, y, 2.6);
+        y += 1.5;
+        doc.setFont(undefined, 'bold');
+        y = this.escribirCentrado(doc, '¿FALLAS EN EL JUEGO?', anchoPapel, y, 3);
+        doc.setFont(undefined, 'normal');
+        y = this.escribirCentrado(doc, this.textoFalla, anchoPapel, y, 2.6);
+        return y;
+      },
+
       init: function() {
         particlesJS('particles-js', {
             particles: {
@@ -673,7 +718,7 @@ fetch('/api/mis-permisos')
 
       reimprimirQR: function(codigoQR, nombre) {
         const { jsPDF } = window.jspdf;
-        const anchoPapel = 58, altoPapel = 80;
+        const anchoPapel = 58, altoPapel = 100;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [anchoPapel, altoPapel] });
         const loadingMessage = document.createElement('div');
         loadingMessage.innerHTML = `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white rounded-lg p-6 text-center"><div class="loading mx-auto mb-4"></div><p>Generando QR para reimpresión...</p></div></div>`;
@@ -684,11 +729,11 @@ fetch('/api/mis-permisos')
         setTimeout(() => {
           const canvas = tempDiv.querySelector('canvas');
           if (canvas) {
-            const dataUrl = canvas.toDataURL('image/png');
+            const dataUrl = this.qrOpacoDataUrl(canvas);
             const anchoQR = 35, altoQR = 35;
             const xCentrado = (anchoPapel - anchoQR) / 2;
             const yQR = 10;
-            doc.addImage(dataUrl, 'PNG', xCentrado, yQR, anchoQR, altoQR);
+            doc.addImage(dataUrl, 'JPEG', xCentrado, yQR, anchoQR, altoQR);
             doc.setFontSize(8); doc.setFont(undefined, 'bold');
             const textos = [`*** REIMPRESION ***`, `Nombre: ${nombre || 'Sin nombre'}`, `Codigo: ${codigoQR}`, `ID: ${numero}`];
             textos.forEach((t, i) => {
@@ -711,6 +756,7 @@ fetch('/api/mis-permisos')
             const textoInfo = "Reimpresion - Presentar para canjear";
             doc.setFont(undefined, 'normal');
             doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, textoInfoY);
+            this.agregarInstruccionesTicket(doc, anchoPapel, textoInfoY + 4);
             doc.save(`QR-Reimpresion-${nombre || codigoQR}.pdf`);
             this.mostrarAlerta("✅ QR reimpreso exitosamente", "success");
           }
@@ -1022,6 +1068,10 @@ fetch('/api/mis-permisos')
               <div>Turnos: <span class="font-semibold text-blue-600">${paquete.turns}</span></div>
               <div>Pago: <span class="font-semibold text-purple-600">${this.formatearMetodoPago(metodoPago)}</span></div>
               <div class="mt-1 text-orange-600 font-semibold text-xs">⏰ Vence: ${expPrev} (15 días)</div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-gray-200 text-xs text-left text-gray-600 space-y-1">
+              <div><span class="font-semibold text-gray-700">📲 Cómo jugar:</span> ${this.textoComoJugar}</div>
+              <div><span class="font-semibold text-gray-700">⚠️ ¿Fallas en el juego?</span> ${this.textoFalla}</div>
             </div>`;
           document.getElementById('vistaPreviaQR').classList.remove('hidden');
         })
@@ -1063,7 +1113,7 @@ fetch('/api/mis-permisos')
         const { jsPDF } = window.jspdf;
         const cantidad = parseInt(document.getElementById('cantidadQR').value) || 1;
         const metodoPago = document.getElementById('metodoPago').value;
-        const anchoPapel = 58, altoPapel = 80;
+        const anchoPapel = 58, altoPapel = 115;
         const loadingMessage = document.createElement('div');
         loadingMessage.innerHTML = `<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div class="bg-white rounded-lg p-6 text-center"><div class="loading mx-auto mb-4"></div><p>${tipo === 'pdf' ? 'Generando QR...' : 'Preparando QR para WhatsApp...'}</p></div></div>`;
         document.body.appendChild(loadingMessage);
@@ -1101,11 +1151,11 @@ fetch('/api/mis-permisos')
             setTimeout(() => {
               const canvas = tempDiv.querySelector('canvas');
               if (canvas) {
-                const dataUrl = canvas.toDataURL('image/png');
+                const dataUrl = this.qrOpacoDataUrl(canvas);
                 const anchoQR = 35, altoQR = 35;
                 const xCentrado = (anchoPapel - anchoQR) / 2;
                 const yQR = 10;
-                doc.addImage(dataUrl, 'PNG', xCentrado, yQR, anchoQR, altoQR);
+                doc.addImage(dataUrl, 'JPEG', xCentrado, yQR, anchoQR, altoQR);
                 doc.setFontSize(8); doc.setFont(undefined, 'bold');
                 const numero = codigoQR.replace('QR', '');
                 // Usar precio/turnos reales (con campaña si aplica)
@@ -1146,6 +1196,7 @@ fetch('/api/mis-permisos')
                 doc.setFontSize(6); doc.setFont(undefined, 'normal');
                 const textoInfo = `Vence: ${expiracionQR || '+15 dias'} - Presentar para canjear`;
                 doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 36 + lineaExtra);
+                this.agregarInstruccionesTicket(doc, anchoPapel, yQR + altoQR + 40 + lineaExtra);
               }
               setTimeout(() => generarPaginaRecursiva(i + 1), 100);
             }, 200);
@@ -1200,6 +1251,10 @@ fetch('/api/mis-permisos')
                 </p>
                 <img src="${qrDataUrl}" alt="QR Code" class="mx-auto w-40 h-40 border-2 border-green-400 rounded-lg">
                 <p class="text-center font-mono text-lg font-bold mt-2">${codigo}</p>
+                <div class="mt-3 text-left text-xs text-gray-600 bg-gray-50 rounded-lg p-3 space-y-1">
+                  <div><span class="font-semibold">📲 Cómo jugar:</span> ${this.textoComoJugar}</div>
+                  <div><span class="font-semibold">⚠️ ¿Fallas en el juego?</span> ${this.textoFalla}</div>
+                </div>
               </div>
               <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-phone mr-2"></i>Número de WhatsApp (opcional):</label>
@@ -1243,7 +1298,7 @@ fetch('/api/mis-permisos')
           const numeroLimpio = numero.replace(/[\s+()-]/g, '');
           if (!/^[0-9]{10,15}$/.test(numeroLimpio)) { this.mostrarAlerta("❌ Número inválido.", "error"); return; }
         }
-        const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${d.nombre}\n• Código: ${d.codigo}\n• ID: ${d.codigo.replace('QR','')}\n• Paquete: P${d.paquete.id} - ${d.paquete.name}\n• Precio: $${d.paquete.price.toLocaleString('es-CO')}\n• Turnos: ${d.paquete.turns}\n• ⏰ Válido hasta: ${this._expiracionQR || '15 días desde hoy'}\n\n⚠️ Este QR expira en 15 días. Turnos no usados no son válidos después de esa fecha.\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
+        const mensaje = `¡Hola! 🎮\n\nTu código QR para Inversiones Arcade:\n• Nombre: ${d.nombre}\n• Código: ${d.codigo}\n• ID: ${d.codigo.replace('QR','')}\n• Paquete: P${d.paquete.id} - ${d.paquete.name}\n• Precio: $${d.paquete.price.toLocaleString('es-CO')}\n• Turnos: ${d.paquete.turns}\n• ⏰ Válido hasta: ${this._expiracionQR || '15 días desde hoy'}\n\n⚠️ Este QR expira en 15 días. Turnos no usados no son válidos después de esa fecha.\n\n📲 Cómo jugar: ${this.textoComoJugar}\n⚠️ ¿Fallas en el juego? ${this.textoFalla}\n\nPresenta este código en el local para canjear tus turnos. ¡Disfruta del juego! 🕹️`;
         const esMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const textoEncoded = encodeURIComponent(mensaje);
         const numeroLimpio = numero ? numero.replace(/[\s+()-]/g, '') : '';
