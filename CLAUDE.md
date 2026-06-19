@@ -6,8 +6,10 @@
 - **NUNCA arreglar bugs encontrados al pasar.** Documentarlos en memoria, notificar al usuario, esperar orden.
 - **SIEMPRE declarar qué líneas se van a cambiar y por qué** antes de editar cualquier archivo grande (app.py, HTMLs).
 - **SIEMPRE explicar el por qué** de cada cambio, no solo el qué.
-- Commits directos a `main`. No crear ramas salvo que el usuario lo pida.
-- **SIEMPRE hacer push a `main` inmediatamente después del commit**, en el mismo paso. Nunca dejar un commit sin push.
+- **Trabajar SIEMPRE en la rama `develop`, NUNCA directo en `main`** (regla desde 2026-06-19). `main` = PRODUCCIÓN (corre en EC2). Antes de tocar nada verificar `git branch --show-current`; si está en `main`, cambiar a `develop`.
+- **Probar en local** (Docker → `http://localhost:5000`) los cambios visibles antes de pedir aprobación del commit.
+- Commits aprobados van a `develop` → `git push` a `origin/develop`. **Push inmediato tras cada commit**, nunca dejar un commit sin push.
+- **`main` solo recibe merges ya probados, con orden explícita del usuario** ("súbelo a producción"): `git checkout main && git merge develop && git push`, luego dar el comando de deploy del EC2 y volver a `develop`. Ver Sección 0 de `memory/PROJECT_MASTER.md`.
 
 ## Stack
 

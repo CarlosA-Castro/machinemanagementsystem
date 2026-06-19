@@ -1,6 +1,10 @@
 # Ignore local environments
 .venv/
 .vscode/
+.claude/
+
+# Override local de Docker (solo para pruebas en PC, nunca producción)
+docker-compose.override.yml
 
 # Secrets — NUNCA subir al repo
 .env
