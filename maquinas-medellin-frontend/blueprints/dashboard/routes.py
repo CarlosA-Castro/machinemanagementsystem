@@ -313,6 +313,12 @@ def obtener_graficas_dashboard():
                 AND DATE(tu.usedAt) BETWEEN %s AND %s
             LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
             LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            LEFT JOIN (
+                SELECT qr_code, MAX(final_price) AS final_price
+                FROM qrhistory
+                WHERE es_venta_real = TRUE
+                GROUP BY qr_code
+            ) qh ON qh.qr_code = qr.code
             WHERE 1=1 {loc_and_m}
             GROUP BY m.id, m.name
             ORDER BY ingresos DESC, usos DESC LIMIT 10
