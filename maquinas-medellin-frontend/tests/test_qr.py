@@ -146,8 +146,13 @@ def test_registrar_uso_qr_not_found_returns_404(client):
 
 # ── POST /api/esp32/registrar-uso — QR vencido ───────────────────────────────
 
-def test_registrar_uso_expired_qr_returns_400(client):
-    """Si el QR existe pero ya venció → error Q007 (400)."""
+def test_registrar_uso_expired_qr_returns_error(client):
+    """Si el QR existe pero ya venció → status:error Q007 con HTTP 200.
+
+    Es HTTP 200 a propósito (no 4xx): así el ESP32 muestra el mensaje en la TFT.
+    Con 4xx el firmware lo trata como error de red, reintenta y puede caer a caché
+    aceptando el QR vencido.
+    """
     vencido = date.today() - timedelta(days=1)
     qr_row  = {'id': 1, 'qr_name': 'QR0001', 'expiration_date': vencido}
 
@@ -166,6 +171,7 @@ def test_registrar_uso_expired_qr_returns_400(client):
             headers=TOKEN_HEADER,
         )
 
-    assert response.status_code == 400
+    assert response.status_code == 200
     data = json.loads(response.data)
+    assert data.get('status') == 'error'
     assert data.get('code') == 'Q007'
