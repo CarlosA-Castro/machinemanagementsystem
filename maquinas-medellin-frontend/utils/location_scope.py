@@ -139,12 +139,15 @@ def enforce_location_scope(requested_location_id=None):
         return
 
     can_switch = session.get('can_switch_location', False)
-    allowed = session.get('allowed_location_ids', [])
 
     if can_switch:
-        # Admin: cualquier local es válido siempre que exista en allowed
-        if allowed and requested_location_id not in allowed:
-            abort(403)
+        # Admin: acceso global a cualquier local activo. No se valida contra
+        # allowed_location_ids porque es un snapshot tomado en el login y queda
+        # obsoleto si se crea/activa un local después (el dropdown se llena en
+        # vivo desde la BD, así que mostraría locales fuera del snapshot → 403
+        # falso). El endpoint seleccionar-local valida existencia + status
+        # 'activo' contra la BD y devuelve 404 si no aplica.
+        return
     else:
         # Rol fijo: solo puede pedir su local asignado
         assigned = session.get('assigned_location_id')
