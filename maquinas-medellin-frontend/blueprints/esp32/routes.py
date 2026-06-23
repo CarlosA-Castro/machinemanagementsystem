@@ -132,7 +132,10 @@ def esp32_registrar_uso():
 
         cursor = get_db_cursor(connection)
 
-        cursor.execute("SELECT id, qr_name, expiration_date FROM qrcode WHERE code = %s", (qr_code,))
+        cursor.execute(
+            "SELECT id, qr_name, expiration_date, location_id FROM qrcode WHERE code = %s",
+            (qr_code,)
+        )
         qr_data = cursor.fetchone()
         if not qr_data:
             return api_response('Q001', http_status=404)
@@ -142,7 +145,29 @@ def esp32_registrar_uso():
 
         if qr_data.get('expiration_date') and qr_data['expiration_date'] < date.today():
             logger.warning(f"ESP32: QR vencido — {qr_code}, expiró el {qr_data['expiration_date']}")
-            return jsonify({'status': 'error', 'code': 'Q007', 'message': 'QR vencido'}), 400
+            # HTTP 200 + status:error a propósito: así el ESP32 muestra el mensaje en la TFT.
+            # (Con 4xx el firmware lo trata como error de red, reintenta y puede caer a caché).
+            return jsonify({'status': 'error', 'code': 'Q007', 'message': 'QR vencido'}), 200
+
+        # Alcance por local: un QR vendido en un local solo sirve en máquinas de ese
+        # local. Solo se valida si AMBOS tienen local definido; QR legacy sin
+        # location_id (NULL) se permiten en cualquier máquina para no invalidar lo
+        # ya vendido antes de esta feature.
+        qr_location_id = qr_data.get('location_id')
+        if qr_location_id is not None:
+            cursor.execute("SELECT location_id FROM machine WHERE id = %s", (machine_id,))
+            _mloc = cursor.fetchone()
+            machine_location_id = _mloc['location_id'] if _mloc else None
+            if machine_location_id is not None and machine_location_id != qr_location_id:
+                logger.warning(
+                    f"ESP32: QR de otro local — QR {qr_code} (local {qr_location_id}) "
+                    f"en máquina {machine_id} (local {machine_location_id})"
+                )
+                return jsonify({
+                    'status': 'error',
+                    'code': 'Q008',
+                    'message': 'Este QR es de otro local'
+                }), 200
 
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()

@@ -1057,7 +1057,8 @@ fetch('/api/mis-permisos')
           const codigoEjemplo = data.data?.siguiente_codigo || data.siguiente_codigo || 'QR0001';
           document.getElementById('qrPreview').innerHTML = '';
           new QRCode(document.getElementById('qrPreview'), { text: codigoEjemplo, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.H });
-          const hoyPrev = new Date(); hoyPrev.setDate(hoyPrev.getDate() + 15);
+          const durDiasPrev = paquete.duration_days || 30;
+          const hoyPrev = new Date(); hoyPrev.setDate(hoyPrev.getDate() + durDiasPrev);
           const expPrev = hoyPrev.toLocaleDateString('es-CO', {day:'2-digit', month:'2-digit', year:'numeric'});
           document.getElementById('previewText').innerHTML = `
             <div class="font-bold text-gray-800">${nombre}</div>
@@ -1067,7 +1068,7 @@ fetch('/api/mis-permisos')
               <div>Precio: <span class="font-semibold text-green-600">$${paquete.price.toLocaleString('es-CO')}</span></div>
               <div>Turnos: <span class="font-semibold text-blue-600">${paquete.turns}</span></div>
               <div>Pago: <span class="font-semibold text-purple-600">${this.formatearMetodoPago(metodoPago)}</span></div>
-              <div class="mt-1 text-orange-600 font-semibold text-xs">⏰ Vence: ${expPrev} (15 días)</div>
+              <div class="mt-1 text-orange-600 font-semibold text-xs">⏰ Vence: ${expPrev} (${durDiasPrev} días)</div>
             </div>
             <div class="mt-2 pt-2 border-t border-gray-200 text-xs text-left text-gray-600 space-y-1">
               <div><span class="font-semibold text-gray-700">📲 Cómo jugar:</span> ${this.textoComoJugar}</div>
@@ -1194,7 +1195,7 @@ fetch('/api/mis-permisos')
                 doc.setLineWidth(0.5);
                 doc.line(5, yQR + altoQR + 32 + lineaExtra, anchoPapel - 5, yQR + altoQR + 32 + lineaExtra);
                 doc.setFontSize(6); doc.setFont(undefined, 'normal');
-                const textoInfo = `Vence: ${expiracionQR || '+15 dias'} - Presentar para canjear`;
+                const textoInfo = `Vence: ${expiracionQR || 'ver fecha'} - Presentar para canjear`;
                 doc.text(textoInfo, (anchoPapel - doc.getTextWidth(textoInfo)) / 2, yQR + altoQR + 36 + lineaExtra);
                 this.agregarInstruccionesTicket(doc, anchoPapel, yQR + altoQR + 40 + lineaExtra);
               }
@@ -1247,7 +1248,7 @@ fetch('/api/mis-permisos')
                   <strong>Paquete: P${paquete.id} - ${paquete.name}</strong><br>
                   <strong>Precio: $${paquete.price.toLocaleString('es-CO')}</strong><br>
                   <strong>Turnos: ${paquete.turns}</strong><br>
-                  <span style="color:#ea580c;font-size:0.8rem;">⏰ Vence: ${this._expiracionQR || '15 días desde hoy'}</span>
+                  <span style="color:#ea580c;font-size:0.8rem;">⏰ Vence: ${this._expiracionQR || 'ver fecha en tirilla'}</span>
                 </p>
                 <img src="${qrDataUrl}" alt="QR Code" class="mx-auto w-40 h-40 border-2 border-green-400 rounded-lg">
                 <p class="text-center font-mono text-lg font-bold mt-2">${codigo}</p>

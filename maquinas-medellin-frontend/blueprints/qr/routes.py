@@ -303,7 +303,7 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
         cursor = get_db_cursor(connection)
 
         cursor.execute(
-            "SELECT turns, price, name FROM turnpackage WHERE id = %s",
+            "SELECT turns, price, name, duration_days FROM turnpackage WHERE id = %s",
             (paquete_id,)
         )
         paquete = cursor.fetchone()
@@ -314,6 +314,8 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
         turns_paquete  = paquete['turns']
         precio_paquete = float(paquete['price'])
         nombre_paquete = paquete['name']
+        # Duración del paquete normal (días). Default 30 si la columna viniera nula.
+        duration_days_pkg = int(paquete['duration_days']) if paquete.get('duration_days') else 30
 
         # ── Aplicar campaña activa si existe ──────────────────────────────────
         location_id_activo = session.get('active_location_id')
@@ -329,6 +331,13 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
                 f"→ {turns_paquete}t | ${campaign_result['original_price']:,.0f} "
                 f"→ ${precio_paquete:,.0f}"
             )
+
+        # Duración efectiva de validez del QR (días): campaña > paquete > 30.
+        # La campaña solo manda si tiene qr_duration_days configurado.
+        if campaign_result and campaign_result.get('qr_duration_days'):
+            effective_duration_days = int(campaign_result['qr_duration_days'])
+        else:
+            effective_duration_days = duration_days_pkg
 
         cursor.execute("""
             SELECT counter_value FROM globalcounter
@@ -379,14 +388,15 @@ def generar_codigos_qr_lote_con_paquete(cantidad_qr, nombre="", paquete_id=1, pa
             # Si el código ya existía (creado por la vista previa con turnPackageId=1),
             # actualizamos los campos en lugar de fallar con duplicado.
             cursor.execute("""
-                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name, expiration_date)
-                VALUES (%s, %s, 1, %s, %s, DATE_ADD(CURDATE(), INTERVAL 15 DAY))
+                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, qr_name, location_id, expiration_date)
+                VALUES (%s, %s, 1, %s, %s, %s, DATE_ADD(CURDATE(), INTERVAL %s DAY))
                 ON DUPLICATE KEY UPDATE
                     remainingTurns = VALUES(remainingTurns),
                     turnPackageId  = VALUES(turnPackageId),
                     qr_name        = VALUES(qr_name),
+                    location_id    = VALUES(location_id),
                     expiration_date = VALUES(expiration_date)
-            """, (nuevo_codigo, turns_paquete, paquete_id, nombre))
+            """, (nuevo_codigo, turns_paquete, paquete_id, nombre, location_id_activo, effective_duration_days))
 
             # Obtener el id real del qrcode (ya sea nuevo o actualizado)
             cursor.execute("SELECT id FROM qrcode WHERE code = %s", (nuevo_codigo,))
@@ -782,6 +792,15 @@ def generar_qr():
             cursor = get_db_cursor(connection)
             cursor.execute("SELECT * FROM turnpackage WHERE id = %s", (paquete_id,))
             paquete = cursor.fetchone()
+            # Fecha REAL de vencimiento ya calculada y guardada en el QR (respeta
+            # campaña > paquete > default). Se lee del primer código generado para
+            # que la tirilla muestre la fecha correcta, no un valor hardcodeado.
+            cursor.execute(
+                "SELECT expiration_date FROM qrcode WHERE code = %s",
+                (codigos_generados[0],)
+            )
+            _exp_row = cursor.fetchone()
+            expiration_date_real = _exp_row['expiration_date'] if _exp_row else None
             cursor.close()
             connection.close()
 
@@ -796,9 +815,10 @@ def generar_qr():
                 'paquete_nombre': paquete['name'],
                 'paquete_precio': float(paquete['price']),
                 'paquete_turnos': paquete['turns'],
+                'paquete_duracion_dias': int(paquete['duration_days']) if paquete.get('duration_days') else 30,
                 'payment_method': payment_method,
                 'payment_method_label': _payment_method_label(payment_method),
-                'expiration_date': (get_colombia_time() + timedelta(days=15)).strftime('%d/%m/%Y'),
+                'expiration_date': expiration_date_real.strftime('%d/%m/%Y') if expiration_date_real else '',
                 'formato': 'QRXXXX (4 dígitos, de QR0001 a QR9999)',
                 'nota': 'El contador se reiniciará automáticamente al llegar a QR9999'
             }
@@ -962,30 +982,36 @@ def asignar_paquete():
                 }
             )
 
-        cursor.execute("SELECT turns, price FROM turnpackage WHERE id = %s", (paquete_id,))
+        cursor.execute("SELECT turns, price, duration_days FROM turnpackage WHERE id = %s", (paquete_id,))
         paquete = cursor.fetchone()
         if not paquete:
             return api_response('Q004', http_status=404)
 
         turns, price = paquete['turns'], paquete['price']
+        # Duración (días) y local activo para anclar el QR a su local y darle
+        # fecha de vencimiento coherente con la generación en lote.
+        duration_days = int(paquete['duration_days']) if paquete.get('duration_days') else 30
+        location_id_activo = session.get('active_location_id')
 
         cursor.execute("SELECT id FROM qrcode WHERE code = %s", (codigo_qr,))
         qr_existente = cursor.fetchone()
 
         if not qr_existente:
             cursor.execute("""
-                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId)
-                VALUES (%s, %s, 1, %s)
-            """, (codigo_qr, turns, paquete_id))
+                INSERT INTO qrcode (code, remainingTurns, isActive, turnPackageId, location_id, expiration_date)
+                VALUES (%s, %s, 1, %s, %s, DATE_ADD(CURDATE(), INTERVAL %s DAY))
+            """, (codigo_qr, turns, paquete_id, location_id_activo, duration_days))
             connection.commit()
             qr_id = cursor.lastrowid
         else:
             qr_id = qr_existente['id']
             cursor.execute("""
                 UPDATE qrcode
-                SET turnPackageId = %s
+                SET turnPackageId = %s,
+                    location_id = %s,
+                    expiration_date = DATE_ADD(CURDATE(), INTERVAL %s DAY)
                 WHERE id = %s
-            """, (paquete_id, qr_id))
+            """, (paquete_id, location_id_activo, duration_days, qr_id))
             connection.commit()
 
         cursor.execute("""

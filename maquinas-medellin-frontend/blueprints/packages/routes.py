@@ -95,11 +95,15 @@ def crear_paquete():
         turns = data['turns']
         price = data['price']
         isActive = data.get('isActive', True)
+        # Duración (días) de validez del QR generado con este paquete. Default 30 (1 mes).
+        duration_days = data.get('duration_days', 30)
 
         if turns < 1:
             return api_response('E005', http_status=400, data={'message': 'Turnos debe ser mayor a 0'})
         if price < 1000:
             return api_response('E005', http_status=400, data={'message': 'Precio debe ser mayor a $1,000'})
+        if duration_days is None or int(duration_days) < 1:
+            return api_response('E005', http_status=400, data={'message': 'Duración debe ser mayor a 0 días'})
 
         connection = get_db_connection()
         if not connection:
@@ -118,13 +122,13 @@ def crear_paquete():
             return api_response('E007', http_status=400, data={'message': 'Paquete ya existe en este local'})
 
         cursor.execute("""
-            INSERT INTO turnpackage (name, turns, price, isActive, location_id)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (name, turns, price, isActive, location_id))
+            INSERT INTO turnpackage (name, turns, price, isActive, location_id, duration_days)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (name, turns, price, isActive, location_id, int(duration_days)))
 
         connection.commit()
 
-        logger.info(f"Paquete creado: {name} (Turnos: {turns}, Precio: {price}, Local: {location_id})")
+        logger.info(f"Paquete creado: {name} (Turnos: {turns}, Precio: {price}, Local: {location_id}, Duración: {duration_days}d)")
 
         return api_response('S002', status='success', data={'paquete_id': cursor.lastrowid})
 
@@ -151,11 +155,15 @@ def actualizar_paquete(paquete_id):
         turns = data['turns']
         price = data['price']
         isActive = data.get('isActive')
+        # Duración (días) de validez del QR. Default 30 si no se envía.
+        duration_days = data.get('duration_days', 30)
 
         if turns < 1:
             return api_response('E005', http_status=400, data={'message': 'Turnos debe ser mayor a 0'})
         if price < 1000:
             return api_response('E005', http_status=400, data={'message': 'Precio debe ser mayor a $1,000'})
+        if duration_days is None or int(duration_days) < 1:
+            return api_response('E005', http_status=400, data={'message': 'Duración debe ser mayor a 0 días'})
 
         connection = get_db_connection()
         if not connection:
@@ -173,9 +181,9 @@ def actualizar_paquete(paquete_id):
 
         cursor.execute("""
             UPDATE turnpackage
-            SET name = %s, turns = %s, price = %s, isActive = %s
+            SET name = %s, turns = %s, price = %s, isActive = %s, duration_days = %s
             WHERE id = %s
-        """, (name, turns, price, isActive, paquete_id))
+        """, (name, turns, price, isActive, int(duration_days), paquete_id))
 
         connection.commit()
 

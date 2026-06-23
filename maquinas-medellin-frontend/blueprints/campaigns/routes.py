@@ -53,6 +53,7 @@ def get_active_campaign_for_package(package_id, location_id, cursor):
     cursor.execute("""
         SELECT c.id, c.name, c.schedule_type, c.schedule_config,
                c.date_from, c.date_to, c.time_from, c.time_to, c.priority,
+               c.qr_duration_days,
                cr.id AS rule_id, cr.applies_to, cr.package_ids,
                cr.rule_type, cr.rule_value
         FROM campaign c
@@ -149,6 +150,7 @@ def get_active_campaign_for_package(package_id, location_id, cursor):
             'original_price': base_price,
             'final_price':    final_price,
             'savings_pct':    savings_pct,
+            'qr_duration_days': row.get('qr_duration_days'),
         }
 
     return None
@@ -333,8 +335,9 @@ def create_campaign():
         cur.execute("""
             INSERT INTO campaign
                 (name, description, location_id, schedule_type, schedule_config,
-                 date_from, date_to, time_from, time_to, priority, is_active, created_by)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                 date_from, date_to, time_from, time_to, priority, is_active, created_by,
+                 qr_duration_days)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (
             name,
             data.get('description') or None,
@@ -348,6 +351,8 @@ def create_campaign():
             int(data.get('priority', 0)),
             1 if data.get('is_active', True) else 0,
             session.get('user_name', 'admin'),
+            # Días de validez del QR comprado en campaña. None = usar duración del paquete.
+            int(data['qr_duration_days']) if data.get('qr_duration_days') else None,
         ))
         cid = cur.lastrowid
 
@@ -403,7 +408,8 @@ def update_campaign(cid):
                 time_from       = %s,
                 time_to         = %s,
                 priority        = COALESCE(%s, priority),
-                is_active       = COALESCE(%s, is_active)
+                is_active       = COALESCE(%s, is_active),
+                qr_duration_days = %s
             WHERE id = %s
         """, (
             data.get('name') or None,
@@ -417,6 +423,8 @@ def update_campaign(cid):
             data.get('time_to')   or None,
             data.get('priority'),
             data.get('is_active'),
+            # None = limpiar (usar duración del paquete). Vacío en UI → NULL.
+            int(data['qr_duration_days']) if data.get('qr_duration_days') else None,
             cid,
         ))
 

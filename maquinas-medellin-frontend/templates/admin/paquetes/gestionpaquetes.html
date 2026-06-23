@@ -418,6 +418,17 @@
                         <p class="text-xs text-gray-500 mt-1">Precio en pesos colombianos</p>
                     </div>
 
+                    <!-- Duración (días) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-clock mr-2"></i>Duración del QR (días) *
+                        </label>
+                        <input type="number" id="duracion" required min="1" max="3650" value="30"
+                               class="w-full border border-gray-300 rounded-lg p-3 text-base"
+                               placeholder="Ej: 30">
+                        <p class="text-xs text-gray-500 mt-1">Días de validez del QR desde la venta (default 30 = 1 mes). Después de vencer, el QR ya no es aceptado en las máquinas.</p>
+                    </div>
+
                     <!-- Estado -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -772,7 +783,8 @@
                     document.getElementById('nombre').value = paquete.name;
                     document.getElementById('turnos').value = paquete.turns;
                     document.getElementById('precio').value = paquete.price;
-                    
+                    document.getElementById('duracion').value = paquete.duration_days || 30;
+
                     // Configurar estado
                     const estadoRadios = document.getElementsByName('estado');
                     estadoRadios.forEach(radio => {
@@ -801,12 +813,18 @@
                     name: document.getElementById('nombre').value,
                     turns: parseInt(document.getElementById('turnos').value),
                     price: parseInt(document.getElementById('precio').value),
+                    duration_days: parseInt(document.getElementById('duracion').value),
                     isActive: document.querySelector('input[name="estado"]:checked').value === 'true'
                 };
 
                 // Validaciones
                 if (datos.turns < 1) {
                     this.mostrarError('El número de turnos debe ser mayor a 0');
+                    return;
+                }
+
+                if (!datos.duration_days || datos.duration_days < 1) {
+                    this.mostrarError('La duración debe ser mayor a 0 días');
                     return;
                 }
 
@@ -988,6 +1006,12 @@
             <input id="c-priority" type="number" value="0" min="0" max="99"
                 style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
             <p style="font-size:.7rem;color:#9ca3af;margin-top:2px;">Mayor número = prevalece sobre otras campañas</p>
+        </div>
+        <div>
+            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Validez del QR (días) <span style="font-weight:400;color:#9ca3af;">(vacío = usa la del paquete)</span></label>
+            <input id="c-qr-duration" type="number" min="1" max="3650" placeholder="ej: 7"
+                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
+            <p style="font-size:.7rem;color:#9ca3af;margin-top:2px;">Días que vale el QR comprado en esta campaña, desde la venta</p>
         </div>
     </div>
 
@@ -1312,6 +1336,7 @@ const CampaignMgr = {
         document.getElementById('c-name').value        = c.name || '';
         document.getElementById('c-schedule-type').value = c.schedule_type || 'once';
         document.getElementById('c-priority').value    = c.priority || 0;
+        document.getElementById('c-qr-duration').value = c.qr_duration_days || '';
         document.getElementById('c-date-from').value   = c.date_from || '';
         document.getElementById('c-date-to').value     = c.date_to   || '';
         document.getElementById('c-time-from').value   = c.time_from || '';
@@ -1362,7 +1387,7 @@ const CampaignMgr = {
     closeModal() { document.getElementById('campaignModal').style.display = 'none'; },
 
     _resetForm() {
-        ['c-name','c-date-from','c-date-to','c-time-from','c-time-to','c-description'].forEach(id => {
+        ['c-name','c-date-from','c-date-to','c-time-from','c-time-to','c-description','c-qr-duration'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('c-schedule-type').value = 'once';
@@ -1453,6 +1478,7 @@ const CampaignMgr = {
             time_from:       document.getElementById('c-time-from').value || null,
             time_to:         document.getElementById('c-time-to').value   || null,
             priority:        parseInt(document.getElementById('c-priority').value) || 0,
+            qr_duration_days: parseInt(document.getElementById('c-qr-duration').value) || null,
             is_active:       1,
             rule: {
                 applies_to:  appliesto,
