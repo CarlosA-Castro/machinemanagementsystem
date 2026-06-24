@@ -94,7 +94,12 @@ def mostrar_liquidaciones():
     return render_template(
         'ventas/liquidaciones.html',
         nombre_usuario=session.get('user_name', 'Administrador'),
-        local_usuario=session.get('user_local', 'Sistema'),
+        # Mostrar el LOCAL ACTIVO (alcance del cálculo), no el local de origen del
+        # usuario: si el admin cambió a otro local, el encabezado debe coincidir con
+        # las ventas que se liquidan. Fallback al local del usuario / "Todos los locales".
+        local_usuario=(session.get('active_location_name')
+                       or session.get('user_local')
+                       or 'Todos los locales'),
         hora_actual=hora_colombia.strftime('%H:%M:%S'),
         fecha_actual=hora_colombia.strftime('%Y-%m-%d'),
     )

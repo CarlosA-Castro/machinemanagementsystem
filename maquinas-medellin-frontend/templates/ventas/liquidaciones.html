@@ -243,7 +243,7 @@
                         <i class="fas fa-chart-pie mr-3 text-green-600"></i>Liquidaciones
                     </h1>
                     <p class="text-gray-500 text-sm mt-1">
-                        <i class="fas fa-store mr-1"></i><strong>{{ local_usuario }}</strong>
+                        <i class="fas fa-store mr-1"></i><strong id="headerLocal">{{ local_usuario }}</strong>
                         &nbsp;·&nbsp;<span id="fechaHoy"></span>
                     </p>
                 </div>
@@ -274,6 +274,15 @@
                             <i class="fas fa-cog"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+            <!-- Período real (calculado por hora desde el último cierre) -->
+            <div id="periodoRealBanner" class="hidden mt-3 pt-3 border-t border-gray-100 text-sm flex items-start gap-2">
+                <i class="fas fa-clock text-blue-500 mt-0.5"></i>
+                <div>
+                    <span class="text-gray-600">Período liquidado:</span>
+                    <strong id="periodoRealTexto" class="text-gray-800"></strong>
+                    <div class="text-xs text-gray-400">El período arranca en el último cierre (fecha y hora), no en la fecha del selector.</div>
                 </div>
             </div>
         </div>
@@ -818,6 +827,22 @@ async function calcular() {
         if (!data.success) throw new Error(data.message || 'Error del servidor');
 
         currentData = data;
+
+        // Reflejar el período REAL resuelto por el backend (arranca en el último
+        // cierre, por hora). Sincroniza encabezado de local, selectores y banner
+        // para que el usuario entienda por qué aparecen ventas "de antes".
+        const p = data.periodo || {};
+        const hl = document.getElementById('headerLocal');
+        if (hl && p.local_nombre) hl.textContent = p.local_nombre;
+        if (p.fecha_inicio) document.getElementById('fechaInicio').value = p.fecha_inicio;
+        if (p.fecha_fin)    document.getElementById('fechaFin').value    = p.fecha_fin;
+        const banner = document.getElementById('periodoRealBanner');
+        const bTexto = document.getElementById('periodoRealTexto');
+        if (banner && bTexto && (p.inicio_label || p.fecha_inicio)) {
+            bTexto.textContent = `${p.inicio_label || p.fecha_inicio} → ${p.fin_label || p.fecha_fin}`;
+            banner.classList.remove('hidden');
+        }
+
         const sinDatos = !data.periodo || data.periodo.total_ventas === 0;
 
         document.getElementById('bannerSinDatos').classList.toggle('hidden', !sinDatos);
