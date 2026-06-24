@@ -172,6 +172,22 @@ def _tp_location_cond():
     return '', []
 
 
+def _machine_location_cond(alias='m'):
+    """Filtro por <alias>.location_id (local de la MÁQUINA).
+
+    La distribución/uso por máquina debe limitarse a las máquinas del local activo,
+    si no se mezclan máquinas de otros locales. En modo "Ver todos" no filtra.
+    Devuelve (fragmento_sql, params) para inyectar en el WHERE.
+    """
+    active_id = session.get('active_location_id')
+    can_view_all = session.get('can_view_all_locations', False)
+    if can_view_all and active_id is None:
+        return '', []
+    if active_id:
+        return f'AND {alias}.location_id = %s', [active_id]
+    return '', []
+
+
 def _current_closure_scope():
     active_id = session.get('active_location_id')
     active_name = session.get('active_location_name')
@@ -351,9 +367,10 @@ def _fetch_turnos_summary(cursor, fecha_inicio, fecha_fin, paquetes):
 
 
 def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
-    """Top 3 máquinas por turnos jugados en el período."""
-    sql, params = apply_location_filter(
-        """
+    """Top 3 máquinas por turnos jugados en el período (solo máquinas del local activo)."""
+    loc_sql, loc_params = _machine_location_cond('m')
+    cursor.execute(
+        f"""
         SELECT m.name AS maquina_nombre, COUNT(tu.id) AS turnos_jugados
         FROM turnusage tu
         JOIN machine m ON tu.machineId = m.id
@@ -363,15 +380,13 @@ def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
         WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
           AND qh.es_venta_real = TRUE
           AND qr.turnPackageId IS NOT NULL
-          
+          {loc_sql}
         GROUP BY m.id, m.name
         ORDER BY turnos_jugados DESC
         LIMIT 3
         """,
-        [fecha_inicio, fecha_fin],
-        column='location_id', table_alias='tp',
+        (fecha_inicio, fecha_fin, *loc_params),
     )
-    cursor.execute(sql, params)
     return [
         {'nombre': r['maquina_nombre'], 'turnos_jugados': int(r['turnos_jugados'])}
         for r in cursor.fetchall()
@@ -379,8 +394,10 @@ def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
 
 
 def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False):
-    """Resumen de uso por máquina basado en turnusage."""
+    """Resumen de uso por máquina basado en turnusage. Filtrado por el local de la
+    máquina para no mezclar máquinas de otros locales."""
     admin_col = _admin_expr(tiene_admin_col)
+    loc_sql, loc_params = _machine_location_cond('m')
     cursor.execute(
         f"""
         SELECT
@@ -404,10 +421,11 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
         LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
         WHERE tu.usedAt >= %s AND tu.usedAt < %s
+          {loc_sql}
         GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante, {admin_col}
         ORDER BY ingresos_estimados DESC
         """,
-        (RESTAURANT_PERCENTAGE_DEFAULT, fecha_inicio, fecha_fin),
+        (RESTAURANT_PERCENTAGE_DEFAULT, fecha_inicio, fecha_fin, *loc_params),
     )
 
     resumen = {}
@@ -423,9 +441,10 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
             'ingresos_estimados':   _to_float(row['ingresos_estimados']),
         }
 
-    # Paquetes usados por máquina
+    # Paquetes usados por máquina (mismo filtro por local de la máquina vía JOIN)
+    loc2_sql, loc2_params = _machine_location_cond('mm')
     cursor.execute(
-        """
+        f"""
         SELECT
             tu.machineId AS maquina_id,
             tp.id AS paquete_id,
@@ -435,16 +454,17 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
             COUNT(DISTINCT qr.id) AS qrs_utilizados,
             COALESCE(SUM(COALESCE(qh.final_price, tp.price) / NULLIF(tp.turns, 0)), 0) AS ingresos_estimados
         FROM turnusage tu
+        JOIN machine mm ON tu.machineId = mm.id
         JOIN qrcode qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
         WHERE tu.usedAt >= %s AND tu.usedAt < %s
           AND qr.turnPackageId IS NOT NULL
-          
+          {loc2_sql}
         GROUP BY tu.machineId, tp.id, tp.name, tp.turns
         ORDER BY ingresos_estimados DESC
         """,
-        (fecha_inicio, fecha_fin),
+        (fecha_inicio, fecha_fin, *loc2_params),
     )
 
     paquetes_por_maquina = {}
@@ -465,7 +485,8 @@ def _fetch_machine_liquidations(cursor, fecha_inicio, fecha_fin, limit=None):
     if not _table_exists(cursor, 'liquidaciones'):
         return []
 
-    query = """
+    loc_sql, loc_params = _machine_location_cond('m')
+    query = f"""
         SELECT
             l.id, l.fecha, l.maquina_id, l.turnos_retirados, l.valor_por_turno,
             l.costos_operativos, l.porcentaje_restaurante, l.observaciones,
@@ -474,9 +495,10 @@ def _fetch_machine_liquidations(cursor, fecha_inicio, fecha_fin, limit=None):
         FROM liquidaciones l
         JOIN machine m ON l.maquina_id = m.id
         WHERE l.fecha BETWEEN %s AND %s
+          {loc_sql}
         ORDER BY l.fecha DESC, l.creado_el DESC
     """
-    params = [fecha_inicio, fecha_fin]
+    params = [fecha_inicio, fecha_fin, *loc_params]
     if limit:
         query += ' LIMIT %s'
         params.append(limit)
@@ -598,8 +620,9 @@ def _build_propietarios_distribution(cursor, fecha_inicio, fecha_fin):
     if not (_table_exists(cursor, 'maquinapropietario') and _table_exists(cursor, 'propietarios')):
         return {}
 
+    loc_sql, loc_params = _machine_location_cond('m')
     cursor.execute(
-        """
+        f"""
         SELECT
             p.id AS propietario_id,
             p.nombre AS propietario_nombre,
@@ -615,10 +638,11 @@ def _build_propietarios_distribution(cursor, fecha_inicio, fecha_fin):
         LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
+        WHERE 1=1 {loc_sql}
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad
         ORDER BY ingresos_estimados DESC
         """,
-        (fecha_inicio, fecha_fin),
+        (fecha_inicio, fecha_fin, *loc_params),
     )
 
     distribucion = {}
@@ -655,6 +679,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
 
     tiene_admin = _has_admin_col(cursor)
     admin_expr  = _admin_expr(tiene_admin)
+    loc_sql, loc_params = _machine_location_cond('m')
 
     sql, params = apply_location_filter(
         f"""
@@ -682,14 +707,14 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
         WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
           AND qr.turnPackageId IS NOT NULL
-          
+          {loc_sql}
           AND qh.es_venta_real = TRUE
         GROUP BY p.id, p.nombre, m.id, m.name, mp.porcentaje_propiedad,
                  tp.id, tp.name, qh.final_price, tp.price, tp.turns,
                  mpr.porcentaje_restaurante, {admin_expr}
         ORDER BY p.nombre, m.name, turnos_jugados DESC
         """,
-        [fecha_inicio, fecha_fin],
+        [fecha_inicio, fecha_fin, *loc_params],
         column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
