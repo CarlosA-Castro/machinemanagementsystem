@@ -1204,7 +1204,7 @@ function renderGastos(gastos) {
         <tbody>${gastos.map(g => `<tr>
             <td class="font-semibold">${g.concepto}</td>
             <td><span class="badge ${catBadge(g.categoria)}">${g.categoria || 'otro'}</span></td>
-            <td>${g.fecha}</td>
+            <td>${g.fecha ? new Date(g.fecha + 'T00:00:00').toLocaleDateString('es-CO') : '—'}</td>
             <td class="text-right text-orange-600 font-bold">${fmt(g.monto)}</td>
             <td><button onclick="eliminarGasto(${g.id})" data-perm="eliminar" class="text-red-400 hover:text-red-600 text-sm"><i class="fas fa-trash"></i></button></td>
         </tr>`).join('')}</tbody>
