@@ -1275,7 +1275,8 @@ function abrirModalCierre() {
 
     document.getElementById('cierreResumen').innerHTML = `
         <div class="flex justify-between"><span class="text-gray-600">Período</span>
-            <strong>${p.fecha_inicio} → ${p.fecha_fin}</strong></div>
+            <strong class="text-right">${p.inicio_label || p.fecha_inicio} →<br>${p.fin_label || p.fecha_fin}</strong></div>
+        <div class="text-xs text-gray-400 -mt-1">El cierre se registra a esta hora; el próximo período arrancará desde aquí.</div>
         <div class="flex justify-between"><span class="text-gray-600">Alcance</span>
             <strong>${p.local_nombre || 'Todos los locales'}</strong></div>
         <div class="flex justify-between"><span class="text-gray-600">Ingresos totales</span>

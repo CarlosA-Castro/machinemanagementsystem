@@ -1,7 +1,7 @@
 import logging
 import traceback
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from flask import Blueprint, jsonify, request, session
 
@@ -64,6 +64,66 @@ def _get_previous_period(fecha_inicio, fecha_fin):
     fecha_fin_previa = fecha_inicio - timedelta(days=1)
     fecha_inicio_previa = fecha_fin_previa - timedelta(days=delta - 1)
     return fecha_inicio_previa, fecha_fin_previa
+
+
+def _now_naive():
+    """Hora actual de Colombia SIN tzinfo (la BD guarda datetimes naive)."""
+    ahora = get_colombia_time()
+    return ahora.replace(tzinfo=None) if ahora.tzinfo is not None else ahora
+
+
+def _last_close_fin_dt(cursor, local_id):
+    """fin_dt del último cierre que aplica a este local (o cierre global). None si no hay."""
+    if not _table_exists(cursor, 'cierre_liquidacion'):
+        return None
+    try:
+        cursor.execute(
+            """
+            SELECT fin_dt
+            FROM cierre_liquidacion
+            WHERE fin_dt IS NOT NULL
+              AND (local_id IS NULL OR %s IS NULL OR local_id = %s)
+            ORDER BY fin_dt DESC
+            LIMIT 1
+            """,
+            (local_id, local_id),
+        )
+        row = cursor.fetchone()
+        return row['fin_dt'] if row and row.get('fin_dt') else None
+    except Exception as e:
+        logger.warning(f"No se pudo leer último cierre (fin_dt): {e}")
+        return None
+
+
+def _resolve_period_bounds(cursor, local_id, fecha_inicio, fecha_fin):
+    """Convierte el rango de fechas elegido en límites datetime medio-abiertos [inicio_dt, fin_dt).
+
+    - inicio_dt: instante en que terminó el último cierre de este local (encadena
+      períodos sin huecos ni solapes). Si no hay cierre previo → fecha_inicio 00:00.
+    - fin_dt: 'ahora' si fecha_fin es hoy o futura (período abierto en curso); si es
+      una fecha pasada → fecha_fin 23:59:59 (para consultar rangos históricos).
+    """
+    ahora = _now_naive()
+    inicio_dt = datetime.combine(fecha_inicio, time.min)
+
+    last_fin = _last_close_fin_dt(cursor, local_id)
+    if last_fin is not None:
+        inicio_dt = last_fin
+
+    fin_dt = datetime.combine(fecha_fin, time.max)
+    if fin_dt > ahora:
+        fin_dt = ahora
+
+    # Salvaguarda: el inicio nunca puede superar el fin.
+    if inicio_dt > fin_dt:
+        inicio_dt = datetime.combine(fecha_inicio, time.min)
+    return inicio_dt, fin_dt
+
+
+def _get_previous_period_dt(inicio_dt, fin_dt):
+    """Período anterior, mismo tamaño, terminando justo donde empieza el actual."""
+    dur = fin_dt - inicio_dt
+    return inicio_dt - dur, inicio_dt
 
 
 def _table_exists(cursor, table_name):
@@ -150,7 +210,14 @@ def _serialize_cierre(row):
     }
 
 
-def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
+def _find_existing_cierre(cursor, local_id, inicio_dt, fin_dt):
+    """Busca un cierre que SOLAPE con el período [inicio_dt, fin_dt) usando datetime.
+
+    Solape medio-abierto: existe conflicto si  cl.inicio_dt < fin_dt  AND  cl.fin_dt > inicio_dt.
+    Como un período nuevo arranca exactamente en el fin del anterior, NO solapan
+    (el límite se comparte sin chocar). Si un cierre viejo no tiene datetime aún,
+    se cae a las columnas date (00:00 / 23:59:59) por compatibilidad.
+    """
     if not _table_exists(cursor, 'cierre_liquidacion'):
         return None
 
@@ -169,8 +236,8 @@ def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
         FROM cierre_liquidacion cl
         LEFT JOIN location loc ON loc.id = cl.local_id
         LEFT JOIN users u ON u.id = cl.usuario_id
-        WHERE cl.fecha_inicio <= %s
-          AND cl.fecha_fin >= %s
+        WHERE COALESCE(cl.inicio_dt, TIMESTAMP(cl.fecha_inicio, '00:00:00')) < %s
+          AND COALESCE(cl.fin_dt,    TIMESTAMP(cl.fecha_fin,    '23:59:59')) > %s
           AND (
                 cl.local_id IS NULL
                 OR %s IS NULL
@@ -179,7 +246,7 @@ def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
         ORDER BY cl.creado_el DESC
         LIMIT 1
         """,
-        (fecha_fin, fecha_inicio, local_id, local_id),
+        (fin_dt, inicio_dt, local_id, local_id),
     )
     existing = cursor.fetchone()
     if not existing:
@@ -188,8 +255,8 @@ def _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin):
     cierre = _serialize_cierre(existing)
     cierre['es_mismo_periodo'] = (
         cierre['local_id'] == local_id
-        and cierre['fecha_inicio'] == str(fecha_inicio)
-        and cierre['fecha_fin'] == str(fecha_fin)
+        and cierre['fecha_inicio'] == str(inicio_dt.date())
+        and cierre['fecha_fin'] == str(fin_dt.date())
     )
     return cierre
 
@@ -210,7 +277,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
         FROM qrhistory qh
         JOIN qrcode qr ON qr.code = qh.qr_code
         JOIN turnpackage tp ON qr.turnPackageId = tp.id
-        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
           AND qh.es_venta_real = TRUE
           AND qr.turnPackageId IS NOT NULL
           
@@ -232,7 +299,7 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
         JOIN qrcode qr ON tu.qrCodeId = qr.id
         WHERE qr.code IN (
             SELECT qh2.qr_code FROM qrhistory qh2
-            WHERE DATE(qh2.fecha_hora) BETWEEN %s AND %s
+            WHERE qh2.fecha_hora >= %s AND qh2.fecha_hora < %s
               AND qh2.es_venta_real = TRUE
         )
           AND qr.turnPackageId IS NOT NULL
@@ -293,7 +360,7 @@ def _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin):
         JOIN qrcode  qr ON tu.qrCodeId = qr.id
         JOIN qrhistory qh ON qh.qr_code = qr.code
         JOIN turnpackage tp ON qr.turnPackageId = tp.id
-        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
           AND qh.es_venta_real = TRUE
           AND qr.turnPackageId IS NOT NULL
           
@@ -336,7 +403,7 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
-        WHERE DATE(tu.usedAt) BETWEEN %s AND %s
+        WHERE tu.usedAt >= %s AND tu.usedAt < %s
         GROUP BY m.id, m.name, m.type, mpr.porcentaje_restaurante, {admin_col}
         ORDER BY ingresos_estimados DESC
         """,
@@ -371,7 +438,7 @@ def _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False)
         JOIN qrcode qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
-        WHERE DATE(tu.usedAt) BETWEEN %s AND %s
+        WHERE tu.usedAt >= %s AND tu.usedAt < %s
           AND qr.turnPackageId IS NOT NULL
           
         GROUP BY tu.machineId, tp.id, tp.name, tp.turns
@@ -469,13 +536,14 @@ def _group_liquidations_by_machine(rows):
     return grouped
 
 
-def _build_machine_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col=False):
-    fecha_ini_prev, fecha_fin_prev = _get_previous_period(fecha_inicio, fecha_fin)
-    resumen_actual, paq_actuales  = _fetch_usage_summary(cursor, fecha_inicio, fecha_fin, tiene_admin_col)
-    resumen_previo, _             = _fetch_usage_summary(cursor, fecha_ini_prev, fecha_fin_prev, tiene_admin_col)
+def _build_machine_summary(cursor, inicio_dt, fin_dt, tiene_admin_col=False):
+    ini_prev_dt, fin_prev_dt = _get_previous_period_dt(inicio_dt, fin_dt)
+    resumen_actual, paq_actuales  = _fetch_usage_summary(cursor, inicio_dt, fin_dt, tiene_admin_col)
+    resumen_previo, _             = _fetch_usage_summary(cursor, ini_prev_dt, fin_prev_dt, tiene_admin_col)
 
-    liq_actuales = _fetch_machine_liquidations(cursor, fecha_inicio, fecha_fin)
-    liq_previas  = _fetch_machine_liquidations(cursor, fecha_ini_prev, fecha_fin_prev)
+    # liquidaciones (snapshots manuales por máquina) se filtran por DÍA, no por hora.
+    liq_actuales = _fetch_machine_liquidations(cursor, inicio_dt.date(), fin_dt.date())
+    liq_previas  = _fetch_machine_liquidations(cursor, ini_prev_dt.date(), fin_prev_dt.date())
     manual_act   = _group_liquidations_by_machine(liq_actuales)
     manual_prev  = _group_liquidations_by_machine(liq_previas)
 
@@ -543,7 +611,7 @@ def _build_propietarios_distribution(cursor, fecha_inicio, fecha_fin):
         FROM maquinapropietario mp
         JOIN propietarios p ON mp.propietario_id = p.id
         JOIN machine m ON mp.maquina_id = m.id
-        LEFT JOIN turnusage tu ON tu.machineId = m.id AND DATE(tu.usedAt) BETWEEN %s AND %s
+        LEFT JOIN turnusage tu ON tu.machineId = m.id AND tu.usedAt >= %s AND tu.usedAt < %s
         LEFT JOIN qrcode qr ON tu.qrCodeId = qr.id
         LEFT JOIN turnpackage tp ON qr.turnPackageId = tp.id
         LEFT JOIN qrhistory qh ON qh.qr_code = qr.code AND qh.es_venta_real = TRUE
@@ -612,7 +680,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         JOIN maquinapropietario mp ON mp.maquina_id   = m.id
         JOIN propietarios        p ON p.id             = mp.propietario_id
         LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
-        WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+        WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
           AND qr.turnPackageId IS NOT NULL
           
           AND qh.es_venta_real = TRUE
@@ -698,8 +766,9 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
     return resultado
 
 
-def _build_period_comparison(cursor, fecha_inicio, fecha_fin):
-    fecha_ini_prev, fecha_fin_prev = _get_previous_period(fecha_inicio, fecha_fin)
+def _build_period_comparison(cursor, inicio_dt, fin_dt):
+    fecha_inicio, fecha_fin = inicio_dt, fin_dt
+    fecha_ini_prev, fecha_fin_prev = _get_previous_period_dt(inicio_dt, fin_dt)
 
     def _period_totals(start, end):
         cursor.execute(
@@ -710,7 +779,7 @@ def _build_period_comparison(cursor, fecha_inicio, fecha_fin):
             FROM qrhistory qh
             JOIN qrcode qr ON qr.code = qh.qr_code
             JOIN turnpackage tp ON qr.turnPackageId = tp.id
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
               AND qh.es_venta_real = TRUE
               AND qr.turnPackageId IS NOT NULL
               
@@ -728,13 +797,13 @@ def _build_period_comparison(cursor, fecha_inicio, fecha_fin):
 
     return {
         'periodo_actual': {
-            'fecha_inicio': fecha_inicio.isoformat(),
-            'fecha_fin':    fecha_fin.isoformat(),
+            'fecha_inicio': fecha_inicio.date().isoformat(),
+            'fecha_fin':    fecha_fin.date().isoformat(),
             **actual,
         },
         'periodo_previo': {
-            'fecha_inicio': fecha_ini_prev.isoformat(),
-            'fecha_fin':    fecha_fin_prev.isoformat(),
+            'fecha_inicio': fecha_ini_prev.date().isoformat(),
+            'fecha_fin':    fecha_fin_prev.date().isoformat(),
             **previo,
         },
         'variacion_ingresos_pct': _pct_change(actual['ingresos'], previo['ingresos']),
@@ -799,26 +868,48 @@ def _fetch_historial_cierres(cursor, limite=5):
 
 
 def _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin):
+    """Gastos informativos del período. Devuelve categoria y fecha (el frontend
+    los muestra). Filtra por la fecha del gasto dentro del período; los gastos sin
+    fecha (legacy) se incluyen siempre."""
     if not _table_exists(cursor, 'gastos_liquidacion'):
         return []
+
+    def _row(g):
+        fecha = g.get('fecha')
+        return {
+            'id':        g['id'],
+            'concepto':  g['concepto'],
+            'monto':     float(g['monto']),
+            'categoria': g.get('categoria') or 'otro',
+            'fecha':     fecha.isoformat() if hasattr(fecha, 'isoformat') else (fecha or None),
+        }
+
     try:
         cursor.execute(
-            """SELECT id, concepto, monto
+            """SELECT id, concepto, monto, categoria, fecha
                FROM gastos_liquidacion
-               ORDER BY id DESC
+               WHERE fecha IS NULL OR fecha BETWEEN %s AND %s
+               ORDER BY COALESCE(fecha, CURDATE()) DESC, id DESC
                LIMIT 100""",
+            (fecha_inicio, fecha_fin),
         )
-        return [
-            {
-                'id':       g['id'],
-                'concepto': g['concepto'],
-                'monto':    float(g['monto']),
-            }
-            for g in cursor.fetchall()
-        ]
+        return [_row(g) for g in cursor.fetchall()]
     except Exception as e:
-        logger.warning(f"Error obteniendo gastos: {e}")
-        return []
+        # Entorno sin la migración V67 (columnas categoria/fecha aún no existen):
+        # caer al esquema mínimo para no romper la pantalla.
+        logger.warning(f"Gastos: esquema reducido ({e}); usando fallback sin categoria/fecha")
+        try:
+            cursor.execute(
+                "SELECT id, concepto, monto FROM gastos_liquidacion ORDER BY id DESC LIMIT 100"
+            )
+            return [
+                {'id': g['id'], 'concepto': g['concepto'], 'monto': float(g['monto']),
+                 'categoria': 'otro', 'fecha': None}
+                for g in cursor.fetchall()
+            ]
+        except Exception as e2:
+            logger.warning(f"Error obteniendo gastos: {e2}")
+            return []
 
 
 # ─── Calcular liquidación ──────────────────────────────────────────────────────
@@ -843,7 +934,10 @@ def calcular_liquidacion():
         cursor = get_db_cursor(connection)
 
         local_id, local_nombre = _current_closure_scope()
-        cierre_existente = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin)
+        # Límites datetime medio-abiertos [inicio_dt, fin_dt): el inicio encadena
+        # desde el último cierre (por hora), el fin es 'ahora' para el período abierto.
+        inicio_dt, fin_dt = _resolve_period_bounds(cursor, local_id, fecha_inicio, fecha_fin)
+        cierre_existente = _find_existing_cierre(cursor, local_id, inicio_dt, fin_dt)
 
         tiene_porcentaje       = _table_exists(cursor, 'maquinaporcentajerestaurante')
         tiene_propietarios     = _table_exists(cursor, 'maquinapropietario')
@@ -851,23 +945,23 @@ def calcular_liquidacion():
         tiene_admin            = _has_admin_col(cursor) if tiene_porcentaje else False
 
         # Resumen de paquetes vendidos (fuente canónica de ingresos — sin JOIN a turnusage)
-        paquetes_resumen = _fetch_package_summary(cursor, fecha_inicio, fecha_fin)
-        turnos_summary   = _fetch_turnos_summary(cursor, fecha_inicio, fecha_fin, paquetes_resumen)
+        paquetes_resumen = _fetch_package_summary(cursor, inicio_dt, fin_dt)
+        turnos_summary   = _fetch_turnos_summary(cursor, inicio_dt, fin_dt, paquetes_resumen)
         # total_ingresos derivado de paquetes para evitar multiplicación por filas de turnusage
         total_ingresos = sum(p['ingresos_totales'] for p in paquetes_resumen)
-        top3_maquinas    = _fetch_top3_maquinas(cursor, fecha_inicio, fecha_fin)
+        top3_maquinas    = _fetch_top3_maquinas(cursor, inicio_dt, fin_dt)
 
         # Resumen por máquina, comparativos, propietarios
         resumen_maquinas, liquidaciones_maquinas, _ = _build_machine_summary(
-            cursor, fecha_inicio, fecha_fin, tiene_admin
+            cursor, inicio_dt, fin_dt, tiene_admin
         )
         distribucion_propietarios = (
-            _build_propietarios_distribution(cursor, fecha_inicio, fecha_fin)
+            _build_propietarios_distribution(cursor, inicio_dt, fin_dt)
             if tiene_propietarios and tiene_tabla_propietarios
             else {}
         )
-        inversionistas = _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fin)
-        comparativos   = _build_period_comparison(cursor, fecha_inicio, fecha_fin)
+        inversionistas = _build_investor_liquidation(cursor, resumen_maquinas, inicio_dt, fin_dt)
+        comparativos   = _build_period_comparison(cursor, inicio_dt, fin_dt)
 
         # Porcentajes promedio configurados por máquina (o defaults si no hay config)
         pct_negocio = RESTAURANT_PERCENTAGE_DEFAULT
@@ -925,13 +1019,13 @@ def calcular_liquidacion():
                 LEFT JOIN maquinapropietario mp ON m.id = mp.maquina_id
                 LEFT JOIN propietarios p ON mp.propietario_id = p.id
                 LEFT JOIN campaign c ON c.id = qh.campaign_id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
                   AND qr.turnPackageId IS NOT NULL
                   AND qh.es_venta_real = TRUE
                   {loc_cond}
                 ORDER BY qh.fecha_hora DESC
                 """
-            datos_params = [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [fecha_inicio, fecha_fin] + loc_params
+            datos_params = [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [inicio_dt, fin_dt] + loc_params
         else:
             datos_sql, datos_params = apply_location_filter(
                 """
@@ -955,12 +1049,12 @@ def calcular_liquidacion():
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
                 LEFT JOIN campaign c ON c.id = qh.campaign_id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
                   AND qr.turnPackageId IS NOT NULL
                   AND qh.es_venta_real = TRUE
                 ORDER BY qh.fecha_hora DESC
                 """,
-                [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [fecha_inicio, fecha_fin],
+                [RESTAURANT_PERCENTAGE_DEFAULT] * 3 + [inicio_dt, fin_dt],
                 column='location_id', table_alias='tp',
             )
         cursor.execute(datos_sql, datos_params)
@@ -994,7 +1088,7 @@ def calcular_liquidacion():
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
                   AND qr.turnPackageId IS NOT NULL
                   
                   AND qh.es_venta_real = TRUE
@@ -1002,7 +1096,7 @@ def calcular_liquidacion():
                 GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
                 ORDER BY valor_total DESC, total_ventas DESC
             """
-            metodos_params = [fecha_inicio, fecha_fin] + loc_params
+            metodos_params = [inicio_dt, fin_dt] + loc_params
         else:
             metodos_sql, metodos_params = apply_location_filter(
                 """
@@ -1013,14 +1107,14 @@ def calcular_liquidacion():
                 FROM qrhistory qh
                 JOIN qrcode qr ON qr.code = qh.qr_code
                 JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+                WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
                   AND qr.turnPackageId IS NOT NULL
                   
                   AND qh.es_venta_real = TRUE
                 GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
                 ORDER BY valor_total DESC, total_ventas DESC
                 """,
-                [fecha_inicio, fecha_fin],
+                [inicio_dt, fin_dt],
                 column='location_id', table_alias='tp',
             )
         cursor.execute(metodos_sql, metodos_params)
@@ -1046,8 +1140,12 @@ def calcular_liquidacion():
                 'tiene_columna_admin':             tiene_admin,
             },
             'periodo': {
-                'fecha_inicio':      fecha_inicio.isoformat(),
-                'fecha_fin':         fecha_fin.isoformat(),
+                'fecha_inicio':      inicio_dt.date().isoformat(),
+                'fecha_fin':         fin_dt.date().isoformat(),
+                'inicio_dt':         inicio_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'fin_dt':            fin_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                'inicio_label':      inicio_dt.strftime('%d/%m/%Y %I:%M %p'),
+                'fin_label':         fin_dt.strftime('%d/%m/%Y %I:%M %p'),
                 'local_id':          local_id,
                 'local_nombre':      local_nombre,
                 'total_ventas':      sum(p['paquetes_vendidos'] for p in paquetes_resumen),
@@ -1122,7 +1220,7 @@ def obtener_ventas_liquidadas():
                FROM qrhistory qh
                JOIN qrcode qr ON qr.code = qh.qr_code
                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-               WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+               WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
                  AND qr.turnPackageId IS NOT NULL
                  
                  AND qh.es_venta_real = TRUE""",
@@ -1178,7 +1276,7 @@ def obtener_ventas_liquidadas():
             LEFT JOIN campaign_rule cr ON cr.campaign_id = c.id
             {mpr_join}
             {mp_join}
-            WHERE DATE(qh.fecha_hora) BETWEEN %s AND %s
+            WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
               AND qr.turnPackageId IS NOT NULL
               
               AND qh.es_venta_real = TRUE
@@ -1264,6 +1362,8 @@ def registrar_gasto():
         data      = request.get_json() or {}
         concepto  = (data.get('concepto') or '').strip()
         monto     = _to_float(data.get('monto'))
+        categoria = (data.get('categoria') or 'otro').strip() or 'otro'
+        fecha     = _parse_date(data.get('fecha'), get_colombia_time().date())
 
         if not concepto or monto <= 0:
             return api_response('E002', http_status=400)
@@ -1274,12 +1374,17 @@ def registrar_gasto():
         cursor = get_db_cursor(connection)
 
         cursor.execute(
-            """INSERT INTO gastos_liquidacion (concepto, monto, usuario_id)
-               VALUES (%s, %s, %s)""",
-            (concepto, monto, session.get('user_id')),
+            """INSERT INTO gastos_liquidacion (concepto, monto, categoria, fecha, usuario_id)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (concepto, monto, categoria, fecha, session.get('user_id')),
         )
         connection.commit()
-        return jsonify({'success': True, 'id': cursor.lastrowid})
+        return jsonify({
+            'success': True,
+            'id': cursor.lastrowid,
+            'categoria': categoria,
+            'fecha': fecha.isoformat(),
+        })
 
     except Exception as e:
         logger.error(f'Error registrando gasto: {e}', exc_info=True)
@@ -1323,10 +1428,7 @@ def cerrar_liquidacion():
     cursor = None
     try:
         data           = request.get_json() or {}
-        fecha_inicio   = _parse_date(data.get('fecha_inicio'), get_colombia_time().date()).isoformat()
-        fecha_fin      = _parse_date(data.get('fecha_fin'),    get_colombia_time().date()).isoformat()
-        if fecha_inicio > fecha_fin:
-            fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
+        fecha_inicio_sel = _parse_date(data.get('fecha_inicio'), get_colombia_time().date())
         total_ingresos = _to_float(data.get('total_ingresos'))
         total_negocio  = _to_float(data.get('total_negocio'))
         total_admin    = _to_float(data.get('total_admin'))
@@ -1338,37 +1440,45 @@ def cerrar_liquidacion():
         if local_id in ('', None):
             local_id = session.get('active_location_id')
 
-        if not fecha_inicio or not fecha_fin:
-            return api_response('E002', http_status=400)
-
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
-        existing_close = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin)
+        # El cierre TERMINA en el instante actual (hora real) y ARRANCA donde terminó
+        # el último cierre de este local. Así varios cierres el mismo día no chocan y
+        # el siguiente período empieza exactamente en este instante.
+        fin_dt   = _now_naive()
+        last_fin = _last_close_fin_dt(cursor, local_id)
+        inicio_dt = last_fin if last_fin is not None else datetime.combine(fecha_inicio_sel, time.min)
+        if inicio_dt > fin_dt:
+            inicio_dt = datetime.combine(fecha_inicio_sel, time.min)
+        fecha_inicio = inicio_dt.date().isoformat()
+        fecha_fin    = fin_dt.date().isoformat()
+
+        existing_close = _find_existing_cierre(cursor, local_id, inicio_dt, fin_dt)
         if existing_close:
             return jsonify({
                 'success': False,
                 'message': (
                     f"Ya existe un cierre para {existing_close['local_nombre']} "
-                    f"que cubre fechas entre {existing_close['fecha_inicio']} y {existing_close['fecha_fin']}."
+                    f"que cubre el período {existing_close['fecha_inicio']} → {existing_close['fecha_fin']}."
                 ),
                 'existing_close': existing_close,
             }), 409
 
         cursor.execute(
             """INSERT INTO cierre_liquidacion
-               (local_id, fecha_inicio, fecha_fin, total_ingresos, total_negocio,
+               (local_id, fecha_inicio, fecha_fin, inicio_dt, fin_dt, total_ingresos, total_negocio,
                 total_admin, total_utilidad, pct_negocio, pct_admin, observaciones, usuario_id)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (local_id, fecha_inicio, fecha_fin, total_ingresos, total_negocio,
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (local_id, fecha_inicio, fecha_fin, inicio_dt, fin_dt, total_ingresos, total_negocio,
              total_admin, total_utilidad, pct_negocio, pct_admin,
              observaciones, session.get('user_id')),
         )
         connection.commit()
         cierre_id = cursor.lastrowid
-        cierre_data = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin) or {
+        cierre_data = _find_existing_cierre(cursor, local_id, inicio_dt, fin_dt) or {
             'id': cierre_id,
             'local_id': local_id,
             'local_nombre': _current_closure_scope()[1],
@@ -1391,9 +1501,9 @@ def cerrar_liquidacion():
             connection.rollback()
         if 'Ya existe un cierre de liquidacion' in str(e):
             existing_close = None
-            if cursor:
+            if cursor and 'inicio_dt' in locals() and 'fin_dt' in locals():
                 try:
-                    existing_close = _find_existing_cierre(cursor, local_id, fecha_inicio, fecha_fin)
+                    existing_close = _find_existing_cierre(cursor, local_id, inicio_dt, fin_dt)
                 except Exception:
                     existing_close = None
             return jsonify({
