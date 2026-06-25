@@ -307,15 +307,15 @@
                 <div class="tab-info" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af">
                     <i class="fas fa-info-circle mr-2"></i>
                     <strong>Resumen financiero del período.</strong>
-                    Los ingresos por venta de paquetes QR se dividen en tres partes fijas:
-                    <span class="font-semibold text-green-700">Negocio</span> (restaurante),
-                    <span class="font-semibold text-orange-700">Administración</span> (Inversiones Arcade) y
-                    <span class="font-semibold text-purple-700">Utilidad</span> (inversionistas).
+                    De cada venta de paquetes QR, una parte
+                    <span class="font-semibold text-green-700">le corresponde al negocio</span> (restaurante)
+                    y el resto es el <span class="font-semibold text-purple-700">total proveedor</span>
+                    que el negocio entrega a Inversiones Arcade.
                     Pasa el cursor sobre los <i class="fas fa-info-circle"></i> para entender cada dato.
                 </div>
 
-                <!-- KPIs 4 tarjetas -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                <!-- KPIs 3 tarjetas (vista negocio) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                     <div class="kpi-card" style="border-color:#2563eb">
                         <div class="kpi-label">Ingresos Totales
                             <span class="tip-wrap"><i class="fas fa-info-circle tip-icon"></i>
@@ -325,38 +325,28 @@
                         <div class="kpi-pct" id="kpiTotalPct"></div>
                     </div>
                     <div class="kpi-card" style="border-color:#059669">
-                        <div class="kpi-label">Negocio <span class="text-xs font-normal" id="kpiNegPct"></span>
+                        <div class="kpi-label">Corresponde al negocio <span class="text-xs font-normal" id="kpiNegPct"></span>
                             <span class="tip-wrap"><i class="fas fa-info-circle tip-icon"></i>
-                            <span class="tip-text">Porcentaje que va al restaurante/local por ceder el espacio físico</span></span>
+                            <span class="tip-text">Porcentaje que se queda el restaurante/local por ceder el espacio físico</span></span>
                         </div>
                         <div class="kpi-value" id="kpiNeg">$0</div>
                         <div class="text-xs text-gray-400">Restaurante / Local</div>
                     </div>
-                    <div class="kpi-card" style="border-color:#d97706">
-                        <div class="kpi-label">Administración <span class="text-xs font-normal" id="kpiAdmPct"></span>
-                            <span class="tip-wrap"><i class="fas fa-info-circle tip-icon"></i>
-                            <span class="tip-text">Cobrado por Inversiones Arcade por operar el negocio (mantenimiento, gestión, soporte)</span></span>
-                        </div>
-                        <div class="kpi-value" id="kpiAdm">$0</div>
-                        <div class="text-xs text-gray-400">Inversiones Arcade</div>
-                    </div>
                     <div class="kpi-card" style="border-color:#7c3aed">
-                        <div class="kpi-label">Utilidad <span class="text-xs font-normal" id="kpiUtilPct"></span>
+                        <div class="kpi-label">Total proveedor <span class="text-xs font-normal" id="kpiProvPct"></span>
                             <span class="tip-wrap"><i class="fas fa-info-circle tip-icon"></i>
-                            <span class="tip-text">Ganancia neta = Ingresos − Negocio − Administración. Se reparte entre inversionistas según % de propiedad.</span></span>
+                            <span class="tip-text">Dinero que el negocio entrega a Inversiones Arcade = Ingresos − Negocio</span></span>
                         </div>
-                        <div class="kpi-value" id="kpiUtil">$0</div>
-                        <div class="text-xs text-gray-400">Base inversionistas</div>
+                        <div class="kpi-value" id="kpiProv">$0</div>
+                        <div class="text-xs text-gray-400">A entregar a Inversiones Arcade</div>
                     </div>
                 </div>
-                <!-- Fórmula 3-way -->
+                <!-- Fórmula negocio -->
                 <div class="formula-strip">
                     <span class="text-xs text-gray-500 font-semibold">Cada peso se distribuye en:</span>
-                    <span class="f-pill bg-green-100 text-green-800"><i class="fas fa-store"></i> Negocio</span>
+                    <span class="f-pill bg-green-100 text-green-800"><i class="fas fa-store"></i> Corresponde al negocio</span>
                     <span class="text-gray-400 text-sm font-bold">+</span>
-                    <span class="f-pill bg-orange-100 text-orange-800"><i class="fas fa-cog"></i> Administración</span>
-                    <span class="text-gray-400 text-sm font-bold">+</span>
-                    <span class="f-pill bg-purple-100 text-purple-800"><i class="fas fa-chart-pie"></i> Utilidad inversionistas</span>
+                    <span class="f-pill bg-purple-100 text-purple-800"><i class="fas fa-handshake"></i> Total proveedor</span>
                     <span class="text-gray-400 text-sm font-bold">=</span>
                     <span class="f-pill bg-blue-100 text-blue-800">100%</span>
                 </div>
@@ -874,10 +864,8 @@ function renderNegocio(data) {
     document.getElementById('kpiTotalPct').innerHTML = pctBadge(variacion) + ' vs período anterior';
     document.getElementById('kpiNeg').textContent    = fmt((d.negocio || {}).monto);
     document.getElementById('kpiNegPct').textContent = fmtD((d.negocio || {}).pct);
-    document.getElementById('kpiAdm').textContent    = fmt((d.admin || {}).monto);
-    document.getElementById('kpiAdmPct').textContent = fmtD((d.admin || {}).pct);
-    document.getElementById('kpiUtil').textContent   = fmt((d.utilidad || {}).monto);
-    document.getElementById('kpiUtilPct').textContent = fmtD((d.utilidad || {}).pct);
+    document.getElementById('kpiProv').textContent    = fmt((d.proveedor || {}).monto);
+    document.getElementById('kpiProvPct').textContent = fmtD((d.proveedor || {}).pct);
 
     document.getElementById('comparPct').innerHTML =
         `<i class="fas fa-arrow-${variacion >= 0 ? 'up' : 'down'} mr-1"></i>${Math.abs(variacion).toFixed(1)}% vs anterior`;
@@ -1306,12 +1294,10 @@ function abrirModalCierre() {
             <strong>${p.local_nombre || 'Todos los locales'}</strong></div>
         <div class="flex justify-between"><span class="text-gray-600">Ingresos totales</span>
             <strong class="text-blue-700">${fmt(d.total_ingresos)}</strong></div>
-        <div class="flex justify-between"><span class="text-gray-600">Negocio (${fmtD((d.negocio||{}).pct)})</span>
+        <div class="flex justify-between"><span class="text-gray-600">Corresponde al negocio (${fmtD((d.negocio||{}).pct)})</span>
             <strong class="text-green-700">${fmt((d.negocio||{}).monto)}</strong></div>
-        <div class="flex justify-between"><span class="text-gray-600">Administración (${fmtD((d.admin||{}).pct)})</span>
-            <strong class="text-orange-700">${fmt((d.admin||{}).monto)}</strong></div>
-        <div class="flex justify-between"><span class="text-gray-600">Utilidad (${fmtD((d.utilidad||{}).pct)})</span>
-            <strong class="text-purple-700">${fmt((d.utilidad||{}).monto)}</strong></div>
+        <div class="flex justify-between"><span class="text-gray-600">Total proveedor (${fmtD((d.proveedor||{}).pct)})</span>
+            <strong class="text-purple-700">${fmt((d.proveedor||{}).monto)}</strong></div>
     `;
     abrirModal('modalCierre');
 }
@@ -1706,8 +1692,7 @@ function generarPDFNegocio() {
     </tr>`).join('');
 
     const neg = dist.negocio || {};
-    const adm = dist.admin || {};
-    const util = dist.utilidad || {};
+    const prov = dist.proveedor || {};
 
     _abrirVentanaPDF(`<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
@@ -1729,27 +1714,26 @@ function generarPDFNegocio() {
     <div class="kpi-value">${fmtP(dist.total_ingresos)}</div>
   </div>
   <div class="kpi" style="border-color:#059669;background:#f0fdf4">
-    <div class="kpi-label">% Negocio aplicado</div>
-    <div class="kpi-value">${(+neg.pct||0).toFixed(1)}%</div>
-  </div>
-  <div class="kpi" style="border-color:#059669;background:#f0fdf4">
-    <div class="kpi-label">Corresponde al Negocio</div>
+    <div class="kpi-label">Corresponde al Negocio (${(+neg.pct||0).toFixed(1)}%)</div>
     <div class="kpi-value">${fmtP(neg.monto)}</div>
+  </div>
+  <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
+    <div class="kpi-label">Total proveedor (${(+prov.pct||0).toFixed(1)}%)</div>
+    <div class="kpi-value">${fmtP(prov.monto)}</div>
   </div>
 </div>
 
 <div class="highlight">
-  <div class="highlight-label">Total a recibir — ${periodo.local_nombre || 'Negocio'}</div>
-  <div class="highlight-value">${fmtP(neg.monto)}</div>
+  <div class="highlight-label">Total a entregar al proveedor &mdash; ${periodo.local_nombre || 'Negocio'}</div>
+  <div class="highlight-value">${fmtP(prov.monto)}</div>
 </div>
 
 <h2>Distribución Oficial del Cierre</h2>
 <table>
   <thead><tr><th>Concepto</th><th>Porcentaje</th><th>Total</th></tr></thead>
   <tbody>
-    <tr><td>Negocio</td><td class="r">${(+neg.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(neg.monto)}</strong></td></tr>
-    <tr><td>Administración</td><td class="r">${(+adm.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(adm.monto)}</strong></td></tr>
-    <tr><td>Utilidad</td><td class="r">${(+util.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(util.monto)}</strong></td></tr>
+    <tr><td>Corresponde al negocio</td><td class="r">${(+neg.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(neg.monto)}</strong></td></tr>
+    <tr><td>Total proveedor (a entregar)</td><td class="r">${(+prov.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(prov.monto)}</strong></td></tr>
   </tbody>
 </table>
 

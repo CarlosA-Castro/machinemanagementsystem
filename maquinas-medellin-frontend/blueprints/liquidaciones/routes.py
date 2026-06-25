@@ -1007,12 +1007,17 @@ def calcular_liquidacion():
         total_negocio_v  = total_ingresos * pct_negocio / 100
         total_admin_v    = total_ingresos * pct_admin   / 100
         total_utilidad_v = total_ingresos - total_negocio_v - total_admin_v
+        # "Proveedor" = lo que el negocio entrega a Inversiones Arcade = ingreso - negocio.
+        # Internamente se descompone en admin (Arcade) + utilidad (inversionistas), pero
+        # de cara al restaurante se muestra como una sola cifra (sin desglosar admin).
+        total_proveedor_v = total_admin_v + total_utilidad_v
 
         distribucion = {
             'total_ingresos': total_ingresos,
             'negocio':  {'pct': round(pct_negocio, 2),           'monto': round(total_negocio_v, 2)},
             'admin':    {'pct': round(pct_admin, 2),             'monto': round(total_admin_v, 2)},
             'utilidad': {'pct': round(100 - pct_negocio - pct_admin, 2), 'monto': round(total_utilidad_v, 2)},
+            'proveedor': {'pct': round(100 - pct_negocio, 2),    'monto': round(total_proveedor_v, 2)},
         }
 
         # Tabla detallada
@@ -1199,7 +1204,9 @@ def calcular_liquidacion():
                 'ganancia_admin':     round(total_admin_v, 2),
                 'ganancia_utilidad':  round(total_utilidad_v, 2),
                 'ganancia_restaurante': round(total_negocio_v, 2),
-                'ganancia_proveedores': round(total_utilidad_v, 2),
+                # "proveedores" = lo que recibe el proveedor en bruto = admin + utilidad.
+                'ganancia_proveedores': round(total_proveedor_v, 2),
+                'total_proveedor':    round(total_proveedor_v, 2),
             },
         })
 
@@ -1335,7 +1342,8 @@ def obtener_ventas_liquidadas():
             'gananciaAdmin':    round(total_admin_v, 2),
             'gananciaUtilidad': round(total_utilidad, 2),
             'gananciaRestaurante': round(total_negocio, 2),
-            'gananciaProveedor':   round(total_utilidad, 2),
+            # Proveedor en bruto = admin + utilidad (lo que el negocio entrega al proveedor).
+            'gananciaProveedor':   round(total_admin_v + total_utilidad, 2),
             'paginaActual':     pagina,
             'totalPaginas':     (total + por_pagina - 1) // por_pagina,
         })
