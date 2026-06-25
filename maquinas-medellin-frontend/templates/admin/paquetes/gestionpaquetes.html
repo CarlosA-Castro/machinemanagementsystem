@@ -498,6 +498,7 @@
     <script>
         const PaquetesApp = {
             paqueteAEliminar: null,
+            forzarEliminar: false,
 
             init: function() {
                 // Configurar partículas
@@ -864,7 +865,8 @@
 
             eliminarPaquete: function(id, nombre) {
                 this.paqueteAEliminar = id;
-                document.getElementById('mensajeConfirmacion').textContent = 
+                this.forzarEliminar = false;
+                document.getElementById('mensajeConfirmacion').textContent =
                     `¿Estás seguro de que deseas eliminar el paquete "${nombre}"? Esta acción no se puede deshacer.`;
                 document.getElementById('modalConfirmar').classList.remove('hidden');
                 document.getElementById('modalConfirmar').classList.add('flex');
@@ -873,29 +875,53 @@
             confirmarEliminar: function() {
                 if (!this.paqueteAEliminar) return;
 
-                fetch(`/api/paquetes/${this.paqueteAEliminar}`, {
+                const force = this.forzarEliminar === true;
+                const url = `/api/paquetes/${this.paqueteAEliminar}` + (force ? '?force=true' : '');
+
+                fetch(url, {
                     method: 'DELETE',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 })
-                .then(response => {
-                    if (!response.ok) throw new Error('Error en la respuesta del servidor');
-                    return response.json();
-                })
-                .then(data => {
-                    this.mostrarAlerta('Paquete eliminado correctamente', 'success');
-                    this.cancelarEliminar();
-                    this.cargarPaquetes();
+                // Leemos SIEMPRE el cuerpo: el backend manda el motivo real (p. ej. "en uso").
+                .then(response => response.json().then(body => ({
+                    ok: response.ok, status: response.status, body
+                })))
+                .then(({ ok, status, body }) => {
+                    if (ok) {
+                        this.mostrarAlerta('Paquete eliminado correctamente', 'success');
+                        this.cancelarEliminar();
+                        this.cargarPaquetes();
+                        return;
+                    }
+
+                    const data = (body && body.data) || {};
+                    // Paquete en uso por QRs (400 W004): ofrecer borrado forzado.
+                    // Los QRs conservan su historial; solo pierden el vínculo al paquete.
+                    if (status === 400 && data.uso_count && !force) {
+                        this.forzarEliminar = true;
+                        document.getElementById('mensajeConfirmacion').textContent =
+                            `Este paquete tiene ${data.uso_count} código(s) QR asociados. ` +
+                            `Si lo eliminas, esos QR conservarán su historial de ventas pero ` +
+                            `quedarán sin paquete. ¿Eliminar de todas formas?`;
+                        return; // El modal sigue abierto; "Confirmar" reintentará con force.
+                    }
+
+                    const msg = data.message || (body && body.message) || 'Error al eliminar el paquete';
+                    this.mostrarError(msg);
+                    this.forzarEliminar = false;
                 })
                 .catch(error => {
                     console.error('Error eliminando paquete:', error);
                     this.mostrarError('Error al eliminar el paquete');
+                    this.forzarEliminar = false;
                 });
             },
 
             cancelarEliminar: function() {
                 this.paqueteAEliminar = null;
+                this.forzarEliminar = false;
                 document.getElementById('modalConfirmar').classList.add('hidden');
                 document.getElementById('modalConfirmar').classList.remove('flex');
             },

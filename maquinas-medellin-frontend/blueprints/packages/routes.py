@@ -224,7 +224,12 @@ def eliminar_paquete(paquete_id):
         """, (paquete_id,))
         uso_count = cursor.fetchone()['uso_count']
 
-        if uso_count > 0:
+        # 'force' permite el borrado aun con QRs asociados. Gracias a la FK
+        # fk_qrcode_turnpackage (ON DELETE SET NULL, V69), esos QRs sobreviven con
+        # turnPackageId = NULL y conservan su historial (turnusage/userturns intactos).
+        force = request.args.get('force', '').lower() in ('1', 'true', 'yes')
+
+        if uso_count > 0 and not force:
             return api_response(
                 'W004',
                 status='warning',
@@ -238,7 +243,10 @@ def eliminar_paquete(paquete_id):
         cursor.execute("DELETE FROM turnpackage WHERE id = %s", (paquete_id,))
         connection.commit()
 
-        logger.info(f"Paquete eliminado: {paquete['name']} (ID: {paquete_id})")
+        logger.info(
+            f"Paquete eliminado: {paquete['name']} (ID: {paquete_id}) "
+            f"[force={force}, qrs_desvinculados={uso_count}]"
+        )
 
         return api_response('S004', status='success')
 
