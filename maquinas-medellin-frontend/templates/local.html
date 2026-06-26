@@ -887,14 +887,17 @@ fetch('/api/mis-permisos')
         }, 200);
         };
 
-        // Térmica directa si hay QZ Tray + impresora; si no, PDF de respaldo.
-        this.qzConectar().then(ok => {
-          if (ok && this.qzGetPrinter()) {
-            this.imprimirPorQZ([ticketQZ]).then(() => {
-              this.mostrarAlerta('✅ QR reimpreso en la térmica', 'success');
-            }).catch(() => { this.mostrarAlerta('⚠️ Falló la térmica, genero PDF', 'warning'); hacerPDF(); });
-          } else { hacerPDF(); }
-        });
+        // Térmica directa solo si esta PC tiene impresora configurada; si no, PDF directo
+        // (evita intentar conectar a QZ Tray en PCs que no lo usan).
+        if (this.qzGetPrinter()) {
+          this.qzConectar().then(ok => {
+            if (ok) {
+              this.imprimirPorQZ([ticketQZ]).then(() => {
+                this.mostrarAlerta('✅ QR reimpreso en la térmica', 'success');
+              }).catch(() => { this.mostrarAlerta('⚠️ Falló la térmica, genero PDF', 'warning'); hacerPDF(); });
+            } else { hacerPDF(); }
+          });
+        } else { hacerPDF(); }
       },
 
       verDetalles: function(codigo) {
@@ -1342,8 +1345,9 @@ fetch('/api/mis-permisos')
           };
 
           // Impresión térmica directa (QZ Tray) en el flujo PDF; si no hay QZ Tray o
-          // impresora configurada, o si falla, cae al PDF de respaldo.
-          if (tipo === 'pdf') {
+          // impresora configurada, o si falla, cae al PDF de respaldo. Solo se intenta QZ
+          // si esta PC tiene impresora guardada (las demás siguen igual que hoy, sin demora).
+          if (tipo === 'pdf' && this.qzGetPrinter()) {
             const precioRealQZ = paquete.finalPrice !== undefined ? paquete.finalPrice : parseFloat(paquete.price);
             const turnosRealQZ = paquete.finalTurns !== undefined ? paquete.finalTurns : parseInt(paquete.turns);
             const precioTxtQZ  = precioRealQZ === 0 ? 'GRATIS' : `$${precioRealQZ.toLocaleString('es-CO')}`;
@@ -1353,7 +1357,7 @@ fetch('/api/mis-permisos')
               campana: (paquete.campaign && paquete.campaign.name) || null, vence: expiracionQR || ''
             }));
             this.qzConectar().then(ok => {
-              if (ok && this.qzGetPrinter()) {
+              if (ok) {
                 this.imprimirPorQZ(tickets).then(() => {
                   this.mostrarAlerta(`✅ ${cantidad} tirilla(s) impresa(s) en la térmica`, "success");
                   this.cargarHistorialQR(); this.actualizarContadores();
