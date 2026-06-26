@@ -228,9 +228,10 @@
 
       <!-- Modal para detalles QR -->
       <div id="modalQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-4 lg:p-6 modal-content">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-4 lg:p-6 modal-content" style="max-height:90vh;overflow-y:auto;">
           <h2 class="text-xl font-bold mb-4">Detalles del QR</h2>
-          <div id="modalContenido" class="text-sm text-gray-700 space-y-2 max-h-60 overflow-y-auto">Cargando información...</div>
+          <div id="modalContenido" class="text-sm text-gray-700 space-y-2">Cargando información...</div>
+          <div id="modalJugadas" class="mt-4 text-sm text-gray-700"></div>
           <div class="mt-4 text-right">
             <button onclick="LocalApp.cerrarModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700 btn-touch">Cerrar</button>
           </div>
@@ -997,7 +998,52 @@ fetch('/api/mis-permisos')
           html += `</ul>`;
           document.getElementById("modalContenido").innerHTML = html;
         })
-        .catch(err => { document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">Error cargando historial</p>`; });
+        .catch(err => { document.getElementById("modalContenido").innerHTML = `<p class="text-red-500">Error cargando historial</p>`; })
+        .finally(() => { LocalApp._cargarJugadasQR(codigo); });
+      },
+
+      _cargarJugadasQR: function(codigo) {
+        const cont = document.getElementById("modalJugadas");
+        cont.innerHTML = `<div class="border-t border-gray-200 pt-4 mt-2"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-gamepad mr-1 text-purple-500"></i>Historial de jugadas</h3><div class="text-center text-gray-400 text-xs py-2"><div class="loading mx-auto mb-1"></div>Cargando jugadas...</div></div>`;
+        fetch(`/api/qr/${codigo}/jugadas`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(res => res.json())
+        .then(jugadas => {
+          if (!Array.isArray(jugadas) || jugadas.length === 0) {
+            cont.innerHTML = `<div class="border-t border-gray-200 pt-4 mt-2"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-gamepad mr-1 text-purple-500"></i>Historial de jugadas</h3><p class="text-gray-400 text-xs italic">Sin jugadas registradas para este QR.</p></div>`;
+            return;
+          }
+          let rows = jugadas.map((j, i) => {
+            const fecha = j.usedAt ? this.formatearFechaColombia(j.usedAt) : '—';
+            const estacion = j.station_index != null ? `Estación ${parseInt(j.station_index) + 1}` : '—';
+            const restantes = j.turns_remaining_after != null ? j.turns_remaining_after : '—';
+            return `<tr class="${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
+              <td class="px-2 py-1 font-medium text-gray-800">${j.machine_name || '—'}</td>
+              <td class="px-2 py-1 text-purple-700">${estacion}</td>
+              <td class="px-2 py-1 text-gray-600">${fecha}</td>
+              <td class="px-2 py-1 text-center text-gray-500">${restantes}</td>
+            </tr>`;
+          }).join('');
+          cont.innerHTML = `
+            <div class="border-t border-gray-200 pt-4 mt-2">
+              <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-gamepad mr-1 text-purple-500"></i>Historial de jugadas <span class="text-xs font-normal text-gray-400">(${jugadas.length})</span></h3>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead class="bg-purple-50 text-purple-700 uppercase text-xs">
+                    <tr>
+                      <th class="px-2 py-1 text-left">Máquina</th>
+                      <th class="px-2 py-1 text-left">Estación</th>
+                      <th class="px-2 py-1 text-left">Fecha y hora</th>
+                      <th class="px-2 py-1 text-center">Turnos tras uso</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>`;
+        })
+        .catch(() => {
+          document.getElementById("modalJugadas").innerHTML = `<div class="border-t border-gray-200 pt-4 mt-2 text-xs text-red-400">Error cargando jugadas.</div>`;
+        });
       },
 
       cerrarModal: function() {

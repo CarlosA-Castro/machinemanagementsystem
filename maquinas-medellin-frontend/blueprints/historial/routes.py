@@ -158,3 +158,59 @@ def obtener_historial_qr(qr_code):
             cursor.close()
         if connection:
             connection.close()
+
+
+@historial_bp.route('/api/qr/<qr_code>/jugadas', methods=['GET'])
+@handle_api_errors
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def obtener_jugadas_qr(qr_code):
+    """Historial de turnos usados (jugadas) para un QR específico."""
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+
+        cursor = get_db_cursor(connection)
+
+        cursor.execute(
+            """
+            SELECT
+                tu.id,
+                tu.usedAt,
+                tu.station_index,
+                tu.turns_remaining_after,
+                m.name  AS machine_name,
+                m.id    AS machine_id
+            FROM turnusage tu
+            JOIN qrcode qr  ON qr.id  = tu.qrCodeId
+            JOIN machine m  ON m.id   = tu.machineId
+            WHERE qr.code = %s
+            ORDER BY tu.usedAt DESC
+            LIMIT 50
+            """,
+            (qr_code,),
+        )
+
+        jugadas = cursor.fetchall()
+
+        for row in jugadas:
+            if row.get('usedAt'):
+                try:
+                    fecha_col = parse_db_datetime(row['usedAt'])
+                    row['usedAt'] = fecha_col.strftime('%Y-%m-%d %H:%M:%S')
+                except Exception:
+                    row['usedAt'] = str(row['usedAt'])
+
+        return jsonify(jugadas)
+
+    except Exception as e:
+        logger.error(f"Error obteniendo jugadas del QR {qr_code}: {e}")
+        sentry_sdk.capture_exception(e)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
