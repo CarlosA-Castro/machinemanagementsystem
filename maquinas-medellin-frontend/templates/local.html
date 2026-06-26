@@ -502,31 +502,51 @@
       // la térmica usa code page CP437 y los acentos saldrían como basura.
       escposTirilla: function(d) {
         const strB = s => Array.from(String(s)).map(c => c.charCodeAt(0) & 0xFF);
-        const qr = data => {
+        const qr = (data, size) => {
           const by = strB(data), n = by.length + 3;
           return [0x1D,0x28,0x6B,0x04,0x00,0x31,0x41,0x32,0x00]          // modelo 2
-            .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x43,0x08])           // tamaño módulo 8
+            .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x43, size])          // tamaño de módulo
             .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x45,0x31])           // EC nivel M
             .concat([0x1D,0x28,0x6B, n & 0xFF, (n>>8)&0xFF, 0x31,0x50,0x30]).concat(by) // datos
             .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x51,0x30]);          // imprimir
         };
+        const SZ  = n  => [0x1D,0x21, n];        // GS ! — tamaño de carácter (alto/ancho)
         const Bld = on => [0x1B,0x45, on ? 1 : 0];
         const C = [0x1B,0x61,0x01], L = [0x1B,0x61,0x00];
-        let b = [0x1B,0x40].concat(C).concat(qr(d.codigo)).concat(strB("\n")).concat(Bld(true));
-        if (d.reimpresion) b = b.concat(strB("*** REIMPRESION ***\n"));
-        b = b.concat(strB("Nombre: " + (d.nombre || 'Sin nombre') + "\n"));
-        b = b.concat(strB("Codigo: " + d.codigo + "\n"));
-        b = b.concat(strB("ID: " + d.id + "\n"));
-        if (d.paquete != null) b = b.concat(strB("Paquete: P" + d.paquete + "\n"));
-        if (d.precio)          b = b.concat(strB("Precio: " + d.precio + "\n"));
-        if (d.turnos != null)  b = b.concat(strB("Turnos: " + d.turnos + "\n"));
-        if (d.campana)         b = b.concat(strB("CAMPANA: " + d.campana + "\n"));
-        b = b.concat(Bld(false)).concat(strB("--------------------------------\n"));
-        b = b.concat(strB((d.vence ? ("Vence: " + d.vence + " - ") : "") + (d.reimpresion ? "Reimpresion - " : "") + "Presentar para canjear\n"));
-        b = b.concat(strB("\n")).concat(Bld(true)).concat(strB("COMO JUGAR\n")).concat(Bld(false)).concat(L);
-        b = b.concat(strB("Escanea este QR en la pantalla de la maquina para iniciar tu turno.\n\n"));
-        b = b.concat(C).concat(Bld(true)).concat(strB("FALLAS EN EL JUEGO?\n")).concat(Bld(false)).concat(L);
-        b = b.concat(strB("Si el juego falla, reportalo desde el boton del modulo de la maquina o acercate al cajero.\n"));
+        const NL = strB("\n");
+        let b = [0x1B,0x40].concat(C);           // init + centrar
+
+        // Encabezado
+        b = b.concat(Bld(true)).concat(SZ(0x11)).concat(strB("INVERSIONES ARCADE")).concat(SZ(0x00)).concat(Bld(false)).concat(NL).concat(NL);
+
+        // QR (más grande)
+        b = b.concat(qr(d.codigo, 0x0A)).concat(NL);
+
+        // Nombre destacado
+        if (d.reimpresion) b = b.concat(Bld(true)).concat(strB("*** REIMPRESION ***")).concat(Bld(false)).concat(NL);
+        b = b.concat(Bld(true)).concat(SZ(0x01)).concat(strB(d.nombre || 'Sin nombre')).concat(SZ(0x00)).concat(Bld(false)).concat(NL).concat(NL);
+
+        // Datos
+        b = b.concat(strB("Codigo: " + d.codigo)).concat(NL);
+        b = b.concat(strB("ID: " + d.id)).concat(NL);
+        if (d.paquete != null) b = b.concat(strB("Paquete: P" + d.paquete)).concat(NL);
+        const pt = [];
+        if (d.precio)         pt.push("Precio: " + d.precio);
+        if (d.turnos != null) pt.push("Turnos: " + d.turnos);
+        if (pt.length)        b = b.concat(Bld(true)).concat(strB(pt.join("    "))).concat(Bld(false)).concat(NL);
+        if (d.campana)        b = b.concat(strB("CAMPANA: " + d.campana)).concat(NL);
+
+        // Vencimiento
+        b = b.concat(strB("--------------------------------")).concat(NL);
+        if (d.vence) b = b.concat(strB("Vence: " + d.vence)).concat(NL);
+        b = b.concat(strB((d.reimpresion ? "Reimpresion - " : "") + "Presentar para canjear")).concat(NL).concat(NL);
+
+        // Instrucciones
+        b = b.concat(Bld(true)).concat(strB("COMO JUGAR")).concat(Bld(false)).concat(NL);
+        b = b.concat(L).concat(strB("Escanea el QR en la pantalla de la maquina para iniciar tu turno.")).concat(NL).concat(NL);
+        b = b.concat(C).concat(Bld(true)).concat(strB("FALLAS EN EL JUEGO?")).concat(Bld(false)).concat(NL);
+        b = b.concat(L).concat(strB("Si el juego falla, reportalo desde el boton del modulo o con el cajero.")).concat(NL);
+
         b = b.concat(strB("\n\n\n")).concat([0x1D,0x56,0x00]);    // avance + corte total
         return b.map(x => (x & 0xFF).toString(16).padStart(2,'0')).join('');
       },
