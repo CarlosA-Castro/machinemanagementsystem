@@ -2,6 +2,7 @@ flask==3.0.0
 flask-cors==4.0.0
 flask-limiter==3.9.0
 flask-wtf==1.2.2
+cryptography==44.0.0
 mysql-connector-python==8.3.0
 pytz==2024.1
 sentry-sdk[flask]==1.40.6

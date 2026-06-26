@@ -3247,3 +3247,45 @@ def debug_errorreport_estructura():
             cursor.close()
         if connection:
             connection.close()
+
+
+# ===== QZ Tray: firma de peticiones para impresión térmica silenciosa =====
+# La llave privada vive SOLO en el servidor (env QZ_PRIVATE_KEY_B64 = base64 del PEM).
+# El navegador pide la firma a /api/qz/sign y el cert público a /api/qz/cert; nunca ve
+# la llave. Si las llaves no están configuradas, ambos devuelven vacío y QZ Tray cae al
+# modo con aviso (comportamiento Fase 2), sin romper nada.
+
+def _qz_load_private_key():
+    import base64 as _b64, os as _os
+    from cryptography.hazmat.primitives import serialization
+    b64 = _os.getenv('QZ_PRIVATE_KEY_B64', '')
+    if not b64:
+        return None
+    return serialization.load_pem_private_key(_b64.b64decode(b64), password=None)
+
+
+@qr_bp.route('/api/qz/cert', methods=['GET'])
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def qz_cert():
+    """Certificado público para QZ Tray (setCertificatePromise)."""
+    import base64 as _b64, os as _os
+    b64 = _os.getenv('QZ_CERT_B64', '')
+    if not b64:
+        return '', 204
+    return _b64.b64decode(b64).decode('ascii'), 200, {'Content-Type': 'text/plain'}
+
+
+@qr_bp.route('/api/qz/sign', methods=['POST'])
+@require_login(['admin', 'cajero', 'admin_restaurante'])
+def qz_sign():
+    """Firma RSA-SHA512 la cadena que envía QZ Tray (setSignaturePromise)."""
+    import base64 as _b64
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import padding
+    key = _qz_load_private_key()
+    if key is None:
+        return '', 204
+    data = request.get_json(silent=True) or {}
+    to_sign = (data.get('request') or '')
+    signature = key.sign(to_sign.encode('utf-8'), padding.PKCS1v15(), hashes.SHA512())
+    return _b64.b64encode(signature).decode('ascii'), 200, {'Content-Type': 'text/plain'}

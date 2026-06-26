@@ -486,8 +486,22 @@
       qzConectar: function() {
         if (typeof qz === 'undefined') return Promise.resolve(false);
         if (!this._qzSec) {
-          qz.security.setCertificatePromise(function(resolve, reject){ reject(); });
-          qz.security.setSignaturePromise(function(){ return function(resolve){ resolve(); }; });
+          // Firma server-side: el certificado y la firma vienen del backend (la llave
+          // privada nunca llega al navegador). Si el backend responde vacío (sin llaves),
+          // QZ Tray cae al modo con aviso de permiso (comportamiento Fase 2).
+          qz.security.setCertificatePromise(function(resolve, reject){
+            fetch('/api/qz/cert').then(function(r){ return r.text(); }).then(resolve).catch(reject);
+          });
+          if (qz.security.setSignatureAlgorithm) qz.security.setSignatureAlgorithm('SHA512');
+          qz.security.setSignaturePromise(function(toSign){
+            return function(resolve, reject){
+              fetch('/api/qz/sign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ request: toSign })
+              }).then(function(r){ return r.text(); }).then(resolve).catch(reject);
+            };
+          });
           this._qzSec = true;
         }
         if (qz.websocket.isActive()) return Promise.resolve(true);

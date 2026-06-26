@@ -59,6 +59,9 @@ services:
       ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM}
       ALERT_EMAIL_PASSWORD: ${ALERT_EMAIL_PASSWORD}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO}
+      # QZ Tray — firma server-side para impresión térmica silenciosa (base64 de PEM)
+      QZ_PRIVATE_KEY_B64: ${QZ_PRIVATE_KEY_B64}
+      QZ_CERT_B64: ${QZ_CERT_B64}
     restart: always
 
   nginx:
