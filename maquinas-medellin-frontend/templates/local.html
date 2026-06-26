@@ -14,6 +14,8 @@
   <script src="https://unpkg.com/html5-qrcode@2.3.4/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- QZ Tray: puente para imprimir el QR nativo (ESC/POS) en la térmica 3nStar -->
+  <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
@@ -255,6 +257,11 @@
                 class="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg font-semibold btn-touch w-full">
           <i class="fas fa-file-pdf mr-2"></i>Generar Venta
         </button>
+        <div class="mt-3 text-xs text-gray-600 flex flex-wrap items-center gap-2">
+          <i class="fas fa-print text-gray-500"></i>
+          <span>Impresora térmica QR: <b id="qrPrinterLabel">no configurada</b></span>
+          <button onclick="LocalApp.configurarImpresoraQR()" class="text-blue-600 underline">Configurar</button>
+        </div>
       </div>
 
       <!-- Tabla de registros -->
@@ -318,6 +325,19 @@
         <i class="fas fa-sign-out-alt mr-1"></i>Salir
     </a>
 </div>
+
+  <!-- Modal para elegir impresora térmica QR (QZ Tray) -->
+  <div id="modalImpresoraQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+      <h3 class="text-lg font-bold mb-3 flex items-center gap-2"><i class="fas fa-print text-blue-600"></i>Impresora térmica para QR</h3>
+      <p id="qrPrinterMsg" class="text-sm text-gray-600 mb-3">Conectando a QZ Tray...</p>
+      <select id="qrPrinterSelect" class="w-full border border-gray-300 rounded-lg p-2 mb-4 hidden"></select>
+      <div class="flex justify-end gap-2">
+        <button onclick="LocalApp.cerrarModalImpresoraQR()" class="px-4 py-2 bg-gray-200 rounded-lg btn-touch">Cancelar</button>
+        <button id="qrPrinterSave" onclick="LocalApp.guardarImpresoraQR()" class="px-4 py-2 bg-blue-600 text-white rounded-lg btn-touch hidden">Guardar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal para generar QR -->
   <div id="modalGeneradorQR" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
@@ -461,7 +481,105 @@
         return y;
       },
 
+      // ===== Impresión térmica nativa vía QZ Tray (ESC/POS + QR nativo) =====
+      // El RPT004 dibuja el QR con su comando nativo GS ( k (igual que la factura),
+      // así el driver "Generic / Text Only" lo deja pasar en modo RAW. Si QZ Tray no
+      // está disponible o no hay impresora configurada, los flujos caen al PDF de respaldo.
+      qzConectar: function() {
+        if (typeof qz === 'undefined') return Promise.resolve(false);
+        if (!this._qzSec) {
+          qz.security.setCertificatePromise(function(resolve, reject){ reject(); });
+          qz.security.setSignaturePromise(function(){ return function(resolve){ resolve(); }; });
+          this._qzSec = true;
+        }
+        if (qz.websocket.isActive()) return Promise.resolve(true);
+        return qz.websocket.connect().then(function(){ return true; }).catch(function(){ return false; });
+      },
+      qzGetPrinter: function() { return localStorage.getItem('qz_printer_name') || ''; },
+      qzSetPrinter: function(n) { localStorage.setItem('qz_printer_name', n || ''); },
+
+      // Construye los bytes ESC/POS de una tirilla (devuelve hex). Sin tildes a propósito:
+      // la térmica usa code page CP437 y los acentos saldrían como basura.
+      escposTirilla: function(d) {
+        const strB = s => Array.from(String(s)).map(c => c.charCodeAt(0) & 0xFF);
+        const qr = data => {
+          const by = strB(data), n = by.length + 3;
+          return [0x1D,0x28,0x6B,0x04,0x00,0x31,0x41,0x32,0x00]          // modelo 2
+            .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x43,0x08])           // tamaño módulo 8
+            .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x45,0x31])           // EC nivel M
+            .concat([0x1D,0x28,0x6B, n & 0xFF, (n>>8)&0xFF, 0x31,0x50,0x30]).concat(by) // datos
+            .concat([0x1D,0x28,0x6B,0x03,0x00,0x31,0x51,0x30]);          // imprimir
+        };
+        const Bld = on => [0x1B,0x45, on ? 1 : 0];
+        const C = [0x1B,0x61,0x01], L = [0x1B,0x61,0x00];
+        let b = [0x1B,0x40].concat(C).concat(qr(d.codigo)).concat(strB("\n")).concat(Bld(true));
+        if (d.reimpresion) b = b.concat(strB("*** REIMPRESION ***\n"));
+        b = b.concat(strB("Nombre: " + (d.nombre || 'Sin nombre') + "\n"));
+        b = b.concat(strB("Codigo: " + d.codigo + "\n"));
+        b = b.concat(strB("ID: " + d.id + "\n"));
+        if (d.paquete != null) b = b.concat(strB("Paquete: P" + d.paquete + "\n"));
+        if (d.precio)          b = b.concat(strB("Precio: " + d.precio + "\n"));
+        if (d.turnos != null)  b = b.concat(strB("Turnos: " + d.turnos + "\n"));
+        if (d.campana)         b = b.concat(strB("CAMPANA: " + d.campana + "\n"));
+        b = b.concat(Bld(false)).concat(strB("--------------------------------\n"));
+        b = b.concat(strB((d.vence ? ("Vence: " + d.vence + " - ") : "") + (d.reimpresion ? "Reimpresion - " : "") + "Presentar para canjear\n"));
+        b = b.concat(strB("\n")).concat(Bld(true)).concat(strB("COMO JUGAR\n")).concat(Bld(false)).concat(L);
+        b = b.concat(strB("Escanea este QR en la pantalla de la maquina para iniciar tu turno.\n\n"));
+        b = b.concat(C).concat(Bld(true)).concat(strB("FALLAS EN EL JUEGO?\n")).concat(Bld(false)).concat(L);
+        b = b.concat(strB("Si el juego falla, reportalo desde el boton del modulo de la maquina o acercate al cajero.\n"));
+        b = b.concat(strB("\n\n\n")).concat([0x1D,0x56,0x00]);    // avance + corte total
+        return b.map(x => (x & 0xFF).toString(16).padStart(2,'0')).join('');
+      },
+
+      imprimirPorQZ: function(tickets) {
+        if (typeof qz === 'undefined' || !qz.websocket.isActive()) return Promise.reject(new Error('QZ Tray no conectado'));
+        const printer = this.qzGetPrinter();
+        if (!printer) return Promise.reject(new Error('No hay impresora QR configurada'));
+        const cfg = qz.configs.create(printer);
+        const data = tickets.map(t => ({ type:'raw', format:'hex', data: this.escposTirilla(t) }));
+        return qz.print(cfg, data);
+      },
+
+      actualizarLabelImpresora: function() {
+        const el = document.getElementById('qrPrinterLabel');
+        if (el) el.textContent = this.qzGetPrinter() || 'no configurada';
+      },
+      configurarImpresoraQR: function() {
+        const modal = document.getElementById('modalImpresoraQR');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        const msg = document.getElementById('qrPrinterMsg');
+        const sel = document.getElementById('qrPrinterSelect');
+        const save = document.getElementById('qrPrinterSave');
+        sel.classList.add('hidden'); save.classList.add('hidden');
+        msg.textContent = 'Conectando a QZ Tray...';
+        this.qzConectar().then(ok => {
+          if (!ok) { msg.textContent = 'No se pudo conectar a QZ Tray. ¿Está abierto en esta PC (icono en la bandeja)?'; return; }
+          return qz.printers.find().then(list => {
+            const arr = Array.isArray(list) ? list : [list];
+            sel.innerHTML = '';
+            arr.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o); });
+            const saved = this.qzGetPrinter();
+            if (saved && arr.includes(saved)) sel.value = saved;
+            msg.textContent = 'Elige la impresora termica (la 3nStar / Caja):';
+            sel.classList.remove('hidden'); save.classList.remove('hidden');
+          });
+        }).catch(e => { msg.textContent = 'Error: ' + e; });
+      },
+      guardarImpresoraQR: function() {
+        const sel = document.getElementById('qrPrinterSelect');
+        if (!sel.value) return;
+        this.qzSetPrinter(sel.value);
+        this.actualizarLabelImpresora();
+        this.cerrarModalImpresoraQR();
+        this.mostrarAlerta('✅ Impresora QR: ' + sel.value, 'success');
+      },
+      cerrarModalImpresoraQR: function() {
+        const modal = document.getElementById('modalImpresoraQR');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+      },
+
       init: function() {
+        this.actualizarLabelImpresora();
         particlesJS('particles-js', {
             particles: {
               number: { value: 80, density: { enable: true, value_area: 800 } },
@@ -717,6 +835,11 @@ fetch('/api/mis-permisos')
       },
 
       reimprimirQR: function(codigoQR, nombre) {
+        const histItemQZ = Array.isArray(window._lastHistorialData)
+          ? window._lastHistorialData.find(h => h.qr_code === codigoQR) : null;
+        const ticketQZ = { codigo: codigoQR, nombre: nombre, id: codigoQR.replace('QR',''),
+          campana: (histItemQZ && histItemQZ.campaign_name) || null, reimpresion: true };
+        const hacerPDF = () => {
         const { jsPDF } = window.jspdf;
         const anchoPapel = 58, altoPapel = 100;
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [anchoPapel, altoPapel] });
@@ -762,6 +885,16 @@ fetch('/api/mis-permisos')
           }
           document.body.removeChild(loadingMessage);
         }, 200);
+        };
+
+        // Térmica directa si hay QZ Tray + impresora; si no, PDF de respaldo.
+        this.qzConectar().then(ok => {
+          if (ok && this.qzGetPrinter()) {
+            this.imprimirPorQZ([ticketQZ]).then(() => {
+              this.mostrarAlerta('✅ QR reimpreso en la térmica', 'success');
+            }).catch(() => { this.mostrarAlerta('⚠️ Falló la térmica, genero PDF', 'warning'); hacerPDF(); });
+          } else { hacerPDF(); }
+        });
       },
 
       verDetalles: function(codigo) {
@@ -1130,6 +1263,9 @@ fetch('/api/mis-permisos')
           const expiracionQR = data.data?.expiration_date || '';
           this._expiracionQR = expiracionQR;
           if (codigosGenerados.length === 0) throw new Error('No se generaron códigos QR');
+
+          // Construye y descarga el PDF (respaldo cuando no hay impresión térmica directa).
+          const construirPDF = () => {
           const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [anchoPapel, altoPapel] });
           const generarPaginaRecursiva = (i = 0) => {
             if (i >= codigosGenerados.length) {
@@ -1203,6 +1339,36 @@ fetch('/api/mis-permisos')
             }, 200);
           };
           generarPaginaRecursiva(0);
+          };
+
+          // Impresión térmica directa (QZ Tray) en el flujo PDF; si no hay QZ Tray o
+          // impresora configurada, o si falla, cae al PDF de respaldo.
+          if (tipo === 'pdf') {
+            const precioRealQZ = paquete.finalPrice !== undefined ? paquete.finalPrice : parseFloat(paquete.price);
+            const turnosRealQZ = paquete.finalTurns !== undefined ? paquete.finalTurns : parseInt(paquete.turns);
+            const precioTxtQZ  = precioRealQZ === 0 ? 'GRATIS' : `$${precioRealQZ.toLocaleString('es-CO')}`;
+            const tickets = codigosGenerados.map(c => ({
+              codigo: c, nombre: nombre, id: c.replace('QR',''), paquete: paquete.id,
+              precio: precioTxtQZ, turnos: turnosRealQZ,
+              campana: (paquete.campaign && paquete.campaign.name) || null, vence: expiracionQR || ''
+            }));
+            this.qzConectar().then(ok => {
+              if (ok && this.qzGetPrinter()) {
+                this.imprimirPorQZ(tickets).then(() => {
+                  this.mostrarAlerta(`✅ ${cantidad} tirilla(s) impresa(s) en la térmica`, "success");
+                  this.cargarHistorialQR(); this.actualizarContadores();
+                  this.cerrarModalGenerador(); document.body.removeChild(loadingMessage);
+                }).catch(() => {
+                  this.mostrarAlerta('⚠️ No imprimió la térmica, genero PDF de respaldo', "warning");
+                  construirPDF();
+                });
+              } else {
+                construirPDF();
+              }
+            });
+          } else {
+            construirPDF();
+          }
         })
         .catch(err => { document.body.removeChild(loadingMessage); this.mostrarAlerta(`❌ ${err.message || 'Error generando códigos QR'}`, "error"); });
       },
