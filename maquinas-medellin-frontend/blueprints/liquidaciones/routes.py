@@ -8,7 +8,7 @@ from flask import Blueprint, jsonify, request, session
 from config import LOGGER_NAME
 from database import get_db_connection, get_db_cursor
 from utils.auth import require_admin_access
-from utils.location_scope import apply_location_filter, apply_location_name_filter
+from utils.location_scope import apply_location_filter, apply_location_name_filter, get_active_location
 from utils.responses import api_response, handle_api_errors
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
@@ -1630,6 +1630,10 @@ def obtener_catalogo_maquinas_liquidacion():
         tiene_admin = _has_admin_col(cursor)
         admin_col   = 'COALESCE(mpr.porcentaje_admin, 25.00)' if tiene_admin else '25.00'
 
+        active_loc_id, _loc_name = get_active_location()
+        loc_sql    = 'AND m.location_id = %s' if active_loc_id is not None else ''
+        loc_params = [active_loc_id] if active_loc_id is not None else []
+
         cursor.execute(
             f"""
             SELECT
@@ -1639,9 +1643,10 @@ def obtener_catalogo_maquinas_liquidacion():
                 {admin_col} AS porcentaje_admin
             FROM machine m
             LEFT JOIN maquinaporcentajerestaurante mpr ON m.id = mpr.maquina_id
+            WHERE 1=1 {loc_sql}
             ORDER BY m.name ASC
             """,
-            (RESTAURANT_PERCENTAGE_DEFAULT,),
+            (RESTAURANT_PERCENTAGE_DEFAULT, *loc_params),
         )
         maquinas = cursor.fetchall()
         return jsonify({
