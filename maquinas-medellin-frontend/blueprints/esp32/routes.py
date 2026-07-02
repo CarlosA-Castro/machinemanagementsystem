@@ -18,7 +18,6 @@ from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
 from blueprints.esp32.state import set_heartbeat
 from utils.notifications import notify_falla, notify_mantenimiento
-from utils.machine_auth import require_machine_token
 
 logger = logging.getLogger(LOGGER_NAME)
 
@@ -38,7 +37,6 @@ def esp32_status():
 
 
 @esp32_bp.route('/api/esp32/heartbeat', methods=['POST'])
-@require_machine_token
 def esp32_heartbeat():
     """
     ESP32 llama a este endpoint cada STATUS_UPDATE_MS (~30s) para reportar
@@ -64,7 +62,6 @@ def esp32_heartbeat():
 @esp32_bp.route('/api/esp32/estado-fallas/<int:machine_id>', methods=['GET'])
 @handle_api_errors
 def esp32_estado_fallas(machine_id):
-    # Sin @require_machine_token — solo lectura, necesario para bootstrap inicial
     """
     El ESP32 consulta este endpoint al arrancar para precargar los contadores de
     fallas consecutivas y saber qué estaciones están en mantenimiento.
@@ -109,7 +106,6 @@ def esp32_estado_fallas(machine_id):
 # ── Registro de uso ───────────────────────────────────────────────────────────
 
 @esp32_bp.route('/api/esp32/registrar-uso', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 @validate_required_fields(['qr_code', 'machine_id'])
 def esp32_registrar_uso():
@@ -341,7 +337,6 @@ def esp32_registrar_uso():
 
 
 @esp32_bp.route('/api/esp32/actualizar-uso-estacion', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 def esp32_actualizar_uso_estacion():
     """
@@ -446,7 +441,6 @@ def esp32_actualizar_uso_estacion():
 
 
 @esp32_bp.route('/api/esp32/juego-exitoso', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 def esp32_juego_exitoso():
     """
@@ -527,7 +521,6 @@ def esp32_juego_exitoso():
 
 
 @esp32_bp.route('/api/esp32/ultimo-usage/<qr_code>/<int:machine_id>', methods=['GET'])
-@require_machine_token
 @handle_api_errors
 def esp32_ultimo_usage(qr_code, machine_id):
     """Obtener el último usage_id para un QR y máquina específicos"""
@@ -569,7 +562,6 @@ def esp32_ultimo_usage(qr_code, machine_id):
 @esp32_bp.route('/api/esp32/check-commands/<int:machine_id>', methods=['GET'])
 @handle_api_errors
 def esp32_check_commands(machine_id):
-    # Sin @require_machine_token — necesario para bootstrap y entrega de RESET_CONFIG/FORCE_OTA
     """Endpoint para que el ESP32 consulte comandos pendientes"""
     connection = None
     cursor = None
@@ -614,7 +606,6 @@ def esp32_check_commands(machine_id):
 
 
 @esp32_bp.route('/api/esp32/command-executed/<int:command_id>', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 def esp32_command_executed(command_id):
     """Endpoint para que el ESP32 confirme ejecución de comando"""
@@ -661,7 +652,6 @@ def esp32_command_executed(command_id):
 
 @esp32_bp.route('/api/esp32/machine-config/<int:machine_id>', methods=['GET'])
 def esp32_machine_config(machine_id):
-    # Sin @require_machine_token — solo lectura, necesario para bootstrap inicial del ESP32
     connection = None
     cursor = None
     try:
@@ -789,7 +779,6 @@ def esp32_machine_config(machine_id):
 # ── Reporte de falla desde TFT ────────────────────────────────────────────────
 
 @esp32_bp.route('/api/esp32/reportar-falla', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 def esp32_reportar_falla():
     """
@@ -1050,7 +1039,6 @@ def esp32_reportar_falla():
 # ── TFT / datos de máquina ────────────────────────────────────────────────────
 
 @esp32_bp.route('/api/tft/machine-status/<machine_id>', methods=['GET'])
-@require_machine_token
 def tft_machine_status(machine_id):
     """Obtener estado de máquina para pantalla TFT"""
     connection = None
@@ -1114,7 +1102,6 @@ def tft_machine_status(machine_id):
 
 
 @esp32_bp.route('/api/esp32/machine-technical/<int:machine_id>', methods=['GET'])
-@require_machine_token
 @handle_api_errors
 def esp32_machine_technical(machine_id):
     """Obtener datos técnicos de la máquina para ESP32/TFT"""
@@ -1176,7 +1163,6 @@ def esp32_machine_technical(machine_id):
 
 
 @esp32_bp.route('/api/esp32/machine-reset', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 def esp32_machine_reset():
     """
@@ -1223,7 +1209,6 @@ def esp32_machine_reset():
 # ── Sincronización de transacciones offline ───────────────────────────────────
 
 @esp32_bp.route('/api/esp32/sync-offline', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 @validate_required_fields(['machine_id', 'transactions'])
 def esp32_sync_offline():
@@ -1321,7 +1306,6 @@ def esp32_sync_offline():
 # ── Reporte automático de hardware desde ESP32 ───────────────────────────────
 
 @esp32_bp.route('/api/esp32/report-hardware', methods=['POST'])
-@require_machine_token
 @handle_api_errors
 def esp32_report_hardware():
     """

@@ -262,7 +262,6 @@ def create_app() -> Flask:
 
     # ESP32: eximido de CSRF (firmware, sin navegador) y del rate limit global
     # (puede hacer muchas requests legítimas desde IPs compartidas/NAT).
-    # Su protección es el token por máquina (@require_machine_token).
     csrf.exempt(esp32_bp)
     limiter.exempt(esp32_bp)
 
