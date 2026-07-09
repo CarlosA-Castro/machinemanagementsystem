@@ -1183,10 +1183,12 @@ fetch('/api/mis-permisos')
           container.appendChild(banner);
         }
 
-        paquetes.filter(p => p.isActive !== false && p.isActive !== 0).forEach(paquete => {
+        const cardColors = ['#dbeafe','#dcfce7','#fef3c7','#fae8ff','#ffe4e6','#cffafe','#fee2e2','#ede9fe'];
+        paquetes.filter(p => p.isActive !== false && p.isActive !== 0).forEach((paquete, idx) => {
           const applied = this._applycamp_fn(paquete);
           const button = document.createElement('button');
           button.className = 'btnPaquete btn-touch';
+          button.style.background = cardColors[idx % cardColors.length];
           const priceHtml = applied.campaign
             ? `<div style="text-decoration:line-through;color:#9ca3af;font-size:.75rem;">$${parseFloat(paquete.price).toLocaleString('es-CO')}</div>
                <div class="font-semibold" style="color:#dc2626;">$${parseFloat(applied.finalPrice).toLocaleString('es-CO')}</div>
@@ -1195,7 +1197,7 @@ fetch('/api/mis-permisos')
           const turnsHtml = applied.finalTurns !== parseInt(paquete.turns)
             ? `<div><span style="text-decoration:line-through;color:#9ca3af;">${paquete.turns}</span> → <span style="color:#16a34a;font-weight:700;">${applied.finalTurns}</span> turnos</div>`
             : `<div class="font-semibold text-green-600">${paquete.turns} turnos</div>`;
-          button.innerHTML = `<div class="font-bold text-lg">P${paquete.id}</div><div class="paquete-info">${turnsHtml}${priceHtml}<div class="text-xs text-gray-500 mt-1">${paquete.name}</div></div>`;
+          button.innerHTML = `<div class="font-bold text-base leading-tight mb-1 text-gray-800">${paquete.name}</div><div class="paquete-info">${turnsHtml}${priceHtml}<div class="text-xs text-gray-400 mt-1">P${paquete.id}</div></div>`;
           button.onclick = () => this.seleccionarPaquete(applied);
           container.appendChild(button);
         });
