@@ -1277,6 +1277,49 @@ const CampaignMgr = {
             </div>`;
     },
 
+    // Vigencia REAL de la campaña ahora mismo (ignora is_active): replica la lógica
+    // del backend (get_active_campaign_for_package) para no mentirle al usuario.
+    //   'vigente'       → dentro de fechas Y del horario/día de hoy → aplica a ventas
+    //   'programada'    → su fecha de inicio es futura
+    //   'vencida'       → su fecha fin ya pasó
+    //   'fuera_horario' → dentro de fechas pero no en este día/hora (recurrente/flash)
+    _vigencia(c) {
+        const now   = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const parseD = s => { if (!s) return null; const p = String(s).split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); };
+        const df = parseD(c.date_from), dt = parseD(c.date_to);
+        if (df && today < df) return 'programada';
+        if (dt && today > dt)  return 'vencida';
+
+        const nowMin = now.getHours()*60 + now.getMinutes();
+        const toMin  = t => { if (!t) return null; const p = String(t).split(':').map(Number); return p[0]*60 + p[1]; };
+
+        if (c.schedule_type === 'recurring') {
+            const cfg   = c.schedule_config || {};
+            const pyDow = (now.getDay() + 6) % 7;   // JS 0=dom → 0=lun (como el backend)
+            const days  = (cfg.days && cfg.days.length) ? cfg.days.map(Number) : [0,1,2,3,4,5,6];
+            if (!days.includes(pyDow)) return 'fuera_horario';
+            const tf = toMin(cfg.time_from || c.time_from), tt = toMin(cfg.time_to || c.time_to);
+            if (tf != null && tt != null && !(tf <= nowMin && nowMin <= tt)) return 'fuera_horario';
+            return 'vigente';
+        }
+        // once / flash: la fecha ya está validada arriba; solo revisar hora si tiene
+        const tf = toMin(c.time_from), tt = toMin(c.time_to);
+        if (tf != null && tt != null && !(tf <= nowMin && nowMin <= tt)) return 'fuera_horario';
+        return 'vigente';
+    },
+
+    // Estado a mostrar en el badge: combina el interruptor (is_active) con la vigencia real.
+    _status(c) {
+        if (!c.is_active) return { txt: 'Pausada', bg: '#f3f4f6', color: '#6b7280' };
+        switch (this._vigencia(c)) {
+            case 'vigente':       return { txt: '● Vigente ahora',  bg: '#d1fae5', color: '#065f46' };
+            case 'programada':    return { txt: '🗓 Programada',     bg: '#dbeafe', color: '#1e40af' };
+            case 'vencida':       return { txt: '⏱ Vencida',        bg: '#e5e7eb', color: '#4b5563' };
+            default:              return { txt: 'Fuera de horario', bg: '#fef3c7', color: '#92400e' };
+        }
+    },
+
     rowHtml(c) {
         const rule    = (c.rules || [])[0] || {};
         const rtype   = rule.rule_type || '—';
@@ -1287,9 +1330,7 @@ const CampaignMgr = {
             ? '<span style="color:#6b7280;font-style:italic;">Todos</span>'
             : (rule.package_ids || []).length + ' paquetes';
 
-        const statusBg    = c.is_active ? '#d1fae5' : '#f3f4f6';
-        const statusColor = c.is_active ? '#065f46' : '#6b7280';
-        const statusTxt   = c.is_active ? 'Activa' : 'Pausada';
+        const st = this._status(c);
 
         return `
         <tr style="border-bottom:1px solid #f9fafb;transition:background .1s;"
@@ -1305,7 +1346,7 @@ const CampaignMgr = {
             <td style="padding:.65rem .75rem;font-size:.8rem;color:#374151;">${pkgs}</td>
             <td style="padding:.65rem .75rem;font-size:.85rem;font-weight:600;color:#4f46e5;">${c.redemptions || 0}</td>
             <td style="padding:.65rem .75rem;">
-                <span style="background:${statusBg};color:${statusColor};padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;">${statusTxt}</span>
+                <span style="background:${st.bg};color:${st.color};padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;white-space:nowrap;">${st.txt}</span>
             </td>
             <td style="padding:.65rem .75rem;">
                 <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
@@ -1619,6 +1660,18 @@ const CampaignMgr = {
     },
 
     async toggle(id) {
+        const c = this.all.find(x => x.id === id);
+        // Al ACTIVAR (estaba pausada) una campaña ya vencida o programada a futuro,
+        // avisar: encender el interruptor no la hace aplicar si las fechas no cuadran.
+        if (c && !c.is_active) {
+            const v = this._vigencia(c);
+            if (v === 'vencida' && !confirm(
+                `"${c.name}" tiene su fecha fin en el pasado (${c.date_to}). ` +
+                `Aunque la actives, NO se aplicará a ninguna venta hasta que edites sus fechas.\n\n¿Activar de todas formas?`)) return;
+            if (v === 'programada' && !confirm(
+                `"${c.name}" empieza el ${c.date_from} (fecha futura). ` +
+                `Quedará activa pero solo aplicará a partir de esa fecha.\n\n¿Continuar?`)) return;
+        }
         try {
             const r = await fetch(`/api/admin/campaigns/${id}/toggle`, {
                 method: 'POST',
