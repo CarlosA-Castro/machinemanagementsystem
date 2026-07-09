@@ -1109,12 +1109,41 @@
     <!-- Paquetes que aplica -->
     <div style="margin-bottom:1.25rem;">
         <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Aplica a</label>
-        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:.5rem;">
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;">
             <label style="cursor:pointer;font-size:.875rem;"><input type="radio" name="c-applies" value="all_packages" checked style="margin-right:4px;"> Todos los paquetes</label>
             <label style="cursor:pointer;font-size:.875rem;"><input type="radio" name="c-applies" value="specific_packages" style="margin-right:4px;"> Paquetes específicos</label>
+            <label style="cursor:pointer;font-size:.875rem;"><input type="radio" name="c-applies" value="new_package" style="margin-right:4px;"> Crear paquete</label>
         </div>
         <div id="c-pkg-select" style="display:none;border:1px solid #e5e7eb;border-radius:8px;max-height:160px;overflow-y:auto;padding:.5rem;">
             <!-- Checkboxes de paquetes -->
+        </div>
+        <div id="c-new-pkg" style="display:none;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;background:#fafafa;">
+            <div style="font-size:.78rem;color:#6b7280;margin-bottom:.6rem;">
+                <i class="fas fa-box-open" style="margin-right:4px;color:#f59e0b;"></i>
+                Se creará este paquete nuevo y la campaña aplicará únicamente a él.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                <div style="grid-column:1 / -1;">
+                    <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Nombre del paquete</label>
+                    <input id="c-np-name" type="text" placeholder="ej: Feria del Meka"
+                        style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Turnos</label>
+                    <input id="c-np-turns" type="number" min="1" placeholder="4"
+                        style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Precio ($)</label>
+                    <input id="c-np-price" type="number" min="1000" step="100" placeholder="11000"
+                        style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Duración (días)</label>
+                    <input id="c-np-duration" type="number" min="1" value="30"
+                        style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;box-sizing:border-box;">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1422,6 +1451,11 @@ const CampaignMgr = {
         const all = document.querySelector('input[name="c-applies"][value="all_packages"]');
         if (all) all.checked = true;
         document.querySelectorAll('.c-day').forEach(cb => cb.checked = false);
+        // Limpiar el formulario de "Crear paquete"
+        ['c-np-name','c-np-turns','c-np-price'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        const dur = document.getElementById('c-np-duration'); if (dur) dur.value = '30';
     },
 
     _fillPackageCheckboxes(selected) {
@@ -1433,13 +1467,21 @@ const CampaignMgr = {
                 <span>${p.name}</span>
                 <span style="margin-left:auto;color:#9ca3af;font-size:.75rem;">$${parseFloat(p.price).toLocaleString('es-CO')}</span>
             </label>`).join('');
+        // onchange (no addEventListener) para no acumular listeners al reabrir el modal
         document.querySelectorAll('input[name="c-applies"]').forEach(r => {
-            r.addEventListener('change', () => {
-                wrap.style.display = r.value === 'specific_packages' && r.checked ? 'block' : 'none';
-            });
+            r.onchange = () => this._onAppliesChange();
         });
-        const specific = document.querySelector('input[name="c-applies"]:checked');
-        wrap.style.display = specific?.value === 'specific_packages' ? 'block' : 'none';
+        this._onAppliesChange();
+    },
+
+    // Muestra el bloque correcto según "Aplica a": lista de paquetes existentes,
+    // formulario de paquete nuevo, o nada (todos los paquetes).
+    _onAppliesChange() {
+        const val = document.querySelector('input[name="c-applies"]:checked')?.value;
+        const sel = document.getElementById('c-pkg-select');
+        const nue = document.getElementById('c-new-pkg');
+        if (sel) sel.style.display = val === 'specific_packages' ? 'block' : 'none';
+        if (nue) nue.style.display = val === 'new_package'       ? 'block' : 'none';
     },
 
     onScheduleChange() {
@@ -1489,10 +1531,49 @@ const CampaignMgr = {
         const days = [];
         document.querySelectorAll('.c-day:checked').forEach(cb => days.push(parseInt(cb.value)));
 
-        const appliesto = document.querySelector('input[name="c-applies"]:checked')?.value || 'all_packages';
-        const pkgIds    = appliesto === 'specific_packages'
+        let appliesto = document.querySelector('input[name="c-applies"]:checked')?.value || 'all_packages';
+        let pkgIds    = appliesto === 'specific_packages'
             ? [...document.querySelectorAll('.c-pkg-cb:checked')].map(cb => parseInt(cb.value))
             : [];
+
+        // "Crear paquete": se crea el paquete primero y la campaña se aplica solo a él.
+        // El backend de campañas no conoce 'new_package', así que aquí lo traducimos a
+        // 'specific_packages' con el id recién creado.
+        if (appliesto === 'new_package') {
+            const np = {
+                name:          document.getElementById('c-np-name').value.trim(),
+                turns:         parseInt(document.getElementById('c-np-turns').value),
+                price:         parseInt(document.getElementById('c-np-price').value),
+                duration_days: parseInt(document.getElementById('c-np-duration').value) || 30,
+                isActive:      true,
+            };
+            if (!np.name)            { alert('El nombre del paquete es obligatorio'); return; }
+            if (!(np.turns >= 1))    { alert('Los turnos del paquete deben ser mayor a 0'); return; }
+            if (!(np.price >= 1000)) { alert('El precio del paquete debe ser mayor a $1,000'); return; }
+            if (!(np.duration_days >= 1)) { alert('La duración del paquete debe ser mayor a 0 días'); return; }
+
+            try {
+                const rp = await fetch('/api/paquetes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify(np),
+                });
+                const dp = await rp.json();
+                if (!rp.ok) { alert(dp?.data?.message || dp?.message || 'No se pudo crear el paquete'); return; }
+                const newId = dp?.data?.paquete_id;
+                if (!newId) { alert('No se pudo obtener el paquete creado'); return; }
+                appliesto = 'specific_packages';
+                pkgIds    = [newId];
+                await this.loadPackages();   // refrescar catálogo con el paquete nuevo
+            } catch(e) {
+                alert('Error de conexión creando el paquete');
+                return;
+            }
+        }
 
         const payload = {
             name,
