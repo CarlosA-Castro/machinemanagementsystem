@@ -1,6 +1,7 @@
 import logging
 import traceback
 from collections import Counter
+from contextlib import contextmanager
 from datetime import datetime, time, timedelta
 
 from flask import Blueprint, jsonify, request, session
@@ -202,6 +203,35 @@ def _current_closure_scope():
 
 def _payment_method_label(value):
     return PAYMENT_METHOD_LABELS.get(value or 'sin_registrar', 'Sin registrar')
+
+
+@contextmanager
+def _scoped_session(local_id, local_nombre):
+    """Fuerza temporalmente el alcance de local en la sesión para recomputar un cierre
+    histórico con los helpers existentes (que leen el scope desde `session`), sin
+    alterar el alcance real del usuario: se restaura el estado exacto al salir.
+
+    - local_id concreto  → filtra por ese local (can_view_all=False).
+    - local_id None       → cierre global "todos los locales" (can_view_all=True, sin filtro).
+    """
+    keys = ('active_location_id', 'active_location_name', 'can_view_all_locations')
+    snapshot = {k: (k in session, session.get(k)) for k in keys}
+    try:
+        if local_id:
+            session['active_location_id']     = local_id
+            session['active_location_name']   = local_nombre
+            session['can_view_all_locations'] = False
+        else:
+            session['active_location_id']     = None
+            session['active_location_name']   = 'Todos los locales'
+            session['can_view_all_locations'] = True
+        yield
+    finally:
+        for k, (existed, val) in snapshot.items():
+            if existed:
+                session[k] = val
+            else:
+                session.pop(k, None)
 
 
 def _serialize_cierre(row):
@@ -1572,6 +1602,107 @@ def obtener_historial():
 
     except Exception as e:
         logger.error(f'Error obteniendo historial: {e}', exc_info=True)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:     cursor.close()
+        if connection: connection.close()
+
+
+@liquidaciones_bp.route('/api/liquidaciones/cierre/<int:cierre_id>/detalle', methods=['GET'])
+@handle_api_errors
+@require_admin_access('liquidaciones')
+def detalle_cierre(cierre_id):
+    """Detalle recalculado de un cierre histórico: desglose por máquina y por propietario.
+
+    Reusa los helpers de cálculo canónicos acotados al LOCAL del cierre y a sus
+    límites datetime reales (inicio_dt/fin_dt guardados; para filas viejas sin ellos
+    se cae a las fechas). Los TOTALES autoritativos (los que se guardaron al cerrar)
+    se devuelven aparte: el desglose por máquina es informativo y puede no sumar
+    exactamente esos totales (misma diferencia estimado-vs-vendido que la vista en vivo).
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        if not _table_exists(cursor, 'cierre_liquidacion'):
+            return jsonify({'success': False, 'message': 'No hay cierres registrados.'}), 404
+
+        # Cargar el cierre respetando el alcance del usuario (mismo criterio que el
+        # historial): un usuario con local fijo no puede ver el cierre de otro local.
+        active_id    = session.get('active_location_id')
+        can_view_all = bool(session.get('can_view_all_locations', False)) and active_id is None
+        cursor.execute(
+            """
+            SELECT cl.id, cl.local_id, COALESCE(loc.name, 'Todos los locales') AS local_nombre,
+                   cl.fecha_inicio, cl.fecha_fin,
+                   COALESCE(cl.inicio_dt, TIMESTAMP(cl.fecha_inicio, '00:00:00')) AS inicio_dt,
+                   COALESCE(cl.fin_dt,    TIMESTAMP(cl.fecha_fin,    '23:59:59')) AS fin_dt,
+                   cl.total_ingresos, cl.total_negocio, cl.total_admin, cl.total_utilidad,
+                   cl.pct_negocio, cl.pct_admin, cl.creado_el, cl.observaciones, cl.usuario_id,
+                   COALESCE(NULLIF(u.name, ''), '') AS responsable_nombre
+            FROM cierre_liquidacion cl
+            LEFT JOIN location loc ON loc.id = cl.local_id
+            LEFT JOIN users u ON u.id = cl.usuario_id
+            WHERE cl.id = %s
+              AND (%s = 1 OR IFNULL(cl.local_id, 0) = IFNULL(%s, 0))
+            """,
+            (cierre_id, 1 if can_view_all else 0, active_id),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': 'Cierre no encontrado o fuera de tu alcance.'}), 404
+
+        inicio_dt = row['inicio_dt']
+        fin_dt    = row['fin_dt']
+        local_id  = row['local_id']
+
+        # Recomputar acotado al LOCAL DEL CIERRE (no al local activo del usuario).
+        with _scoped_session(local_id, row['local_nombre']):
+            tiene_admin = _has_admin_col(cursor)
+            resumen_maquinas = _build_machine_summary(cursor, inicio_dt, fin_dt, tiene_admin)[0]
+            distribucion_propietarios = _build_propietarios_distribution(cursor, inicio_dt, fin_dt)
+            gastos = _fetch_gastos_periodo(cursor, row['fecha_inicio'], row['fecha_fin'])
+
+        maquinas = sorted(
+            resumen_maquinas.values(),
+            key=lambda m: m.get('ingresos_totales', 0),
+            reverse=True,
+        )
+        propietarios = [
+            {'propietario_nombre': nombre, **datos}
+            for nombre, datos in sorted(
+                distribucion_propietarios.items(),
+                key=lambda kv: kv[1].get('total_ingresos', 0),
+                reverse=True,
+            )
+        ]
+
+        return jsonify({
+            'success': True,
+            'cierre': {
+                **_serialize_cierre(row),
+                'total_ingresos': float(row['total_ingresos']),
+                'total_negocio':  float(row['total_negocio']),
+                'total_admin':    float(row['total_admin']),
+                'total_utilidad': float(row['total_utilidad']),
+                'pct_negocio':    float(row['pct_negocio']),
+                'pct_admin':      float(row['pct_admin']),
+            },
+            'periodo': {
+                'inicio_dt': str(inicio_dt),
+                'fin_dt':    str(fin_dt),
+            },
+            'resumen_maquinas':          maquinas,
+            'distribucion_propietarios': propietarios,
+            'gastos':                    gastos,
+        })
+
+    except Exception as e:
+        logger.error(f'Error obteniendo detalle de cierre {cierre_id}: {e}', exc_info=True)
         return api_response('E001', http_status=500)
     finally:
         if cursor:     cursor.close()

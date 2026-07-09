@@ -11,6 +11,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         #particles-js { position: fixed; width: 100%; height: 100%; z-index: -1; top: 0; left: 0; }
 
@@ -683,6 +685,21 @@
         <div class="flex justify-end gap-2">
             <button onclick="cerrarModal('modalCierre')" class="btn btn-secondary">Cancelar</button>
             <button onclick="confirmarCierre()" class="btn btn-success"><i class="fas fa-check mr-1"></i>Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ MODAL RESUMEN DE CIERRE ══════════ -->
+<div id="modalResumenCierre" class="modal-overlay">
+    <div class="modal-box" style="max-width:560px">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-file-invoice-dollar mr-2 text-blue-500"></i>Resumen de Liquidación</h2>
+            <button onclick="cerrarModal('modalResumenCierre')" class="text-gray-400 hover:text-gray-700 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="resumenCierreBody"></div>
+        <div class="flex justify-end gap-2 pt-4 mt-4 border-t">
+            <button onclick="cerrarModal('modalResumenCierre')" class="btn btn-secondary">Cerrar</button>
+            <button id="btnDescargarResumen" class="btn btn-success"><i class="fas fa-file-pdf mr-1"></i>Descargar PDF</button>
         </div>
     </div>
 </div>
@@ -1454,7 +1471,13 @@ async function cargarHistorial() {
     }
 }
 
+// Guardamos el historial recibido para que los botones de cada fila (Ver resumen /
+// Descargar) puedan reconstruir el detalle sin volver a pedirlo al backend: el objeto
+// del cierre ya trae todos los datos guardados del período.
+let histCierres = [];
+
 function renderTablaHistorial(hist) {
+    histCierres = hist || [];
     const el = document.getElementById('tablaHistorial');
     if (!hist.length) {
         el.innerHTML = `<div class="empty-state"><i class="fas fa-history"></i><p>Aún no hay liquidaciones cerradas.</p></div>`;
@@ -1469,8 +1492,9 @@ function renderTablaHistorial(hist) {
             <th class="text-right">Admin</th>
             <th class="text-right">Utilidad</th>
             <th>Registrado</th>
+            <th class="text-center">Acciones</th>
         </tr></thead>
-        <tbody>${hist.map(h => {
+        <tbody>${hist.map((h, i) => {
             const fecha = new Date(h.creado_el).toLocaleDateString('es-CO');
             return `<tr>
                 <td class="font-semibold">${h.fecha_inicio} → ${h.fecha_fin}</td>
@@ -1480,9 +1504,212 @@ function renderTablaHistorial(hist) {
                 <td class="text-right text-orange-700">${fmt(h.total_admin)}</td>
                 <td class="text-right text-purple-700">${fmt(h.total_utilidad)}</td>
                 <td class="text-gray-400 text-xs">${fecha}</td>
+                <td class="text-center">
+                    <div class="flex gap-1 justify-center">
+                        <button onclick="verResumenCierre(${i})" class="btn btn-primary btn-sm" title="Ver resumen">
+                            <i class="fas fa-eye"></i><span class="hidden sm:inline ml-1">Resumen</span>
+                        </button>
+                        <button onclick="descargarCierrePDF(${i})" class="btn btn-success btn-sm" title="Descargar PDF">
+                            <i class="fas fa-file-pdf"></i><span class="hidden sm:inline ml-1">PDF</span>
+                        </button>
+                    </div>
+                </td>
             </tr>`;
         }).join('')}</tbody>
     </table></div>`;
+}
+
+// ─── DETALLE / RESUMEN DE UN CIERRE HISTÓRICO ──────────────────────────────────
+// Calcula los valores derivados de un cierre guardado (utilidad %, total proveedor).
+function _derivarCierre(h) {
+    const ingresos = +h.total_ingresos || 0;
+    const negocio  = +h.total_negocio  || 0;
+    const admin    = +h.total_admin    || 0;
+    const utilidad = +h.total_utilidad || 0;
+    const pctNeg   = +h.pct_negocio || (ingresos ? negocio / ingresos * 100 : 0);
+    const pctAdm   = +h.pct_admin   || (ingresos ? admin   / ingresos * 100 : 0);
+    const pctUtil  = 100 - pctNeg - pctAdm;
+    const proveedor = admin + utilidad;               // lo que recibe Inversiones Arcade
+    const pctProv   = 100 - pctNeg;
+    return { ingresos, negocio, admin, utilidad, proveedor, pctNeg, pctAdm, pctUtil, pctProv };
+}
+
+function verResumenCierre(idx) {
+    const h = histCierres[idx];
+    if (!h) return;
+    const d = _derivarCierre(h);
+    const fechaReg = new Date(h.creado_el).toLocaleString('es-CO');
+    const alcance  = h.local_nombre || 'Todos los locales';
+
+    const card = (label, monto, pct, color) => `
+        <div class="rounded-xl p-3 text-center" style="background:${color}10;border:1px solid ${color}33;">
+            <div class="text-xs font-semibold uppercase tracking-wide" style="color:${color}">${label}</div>
+            <div class="text-lg font-bold mt-1" style="color:${color}">${fmt(monto)}</div>
+            <div class="text-xs text-gray-500">${fmtD(pct)}</div>
+        </div>`;
+
+    document.getElementById('resumenCierreBody').innerHTML = `
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <div>
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Período</div>
+                <div class="text-base font-bold text-gray-800">${h.fecha_inicio} → ${h.fecha_fin}</div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-gray-500 uppercase tracking-wide">Alcance</div>
+                <div class="text-base font-semibold text-gray-700">${alcance}</div>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 mb-4 text-center" style="background:#eff6ff;border:1px solid #bfdbfe;">
+            <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Ingresos totales del período</div>
+            <div class="text-3xl font-extrabold text-blue-700 mt-1">${fmt(d.ingresos)}</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mb-3">
+            ${card('Negocio', d.negocio, d.pctNeg, '#059669')}
+            ${card('Admin', d.admin, d.pctAdm, '#d97706')}
+            ${card('Utilidad', d.utilidad, d.pctUtil, '#7c3aed')}
+        </div>
+
+        <div class="rounded-xl p-3 mb-4 flex items-center justify-between" style="background:#f5f3ff;border:1px solid #ddd6fe;">
+            <div>
+                <div class="text-xs font-semibold uppercase tracking-wide" style="color:#6d28d9">Total proveedor (Admin + Utilidad)</div>
+                <div class="text-xs text-gray-500">Lo que recibe Inversiones Arcade</div>
+            </div>
+            <div class="text-xl font-bold" style="color:#6d28d9">${fmt(d.proveedor)} <span class="text-xs text-gray-500 font-normal">(${fmtD(d.pctProv)})</span></div>
+        </div>
+
+        <div class="text-sm text-gray-600 space-y-1 border-t pt-3">
+            <div><i class="fas fa-user mr-2 text-gray-400"></i><strong>Responsable:</strong> ${h.responsable || '—'}</div>
+            <div><i class="fas fa-clock mr-2 text-gray-400"></i><strong>Registrado:</strong> ${fechaReg}</div>
+            ${h.observaciones ? `<div><i class="fas fa-comment mr-2 text-gray-400"></i><strong>Observaciones:</strong> ${h.observaciones}</div>` : ''}
+        </div>
+
+        <div id="detalleCierreExtra" class="border-t pt-3 mt-3">
+            <div class="text-center text-gray-400 py-4"><div class="spinner mx-auto mb-2"></div>Cargando detalle por máquina…</div>
+        </div>`;
+
+    document.getElementById('btnDescargarResumen').onclick = () => descargarCierrePDF(idx);
+    abrirModal('modalResumenCierre');
+    cargarDetalleCierre(h.id);
+}
+
+// Carga diferida del desglose por máquina / propietario de un cierre histórico.
+// Los números salen del endpoint que recalcula el período+local del cierre.
+async function cargarDetalleCierre(cierreId) {
+    const cont = document.getElementById('detalleCierreExtra');
+    if (!cont) return;
+    if (!cierreId) { cont.innerHTML = ''; return; }
+    try {
+        const r = await fetch(`/api/liquidaciones/cierre/${cierreId}/detalle`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) throw new Error(d.message || 'Error');
+        cont.innerHTML = renderDetalleCierre(d);
+    } catch (e) {
+        cont.innerHTML = `<div class="text-sm text-gray-500 py-2"><i class="fas fa-info-circle mr-1"></i>No se pudo cargar el desglose por máquina.</div>`;
+    }
+}
+
+function renderDetalleCierre(d) {
+    const maquinas = d.resumen_maquinas || [];
+    const props    = d.distribucion_propietarios || [];
+
+    let html = '<div class="text-xs text-gray-400 italic mb-2">Desglose recalculado del período (informativo; puede diferir levemente de los totales guardados).</div>';
+
+    if (!maquinas.length) {
+        html += `<div class="text-sm text-gray-500 py-2">Sin actividad por máquina registrada en el período.</div>`;
+    } else {
+        html += `<div class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-gamepad mr-2 text-blue-500"></i>Detalle por máquina</div>
+        <div class="tbl-wrap mb-4"><table>
+            <thead><tr>
+                <th>Máquina</th>
+                <th class="text-right">Ventas</th>
+                <th class="text-right">Ingresos</th>
+                <th class="text-right">Negocio</th>
+                <th class="text-right">Admin</th>
+                <th class="text-right">Utilidad</th>
+            </tr></thead>
+            <tbody>${maquinas.map(m => `<tr>
+                <td class="font-semibold">${m.maquina_nombre}</td>
+                <td class="text-right">${fmtN(m.paquetes_vendidos ?? m.ventas_realizadas ?? 0)}</td>
+                <td class="text-right font-bold text-blue-700">${fmt(m.ingresos_totales)}</td>
+                <td class="text-right text-green-700">${fmt(m.ingresos_restaurante)}</td>
+                <td class="text-right text-orange-700">${fmt(m.ingresos_admin)}</td>
+                <td class="text-right text-purple-700">${fmt(m.ingresos_utilidad)}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>`;
+    }
+
+    if (props.length) {
+        html += `<div class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-users mr-2 text-purple-500"></i>Distribución por propietario</div>
+        <div class="tbl-wrap"><table>
+            <thead><tr>
+                <th>Propietario</th>
+                <th class="text-right">Turnos</th>
+                <th class="text-right">Participación</th>
+            </tr></thead>
+            <tbody>${props.map(p => `<tr>
+                <td class="font-semibold">${p.propietario_nombre}</td>
+                <td class="text-right">${fmtN(p.ventas_asociadas || 0)}</td>
+                <td class="text-right font-bold text-purple-700">${fmt(p.total_ingresos)}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>`;
+    }
+
+    return html;
+}
+
+function descargarCierrePDF(idx) {
+    const h = histCierres[idx];
+    if (!h) return;
+    const d = _derivarCierre(h);
+    const alcance  = h.local_nombre || 'Todos los locales';
+    const fechaReg = new Date(h.creado_el).toLocaleString('es-CO');
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(18); doc.setFont(undefined, 'bold');
+    doc.text('Resumen de Liquidación', W / 2, 48, { align: 'center' });
+    doc.setFontSize(11); doc.setFont(undefined, 'normal'); doc.setTextColor(90);
+    doc.text('Inversiones Arcade', W / 2, 66, { align: 'center' });
+    doc.setTextColor(0);
+
+    doc.setFontSize(11);
+    doc.text(`Alcance: ${alcance}`, 40, 100);
+    doc.text(`Período: ${h.fecha_inicio}  →  ${h.fecha_fin}`, 40, 118);
+    doc.text(`Responsable: ${h.responsable || '—'}`, 40, 136);
+    doc.text(`Registrado: ${fechaReg}`, 40, 154);
+
+    doc.autoTable({
+        startY: 178,
+        head: [['Concepto', 'Monto', '%']],
+        body: [
+            ['Ingresos totales', fmt(d.ingresos), '100%'],
+            ['Negocio (restaurante)', fmt(d.negocio), fmtD(d.pctNeg)],
+            ['Administración (Arcade)', fmt(d.admin), fmtD(d.pctAdm)],
+            ['Utilidad (inversionistas)', fmt(d.utilidad), fmtD(d.pctUtil)],
+            ['Total proveedor (Admin + Utilidad)', fmt(d.proveedor), fmtD(d.pctProv)],
+        ],
+        styles: { fontSize: 11, cellPadding: 6 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255 },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+        theme: 'grid',
+    });
+
+    let y = doc.lastAutoTable.finalY + 24;
+    if (h.observaciones) {
+        doc.setFontSize(11); doc.setFont(undefined, 'bold');
+        doc.text('Observaciones:', 40, y); y += 16;
+        doc.setFont(undefined, 'normal');
+        doc.text(doc.splitTextToSize(h.observaciones, W - 80), 40, y);
+    }
+
+    const slug = alcance.replace(/[^\w]+/g, '_');
+    doc.save(`liquidacion_${slug}_${h.fecha_inicio}_${h.fecha_fin}.pdf`);
 }
 
 function renderChartsHistorial(hist) {
