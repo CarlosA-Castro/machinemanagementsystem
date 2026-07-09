@@ -1028,12 +1028,6 @@
             </select>
         </div>
         <div>
-            <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Prioridad</label>
-            <input id="c-priority" type="number" value="0" min="0" max="99"
-                style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
-            <p style="font-size:.7rem;color:#9ca3af;margin-top:2px;">Mayor número = prevalece sobre otras campañas</p>
-        </div>
-        <div>
             <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Validez del QR (días) <span style="font-weight:400;color:#9ca3af;">(vacío = usa la del paquete)</span></label>
             <input id="c-qr-duration" type="number" min="1" max="3650" placeholder="ej: 7"
                 style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:.5rem .75rem;font-size:.875rem;">
@@ -1303,7 +1297,6 @@ const CampaignMgr = {
             <td style="padding:.65rem .75rem;">
                 <div style="font-weight:600;color:#1f2937;">${c.name}</div>
                 ${c.location_name ? `<div style="font-size:.72rem;color:#9ca3af;"><i class="fas fa-map-marker-alt"></i> ${c.location_name}</div>` : '<div style="font-size:.72rem;color:#9ca3af;">Todos los locales</div>'}
-                ${c.priority > 0 ? `<div style="font-size:.7rem;color:#f59e0b;">★ Prioridad ${c.priority}</div>` : ''}
             </td>
             <td style="padding:.65rem .75rem;">
                 <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600;">${benefit}</span>
@@ -1390,7 +1383,6 @@ const CampaignMgr = {
         document.getElementById('campaignModalTitle').textContent = `Editar — ${c.name}`;
         document.getElementById('c-name').value        = c.name || '';
         document.getElementById('c-schedule-type').value = c.schedule_type || 'once';
-        document.getElementById('c-priority').value    = c.priority || 0;
         document.getElementById('c-qr-duration').value = c.qr_duration_days || '';
         document.getElementById('c-date-from').value   = c.date_from || '';
         document.getElementById('c-date-to').value     = c.date_to   || '';
@@ -1446,7 +1438,6 @@ const CampaignMgr = {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('c-schedule-type').value = 'once';
-        document.getElementById('c-priority').value = '0';
         document.getElementById('c-rule-type').value = 'free';
         const all = document.querySelector('input[name="c-applies"][value="all_packages"]');
         if (all) all.checked = true;
@@ -1584,7 +1575,7 @@ const CampaignMgr = {
             date_to:         document.getElementById('c-date-to').value   || null,
             time_from:       document.getElementById('c-time-from').value || null,
             time_to:         document.getElementById('c-time-to').value   || null,
-            priority:        parseInt(document.getElementById('c-priority').value) || 0,
+            priority:        0,
             qr_duration_days: parseInt(document.getElementById('c-qr-duration').value) || null,
             is_active:       1,
             rule: {
