@@ -1625,6 +1625,49 @@ def eliminar_maquina(maquina_id):
 
 # ── Datos técnicos y propietarios ─────────────────────────────────────────────
 
+def _norm_station(s):
+    """Normaliza una estación a {name, relayPin, resetPin}. Pines faltantes → -1."""
+    if isinstance(s, dict):
+        def _pin(v):
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return -1
+        return {
+            'name':     s.get('name', ''),
+            'relayPin': _pin(s.get('relayPin')),
+            'resetPin': _pin(s.get('resetPin')),
+        }
+    return {'name': str(s), 'relayPin': -1, 'resetPin': -1}
+
+
+def _merge_station_pins(incoming, existing):
+    """Guardado NO destructivo de los pines de relé (que viven en station_names).
+
+    Los pines de turno/reinicio SOLO se persisten dentro de station_names. Si un
+    guardado llega sin ellos (p.ej. una edición de solo-tiempos que no reenvía los
+    pines) NO deben borrarse: eso dejaba resetPin=-1 y el relé de reinicio caía al de
+    turno. Regla: si el entrante viene vacío → conservar lo existente; y por estación,
+    si un pin entrante es ≤0 (ausente/perdido) pero el guardado era válido (>0), se
+    conserva el guardado. Un pin >0 explícito del entrante siempre gana.
+    """
+    existing_norm = [_norm_station(s) for s in (existing or [])]
+    if not incoming:
+        return existing_norm
+
+    out = []
+    for i, s in enumerate(incoming):
+        cur  = _norm_station(s)
+        prev = existing_norm[i] if i < len(existing_norm) else None
+        if prev:
+            if cur['relayPin'] <= 0 and prev['relayPin'] > 0:
+                cur['relayPin'] = prev['relayPin']
+            if cur['resetPin'] <= 0 and prev['resetPin'] > 0:
+                cur['resetPin'] = prev['resetPin']
+        out.append(cur)
+    return out
+
+
 @machines_bp.route('/api/maquinas/<int:maquina_id>/technical', methods=['POST'])
 @handle_api_errors
 @require_admin_access('maquinas')
@@ -1638,8 +1681,15 @@ def guardar_technical_maquina(maquina_id):
         connection = get_db_connection()
         cursor = get_db_cursor(connection)
 
-        cursor.execute("SELECT id FROM machinetechnical WHERE machine_id = %s", (maquina_id,))
+        cursor.execute(
+            "SELECT id, station_names FROM machinetechnical WHERE machine_id = %s",
+            (maquina_id,),
+        )
         existe = cursor.fetchone()
+
+        # Merge NO destructivo: nunca perder los pines guardados si el entrante no los trae.
+        existing_stations = parse_json_col(existe.get('station_names'), []) if existe else []
+        merged_stations   = _merge_station_pins(data.get('stations') or [], existing_stations)
 
         params_comunes = (
             data.get('credits_virtual', 1),
@@ -1647,7 +1697,7 @@ def guardar_technical_maquina(maquina_id):
             data.get('game_duration_seconds', 180),
             data.get('reset_time_seconds', 5),
             data.get('machine_subtype', 'simple'),
-            json.dumps(data.get('stations', [])),
+            json.dumps(merged_stations),
             data.get('game_type', 'time_based'),
             data.get('has_failure_report', True),
             data.get('show_station_selection', False),
@@ -1678,21 +1728,12 @@ def guardar_technical_maquina(maquina_id):
 
         connection.commit()
 
-        # Encolar comando UPDATE_STATION_NAMES al ESP32 si es multi-estación
+        # Encolar comando UPDATE_STATION_NAMES al ESP32 si es multi-estación.
+        # Usa merged_stations (ya con los pines preservados), no el crudo del request.
         machine_subtype = data.get('machine_subtype', 'simple')
-        stations = data.get('stations', [])
-        if machine_subtype == 'multi_station' and stations:
+        if machine_subtype == 'multi_station' and merged_stations:
             try:
-                station_objects = []
-                for s in stations:
-                    if isinstance(s, dict):
-                        station_objects.append({
-                            'name': s.get('name', ''),
-                            'relayPin': int(s.get('relayPin', -1)) if s.get('relayPin') is not None else -1,
-                            'resetPin': int(s.get('resetPin', -1)) if s.get('resetPin') is not None else -1,
-                        })
-                    else:
-                        station_objects.append({'name': str(s), 'relayPin': -1, 'resetPin': -1})
+                station_objects = [_norm_station(s) for s in merged_stations]
                 cursor.execute("""
                     INSERT INTO esp32_commands
                         (machine_id, command, parameters, triggered_by, status, triggered_at)

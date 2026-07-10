@@ -1937,11 +1937,16 @@
                     relay_pins: relayPins
                 };
                 
+                // parseInt nunca devuelve undefined (devuelve NaN), así que el chequeo
+                // "!== undefined" no filtraba nada y podía colar NaN → null → pin perdido.
+                // Usar Number.isFinite y defaults explícitos para NUNCA enviar un pin inválido.
+                const _pin = (v, def) => { const n = parseInt(v); return Number.isFinite(n) ? n : def; };
+
                 if (datosTecnicos.machine_subtype === 'multi_station') {
                     const stations = this.estaciones.map(est => ({
                         name:     est.name,
-                        relayPin: parseInt(est.relayPin) || 26,
-                        resetPin: parseInt(est.resetPin) !== undefined ? parseInt(est.resetPin) : -1
+                        relayPin: _pin(est.relayPin, 26),
+                        resetPin: _pin(est.resetPin, -1)
                     }));
 
                     datosTecnicos.station_names = stations.map(s => s.name);
@@ -1956,12 +1961,19 @@
                     console.log('Estaciones a guardar:', stations);
                     console.log('Relay pins:', relayPinsArray);
                 } else {
+                    // Máquina simple: leer los pines de los inputs visibles (lo que ve el
+                    // usuario), con fallback a this.estaciones. Así un guardado de solo-tiempos
+                    // nunca manda resetPin=-1 por accidente y borra el relé de reinicio.
+                    const relEl = document.getElementById('relayPin1');
+                    const resEl = document.getElementById('resetPin1');
+                    const relayPin = relEl ? _pin(relEl.value, 26) : _pin(this.estaciones[0]?.relayPin, 26);
+                    const resetPin = resEl ? _pin(resEl.value, -1) : _pin(this.estaciones[0]?.resetPin, -1);
                     datosTecnicos.station_names = [datosBasicos.name];
-                    datosTecnicos.relay_pins    = [this.estaciones[0]?.relayPin || 26, -1, -1, -1];
+                    datosTecnicos.relay_pins    = [relayPin, -1, -1, -1];
                     datosTecnicos.stations      = [{
                         name:     datosBasicos.name,
-                        relayPin: this.estaciones[0]?.relayPin || 26,
-                        resetPin: this.estaciones[0]?.resetPin !== undefined ? this.estaciones[0].resetPin : -1
+                        relayPin: relayPin,
+                        resetPin: resetPin
                     }];
                 }
                 
