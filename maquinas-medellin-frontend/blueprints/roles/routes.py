@@ -76,11 +76,11 @@ def agregar_nuevo_rol_automatico():
         icono        = data.get('icono', 'user')
 
         if not nuevo_rol:
-            return api_response('E005', http_status=400, data={'message': 'Nombre del rol requerido'})
+            return api_response('R001', http_status=400)
         if not re.match(r'^[a-z_]+$', nuevo_rol):
-            return api_response('E005', http_status=400, data={'message': 'Solo letras minúsculas y guiones bajos'})
+            return api_response('R002', http_status=400)
         if len(nuevo_rol) > 50:
-            return api_response('E005', http_status=400, data={'message': 'Máximo 50 caracteres'})
+            return api_response('R003', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -90,7 +90,7 @@ def agregar_nuevo_rol_automatico():
 
         cursor.execute("SELECT id FROM roles WHERE id = %s", (nuevo_rol,))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'El rol ya existe'})
+            return api_response('R004', http_status=400)
 
         cursor.execute("""
             INSERT INTO roles (id, nombre, descripcion, color, icono, nivel_acceso, permisos)
@@ -136,8 +136,7 @@ def agregar_nuevo_rol_automatico():
 def actualizar_rol(rol_id):
     """Editar un rol existente (no permite editar 'admin', que es inmutable)."""
     if rol_id == 'admin':
-        return api_response('E005', http_status=400,
-                            data={'message': 'El rol administrador es inmutable y no se puede editar'})
+        return api_response('R005', http_status=400)
 
     connection = None
     cursor = None
@@ -151,9 +150,9 @@ def actualizar_rol(rol_id):
         icono        = data.get('icono', 'user')
 
         if not nombre:
-            return api_response('E005', http_status=400, data={'message': 'El nombre del rol es requerido'})
+            return api_response('R001', http_status=400)
         if not isinstance(permisos, list):
-            return api_response('E005', http_status=400, data={'message': 'Permisos inválidos'})
+            return api_response('R006', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -163,7 +162,7 @@ def actualizar_rol(rol_id):
 
         cursor.execute("SELECT id FROM roles WHERE id = %s", (rol_id,))
         if not cursor.fetchone():
-            return api_response('E002', http_status=404, data={'message': 'Rol no encontrado'})
+            return api_response('R007', http_status=404)
 
         cursor.execute("""
             UPDATE roles
@@ -211,7 +210,7 @@ def eliminar_rol(rol_id):
     """Eliminar un rol (no permite eliminar 'admin')"""
     roles_protegidos = ['admin']
     if rol_id in roles_protegidos:
-        return api_response('E005', http_status=400, data={'message': 'El rol administrador no se puede eliminar'})
+        return api_response('R008', http_status=400)
 
     connection = None
     cursor = None
@@ -225,11 +224,7 @@ def eliminar_rol(rol_id):
         cursor.execute("SELECT COUNT(*) as total FROM users WHERE role = %s", (rol_id,))
         total = cursor.fetchone()['total']
         if total > 0:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={'message': f'Hay {total} usuarios con este rol. Reasígnalos primero.'}
-            )
+            return api_response('R009', http_status=400, count=total)
 
         cursor.execute("DELETE FROM roles WHERE id = %s", (rol_id,))
         connection.commit()
