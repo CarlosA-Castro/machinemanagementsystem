@@ -1447,13 +1447,13 @@ def crear_maquina():
         porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
 
         if tipo not in ['simulador', 'arcade', 'peluchera']:
-            return api_response('E005', http_status=400, data={'message': 'Tipo de máquina inválido'})
+            return api_response('M008', http_status=400)
         if status == 'inactiva':
             status = 'mantenimiento'   # 'inactiva' fusionado en 'mantenimiento'
         if status not in ['activa', 'mantenimiento']:
-            return api_response('E005', http_status=400, data={'message': 'Estado inválido'})
+            return api_response('M009', http_status=400)
         if not (0 <= float(porcentaje_restaurante) <= 100):
-            return api_response('E005', http_status=400, data={'message': 'Porcentaje debe estar entre 0 y 100'})
+            return api_response('M010', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -1463,7 +1463,7 @@ def crear_maquina():
 
         cursor.execute("SELECT id FROM machine WHERE name = %s", (name,))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Máquina ya existe'})
+            return api_response('M011', http_status=400)
 
         cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():
@@ -1512,13 +1512,13 @@ def actualizar_maquina(maquina_id):
         porcentaje_restaurante = data.get('porcentaje_restaurante', 35.00)
 
         if tipo not in ['simulador', 'arcade', 'peluchera']:
-            return api_response('E005', http_status=400, data={'message': 'Tipo de máquina inválido'})
+            return api_response('M008', http_status=400)
         if status == 'inactiva':
             status = 'mantenimiento'   # 'inactiva' fusionado en 'mantenimiento'
         if status not in ['activa', 'mantenimiento']:
-            return api_response('E005', http_status=400, data={'message': 'Estado inválido'})
+            return api_response('M009', http_status=400)
         if not (0 <= float(porcentaje_restaurante) <= 100):
-            return api_response('E005', http_status=400, data={'message': 'Porcentaje debe estar entre 0 y 100'})
+            return api_response('M010', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -1532,7 +1532,7 @@ def actualizar_maquina(maquina_id):
 
         cursor.execute("SELECT id FROM machine WHERE name = %s AND id != %s", (name, maquina_id))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Nombre de máquina ya existe'})
+            return api_response('M012', http_status=400)
 
         cursor.execute("SELECT id FROM location WHERE id = %s", (location_id,))
         if not cursor.fetchone():

@@ -99,11 +99,11 @@ def crear_paquete():
         duration_days = data.get('duration_days', 30)
 
         if turns < 1:
-            return api_response('E005', http_status=400, data={'message': 'Turnos debe ser mayor a 0'})
+            return api_response('P002', http_status=400)
         if price < 1000:
-            return api_response('E005', http_status=400, data={'message': 'Precio debe ser mayor a $1,000'})
+            return api_response('P003', http_status=400)
         if duration_days is None or int(duration_days) < 1:
-            return api_response('E005', http_status=400, data={'message': 'Duración debe ser mayor a 0 días'})
+            return api_response('P004', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -119,7 +119,7 @@ def crear_paquete():
             (name, location_id),
         )
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Paquete ya existe en este local'})
+            return api_response('P005', http_status=400)
 
         cursor.execute("""
             INSERT INTO turnpackage (name, turns, price, isActive, location_id, duration_days)
@@ -159,11 +159,11 @@ def actualizar_paquete(paquete_id):
         duration_days = data.get('duration_days', 30)
 
         if turns < 1:
-            return api_response('E005', http_status=400, data={'message': 'Turnos debe ser mayor a 0'})
+            return api_response('P002', http_status=400)
         if price < 1000:
-            return api_response('E005', http_status=400, data={'message': 'Precio debe ser mayor a $1,000'})
+            return api_response('P003', http_status=400)
         if duration_days is None or int(duration_days) < 1:
-            return api_response('E005', http_status=400, data={'message': 'Duración debe ser mayor a 0 días'})
+            return api_response('P004', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -177,7 +177,7 @@ def actualizar_paquete(paquete_id):
 
         cursor.execute("SELECT id FROM turnpackage WHERE name = %s AND id != %s", (name, paquete_id))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Nombre de paquete ya existe'})
+            return api_response('P006', http_status=400)
 
         cursor.execute("""
             UPDATE turnpackage

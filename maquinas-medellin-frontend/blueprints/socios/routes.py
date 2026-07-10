@@ -127,7 +127,7 @@ def obtener_socio_actual():
         cursor = get_db_cursor(connection)
         socio = _resolve_socio_by_session(cursor)
         if not socio:
-            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
+            return api_response('SC001', http_status=404)
 
         socio = dict(socio)
         socio['tipo_socio'] = 'inversionista'
@@ -690,12 +690,8 @@ def obtener_estadisticas_panel_socio():
 
         socio = _resolve_socio_by_session(cursor)
         if not socio or not socio.get('id'):
-            return jsonify(
-                {
-                    'message': 'No se encontró información de socio asociada a tu usuario',
-                    'requiere_configuracion': True,
-                }
-            ), 404
+            return api_response('SC002', http_status=404,
+                                data={'requiere_configuracion': True})
 
         socio_id = socio['id']
         cursor.execute(
@@ -1139,7 +1135,7 @@ def detalle_financiero_socio(socio_id):
         cursor.execute('SELECT * FROM socios WHERE id = %s', (socio_id,))
         socio = cursor.fetchone()
         if not socio:
-            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
+            return api_response('SC001', http_status=404)
         socio = dict(socio)
         _serialize_dict_dates(socio, ['fecha_inscripcion', 'fecha_vencimiento'])
 
@@ -1221,7 +1217,7 @@ def panel_financiero_socio_actual():
 
         socio = _resolve_socio_by_session(cursor)
         if not socio or not socio.get('id'):
-            return api_response('E002', http_status=404, data={'message': 'Socio no encontrado'})
+            return api_response('SC001', http_status=404)
         socio_id = socio['id']
 
         utilidad  = calcular_utilidad_socio(cursor, socio_id, fecha_inicio, fecha_fin)

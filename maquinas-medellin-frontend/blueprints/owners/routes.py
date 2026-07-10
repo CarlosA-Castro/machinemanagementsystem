@@ -125,7 +125,7 @@ def crear_propietario():
 
         cursor.execute("SELECT id FROM Propietarios WHERE nombre = %s", (nombre,))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Propietario ya existe'})
+            return api_response('O001', http_status=400)
 
         cursor.execute("""
             INSERT INTO Propietarios (nombre, telefono, email, notas)
@@ -175,7 +175,7 @@ def actualizar_propietario(propietario_id):
 
         cursor.execute("SELECT id FROM Propietarios WHERE nombre = %s AND id != %s", (nombre, propietario_id))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Nombre de propietario ya existe'})
+            return api_response('O002', http_status=400)
 
         cursor.execute("""
             UPDATE Propietarios

@@ -717,7 +717,7 @@ def crear_local():
 
         cursor.execute("SELECT id FROM location WHERE name = %s", (name,))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Local ya existe'})
+            return api_response('L001', http_status=400)
 
         cursor.execute("""
             INSERT INTO location (name, address, city, status, telefono, horario, notas)
@@ -769,7 +769,7 @@ def actualizar_local(local_id):
 
         cursor.execute("SELECT id FROM location WHERE name = %s AND id != %s", (name, local_id))
         if cursor.fetchone():
-            return api_response('E007', http_status=400, data={'message': 'Nombre de local ya existe'})
+            return api_response('L002', http_status=400)
 
         cursor.execute("""
             UPDATE location

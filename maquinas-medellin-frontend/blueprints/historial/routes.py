@@ -142,9 +142,9 @@ def obtener_historial_qr(qr_code):
 
         if not historial:
             return api_response(
-                'I001',
+                'Q010',
                 status='info',
-                data={'message': 'No hay historial para este QR', 'qr_code': qr_code},
+                data={'qr_code': qr_code},
             )
 
         return jsonify(historial)

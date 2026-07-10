@@ -157,7 +157,7 @@ def actualizar_mensaje(mensaje_id):
             update_values.append(data['language_code'])
 
         if not update_fields:
-            return api_response('E005', http_status=400, data={'message': 'No hay campos para actualizar'})
+            return api_response('G001', http_status=400)
 
         update_values.append(mensaje_id)
         cursor.execute(
@@ -204,11 +204,7 @@ def eliminar_mensaje(mensaje_id):
 
         codigos_esenciales = ['E001', 'E002', 'A001', 'S001']
         if mensaje['message_code'] in codigos_esenciales:
-            return api_response(
-                'E007',
-                http_status=400,
-                data={'message': 'No se pueden eliminar mensajes del sistema esenciales'}
-            )
+            return api_response('W007', http_status=400)
 
         cursor.execute("DELETE FROM system_messages WHERE id = %s", (mensaje_id,))
         connection.commit()
@@ -237,7 +233,7 @@ def recargar_cache_mensajes():
     try:
         MessageService.clear_cache()
         logger.info("Cache de mensajes recargado")
-        return api_response('S003', status='success', data={'message': 'Cache recargado'})
+        return api_response('S016', status='success')
     except Exception as e:
         logger.error(f"Error recargando cache: {e}")
         return api_response('E001', http_status=500)

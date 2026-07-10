@@ -379,7 +379,7 @@ def resolver_falla_maquina(maquina_id):
         cursor.execute("SELECT id, name, status FROM machine WHERE id = %s", (maquina_id,))
         maquina = cursor.fetchone()
         if not maquina:
-            return api_response('E005', http_status=404, data={'message': 'Máquina no encontrada'})
+            return api_response('M001', http_status=404)
 
         cursor.execute("""
             UPDATE machine
@@ -830,7 +830,7 @@ def cambiar_estado_usuario(usuario_id):
         is_active = data['isActive']
 
         if usuario_id == session.get('user_id'):
-            return api_response('U005', http_status=400, data={'message': 'No puedes cambiar tu propio estado'})
+            return api_response('U009', http_status=400)
 
         connection = get_db_connection()
         if not connection:

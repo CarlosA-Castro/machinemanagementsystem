@@ -181,8 +181,7 @@ def crear_usuario():
         # Validar formato de nombre de usuario: solo A-Z y 0-9, sin espacios, 4-20 chars
         import re
         if not re.fullmatch(r'[A-Z0-9]{4,20}', name):
-            return api_response('E005', http_status=400,
-                                data={'message': 'El nombre de usuario debe tener entre 4 y 20 caracteres, solo letras mayúsculas y números. Ej: AFGOMEZ'})
+            return api_response('U007', http_status=400)
 
         if len(password) < 6:
             return api_response('U003', http_status=400)
@@ -201,7 +200,7 @@ def crear_usuario():
 
         cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
         if not cursor.fetchone():
-            return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
+            return api_response('U006', http_status=400)
 
         cursor.execute("SELECT id FROM users WHERE name = %s", (name,))
         if cursor.fetchone():
@@ -210,8 +209,7 @@ def crear_usuario():
         if location_id:
             cursor.execute("SELECT id FROM location WHERE id = %s AND status = 'activo'", (location_id,))
             if not cursor.fetchone():
-                return api_response('E002', http_status=404,
-                                    data={'message': 'Local no encontrado o inactivo'})
+                return api_response('U008', http_status=404)
 
         cursor.execute(
             "INSERT INTO users (name, password, password_hash, role, createdBy, notes, location_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -249,8 +247,7 @@ def actualizar_usuario(usuario_id):
 
         import re
         if not re.fullmatch(r'[A-Z0-9]{4,20}', name):
-            return api_response('E005', http_status=400,
-                                data={'message': 'El nombre de usuario debe tener entre 4 y 20 caracteres, solo letras mayúsculas y números. Ej: AFGOMEZ'})
+            return api_response('U007', http_status=400)
 
         ROLES_FIJO = {'cajero', 'admin_restaurante'}
         if role in ROLES_FIJO and not location_id:
@@ -265,7 +262,7 @@ def actualizar_usuario(usuario_id):
 
         cursor.execute("SELECT id FROM roles WHERE id = %s AND activo = TRUE", (role,))
         if not cursor.fetchone():
-            return api_response('U004', http_status=400, data={'message': 'Rol no válido'})
+            return api_response('U006', http_status=400)
 
         cursor.execute("SELECT id FROM users WHERE id = %s", (usuario_id,))
         if not cursor.fetchone():
@@ -278,8 +275,7 @@ def actualizar_usuario(usuario_id):
         if location_id:
             cursor.execute("SELECT id FROM location WHERE id = %s AND status = 'activo'", (location_id,))
             if not cursor.fetchone():
-                return api_response('E002', http_status=404,
-                                    data={'message': 'Local no encontrado o inactivo'})
+                return api_response('U008', http_status=404)
 
         if password:
             cursor.execute(

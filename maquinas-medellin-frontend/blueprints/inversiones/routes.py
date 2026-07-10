@@ -136,7 +136,7 @@ def actualizar_inversion(inversion_id):
                 update_values.append(data[field])
 
         if not update_fields:
-            return api_response('E005', http_status=400, data={'message': 'No hay campos para actualizar'})
+            return api_response('G001', http_status=400)
 
         update_fields.append("updated_at = NOW()")
         update_values.append(inversion_id)

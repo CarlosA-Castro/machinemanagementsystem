@@ -2404,7 +2404,7 @@ def procesar_devolucion_unica():
         uso_data = cursor.fetchone()
         
         if not uso_data:
-            return api_response('E002', http_status=404, data={'message': 'Registro de uso no encontrado'})
+            return api_response('Q009', http_status=404)
         
         # ==========================================
         # 4. REGISTRAR LA DEVOLUCIÃ“N

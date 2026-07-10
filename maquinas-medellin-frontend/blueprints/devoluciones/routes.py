@@ -438,9 +438,7 @@ def procesar_devolucion_unica():
             cursor.execute("SELECT location_id FROM machine WHERE id = %s", (machine_id,))
             mach_row = cursor.fetchone()
             if not mach_row or mach_row['location_id'] != active_loc_id:
-                return api_response('E005', http_status=403, data={
-                    'message': 'La máquina no pertenece al local activo'
-                })
+                return api_response('D002', http_status=403)
 
         cursor.execute("SELECT id, remainingTurns FROM qrcode WHERE code = %s", (qr_code,))
         qr_data = cursor.fetchone()
@@ -463,7 +461,7 @@ def procesar_devolucion_unica():
         uso_data = cursor.fetchone()
 
         if not uso_data:
-            return api_response('E002', http_status=404, data={'message': 'Registro de uso no encontrado'})
+            return api_response('Q009', http_status=404)
 
         fecha_juego = uso_data['usedAt']
         play_id = uso_data.get('play_id')
