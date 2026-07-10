@@ -381,6 +381,391 @@ def obtener_logs_transaccional_consolidado():
                 pass
 
 
+@logs_bp.route('/api/logs/trazabilidad', methods=['GET'])
+@handle_api_errors
+@require_admin_access('logs')
+def obtener_trazabilidad_entidad():
+    """Trazabilidad 360° de una entidad (QR, máquina o paquete) por su ID/código.
+
+    Ingresas tipo + valor y devuelve TODA la actividad transaccional asociada:
+    ventas, jugadas, fallas, paquete, cajero, etc. — consolidado en un solo lugar.
+
+    Query params:
+      - tipo:  'qr' | 'maquina' | 'paquete'
+      - valor: id numérico o código/nombre
+      - fecha_inicio, fecha_fin: opcionales; si van vacíos → todo el historial.
+
+    Respeta el filtro por local activo (get_active_location) igual que el resto
+    de la sección de logs.
+    """
+    connection = None
+    cursor = None
+    try:
+        tipo = (request.args.get('tipo') or '').strip().lower()
+        valor = (request.args.get('valor') or '').strip()
+        fecha_inicio = (request.args.get('fecha_inicio') or '').strip()
+        fecha_fin = (request.args.get('fecha_fin') or '').strip()
+
+        if tipo not in ('qr', 'maquina', 'paquete'):
+            return api_response('E002', http_status=400, data={'detalle': "tipo debe ser qr, maquina o paquete"})
+        if not valor:
+            return api_response('E002', http_status=400, data={'detalle': 'Falta el valor a buscar'})
+
+        # ── Filtro de local activo (mismo criterio que el consolidado) ──────────
+        active_loc_id, active_loc_name = get_active_location()
+        _no_filter = user_can_view_all() and active_loc_id is None
+
+        # Cláusula de rango de fechas reutilizable por columna de fecha.
+        def _rango(col):
+            clause, params = "", []
+            if fecha_inicio:
+                clause += f" AND DATE({col}) >= %s"
+                params.append(fecha_inicio)
+            if fecha_fin:
+                clause += f" AND DATE({col}) <= %s"
+                params.append(fecha_fin)
+            return clause, params
+
+        connection = get_db_connection()
+        if not connection:
+            return api_response('E006', http_status=500)
+        cursor = get_db_cursor(connection)
+
+        def _iso(v):
+            return v.isoformat() if v is not None and hasattr(v, 'isoformat') else v
+
+        # ════════════════════════════════════════════════════════════════════
+        #  QR
+        # ════════════════════════════════════════════════════════════════════
+        if tipo == 'qr':
+            if valor.isdigit():
+                cursor.execute(
+                    """
+                    SELECT qr.id, qr.code, qr.qr_name, qr.turnPackageId, qr.remainingTurns,
+                           qr.isActive, qr.isUsed, qr.createdAt, qr.location_id,
+                           tp.name AS paquete, tp.turns AS paquete_turnos, tp.price AS paquete_precio,
+                           tp.duration_days AS paquete_dias,
+                           loc.name AS local_nombre
+                    FROM qrcode qr
+                    LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+                    LEFT JOIN location loc ON loc.id = qr.location_id
+                    WHERE qr.id = %s OR qr.code = %s
+                    LIMIT 1
+                    """,
+                    (valor, valor),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT qr.id, qr.code, qr.qr_name, qr.turnPackageId, qr.remainingTurns,
+                           qr.isActive, qr.isUsed, qr.createdAt, qr.location_id,
+                           tp.name AS paquete, tp.turns AS paquete_turnos, tp.price AS paquete_precio,
+                           tp.duration_days AS paquete_dias,
+                           loc.name AS local_nombre
+                    FROM qrcode qr
+                    LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+                    LEFT JOIN location loc ON loc.id = qr.location_id
+                    WHERE qr.code = %s
+                    LIMIT 1
+                    """,
+                    (valor,),
+                )
+            qr = cursor.fetchone()
+            if not qr:
+                return jsonify({'tipo': tipo, 'encontrado': False, 'valor': valor})
+
+            # Scope: si el usuario está acotado a un local y el QR es de otro → 404 lógico.
+            if not _no_filter and active_loc_id is not None and qr.get('location_id') not in (None, active_loc_id):
+                return jsonify({'tipo': tipo, 'encontrado': False, 'valor': valor, 'fuera_de_local': True})
+
+            code = qr['code']
+            cabecera = {
+                'id': qr['id'], 'code': code, 'qr_name': qr['qr_name'],
+                'paquete': qr['paquete'], 'paquete_id': qr['turnPackageId'],
+                'paquete_turnos': qr['paquete_turnos'],
+                'paquete_precio': float(qr['paquete_precio']) if qr['paquete_precio'] is not None else None,
+                'paquete_dias': qr['paquete_dias'],
+                'turnos_restantes': qr['remainingTurns'],
+                'activo': bool(qr['isActive']), 'usado': bool(qr['isUsed']),
+                'local': qr['local_nombre'], 'creado': _iso(qr['createdAt']),
+            }
+
+            _loc_v = "" if _no_filter else " AND qh.local = %s"
+            _loc_vp = [] if _no_filter or not active_loc_name else [active_loc_name]
+            rc, rp = _rango('qh.fecha_hora')
+            cursor.execute(
+                f"""
+                SELECT qh.fecha_hora, qh.user_name AS cajero, qh.local,
+                       qh.es_venta_real, qh.payment_method
+                FROM qrhistory qh
+                WHERE qh.qr_code = %s{_loc_v}{rc}
+                ORDER BY qh.fecha_hora DESC
+                LIMIT 100
+                """,
+                (code, *_loc_vp, *rp),
+            )
+            ventas = []
+            for r in cursor.fetchall():
+                row = dict(r)
+                row['fecha_hora'] = _iso(row['fecha_hora'])
+                row['es_venta_real'] = bool(row['es_venta_real'])
+                ventas.append(row)
+
+            _loc_j = "" if _no_filter else " AND m.location_id = %s"
+            _loc_jp = [] if _no_filter or active_loc_id is None else [active_loc_id]
+            rc, rp = _rango('tu.usedAt')
+            cursor.execute(
+                f"""
+                SELECT tu.usedAt, tu.station_index, tu.turns_remaining_after,
+                       m.id AS machine_id, m.name AS machine_name
+                FROM turnusage tu
+                JOIN machine m ON m.id = tu.machineId
+                WHERE tu.qrCodeId = %s{_loc_j}{rc}
+                ORDER BY tu.usedAt DESC
+                LIMIT 100
+                """,
+                (qr['id'], *_loc_jp, *rp),
+            )
+            jugadas = []
+            for r in cursor.fetchall():
+                row = dict(r)
+                row['usedAt'] = _iso(row['usedAt'])
+                jugadas.append(row)
+
+            rc, rp = _rango('mf.reported_at')
+            cursor.execute(
+                f"""
+                SELECT mf.reported_at, mf.machine_id, COALESCE(mf.machine_name, 'Desconocida') AS machine_name,
+                       mf.station_index, mf.turnos_devueltos, COALESCE(mf.notes, '') AS notes,
+                       COALESCE(mf.is_forced, 0) AS is_forced, COALESCE(mf.forced_by, '') AS forced_by
+                FROM machinefailures mf
+                LEFT JOIN machine mf_m ON mf.machine_id = mf_m.id
+                WHERE mf.qr_code_id = %s{'' if _no_filter else ' AND mf_m.location_id = %s'}{rc}
+                ORDER BY mf.reported_at DESC
+                LIMIT 100
+                """,
+                (qr['id'], *_loc_jp, *rp),
+            )
+            fallas = []
+            for r in cursor.fetchall():
+                row = dict(r)
+                row['reported_at'] = _iso(row['reported_at'])
+                row['is_forced'] = bool(row['is_forced'])
+                fallas.append(row)
+
+            resumen = {
+                'total_ventas': sum(1 for v in ventas if v['es_venta_real']),
+                'total_jugadas': len(jugadas),
+                'total_fallas': len(fallas),
+                'total_devueltos': sum(int(f['turnos_devueltos'] or 0) for f in fallas),
+            }
+            return jsonify({
+                'tipo': tipo, 'encontrado': True, 'cabecera': cabecera,
+                'ventas': ventas, 'jugadas': jugadas, 'fallas': fallas, 'resumen': resumen,
+                'timestamp': get_colombia_time().isoformat(),
+            })
+
+        # ════════════════════════════════════════════════════════════════════
+        #  MÁQUINA
+        # ════════════════════════════════════════════════════════════════════
+        if tipo == 'maquina':
+            _loc_m = "" if _no_filter else " AND m.location_id = %s"
+            _loc_mp = [] if _no_filter or active_loc_id is None else [active_loc_id]
+            if valor.isdigit():
+                _cond = "(m.id = %s OR m.name = %s)"
+                _cp = [valor, valor]
+            else:
+                _cond = "m.name LIKE %s"
+                _cp = [f'%{valor}%']
+            cursor.execute(
+                f"""
+                SELECT m.id, m.name, m.type, m.status, m.valor_por_turno,
+                       m.dateLastQRUsed, m.errorNote, loc.name AS local_nombre
+                FROM machine m
+                LEFT JOIN location loc ON loc.id = m.location_id
+                WHERE {_cond}{_loc_m}
+                ORDER BY m.id
+                LIMIT 1
+                """,
+                (*_cp, *_loc_mp),
+            )
+            maq = cursor.fetchone()
+            if not maq:
+                return jsonify({'tipo': tipo, 'encontrado': False, 'valor': valor})
+
+            cabecera = {
+                'id': maq['id'], 'name': maq['name'], 'type': maq['type'],
+                'status': maq['status'],
+                'valor_por_turno': float(maq['valor_por_turno']) if maq['valor_por_turno'] is not None else None,
+                'ultimo_uso': _iso(maq['dateLastQRUsed']),
+                'local': maq['local_nombre'], 'nota_error': maq['errorNote'],
+            }
+
+            rc, rp = _rango('tu.usedAt')
+            cursor.execute(
+                f"""
+                SELECT tu.usedAt, tu.station_index, tu.turns_remaining_after,
+                       qr.id AS qr_id, qr.code AS qr_code, qr.qr_name,
+                       tp.name AS paquete,
+                       (SELECT qh.user_name FROM qrhistory qh
+                        WHERE qh.qr_code = qr.code AND qh.es_venta_real = TRUE
+                        ORDER BY qh.fecha_hora DESC LIMIT 1) AS cajero
+                FROM turnusage tu
+                JOIN qrcode qr ON qr.id = tu.qrCodeId
+                LEFT JOIN turnpackage tp ON tp.id = qr.turnPackageId
+                WHERE tu.machineId = %s{rc}
+                ORDER BY tu.usedAt DESC
+                LIMIT 150
+                """,
+                (maq['id'], *rp),
+            )
+            jugadas = []
+            qrs_distintos = set()
+            for r in cursor.fetchall():
+                row = dict(r)
+                row['usedAt'] = _iso(row['usedAt'])
+                qrs_distintos.add(row['qr_id'])
+                jugadas.append(row)
+
+            rc, rp = _rango('mf.reported_at')
+            cursor.execute(
+                f"""
+                SELECT mf.reported_at, mf.station_index, mf.turnos_devueltos,
+                       COALESCE(qr.code, '') AS qr_code, COALESCE(qr.qr_name, '') AS qr_name,
+                       COALESCE(mf.notes, '') AS notes,
+                       COALESCE(mf.is_forced, 0) AS is_forced, COALESCE(mf.forced_by, '') AS forced_by
+                FROM machinefailures mf
+                LEFT JOIN qrcode qr ON mf.qr_code_id = qr.id
+                WHERE mf.machine_id = %s{rc}
+                ORDER BY mf.reported_at DESC
+                LIMIT 100
+                """,
+                (maq['id'], *rp),
+            )
+            fallas = []
+            for r in cursor.fetchall():
+                row = dict(r)
+                row['reported_at'] = _iso(row['reported_at'])
+                row['is_forced'] = bool(row['is_forced'])
+                fallas.append(row)
+
+            resumen = {
+                'total_jugadas': len(jugadas),
+                'qrs_distintos': len(qrs_distintos),
+                'total_fallas': len(fallas),
+                'total_devueltos': sum(int(f['turnos_devueltos'] or 0) for f in fallas),
+            }
+            return jsonify({
+                'tipo': tipo, 'encontrado': True, 'cabecera': cabecera,
+                'jugadas': jugadas, 'fallas': fallas, 'resumen': resumen,
+                'timestamp': get_colombia_time().isoformat(),
+            })
+
+        # ════════════════════════════════════════════════════════════════════
+        #  PAQUETE
+        # ════════════════════════════════════════════════════════════════════
+        if valor.isdigit():
+            cursor.execute(
+                """
+                SELECT id, name, turns, price, isActive, createdAt, duration_days
+                FROM turnpackage WHERE id = %s OR name = %s ORDER BY id LIMIT 1
+                """,
+                (valor, valor),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT id, name, turns, price, isActive, createdAt, duration_days
+                FROM turnpackage WHERE name LIKE %s ORDER BY id LIMIT 1
+                """,
+                (f'%{valor}%',),
+            )
+        paq = cursor.fetchone()
+        if not paq:
+            return jsonify({'tipo': tipo, 'encontrado': False, 'valor': valor})
+
+        cabecera = {
+            'id': paq['id'], 'name': paq['name'], 'turns': paq['turns'],
+            'price': float(paq['price']) if paq['price'] is not None else None,
+            'activo': bool(paq['isActive']), 'creado': _iso(paq['createdAt']),
+            'duration_days': paq['duration_days'],
+        }
+
+        # QRs que usan este paquete (scope por location del QR si aplica)
+        _loc_q = "" if _no_filter else " AND (qr.location_id = %s OR qr.location_id IS NULL)"
+        _loc_qp = [] if _no_filter or active_loc_id is None else [active_loc_id]
+        cursor.execute(
+            f"""
+            SELECT qr.id, qr.code, qr.qr_name, qr.remainingTurns, qr.isActive, qr.createdAt
+            FROM qrcode qr
+            WHERE qr.turnPackageId = %s{_loc_q}
+            ORDER BY qr.createdAt DESC
+            LIMIT 200
+            """,
+            (paq['id'], *_loc_qp),
+        )
+        qrs = []
+        for r in cursor.fetchall():
+            row = dict(r)
+            row['createdAt'] = _iso(row['createdAt'])
+            row['isActive'] = bool(row['isActive'])
+            qrs.append(row)
+
+        # Ventas del paquete (qrhistory de QRs con este paquete)
+        _loc_v = "" if _no_filter else " AND qh.local = %s"
+        _loc_vp = [] if _no_filter or not active_loc_name else [active_loc_name]
+        rc, rp = _rango('qh.fecha_hora')
+        cursor.execute(
+            f"""
+            SELECT qh.user_name AS cajero,
+                   COUNT(*) AS ventas,
+                   COALESCE(SUM(tp.price), 0) AS ingresos
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON tp.id = qr.turnPackageId
+            WHERE qr.turnPackageId = %s AND qh.es_venta_real = TRUE{_loc_v}{rc}
+            GROUP BY qh.user_name
+            ORDER BY ventas DESC
+            """,
+            (paq['id'], *_loc_vp, *rp),
+        )
+        por_cajero = []
+        total_ventas = 0
+        total_ingresos = 0.0
+        for r in cursor.fetchall():
+            row = dict(r)
+            row['ingresos'] = float(row['ingresos'] or 0)
+            total_ventas += int(row['ventas'] or 0)
+            total_ingresos += row['ingresos']
+            por_cajero.append(row)
+
+        resumen = {
+            'total_qrs': len(qrs),
+            'total_ventas': total_ventas,
+            'total_ingresos': total_ingresos,
+        }
+        return jsonify({
+            'tipo': tipo, 'encontrado': True, 'cabecera': cabecera,
+            'qrs': qrs, 'por_cajero': por_cajero, 'resumen': resumen,
+            'timestamp': get_colombia_time().isoformat(),
+        })
+
+    except Exception as e:
+        logger.error(f"Error en trazabilidad: {e}", exc_info=True)
+        return api_response('E001', http_status=500)
+    finally:
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if connection:
+            try:
+                connection.close()
+            except Exception:
+                pass
+
+
 @logs_bp.route('/api/logs/consola-completa', methods=['GET'])
 @handle_api_errors
 @require_admin_access('logs')

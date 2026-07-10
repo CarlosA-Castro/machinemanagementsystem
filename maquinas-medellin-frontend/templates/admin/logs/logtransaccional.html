@@ -177,6 +177,63 @@
             <p class="text-xs text-gray-400 mt-2" id="periodoLabel">Cargando...</p>
         </div>
 
+        <!-- ══════════ TRAZABILIDAD POR ID ══════════ -->
+        <div class="glass-card mb-4" id="panelTrazabilidad">
+            <div class="mb-3">
+                <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-search-location mr-2 text-blue-600"></i>Trazabilidad por ID</h2>
+                <p class="text-gray-500 text-xs mt-0.5">Ingresa un QR, máquina o paquete y consulta toda su actividad transaccional en un solo lugar.</p>
+            </div>
+            <div class="flex flex-wrap items-end gap-2 mb-1">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-0.5 font-semibold">Tipo</label>
+                    <select id="tzTipo" onchange="TZ.cambiarTipo()" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="qr">QR</option>
+                        <option value="maquina">Máquina</option>
+                        <option value="paquete">Paquete</option>
+                    </select>
+                </div>
+                <div class="flex-1" style="min-width:200px">
+                    <label class="block text-xs text-gray-500 mb-0.5 font-semibold" id="tzLabelValor">Código o ID del QR</label>
+                    <input type="text" id="tzValor" placeholder="Ej: QR014 o 12"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        onkeydown="if(event.key==='Enter') TZ.buscar()">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-0.5 font-semibold">Desde</label>
+                    <input type="date" id="tzFechaInicio" class="border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-0.5 font-semibold">Hasta</label>
+                    <input type="date" id="tzFechaFin" class="border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                </div>
+                <button onclick="TZ.buscar()" id="tzBtnBuscar"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-2">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <button onclick="TZ.limpiar()"
+                    class="bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300">
+                    Limpiar
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-2"><i class="fas fa-info-circle mr-1"></i>Deja las fechas vacías para ver todo el historial de la entidad.</p>
+            <div id="tzResultado"></div>
+        </div>
+
+        <!-- Toggle del dashboard general -->
+        <div class="mb-4">
+            <button onclick="LT.toggleSecciones()" id="btnToggleSecciones"
+                class="w-full glass-card flex items-center justify-between text-left hover:bg-blue-50 transition"
+                style="padding:0.85rem 1.25rem; cursor:pointer; margin-bottom:0;">
+                <span class="font-bold text-gray-700"><i class="fas fa-layer-group mr-2 text-indigo-600"></i>Dashboard general del período
+                    <span class="text-xs font-normal text-gray-400 ml-1">(KPIs · gráfica · ventas · máquinas · fallas · feeds)</span></span>
+                <span class="text-blue-600 text-sm font-semibold flex items-center gap-1">
+                    <span id="toggleSeccionesLabel">Mostrar</span>
+                    <i class="fas fa-chevron-down transition-transform" id="toggleSeccionesChv"></i>
+                </span>
+            </button>
+        </div>
+
+        <div id="seccionesLegacy" style="display:none;">
         <!-- KPIs -->
         <div class="kpi-grid grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
             <div class="kpi-card kpi-ventas">
@@ -357,6 +414,7 @@
                 </div>
             </div>
         </div>
+        </div><!-- /seccionesLegacy -->
 
     </main>
 </div>
@@ -768,6 +826,19 @@ const LT = {
         if(el) el.classList.toggle('open');
     },
 
+    // ─── Toggle dashboard general (secciones legacy) ───────────────────
+    toggleSecciones() {
+        const box = document.getElementById('seccionesLegacy');
+        const lbl = document.getElementById('toggleSeccionesLabel');
+        const chv = document.getElementById('toggleSeccionesChv');
+        const open = box.style.display === 'none';
+        box.style.display = open ? 'block' : 'none';
+        if (lbl) lbl.textContent = open ? 'Ocultar' : 'Mostrar';
+        if (chv) chv.style.transform = open ? 'rotate(180deg)' : '';
+        // La gráfica se dibujó dentro de un contenedor oculto (tamaño 0) → reajustar.
+        if (open && this.chart) { try { this.chart.resize(); } catch(e){} }
+    },
+
     // ─── Auto-refresh & Clock ──────────────────────────────────────────
     setupAr() {
         document.getElementById('autoRefresh').addEventListener('change', e=>{
@@ -801,6 +872,248 @@ const LT = {
         document.getElementById('fechaFin').value=hoy;
         this.setupAr(); this.startClock(); this.cargar();
     }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+//  TZ — Trazabilidad por ID (QR / máquina / paquete)
+// ═══════════════════════════════════════════════════════════════════════
+const TZ = {
+    _labels: {
+        qr:      'Código o ID del QR',
+        maquina: 'ID o nombre de la máquina',
+        paquete: 'ID o nombre del paquete',
+    },
+    _placeholders: {
+        qr:      'Ej: QR014 o 12',
+        maquina: 'Ej: 6 o Basketball',
+        paquete: 'Ej: 3 o Paquete P3',
+    },
+
+    cambiarTipo() {
+        const t = document.getElementById('tzTipo').value;
+        document.getElementById('tzLabelValor').textContent = this._labels[t] || 'ID';
+        document.getElementById('tzValor').placeholder = this._placeholders[t] || '';
+    },
+
+    limpiar() {
+        document.getElementById('tzValor').value = '';
+        document.getElementById('tzFechaInicio').value = '';
+        document.getElementById('tzFechaFin').value = '';
+        document.getElementById('tzResultado').innerHTML = '';
+    },
+
+    esc(s) {
+        return String(s==null?'':s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    },
+
+    async buscar() {
+        const tipo  = document.getElementById('tzTipo').value;
+        const valor = document.getElementById('tzValor').value.trim();
+        const fi    = document.getElementById('tzFechaInicio').value;
+        const ff    = document.getElementById('tzFechaFin').value;
+        const cont  = document.getElementById('tzResultado');
+        const btn   = document.getElementById('tzBtnBuscar');
+        if (!valor) { cont.innerHTML = '<div class="text-amber-600 text-sm py-2"><i class="fas fa-exclamation-circle mr-1"></i>Ingresa un valor a buscar.</div>'; return; }
+        btn.innerHTML = '<div class="spin"></div>'; btn.disabled = true;
+        cont.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm"><div class="spin mx-auto mb-2"></div>Buscando...</div>';
+        try {
+            const qs = new URLSearchParams({ tipo, valor });
+            if (fi) qs.set('fecha_inicio', fi);
+            if (ff) qs.set('fecha_fin', ff);
+            const r = await fetch('/api/logs/trazabilidad?' + qs.toString());
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const d = await r.json();
+            if (!d.encontrado) {
+                cont.innerHTML = d.fuera_de_local
+                    ? `<div class="text-amber-600 text-sm py-6 text-center"><i class="fas fa-lock mr-1"></i>Ese ${this.esc(tipo)} pertenece a otro local. No tienes acceso desde el local activo.</div>`
+                    : `<div class="text-gray-400 text-sm py-6 text-center"><i class="fas fa-search-minus mr-1"></i>No se encontró ${this.esc(tipo)} con "<span class="font-mono">${this.esc(valor)}</span>".</div>`;
+                return;
+            }
+            if      (tipo === 'qr')      cont.innerHTML = this.renderQR(d);
+            else if (tipo === 'maquina') cont.innerHTML = this.renderMaquina(d);
+            else                         cont.innerHTML = this.renderPaquete(d);
+        } catch(e) {
+            cont.innerHTML = `<div class="text-red-600 text-sm py-4"><i class="fas fa-exclamation-triangle mr-1"></i>Error: ${this.esc(e.message)}</div>`;
+        } finally {
+            btn.innerHTML = '<i class="fas fa-search"></i> Buscar'; btn.disabled = false;
+        }
+    },
+
+    // Bloque reutilizable: chips de resumen
+    _chips(items) {
+        return `<div class="flex flex-wrap gap-2 mb-3">${items.map(([label,val,color])=>`
+            <div class="rounded-lg px-3 py-1.5" style="background:${color||'#eff6ff'}">
+                <div class="text-xs text-gray-500">${label}</div>
+                <div class="text-base font-bold text-gray-800">${val}</div>
+            </div>`).join('')}</div>`;
+    },
+    _dato(label, val) {
+        return `<div><span class="text-xs text-gray-400">${label}</span><div class="text-sm font-semibold text-gray-800">${val==null||val===''?'—':val}</div></div>`;
+    },
+    _tabla(titulo, icono, headers, filas, vacio) {
+        return `<div class="mb-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-2">${icono} ${titulo} <span class="text-gray-400 font-normal">(${filas.length})</span></h3>
+            <div class="scroll-box scroll-360 table-auto w-full border border-gray-100 rounded-lg">
+                <table class="w-full text-xs sticky-head border-collapse">
+                    <thead><tr class="text-left text-gray-400 border-b-2 border-gray-200">
+                        ${headers.map(h=>`<th class="py-2 px-2">${h}</th>`).join('')}
+                    </tr></thead>
+                    <tbody>${filas.length ? filas.join('') : `<tr><td colspan="${headers.length}" class="text-center py-6 text-gray-300">${vacio}</td></tr>`}</tbody>
+                </table>
+            </div>
+        </div>`;
+    },
+    _origenBadge(f) {
+        return f.is_forced
+            ? `<span class="badge b-resolver_falla"><i class="fas fa-user"></i>${this.esc(f.forced_by||'cajero')}</span>`
+            : '<span class="badge b-falla_maquina"><i class="fas fa-microchip"></i>TFT</span>';
+    },
+    _estBadge(idx) {
+        return idx!=null ? `<span class="badge" style="background:#ede9fe;color:#4c1d95">Est.${this.esc(idx)}</span>` : '<span class="text-gray-300">—</span>';
+    },
+
+    // ─── QR ────────────────────────────────────────────────────────────
+    renderQR(d) {
+        const c = d.cabecera, r = d.resumen;
+        const cab = `<div class="rounded-xl border border-blue-100 bg-blue-50/50 p-3 mb-3">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:.8rem"><i class="fas fa-qrcode mr-1"></i>${this.esc(c.code)}</span>
+                <span class="font-bold text-gray-800">${this.esc(c.qr_name||'(sin nombre)')}</span>
+                ${c.activo?'<span class="badge b-ok">activo</span>':'<span class="badge b-error">inactivo</span>'}
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                ${this._dato('Paquete', c.paquete ? this.esc(c.paquete)+(c.paquete_precio!=null?` · ${LT.fmtPeso(c.paquete_precio)}`:'') : '—')}
+                ${this._dato('Turnos restantes', c.turnos_restantes)}
+                ${this._dato('Local', this.esc(c.local))}
+                ${this._dato('Creado', LT.fmtFecha(c.creado))}
+            </div>
+        </div>`;
+        const chips = this._chips([
+            ['Ventas', r.total_ventas, '#dcfce7'],
+            ['Jugadas', r.total_jugadas, '#ede9fe'],
+            ['Fallas', r.total_fallas, '#fee2e2'],
+            ['Turnos devueltos', r.total_devueltos, '#ffedd5'],
+        ]);
+        const ventas = (d.ventas||[]).map(v=>`<tr class="border-b border-gray-100">
+            <td class="py-1.5 px-2 font-mono text-gray-500">${LT.fmtFecha(v.fecha_hora)}</td>
+            <td class="py-1.5 px-2">${v.es_venta_real?'<span class="badge b-ok">venta</span>':'<span class="badge" style="background:#f3f4f6;color:#6b7280">escaneo</span>'}</td>
+            <td class="py-1.5 px-2">${this.esc(v.cajero||'—')}</td>
+            <td class="py-1.5 px-2">${this.esc(v.local||'—')}</td>
+            <td class="py-1.5 px-2">${this.esc(v.payment_method||'—')}</td>
+        </tr>`);
+        const jugadas = (d.jugadas||[]).map(j=>`<tr class="border-b border-gray-100">
+            <td class="py-1.5 px-2 font-mono text-gray-500">${LT.fmtFecha(j.usedAt)}</td>
+            <td class="py-1.5 px-2 font-semibold text-gray-800">${this.esc(j.machine_name)}</td>
+            <td class="py-1.5 px-2 text-center">${this._estBadge(j.station_index)}</td>
+            <td class="py-1.5 px-2 text-center">${j.turns_remaining_after==null?'—':j.turns_remaining_after}</td>
+        </tr>`);
+        const fallas = (d.fallas||[]).map(f=>`<tr class="border-b border-gray-100" style="background:#fff8f8">
+            <td class="py-1.5 px-2 font-mono text-gray-500">${LT.fmtFecha(f.reported_at)}</td>
+            <td class="py-1.5 px-2 font-semibold text-gray-800">${this.esc(f.machine_name)}</td>
+            <td class="py-1.5 px-2 text-center">${this._estBadge(f.station_index)}</td>
+            <td class="py-1.5 px-2 text-center font-bold text-orange-600">${f.turnos_devueltos}</td>
+            <td class="py-1.5 px-2">${this._origenBadge(f)}</td>
+            <td class="py-1.5 px-2 text-gray-500">${this.esc(f.notes||'—')}</td>
+        </tr>`);
+        return cab + chips
+            + this._tabla('Ventas / escaneos', '<i class="fas fa-cash-register text-green-600"></i>',
+                ['Fecha','Tipo','Cajero','Local','Método pago'], ventas, 'Sin registros de venta')
+            + this._tabla('Jugadas', '<i class="fas fa-gamepad text-purple-600"></i>',
+                ['Fecha','Máquina','Estación','Turnos rest.'], jugadas, 'Sin jugadas registradas')
+            + this._tabla('Fallas', '<i class="fas fa-microchip text-red-600"></i>',
+                ['Fecha','Máquina','Estación','T. Devueltos','Origen','Notas'], fallas, 'Sin fallas asociadas');
+    },
+
+    // ─── Máquina ───────────────────────────────────────────────────────
+    renderMaquina(d) {
+        const c = d.cabecera, r = d.resumen;
+        const sC = c.status==='activa'?'b-ok':c.status==='mantenimiento'?'b-advertencia':'b-error';
+        const cab = `<div class="rounded-xl border border-purple-100 bg-purple-50/40 p-3 mb-3">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="badge" style="background:#ede9fe;color:#4c1d95;font-size:.8rem"><i class="fas fa-gamepad mr-1"></i>#${c.id}</span>
+                <span class="font-bold text-gray-800">${this.esc(c.name)}</span>
+                <span class="badge ${sC}">${this.esc(c.status)}</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                ${this._dato('Tipo', this.esc(c.type))}
+                ${this._dato('Local', this.esc(c.local))}
+                ${this._dato('Valor por turno', c.valor_por_turno!=null?LT.fmtPeso(c.valor_por_turno):'—')}
+                ${this._dato('Último uso', LT.fmtFecha(c.ultimo_uso))}
+            </div>
+        </div>`;
+        const chips = this._chips([
+            ['Turnos jugados', r.total_jugadas, '#ede9fe'],
+            ['QR distintos', r.qrs_distintos, '#dbeafe'],
+            ['Fallas', r.total_fallas, '#fee2e2'],
+            ['Turnos devueltos', r.total_devueltos, '#ffedd5'],
+        ]);
+        const jugadas = (d.jugadas||[]).map(j=>`<tr class="border-b border-gray-100">
+            <td class="py-1.5 px-2 font-mono text-gray-500">${LT.fmtFecha(j.usedAt)}</td>
+            <td class="py-1.5 px-2">
+                <div class="font-semibold text-blue-700">${this.esc(j.qr_name||j.qr_code)}</div>
+                <div class="text-gray-400 font-mono">${this.esc(j.qr_code)}</div>
+            </td>
+            <td class="py-1.5 px-2">${this.esc(j.paquete||'—')}</td>
+            <td class="py-1.5 px-2 text-center">${this._estBadge(j.station_index)}</td>
+            <td class="py-1.5 px-2">${this.esc(j.cajero||'—')}</td>
+        </tr>`);
+        const fallas = (d.fallas||[]).map(f=>`<tr class="border-b border-gray-100" style="background:#fff8f8">
+            <td class="py-1.5 px-2 font-mono text-gray-500">${LT.fmtFecha(f.reported_at)}</td>
+            <td class="py-1.5 px-2">
+                <div class="font-semibold text-blue-700">${this.esc(f.qr_name||f.qr_code||'—')}</div>
+            </td>
+            <td class="py-1.5 px-2 text-center">${this._estBadge(f.station_index)}</td>
+            <td class="py-1.5 px-2 text-center font-bold text-orange-600">${f.turnos_devueltos}</td>
+            <td class="py-1.5 px-2">${this._origenBadge(f)}</td>
+            <td class="py-1.5 px-2 text-gray-500">${this.esc(f.notes||'—')}</td>
+        </tr>`);
+        return cab + chips
+            + this._tabla('Quiénes jugaron aquí', '<i class="fas fa-users text-blue-600"></i>',
+                ['Fecha','QR','Paquete','Estación','Cajero (venta)'], jugadas, 'Sin jugadas en el período')
+            + this._tabla('Fallas', '<i class="fas fa-microchip text-red-600"></i>',
+                ['Fecha','QR','Estación','T. Devueltos','Origen','Notas'], fallas, 'Sin fallas en el período');
+    },
+
+    // ─── Paquete ───────────────────────────────────────────────────────
+    renderPaquete(d) {
+        const c = d.cabecera, r = d.resumen;
+        const cab = `<div class="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 mb-3">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="badge" style="background:#d1fae5;color:#065f46;font-size:.8rem"><i class="fas fa-box mr-1"></i>#${c.id}</span>
+                <span class="font-bold text-gray-800">${this.esc(c.name)}</span>
+                ${c.activo?'<span class="badge b-ok">activo</span>':'<span class="badge b-error">inactivo</span>'}
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                ${this._dato('Turnos', c.turns)}
+                ${this._dato('Precio', c.price!=null?LT.fmtPeso(c.price):'—')}
+                ${this._dato('Vigencia', c.duration_days!=null?c.duration_days+' días':'—')}
+                ${this._dato('Creado', LT.fmtFecha(c.creado))}
+            </div>
+        </div>`;
+        const chips = this._chips([
+            ['QR emitidos', r.total_qrs, '#dbeafe'],
+            ['Ventas', r.total_ventas, '#dcfce7'],
+            ['Ingresos', LT.fmtPeso(r.total_ingresos), '#dcfce7'],
+        ]);
+        const cajeros = (d.por_cajero||[]).map(v=>`<tr class="border-b border-gray-100">
+            <td class="py-1.5 px-2 font-semibold text-gray-800">${this.esc(v.cajero||'—')}</td>
+            <td class="py-1.5 px-2 text-center">${v.ventas}</td>
+            <td class="py-1.5 px-2 text-right font-bold text-green-700">${LT.fmtPeso(v.ingresos)}</td>
+        </tr>`);
+        const qrs = (d.qrs||[]).map(q=>`<tr class="border-b border-gray-100">
+            <td class="py-1.5 px-2 font-mono text-blue-700">${this.esc(q.code)}</td>
+            <td class="py-1.5 px-2">${this.esc(q.qr_name||'—')}</td>
+            <td class="py-1.5 px-2 text-center">${q.remainingTurns}</td>
+            <td class="py-1.5 px-2">${q.isActive?'<span class="badge b-ok">activo</span>':'<span class="badge b-error">inactivo</span>'}</td>
+            <td class="py-1.5 px-2 font-mono text-gray-500">${LT.fmtFecha(q.createdAt)}</td>
+        </tr>`);
+        return cab + chips
+            + this._tabla('Ventas por cajero', '<i class="fas fa-cash-register text-green-600"></i>',
+                ['Cajero','Ventas','Ingresos'], cajeros, 'Sin ventas de este paquete')
+            + this._tabla('QR emitidos con este paquete', '<i class="fas fa-qrcode text-blue-600"></i>',
+                ['Código','Nombre','Turnos rest.','Estado','Creado'], qrs, 'Sin QR emitidos');
+    },
 };
 
 particlesJS('particles-js',{
