@@ -11,6 +11,7 @@ from database import get_db_connection, get_db_cursor
 from utils.auth import require_admin_access
 from utils.location_scope import apply_location_filter, apply_location_name_filter, get_active_location
 from utils.responses import api_response, handle_api_errors
+from utils.messages import MessageService
 from utils.timezone import get_colombia_time
 from utils.validators import validate_required_fields
 
@@ -1571,7 +1572,7 @@ def cerrar_liquidacion():
                     existing_close = None
             return jsonify({
                 'success': False,
-                'message': 'Este periodo se cruza con un cierre oficial ya registrado.',
+                'message': MessageService.get_error_message('LQ001'),
                 'existing_close': existing_close,
             }), 409
         logger.error(f'Error cerrando liquidación: {e}', exc_info=True)
@@ -1629,7 +1630,7 @@ def detalle_cierre(cierre_id):
         cursor = get_db_cursor(connection)
 
         if not _table_exists(cursor, 'cierre_liquidacion'):
-            return jsonify({'success': False, 'message': 'No hay cierres registrados.'}), 404
+            return jsonify({'success': False, 'message': MessageService.get_error_message('LQ002')}), 404
 
         # Cargar el cierre respetando el alcance del usuario (mismo criterio que el
         # historial): un usuario con local fijo no puede ver el cierre de otro local.
@@ -1654,7 +1655,7 @@ def detalle_cierre(cierre_id):
         )
         row = cursor.fetchone()
         if not row:
-            return jsonify({'success': False, 'message': 'Cierre no encontrado o fuera de tu alcance.'}), 404
+            return jsonify({'success': False, 'message': MessageService.get_error_message('LQ003')}), 404
 
         inicio_dt = row['inicio_dt']
         fin_dt    = row['fin_dt']
@@ -1818,8 +1819,7 @@ def registrar_liquidacion_maquina():
         cursor = get_db_cursor(connection)
 
         if not _table_exists(cursor, 'liquidaciones'):
-            return api_response('E002', http_status=404,
-                                data={'message': 'La tabla liquidaciones no está disponible'})
+            return api_response('LQ004', http_status=404)
 
         cursor.execute(
             """SELECT m.id, m.name,
@@ -1885,8 +1885,7 @@ def actualizar_porcentajes_maquina(maquina_id):
         pct_admin   = _to_float(data.get('porcentaje_admin'),       ADMIN_PERCENTAGE_DEFAULT)
 
         if pct_negocio < 0 or pct_admin < 0 or (pct_negocio + pct_admin) >= 100:
-            return api_response('E002', http_status=400,
-                                data={'message': 'Los porcentajes deben ser positivos y sumar menos de 100'})
+            return api_response('LQ005', http_status=400)
 
         connection = get_db_connection()
         if not connection:
