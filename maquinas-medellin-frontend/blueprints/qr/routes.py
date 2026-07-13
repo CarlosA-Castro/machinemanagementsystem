@@ -637,7 +637,7 @@ def obtener_estado_contador():
         resultado = cursor.fetchone()
 
         if not resultado:
-            return api_response('E002', http_status=404, data={'message': 'Contador no encontrado'})
+            return api_response('Q011', http_status=404)
 
         proximo_numero = resultado['counter_value'] + 1
         if proximo_numero > 9999:
@@ -689,7 +689,7 @@ def reiniciar_contador():
         nuevo_valor = int(data['nuevo_valor'])
 
         if nuevo_valor < 0 or nuevo_valor > 9999:
-            return api_response('E005', http_status=400, data={'message': 'El valor debe estar entre 0 y 9999'})
+            return api_response('Q012', http_status=400)
 
         connection = None
         cursor = None
@@ -736,7 +736,7 @@ def reiniciar_contador():
                 connection.close()
 
     except ValueError:
-        return api_response('E005', http_status=400, data={'message': 'Valor inválido'})
+        return api_response('Q013', http_status=400)
 
 
 @qr_bp.route('/api/generar-qr', methods=['POST'])
@@ -754,25 +754,13 @@ def generar_qr():
         payment_method = _normalize_payment_method(data.get('payment_method'))
 
         if cantidad <= 0 or cantidad > 1000:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={'message': 'Cantidad debe estar entre 1 y 1000'}
-            )
+            return api_response('Q014', http_status=400)
 
         if cantidad > 9999:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={'message': 'No se pueden generar más de 9999 códigos a la vez'}
-            )
+            return api_response('Q015', http_status=400)
 
         if paquete_id and payment_method not in VALID_PAYMENT_METHODS:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={'message': 'Método de pago inválido'}
-            )
+            return api_response('Q016', http_status=400)
 
         if paquete_id:
             codigos_generados = generar_codigos_qr_lote_con_paquete(
@@ -1664,7 +1652,7 @@ def guardar_multiples_qr_con_paquete():
         local = session.get('active_location_name') or session.get('user_local', 'El Mekatiadero')
 
         if not qr_codes:
-            return api_response('E005', http_status=400, data={'message': 'Lista de QR vacía'})
+            return api_response('Q017', http_status=400)
 
         logger.info(f"Guardando {len(qr_codes)} QR con paquete {paquete_nombre}")
 
@@ -2084,8 +2072,7 @@ def obtener_historial_qr(qr_code):
         logger.info(f"Historial obtenido para {qr_code}: {len(historial)} registros")
 
         if not historial:
-            return api_response('I001', status='info', data={
-                'message': 'No hay historial para este QR',
+            return api_response('Q010', status='info', data={
                 'qr_code': qr_code
             })
 
@@ -2126,7 +2113,7 @@ def registrar_venta():
         logger.info(f"REGISTRANDO VENTA REAL: QR={qr_code}, Paquete={paquete_id}")
 
         if payment_method not in VALID_PAYMENT_METHODS:
-            return api_response('E005', http_status=400, data={'message': 'Método de pago inválido'})
+            return api_response('Q016', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -2269,14 +2256,10 @@ def actualizar_metodo_pago_venta(venta_id):
         motivo = (data.get('reason') or '').strip()
 
         if nuevo_metodo not in VALID_PAYMENT_METHODS:
-            return api_response('E005', http_status=400, data={'message': 'Método de pago inválido'})
+            return api_response('Q016', http_status=400)
 
         if len(motivo) < 5:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={'message': 'Debes indicar un motivo de al menos 5 caracteres'}
-            )
+            return api_response('Q018', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -2322,20 +2305,11 @@ def actualizar_metodo_pago_venta(venta_id):
 
         venta = cursor.fetchone()
         if not venta:
-            return api_response(
-                'I001',
-                status='info',
-                http_status=404,
-                data={'message': 'La venta no existe o no pertenece al alcance actual'}
-            )
+            return api_response('Q019', http_status=404)
 
         metodo_anterior = _normalize_payment_method(venta.get('payment_method'))
         if metodo_anterior == nuevo_metodo:
-            return api_response(
-                'E005',
-                http_status=400,
-                data={'message': 'El nuevo método debe ser diferente al actual'}
-            )
+            return api_response('Q020', http_status=400)
 
         cursor.execute(
             """
@@ -2766,9 +2740,7 @@ def exportar_ventas_pdf():
 
         logger.info(f"Exportando ventas a PDF: {fecha_inicio} - {fecha_fin}")
 
-        return jsonify({
-            'status': 'success',
-            'message': 'Función de exportación PDF en desarrollo',
+        return api_response('Q023', status='success', data={
             'rango_fechas': f'{fecha_inicio} a {fecha_fin}',
             'sugerencia': 'Implementar con reportlab o weasyprint'
         })
@@ -2952,11 +2924,11 @@ def resolver_reporte(reporte_id):
 
         if not user_id:
             logger.error("Usuario no autenticado - Sesión inválida")
-            return api_response('E003', http_status=401, data={'message': 'Usuario no autenticado'})
+            return api_response('A004', http_status=401)
 
         if user_role != 'admin':
             logger.error(f"Usuario {user_name} no es admin, es {user_role}")
-            return api_response('E004', http_status=403, data={'message': 'Solo administradores pueden resolver reportes'})
+            return api_response('Q021', http_status=403)
 
         connection = get_db_connection()
         if not connection:
@@ -2974,7 +2946,7 @@ def resolver_reporte(reporte_id):
 
         if not reporte_existe:
             logger.error(f"Reporte {reporte_id} no encontrado")
-            return api_response('M007', http_status=404, data={'message': 'Reporte no encontrado'})
+            return api_response('Q022', http_status=404)
 
         cursor.execute("""
             SELECT er.*, m.name as machine_name, m.id as machine_id
@@ -2988,7 +2960,7 @@ def resolver_reporte(reporte_id):
 
         if not reporte:
             logger.error(f"Error al obtener datos del reporte {reporte_id}")
-            return api_response('M007', http_status=404, data={'message': 'Reporte no encontrado'})
+            return api_response('Q022', http_status=404)
 
         machine_id = reporte['machineId']
         machine_name = reporte['machine_name']
