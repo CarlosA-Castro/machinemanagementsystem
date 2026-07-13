@@ -46,7 +46,7 @@ def esp32_heartbeat():
     data = request.get_json(silent=True) or {}
     machine_id = data.get('machine_id')
     if not machine_id:
-        return jsonify({'status': 'error', 'message': 'machine_id requerido'}), 400
+        return api_response('H001', http_status=400)
 
     set_heartbeat(
         machine_id=int(machine_id),
@@ -143,7 +143,7 @@ def esp32_registrar_uso():
             logger.warning(f"ESP32: QR vencido — {qr_code}, expiró el {qr_data['expiration_date']}")
             # HTTP 200 + status:error a propósito: así el ESP32 muestra el mensaje en la TFT.
             # (Con 4xx el firmware lo trata como error de red, reintenta y puede caer a caché).
-            return jsonify({'status': 'error', 'code': 'Q007', 'message': 'QR vencido'}), 200
+            return api_response('Q007', http_status=200)
 
         # Alcance por local: un QR vendido en un local solo sirve en máquinas de ese
         # local. Solo se valida si AMBOS tienen local definido; QR legacy sin
@@ -159,11 +159,7 @@ def esp32_registrar_uso():
                     f"ESP32: QR de otro local — QR {qr_code} (local {qr_location_id}) "
                     f"en máquina {machine_id} (local {machine_location_id})"
                 )
-                return jsonify({
-                    'status': 'error',
-                    'code': 'Q008',
-                    'message': 'Este QR es de otro local'
-                }), 200
+                return api_response('Q008', http_status=200)
 
         cursor.execute("SELECT turns_remaining FROM userturns WHERE qr_code_id = %s", (qr_id,))
         turnos_data = cursor.fetchone()
@@ -353,9 +349,7 @@ def esp32_actualizar_uso_estacion():
         station_index = data.get('station_index')
 
         if usage_id is None or machine_id is None or station_index is None:
-            return api_response('E005', http_status=400, data={
-                'message': 'Faltan datos: usage_id, machine_id y station_index son requeridos'
-            })
+            return api_response('H002', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -455,9 +449,7 @@ def esp32_juego_exitoso():
         station_index = data.get('station_index', 0)
 
         if not machine_id:
-            return api_response('E005', http_status=400, data={
-                'message': 'Falta machine_id'
-            })
+            return api_response('H001', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -694,7 +686,7 @@ def esp32_machine_config(machine_id):
         config = cursor.fetchone()
 
         if not config:
-            return jsonify({'status': 'error', 'code': 'M001', 'message': 'Máquina no encontrada'}), 404
+            return api_response('M001', http_status=404)
 
         # Tiempos nuevos (V64) — consulta aparte y tolerante: si la migración aún no
         # se aplicó en este entorno, no rompe el config que el ESP32 poll-ea constantemente.
@@ -803,9 +795,7 @@ def esp32_reportar_falla():
         logger.info(f"🔄 [TFT] Reporte de falla recibido - Máquina: {machine_name}, QR: {qr_code}")
 
         if not machine_id or not qr_code:
-            return api_response('E005', http_status=400, data={
-                'message': 'Faltan datos: machine_id y qr_code son requeridos'
-            })
+            return api_response('H003', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -818,9 +808,8 @@ def esp32_reportar_falla():
 
         if not qr_data:
             logger.warning(f"❌ [TFT] QR no encontrado: {qr_code}")
-            return api_response('Q001', http_status=404, data={
-                'qr_code': qr_code,
-                'message': 'Código QR no existe en el sistema'
+            return api_response('H004', http_status=404, data={
+                'qr_code': qr_code
             })
 
         qr_id = qr_data['id']
@@ -851,9 +840,7 @@ def esp32_reportar_falla():
             ultimo_uso = cursor.fetchone()
             if not ultimo_uso:
                 logger.warning(f"❌ [TFT] No hay juegos registrados para QR {qr_code} en máquina {machine_id}")
-                return api_response('E002', http_status=404, data={
-                    'message': 'No hay juegos registrados para este QR en esta máquina'
-                })
+                return api_response('H005', http_status=404)
 
             usage_id = ultimo_uso['id']
             logger.info(f"✅ [TFT] Usando último juego ID: {usage_id}")
@@ -1018,8 +1005,7 @@ def esp32_reportar_falla():
                 'machine_id': machine_id,
                 'usage_id': usage_id,
                 'turnos_devueltos': turnos_devueltos,
-                'turnos_restantes': nuevos_turnos,
-                'message': 'Falla reportada y turno devuelto automáticamente'
+                'turnos_restantes': nuevos_turnos
             }
         )
 
@@ -1027,10 +1013,7 @@ def esp32_reportar_falla():
         logger.error(f"❌ [TFT] Error procesando reporte de falla: {e}", exc_info=True)
         if connection:
             connection.rollback()
-        return api_response('E001', http_status=500, data={
-            'error': str(e),
-            'message': 'Error interno del servidor al reportar falla'
-        })
+        return api_response('E001', http_status=500, data={'error': str(e)})
     finally:
         if cursor:     cursor.close()
         if connection: connection.close()
@@ -1192,7 +1175,6 @@ def esp32_machine_reset():
             'S013',
             status='success',
             data={
-                'message': 'Reinicio registrado',
                 'machine_id': machine_id,
                 'timestamp': get_colombia_time().isoformat()
             }
@@ -1326,11 +1308,11 @@ def esp32_report_hardware():
         components       = data.get('components')
 
         if not machine_id:
-            return jsonify({'status': 'error', 'message': 'machine_id requerido'}), 400
+            return api_response('H001', http_status=400)
 
         connection = get_db_connection()
         if not connection:
-            return jsonify({'status': 'error', 'message': 'db'}), 500
+            return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
         cursor.execute(
@@ -1500,7 +1482,7 @@ def admin_create_hardware_module():
         data = request.get_json(silent=True) or {}
         module_code = (data.get('module_code') or '').strip()
         if not module_code:
-            return jsonify({'status': 'error', 'message': 'module_code requerido'}), 400
+            return api_response('H006', http_status=400)
 
         connection = get_db_connection()
         if not connection:
@@ -1565,7 +1547,7 @@ def admin_get_hardware_module(module_id):
         )
         row = cursor.fetchone()
         if not row:
-            return jsonify({'status': 'error', 'message': 'Módulo no encontrado'}), 404
+            return api_response('H007', http_status=404)
 
         d = dict(row)
         if isinstance(d.get('components'), str):
@@ -1601,7 +1583,7 @@ def admin_update_hardware_module(module_id):
 
         cursor.execute("SELECT id FROM hardware_module WHERE id = %s", (module_id,))
         if not cursor.fetchone():
-            return jsonify({'status': 'error', 'message': 'Módulo no encontrado'}), 404
+            return api_response('H007', http_status=404)
 
         cursor.execute(
             """
@@ -1655,7 +1637,7 @@ def admin_delete_hardware_module(module_id):
 
         cursor.execute("DELETE FROM hardware_module WHERE id = %s", (module_id,))
         if cursor.rowcount == 0:
-            return jsonify({'status': 'error', 'message': 'Módulo no encontrado'}), 404
+            return api_response('H007', http_status=404)
         connection.commit()
         return jsonify({'status': 'success'})
 
@@ -1681,11 +1663,11 @@ def esp32_device_log():
         event     = (data.get('event')     or '').strip()
 
         if not device_id or not event:
-            return jsonify({'status': 'error', 'message': 'device_id y event son requeridos'}), 400
+            return api_response('H008', http_status=400)
 
         connection = get_db_connection()
         if not connection:
-            return jsonify({'status': 'error', 'message': 'db'}), 500
+            return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
         cursor.execute(
