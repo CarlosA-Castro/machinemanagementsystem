@@ -1,0 +1,106 @@
+{# ───────────────────────────────────────────────────────────────────────────
+   "Chrome" del drawer para las páginas de cajero (local, sales, package,
+   package/failure, machinereport). Da el MISMO comportamiento móvil que el
+   panel admin: barra superior con hamburguesa + sidebar como drawer lateral.
+
+   Uso: incluir como PRIMER hijo del contenedor flex, JUSTO antes del <aside>,
+   y darle al <aside> existente id="app-sidebar":
+
+       <div class="flex flex-col lg:flex-row min-h-screen">
+           {% include 'partials/_sidebar_cajero_chrome.html' %}
+           <aside id="app-sidebar" class="w-full lg:w-64 bg-gray-900 ...">...</aside>
+           <main>...</main>
+       </div>
+
+   No toca el contenido del <aside> de cada página (enlaces + pie propios): el
+   CSS scopeado a #app-sidebar convierte ese aside en un drawer vertical en
+   móvil, muestra su pie y oculta el bloque .user-info-mobile duplicado.
+   ─────────────────────────────────────────────────────────────────────────── #}
+<style>
+  #sidebar-topbar   { display:none; }
+  #sidebar-backdrop { display:none; }
+
+  @media (max-width:1023px) {
+    #sidebar-topbar {
+      display:flex; align-items:center; gap:0.75rem;
+      position:sticky; top:0; width:100%; z-index:1200;
+      background:#111827; color:#fff; padding:0.6rem 1rem;
+      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+    }
+    /* El aside pasa a ser drawer lateral (usa `translate`: el CDN de Tailwind
+       neutraliza `transform` en este elemento). */
+    #app-sidebar {
+      position:fixed !important; top:0; left:0;
+      height:100vh !important; width:16rem !important; z-index:1300;
+      overflow-y:auto; translate:-100% 0; transition:translate 0.25s ease;
+    }
+    #app-sidebar.open { translate:0 0; }
+    #sidebar-backdrop.show {
+      display:block; position:fixed; inset:0; z-index:1250; background:rgba(0,0,0,0.5);
+    }
+    /* Menú vertical dentro del drawer (anula el flex-wrap horizontal móvil) */
+    #app-sidebar .sidebar-nav {
+      display:flex !important; flex-direction:column !important; flex-wrap:nowrap !important;
+      gap:0.25rem !important; padding:0.75rem !important;
+    }
+    #app-sidebar .sidebar-nav a { flex:none !important; min-width:0 !important; text-align:left !important; }
+    /* Mostrar el pie de usuario dentro del drawer; ocultar el duplicado móvil */
+    #app-sidebar .user-info-desktop { display:block !important; }
+    .user-info-mobile { display:none !important; }
+  }
+  @media (min-width:1024px) {
+    #app-sidebar { translate:none !important; }
+  }
+</style>
+
+<!-- Barra superior (solo móvil) -->
+<header id="sidebar-topbar">
+  <button type="button" onclick="toggleSidebar()" aria-label="Abrir menú"
+          class="text-white text-xl leading-none focus:outline-none"
+          style="min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center">
+    <i class="fas fa-bars"></i>
+  </button>
+  <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-8 h-8 rounded-full object-cover">
+  <span class="font-bold text-sm">Inversiones Arcade</span>
+</header>
+
+<!-- Fondo oscuro al abrir el drawer (solo móvil) -->
+<div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+<script>
+  function toggleSidebar() {
+    var s = document.getElementById('app-sidebar');
+    var b = document.getElementById('sidebar-backdrop');
+    if (!s || !b) return;
+    s.classList.toggle('open');
+    b.classList.toggle('show');
+  }
+  // Cierra el drawer al tocar un enlace del menú (mejor UX en móvil)
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#app-sidebar .sidebar-nav a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        var s = document.getElementById('app-sidebar');
+        if (s && s.classList.contains('open')) toggleSidebar();
+      });
+    });
+  });
+  // Marca el enlace activo por URL; se re-aplica tras la carga para ganar al
+  // script de "active" heredado de cada página. Solo toca #app-sidebar .nav-link.
+  function _setSidebarActive() {
+    var path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    var links = document.querySelectorAll('#app-sidebar .sidebar-nav a');
+    var best = null, bestLen = -1;
+    links.forEach(function (a) {
+      var href = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+      var match = (href === '/admin')
+        ? (path === '/admin')
+        : (path === href || path.indexOf(href + '/') === 0);
+      if (match && href.length > bestLen) { best = a; bestLen = href.length; }
+    });
+    links.forEach(function (a) { a.classList.remove('active'); });
+    if (best) best.classList.add('active');
+  }
+  _setSidebarActive();
+  document.addEventListener('DOMContentLoaded', _setSidebarActive);
+  window.addEventListener('load', function () { setTimeout(_setSidebarActive, 60); });
+</script>
