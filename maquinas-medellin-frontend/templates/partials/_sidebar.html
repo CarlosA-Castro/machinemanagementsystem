@@ -1,0 +1,144 @@
+{# ───────────────────────────────────────────────────────────────────────────
+   Sidebar compartido del panel admin.
+   Uso: incluir como PRIMER hijo del contenedor flex, en lugar del <aside>
+   duplicado que antes tenía cada página:
+
+       <div class="flex flex-col lg:flex-row min-h-screen">
+           {% include 'partials/_sidebar.html' %}
+           <main ...> ... </main>
+       </div>
+
+   - Nav canónico único (16 enlaces, incluye "Logs de Prueba").
+   - Estado `active` automático por URL (no hardcodeado por página).
+   - En móvil (<1024px): barra superior con botón hamburguesa que abre el
+     sidebar como drawer lateral, en vez de empujar todo el contenido.
+   ─────────────────────────────────────────────────────────────────────────── #}
+<style>
+  /* ── Enlaces del sidebar ── */
+  #app-sidebar .nav-link {
+    display:flex; align-items:center; padding:0.5rem 0.75rem;
+    font-size:0.875rem; color:#d1d5db; border-radius:8px;
+    transition:all 0.15s; text-decoration:none; min-height:36px; white-space:nowrap;
+  }
+  #app-sidebar .nav-link:hover  { background:rgba(255,255,255,0.12); color:#fff; }
+  #app-sidebar .nav-link.active {
+    background:rgba(59,130,246,0.22); color:#fff; font-weight:600;
+    border-left:3px solid #3b82f6; padding-left:calc(0.75rem - 3px);
+  }
+
+  /* Elementos móviles ocultos por defecto (desktop) */
+  #sidebar-topbar   { display:none; }
+  #sidebar-backdrop { display:none; }
+
+  /* ── Móvil: drawer lateral ── */
+  @media (max-width:1023px) {
+    #sidebar-topbar {
+      display:flex; align-items:center; gap:0.75rem;
+      position:sticky; top:0; width:100%; z-index:1200;
+      background:#111827; color:#fff; padding:0.6rem 1rem;
+      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+    }
+    #app-sidebar {
+      position:fixed !important; top:0; left:0;
+      height:100vh !important; width:16rem !important; z-index:1300;
+      /* Se usa la propiedad `translate` (no `transform`): el CDN de Tailwind
+         neutraliza `transform` en este elemento, pero `translate` sí aplica. */
+      translate:-100% 0; transition:translate 0.25s ease;
+    }
+    #app-sidebar.open { translate:0 0; }
+    #sidebar-backdrop.show {
+      display:block; position:fixed; inset:0; z-index:1250;
+      background:rgba(0,0,0,0.5);
+    }
+  }
+  /* Desktop: el drawer nunca queda desplazado por una clase residual */
+  @media (min-width:1024px) {
+    #app-sidebar { translate:none !important; }
+  }
+</style>
+
+<!-- Barra superior (solo móvil) -->
+<header id="sidebar-topbar">
+  <button type="button" onclick="toggleSidebar()" aria-label="Abrir menú"
+          class="text-white text-xl leading-none focus:outline-none"
+          style="min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center">
+    <i class="fas fa-bars"></i>
+  </button>
+  <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-8 h-8 rounded-full object-cover">
+  <span class="font-bold text-sm">Inversiones Arcade</span>
+</header>
+
+<!-- Fondo oscuro al abrir el drawer (solo móvil) -->
+<div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<aside id="app-sidebar" class="w-64 bg-gray-900 text-white flex flex-col flex-shrink-0"
+       style="min-height:100vh;box-shadow:6px 0 28px rgba(17,24,39,0.55),2px 0 6px rgba(17,24,39,0.35)">
+  <div class="p-4 border-b border-gray-700">
+    <div class="flex items-center gap-3">
+      <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="w-10 h-10 rounded-full object-cover">
+      <div>
+        <div class="font-bold text-sm">Inversiones Arcade</div>
+        <div class="text-xs text-gray-400">Panel Admin</div>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+    <a href="/admin" class="nav-link" id="nav-dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+    <a href="/local" class="nav-link" id="nav-local"><i class="fas fa-desktop mr-2"></i>Ir a Local</a>
+    <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestión</div>
+    <a href="/admin/usuarios/gestionusuarios" class="nav-link" id="nav-usuarios"><i class="fas fa-users mr-2"></i>Usuarios</a>
+    <a href="/admin/maquinas/gestionmaquinas" class="nav-link" id="nav-maquinas"><i class="fas fa-gamepad mr-2"></i>Máquinas</a>
+    <a href="/admin/paquetes/gestionpaquetes" class="nav-link" id="nav-paquetes"><i class="fas fa-box mr-2"></i>Paquetes</a>
+    <a href="/admin/locales/listalocales" class="nav-link" id="nav-locales"><i class="fas fa-store mr-2"></i>Locales</a>
+    <a href="/admin/mensajes/gestionmensajes" class="nav-link" id="nav-mensajes"><i class="fas fa-comment mr-2"></i>Mensajes</a>
+    <a href="/admin/ventas/liquidaciones" class="nav-link" id="nav-liquidaciones"><i class="fas fa-chart-pie mr-2"></i>Liquidaciones</a>
+    <a href="/admin/inversores/gestionsocios" class="nav-link" id="nav-socios"><i class="fas fa-handshake mr-2"></i>Socios</a>
+    <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sistema</div>
+    <a href="/admin/firmware/gestionfirmware" class="nav-link" id="nav-firmware"><i class="fas fa-microchip mr-2"></i>Firmware OTA</a>
+    <a href="/admin/conectividad" class="nav-link" id="nav-conectividad"><i class="fas fa-wifi mr-2"></i>Conectividad</a>
+    <a href="/admin/esp32/modulos" class="nav-link" id="nav-esp32"><i class="fas fa-cpu mr-2"></i>Módulos ESP32</a>
+    <a href="/device-logs" class="nav-link" id="nav-device-logs"><i class="fas fa-flask mr-2"></i>Logs de Prueba</a>
+    <div class="pt-2 pb-1 px-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Logs</div>
+    <a href="/admin/logs/transaccionales" class="nav-link" id="nav-logs-transaccionales"><i class="fas fa-receipt mr-2"></i>Logs Transaccionales</a>
+    <a href="/admin/logs/consola-completa" class="nav-link" id="nav-consola"><i class="fas fa-terminal mr-2"></i>Consola de Logs</a>
+    <a href="/admin/logs/gestionlogs" class="nav-link" id="nav-gestion-logs"><i class="fas fa-chart-line mr-2"></i>Gestión de Logs</a>
+  </nav>
+  <div class="p-4 border-t border-gray-700 text-sm">
+    <div class="text-gray-300 mb-1"><i class="fas fa-user mr-2"></i>{{ nombre_usuario or '' }}</div>
+    <div class="text-gray-400 text-xs mb-2"><span id="horaActualSidebar">{{ hora_actual or '' }}</span></div>
+    <a href="/logout" class="text-red-400 hover:underline text-xs"><i class="fas fa-sign-out-alt mr-1"></i>Salir</a>
+  </div>
+</aside>
+
+<script>
+  // Abre/cierra el drawer en móvil
+  function toggleSidebar() {
+    var s = document.getElementById('app-sidebar');
+    var b = document.getElementById('sidebar-backdrop');
+    if (!s || !b) return;
+    s.classList.toggle('open');
+    b.classList.toggle('show');
+  }
+  // Marca el enlace activo según la URL actual (coincidencia por prefijo más largo).
+  // Se re-aplica tras la carga para ser la autoridad final: varias páginas traen
+  // su propio script de "active" heredado que, si corre después, dejaría el
+  // sidebar mal marcado. Solo toca `#app-sidebar .nav-link` (no afecta modales).
+  function _setSidebarActive() {
+    var path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    var links = document.querySelectorAll('#app-sidebar .nav-link');
+    var best = null, bestLen = -1;
+    links.forEach(function (a) {
+      var href = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+      var match = (href === '/admin')
+        ? (path === '/admin')                                   // Dashboard: solo coincidencia exacta
+        : (path === href || path.indexOf(href + '/') === 0);    // resto: exacto o subruta
+      if (match && href.length > bestLen) { best = a; bestLen = href.length; }
+    });
+    links.forEach(function (a) { a.classList.remove('active'); });
+    if (best) best.classList.add('active');
+  }
+  _setSidebarActive();
+  document.addEventListener('DOMContentLoaded', _setSidebarActive);
+  window.addEventListener('load', function () { setTimeout(_setSidebarActive, 60); });
+</script>
