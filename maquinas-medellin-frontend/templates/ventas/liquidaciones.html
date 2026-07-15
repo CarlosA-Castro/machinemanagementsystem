@@ -666,8 +666,6 @@
         <div id="resumenCierreBody"></div>
         <div class="flex justify-end gap-2 pt-4 mt-4 border-t">
             <button onclick="cerrarModal('modalResumenCierre')" class="btn btn-secondary">Cerrar</button>
-            <button id="btnPDFNegocioCierre" onclick="descargarCierrePDF('negocio')" class="btn btn-success"><i class="fas fa-file-pdf mr-1"></i>PDF Negocio</button>
-            <button id="btnPDFInversionistasCierre" onclick="descargarCierrePDF('inversionistas')" class="btn btn-primary"><i class="fas fa-file-pdf mr-1"></i>PDF Inversionistas</button>
         </div>
     </div>
 </div>
@@ -1443,8 +1441,9 @@ async function cargarHistorial() {
 // Descargar) puedan reconstruir el detalle sin volver a pedirlo al backend: el objeto
 // del cierre ya trae todos los datos guardados del período.
 let histCierres = [];
-// Payload de /cierre/<id>/detalle del cierre abierto en el modal: alimenta los comprobantes PDF.
-let detalleCierreActual = null;
+// Payloads de /cierre/<id>/detalle por id. El resumen y los dos PDF de una fila piden lo
+// mismo: se cachea para no recalcular el período en el backend en cada clic.
+const detalleCierreCache = {};
 
 function renderTablaHistorial(hist) {
     histCierres = hist || [];
@@ -1479,8 +1478,11 @@ function renderTablaHistorial(hist) {
                         <button onclick="verResumenCierre(${i})" class="btn btn-primary btn-sm" title="Ver resumen">
                             <i class="fas fa-eye"></i><span class="hidden sm:inline ml-1">Resumen</span>
                         </button>
-                        <button onclick="descargarCierrePDF(${i})" class="btn btn-success btn-sm" title="Descargar PDF">
-                            <i class="fas fa-file-pdf"></i><span class="hidden sm:inline ml-1">PDF</span>
+                        <button onclick="descargarCierrePDF(${i}, 'negocio')" class="btn btn-success btn-sm" title="Comprobante para el negocio">
+                            <i class="fas fa-store"></i><span class="hidden sm:inline ml-1">PDF Negocio</span>
+                        </button>
+                        <button onclick="descargarCierrePDF(${i}, 'inversionistas')" class="btn btn-purple btn-sm" title="Comprobante de inversionistas">
+                            <i class="fas fa-users"></i><span class="hidden sm:inline ml-1">PDF Inversionistas</span>
                         </button>
                     </div>
                 </td>
@@ -1559,21 +1561,20 @@ function verResumenCierre(idx) {
             <div class="text-center text-gray-400 py-4"><div class="spinner mx-auto mb-2"></div>Cargando detalle por máquina…</div>
         </div>`;
 
-    // Los comprobantes dependen del detalle recalculado: hasta que llegue, botones off.
-    detalleCierreActual = null;
-    _setBotonesPDFCierre(false);
     abrirModal('modalResumenCierre');
     cargarDetalleCierre(h.id);
 }
 
-function _setBotonesPDFCierre(activo) {
-    ['btnPDFNegocioCierre', 'btnPDFInversionistasCierre'].forEach(id => {
-        const b = document.getElementById(id);
-        if (!b) return;
-        b.disabled = !activo;
-        b.classList.toggle('opacity-50', !activo);
-        b.classList.toggle('cursor-not-allowed', !activo);
+// Detalle recalculado del período+local de un cierre. Lo comparten el resumen y los PDF.
+async function _getDetalleCierre(cierreId) {
+    if (detalleCierreCache[cierreId]) return detalleCierreCache[cierreId];
+    const r = await fetch(`/api/liquidaciones/cierre/${cierreId}/detalle`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.message || 'Error');
+    detalleCierreCache[cierreId] = d;
+    return d;
 }
 
 // Carga diferida del desglose por máquina / propietario de un cierre histórico.
@@ -1583,16 +1584,8 @@ async function cargarDetalleCierre(cierreId) {
     if (!cont) return;
     if (!cierreId) { cont.innerHTML = ''; return; }
     try {
-        const r = await fetch(`/api/liquidaciones/cierre/${cierreId}/detalle`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const d = await r.json();
-        if (!r.ok || !d.success) throw new Error(d.message || 'Error');
-        detalleCierreActual = d;
-        cont.innerHTML = renderDetalleCierre(d);
-        _setBotonesPDFCierre(true);
+        cont.innerHTML = renderDetalleCierre(await _getDetalleCierre(cierreId));
     } catch (e) {
-        detalleCierreActual = null;
         cont.innerHTML = `<div class="text-sm text-gray-500 py-2"><i class="fas fa-info-circle mr-1"></i>No se pudo cargar el desglose por máquina.</div>`;
     }
 }
@@ -1650,13 +1643,25 @@ function renderDetalleCierre(d) {
 // El payload de /detalle trae la misma forma que /calcular (distribucion con los totales
 // guardados + paquetes/métodos/inversionistas recalculados del período), así que se
 // reusan _htmlPDFNegocio / _htmlPDFInversionistas sin duplicar el maquetado.
-function descargarCierrePDF(tipo) {
-    if (!detalleCierreActual) { toast('Aún se está cargando el detalle del cierre', 'error'); return; }
-    const { cierre } = detalleCierreActual;
-    const html = tipo === 'inversionistas'
-        ? _htmlPDFInversionistas(cierre, detalleCierreActual)
-        : _htmlPDFNegocio(cierre, detalleCierreActual);
-    if (html) _abrirVentanaPDF(html);
+//
+// Cada botón trae el detalle de SU fila: nunca depende de qué resumen se abrió antes, o
+// acabaría imprimiendo el comprobante de otro cierre.
+async function descargarCierrePDF(idx, tipo) {
+    const h = histCierres[idx];
+    if (!h) return;
+    const w = _abrirVentanaPDFVacia();   // antes del await, o el navegador la bloquea
+    if (!w) return;
+    try {
+        const d = await _getDetalleCierre(h.id);
+        const html = tipo === 'inversionistas'
+            ? _htmlPDFInversionistas(d.cierre, d)
+            : _htmlPDFNegocio(d.cierre, d);
+        if (!html) { w.close(); return; }   // sin inversionistas en el período
+        _rellenarVentanaPDF(w, html);
+    } catch (e) {
+        w.close();
+        toast('No se pudo cargar el detalle del cierre', 'error');
+    }
 }
 
 function renderChartsHistorial(hist) {
@@ -1816,8 +1821,26 @@ const _pdfStyles = `
 `;
 
 function _abrirVentanaPDF(html) {
+    const w = _abrirVentanaPDFVacia();
+    if (w) _rellenarVentanaPDF(w, html);
+}
+
+// window.open solo se permite DENTRO del gesto del clic: si hay que esperar un fetch antes
+// de tener el HTML, la ventana se abre ya (vacía) y se rellena al llegar los datos. Abrirla
+// después del await la bloquea el navegador.
+function _abrirVentanaPDFVacia() {
     const w = window.open('', '_blank');
-    if (!w) { toast('Permite ventanas emergentes para generar el PDF', 'error'); return; }
+    if (!w) { toast('Permite ventanas emergentes para generar el PDF', 'error'); return null; }
+    w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+        '<title>Generando comprobante…</title></head>' +
+        '<body style="font-family:system-ui,sans-serif;padding:2rem;color:#6b7280">' +
+        'Generando comprobante…</body></html>');
+    w.document.close();
+    return w;
+}
+
+function _rellenarVentanaPDF(w, html) {
+    w.document.open();
     w.document.write(html);
     w.document.close();
     w.focus();
