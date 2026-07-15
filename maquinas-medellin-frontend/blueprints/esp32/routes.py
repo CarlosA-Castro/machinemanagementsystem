@@ -1210,6 +1210,11 @@ def esp32_sync_offline():
             return api_response('E006', http_status=500)
         cursor = get_db_cursor(connection)
 
+        # Local de la máquina: igual para todo el lote, se resuelve una sola vez.
+        cursor.execute("SELECT location_id FROM machine WHERE id = %s", (machine_id,))
+        _mloc = cursor.fetchone()
+        machine_location_id = _mloc['location_id'] if _mloc else None
+
         results = []
         for tx in txs:
             qr_code       = tx.get('qr_code', '')
@@ -1217,13 +1222,69 @@ def esp32_sync_offline():
             played_at_ts  = tx.get('played_at', 0)
             played_at     = datetime.fromtimestamp(played_at_ts) if played_at_ts else get_colombia_time()
 
-            cursor.execute("SELECT id FROM qrcode WHERE code = %s", (qr_code,))
+            cursor.execute(
+                "SELECT id, expiration_date, location_id FROM qrcode WHERE code = %s",
+                (qr_code,)
+            )
             qr_row = cursor.fetchone()
             if not qr_row:
                 results.append({'qr_code': qr_code, 'status': 'qr_not_found'})
                 continue
 
             qr_id = qr_row['id']
+
+            # Vencimiento contra la fecha en que SE JUGÓ, no contra hoy: un turno jugado
+            # offline el día 29 con un QR que vencía el 30 es legítimo aunque el lote se
+            # sincronice el día 2. El firmware ya valida con su caché, pero ese chequeo se
+            # cae si el ESP32 no tiene hora sincronizada (timeReady=false), así que el
+            # backend no puede confiar en él: cada turno es plata que se le paga a un
+            # inversionista.
+            if qr_row.get('expiration_date') and qr_row['expiration_date'] < played_at.date():
+                logger.warning(
+                    f"sync-offline: QR vencido — {qr_code}, expiró el "
+                    f"{qr_row['expiration_date']}, jugado el {played_at.date()}"
+                )
+                log_transaccion(
+                    tipo='offline_conflict',
+                    categoria='auditoria',
+                    descripcion=f"Conflicto offline: QR {qr_code} vencido al momento de jugarse",
+                    maquina_id=machine_id,
+                    entidad='qr',
+                    entidad_id=qr_id,
+                    datos_extra={
+                        'qr_code':         qr_code,
+                        'expiration_date': str(qr_row['expiration_date']),
+                        'played_at':       played_at.isoformat(),
+                    }
+                )
+                results.append({'qr_code': qr_code, 'status': 'qr_expired'})
+                continue
+
+            # Alcance por local: mismo criterio que el camino online (Q008). QR legacy sin
+            # location_id se permiten en cualquier máquina.
+            qr_location_id = qr_row.get('location_id')
+            if (qr_location_id is not None and machine_location_id is not None
+                    and qr_location_id != machine_location_id):
+                logger.warning(
+                    f"sync-offline: QR de otro local — QR {qr_code} (local {qr_location_id}) "
+                    f"en máquina {machine_id} (local {machine_location_id})"
+                )
+                log_transaccion(
+                    tipo='offline_conflict',
+                    categoria='auditoria',
+                    descripcion=f"Conflicto offline: QR {qr_code} de otro local",
+                    maquina_id=machine_id,
+                    entidad='qr',
+                    entidad_id=qr_id,
+                    datos_extra={
+                        'qr_code':             qr_code,
+                        'qr_location_id':      qr_location_id,
+                        'machine_location_id': machine_location_id,
+                        'played_at':           played_at.isoformat(),
+                    }
+                )
+                results.append({'qr_code': qr_code, 'status': 'wrong_location'})
+                continue
 
             # Validar y descontar atómicamente
             cursor.execute(
