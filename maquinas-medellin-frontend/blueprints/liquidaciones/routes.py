@@ -392,8 +392,13 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
     cursor.execute(sql, params)
     rows = cursor.fetchall()
 
-    # Turnos realmente jugados por tipo de paquete:
-    # se cuentan los registros de turnusage de los QR vendidos en el período.
+    # Turnos realmente jugados por tipo de paquete: se cuentan los registros de turnusage
+    # de los QR vendidos en el período, jugados ANTES de que el período cierre.
+    # La cota tu.usedAt < fecha_fin es la que hace que 'turnos_restantes' signifique el
+    # DINERO FLOTANTE del cierre (turnos vendidos y no jugados, que quedan a Inversiones
+    # Arcade). Sin ella el flotante de un cierre pasado se encoge solo cada vez que un
+    # cliente juega un turno rezagado. Para el período en curso fecha_fin es 'ahora'
+    # (ver _resolve_period_bounds) → no excluye nada.
     cursor.execute(
         """
         SELECT qr.turnPackageId AS paquete_id, COUNT(tu.id) AS turnos_jugados
@@ -405,10 +410,10 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
               AND qh2.es_venta_real = TRUE
         )
           AND qr.turnPackageId IS NOT NULL
-          
+          AND tu.usedAt < %s
         GROUP BY qr.turnPackageId
         """,
-        (fecha_inicio, fecha_fin),
+        (fecha_inicio, fecha_fin, fecha_fin),
     )
     plays_by_pkg = {r['paquete_id']: int(r['turnos_jugados']) for r in cursor.fetchall()}
 
@@ -759,6 +764,15 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
     """
     Liquidación por inversionista usando maquinapropietario + propietarios.
     Calcula participación sobre la utilidad (100 - pct_negocio - pct_admin) de cada máquina.
+
+    Los QR se toman por FECHA DE VENTA dentro del período, pero solo cuentan los turnos
+    JUGADOS antes de que el período cierre (tu.usedAt < fecha_fin). Los turnos vendidos y
+    no jugados al cerrar son dinero flotante que queda a Inversiones Arcade: si el cliente
+    los juega después, no pueden devolverse retroactivamente al inversionista, o el
+    comprobante de un cierre pasado cambiaría cada vez que se regenera.
+
+    Para el período en curso fecha_fin es 'ahora' (ver _resolve_period_bounds), así que la
+    cota no excluye nada: no altera el cálculo del cierre en vivo.
     """
     if not (_table_exists(cursor, 'maquinapropietario') and _table_exists(cursor, 'propietarios')):
         return []
@@ -792,6 +806,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         JOIN propietarios        p ON p.id             = mp.propietario_id
         LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
         WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
+          AND tu.usedAt < %s
           AND qr.turnPackageId IS NOT NULL
           {loc_sql}
           AND qh.es_venta_real = TRUE
@@ -800,7 +815,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
                  mpr.porcentaje_restaurante, {admin_expr}
         ORDER BY p.nombre, m.name, turnos_jugados DESC
         """,
-        [fecha_inicio, fecha_fin, *loc_params],
+        [fecha_inicio, fecha_fin, fecha_fin, *loc_params],
         column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
@@ -1680,6 +1695,7 @@ def detalle_cierre(cierre_id):
             # Insumos del comprobante oficial: mismos helpers que usa el cierre en vivo,
             # para que el PDF de un cierre histórico sea idéntico al del momento del cierre.
             paquetes_resumen = _fetch_package_summary(cursor, inicio_dt, fin_dt)
+            turnos_summary   = _fetch_turnos_summary(cursor, inicio_dt, fin_dt, paquetes_resumen)
             resumen_metodos  = _fetch_payment_methods(
                 cursor, inicio_dt, fin_dt,
                 _table_exists(cursor, 'maquinaporcentajerestaurante')
@@ -1740,6 +1756,7 @@ def detalle_cierre(cierre_id):
                 'total_ventas': sum(p['paquetes_vendidos'] for p in paquetes_resumen),
             },
             'distribucion':              distribucion,
+            'turnos':                    turnos_summary,
             'paquetes_resumen':          paquetes_resumen,
             'resumen_metodos':           resumen_metodos,
             'inversionistas':            inversionistas,

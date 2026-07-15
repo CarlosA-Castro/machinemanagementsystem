@@ -2013,6 +2013,8 @@ function _htmlPDFInversionistas(cierre, d) {
     // utilidad del reparto oficial es TOP-DOWN: QR vendidos × porcentaje promedio. Son dos
     // caminos distintos y no tienen por qué coincidir, así que se muestra el que se paga (el
     // distribuido) y se declara la diferencia, en vez de imprimir ambos como si cuadraran.
+    // La diferencia es sobre todo DINERO FLOTANTE: turnos vendidos y no jugados, que por
+    // regla de negocio quedan a Inversiones Arcade.
     // Ojo: una máquina compartida aparece en la lista de cada dueño → deduplicar por id.
     const baseMaq = {};
     inv.forEach(i => (i.maquinas || []).forEach(m => { baseMaq[m.maquina_id] = +m.ingresos_maquina || 0; }));
@@ -2020,16 +2022,30 @@ function _htmlPDFInversionistas(cierre, d) {
     const totalDistrib  = inv.reduce((s, i) => s + (+i.total_participacion || 0), 0);
     const utilOficial   = +util.monto || 0;
     const residual      = utilOficial - totalDistrib;
+    // Dinero flotante: turnos vendidos y NO jugados al cerrar. Por regla de negocio quedan a
+    // Inversiones Arcade, no se reparten al inversionista. Sale del backend ya prorrateado
+    // por turno (precio/turnos × turnos restantes), no por QR completo.
+    const turnos    = d.turnos || {};
+    const flotante  = +turnos.valor_restantes || 0;
+    const notaFlotante = (turnos.restantes > 0) ? `<div class="inv-block" style="margin-top:1rem;border-color:#f59e0b;background:#fffbeb">
+        <div class="kpi-label">Dinero flotante &mdash; queda a Inversiones Arcade</div>
+        <div style="font-size:1rem;font-weight:800;color:#b45309;margin-top:.35rem">${fmtP(flotante)}</div>
+        <div class="meta" style="margin:.35rem 0 0 0">
+            ${fmtNP(turnos.restantes)} de ${fmtNP(turnos.equivalentes)} turnos vendidos quedaron sin jugar
+            al cerrar el período. No se reparten a inversionistas; si el cliente los juega después,
+            siguen siendo de Arcade.
+        </div>
+    </div>` : '';
+
     const notaResidual  = Math.round(residual) !== 0 ? `<div class="meta" style="margin-top:.4rem">
-        Cada participación se calcula máquina por máquina: ingresos atribuidos por turnos jugados
-        &times; % de utilidad de esa máquina &times; % de propiedad. La utilidad del reparto oficial
-        del cierre (${fmtP(utilOficial)}) se calcula por otro camino &mdash; sobre los QR vendidos
-        (${fmtP(dist.total_ingresos)}) con un porcentaje promedio &mdash;, por eso no coincide con lo
-        distribuido: diferencia de ${fmtP(Math.abs(residual))}
-        ${residual > 0
-            ? '(utilidad del cierre no atribuida a ninguna máquina con inversionista: QR vendidos que no se jugaron, o máquinas sin dueño registrado).'
-            : '(las máquinas con inversionista acumularon más turnos jugados de los que cubren los QR vendidos en el período).'}
-        <strong>Lo que se paga es el total distribuido.</strong>
+        Cada participación se calcula máquina por máquina: turnos <strong>jugados dentro del período</strong>
+        &times; % de utilidad de esa máquina &times; % de propiedad. Por eso lo distribuido
+        (${fmtP(totalDistrib)}) no es igual a la utilidad del reparto oficial (${fmtP(utilOficial)},
+        calculada sobre los ${fmtP(dist.total_ingresos)} de QR vendidos): la diferencia
+        (${fmtP(Math.abs(residual))}) es sobre todo el dinero flotante de los turnos sin jugar
+        ${residual < 0 ? `, y en este cierre pesa además que el reparto oficial usa un porcentaje
+          promedio mientras cada máquina aplica el suyo` : ''}.
+        <strong>Lo que se paga a inversionistas es el total distribuido.</strong>
     </div>` : '';
 
     return `<!DOCTYPE html><html lang="es"><head>
@@ -2052,7 +2068,7 @@ function _htmlPDFInversionistas(cierre, d) {
     <div class="kpi-value">${fmtP(dist.total_ingresos)}</div>
   </div>
   <div class="kpi" style="border-color:#2563eb;background:#eff6ff">
-    <div class="kpi-label">Base atribuida a máquinas (turnos jugados)</div>
+    <div class="kpi-label">Base atribuida a máquinas (turnos jugados en el período)</div>
     <div class="kpi-value">${fmtP(totalBaseMaq)}</div>
   </div>
   <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
@@ -2064,6 +2080,7 @@ function _htmlPDFInversionistas(cierre, d) {
 <h2>Pagos Sugeridos por Inversionista</h2>
 ${invHtml}
 ${notaResidual}
+${notaFlotante}
 
 ${observaciones ? `<h2>Observaciones del Cierre</h2><div class="inv-block">${observaciones}</div>` : ''}
 
