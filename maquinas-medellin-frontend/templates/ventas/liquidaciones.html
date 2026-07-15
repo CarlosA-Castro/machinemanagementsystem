@@ -11,8 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         #particles-js { position: fixed; width: 100%; height: 100%; z-index: -1; top: 0; left: 0; }
 
@@ -668,7 +666,8 @@
         <div id="resumenCierreBody"></div>
         <div class="flex justify-end gap-2 pt-4 mt-4 border-t">
             <button onclick="cerrarModal('modalResumenCierre')" class="btn btn-secondary">Cerrar</button>
-            <button id="btnDescargarResumen" class="btn btn-success"><i class="fas fa-file-pdf mr-1"></i>Descargar PDF</button>
+            <button id="btnPDFNegocioCierre" onclick="descargarCierrePDF('negocio')" class="btn btn-success"><i class="fas fa-file-pdf mr-1"></i>PDF Negocio</button>
+            <button id="btnPDFInversionistasCierre" onclick="descargarCierrePDF('inversionistas')" class="btn btn-primary"><i class="fas fa-file-pdf mr-1"></i>PDF Inversionistas</button>
         </div>
     </div>
 </div>
@@ -1444,6 +1443,8 @@ async function cargarHistorial() {
 // Descargar) puedan reconstruir el detalle sin volver a pedirlo al backend: el objeto
 // del cierre ya trae todos los datos guardados del período.
 let histCierres = [];
+// Payload de /cierre/<id>/detalle del cierre abierto en el modal: alimenta los comprobantes PDF.
+let detalleCierreActual = null;
 
 function renderTablaHistorial(hist) {
     histCierres = hist || [];
@@ -1558,9 +1559,21 @@ function verResumenCierre(idx) {
             <div class="text-center text-gray-400 py-4"><div class="spinner mx-auto mb-2"></div>Cargando detalle por máquina…</div>
         </div>`;
 
-    document.getElementById('btnDescargarResumen').onclick = () => descargarCierrePDF(idx);
+    // Los comprobantes dependen del detalle recalculado: hasta que llegue, botones off.
+    detalleCierreActual = null;
+    _setBotonesPDFCierre(false);
     abrirModal('modalResumenCierre');
     cargarDetalleCierre(h.id);
+}
+
+function _setBotonesPDFCierre(activo) {
+    ['btnPDFNegocioCierre', 'btnPDFInversionistasCierre'].forEach(id => {
+        const b = document.getElementById(id);
+        if (!b) return;
+        b.disabled = !activo;
+        b.classList.toggle('opacity-50', !activo);
+        b.classList.toggle('cursor-not-allowed', !activo);
+    });
 }
 
 // Carga diferida del desglose por máquina / propietario de un cierre histórico.
@@ -1575,8 +1588,11 @@ async function cargarDetalleCierre(cierreId) {
         });
         const d = await r.json();
         if (!r.ok || !d.success) throw new Error(d.message || 'Error');
+        detalleCierreActual = d;
         cont.innerHTML = renderDetalleCierre(d);
+        _setBotonesPDFCierre(true);
     } catch (e) {
+        detalleCierreActual = null;
         cont.innerHTML = `<div class="text-sm text-gray-500 py-2"><i class="fas fa-info-circle mr-1"></i>No se pudo cargar el desglose por máquina.</div>`;
     }
 }
@@ -1630,55 +1646,17 @@ function renderDetalleCierre(d) {
     return html;
 }
 
-function descargarCierrePDF(idx) {
-    const h = histCierres[idx];
-    if (!h) return;
-    const d = _derivarCierre(h);
-    const alcance  = h.local_nombre || 'Todos los locales';
-    const fechaReg = new Date(h.creado_el).toLocaleString('es-CO');
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    const W = doc.internal.pageSize.getWidth();
-
-    doc.setFontSize(18); doc.setFont(undefined, 'bold');
-    doc.text('Resumen de Liquidación', W / 2, 48, { align: 'center' });
-    doc.setFontSize(11); doc.setFont(undefined, 'normal'); doc.setTextColor(90);
-    doc.text('Inversiones Arcade', W / 2, 66, { align: 'center' });
-    doc.setTextColor(0);
-
-    doc.setFontSize(11);
-    doc.text(`Alcance: ${alcance}`, 40, 100);
-    doc.text(`Período: ${h.fecha_inicio}  →  ${h.fecha_fin}`, 40, 118);
-    doc.text(`Responsable: ${h.responsable || '—'}`, 40, 136);
-    doc.text(`Registrado: ${fechaReg}`, 40, 154);
-
-    doc.autoTable({
-        startY: 178,
-        head: [['Concepto', 'Monto', '%']],
-        body: [
-            ['Ingresos totales', fmt(d.ingresos), '100%'],
-            ['Negocio (restaurante)', fmt(d.negocio), fmtD(d.pctNeg)],
-            ['Administración (Arcade)', fmt(d.admin), fmtD(d.pctAdm)],
-            ['Utilidad (inversionistas)', fmt(d.utilidad), fmtD(d.pctUtil)],
-            ['Total proveedor (Admin + Utilidad)', fmt(d.proveedor), fmtD(d.pctProv)],
-        ],
-        styles: { fontSize: 11, cellPadding: 6 },
-        headStyles: { fillColor: [37, 99, 235], textColor: 255 },
-        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
-        theme: 'grid',
-    });
-
-    let y = doc.lastAutoTable.finalY + 24;
-    if (h.observaciones) {
-        doc.setFontSize(11); doc.setFont(undefined, 'bold');
-        doc.text('Observaciones:', 40, y); y += 16;
-        doc.setFont(undefined, 'normal');
-        doc.text(doc.splitTextToSize(h.observaciones, W - 80), 40, y);
-    }
-
-    const slug = alcance.replace(/[^\w]+/g, '_');
-    doc.save(`liquidacion_${slug}_${h.fecha_inicio}_${h.fecha_fin}.pdf`);
+// Regenera los MISMOS comprobantes del cierre en vivo para un cierre histórico.
+// El payload de /detalle trae la misma forma que /calcular (distribucion con los totales
+// guardados + paquetes/métodos/inversionistas recalculados del período), así que se
+// reusan _htmlPDFNegocio / _htmlPDFInversionistas sin duplicar el maquetado.
+function descargarCierrePDF(tipo) {
+    if (!detalleCierreActual) { toast('Aún se está cargando el detalle del cierre', 'error'); return; }
+    const { cierre } = detalleCierreActual;
+    const html = tipo === 'inversionistas'
+        ? _htmlPDFInversionistas(cierre, detalleCierreActual)
+        : _htmlPDFNegocio(cierre, detalleCierreActual);
+    if (html) _abrirVentanaPDF(html);
 }
 
 function renderChartsHistorial(hist) {
@@ -1861,9 +1839,15 @@ function _getCierreOficial() {
 
 function generarPDFNegocio() {
     if (!currentData) { toast('Calcula primero una liquidación', 'error'); return; }
-    const cierre  = _getCierreOficial();
+    const cierre = _getCierreOficial();
     if (!cierre) return;
-    const d       = currentData;
+    _abrirVentanaPDF(_htmlPDFNegocio(cierre, currentData));
+}
+
+// Comprobante oficial del negocio. Recibe el cierre y un payload con la misma forma que
+// devuelve /calcular (distribucion, periodo, paquetes_resumen, resumen_metodos), de modo
+// que sirve tanto para el cierre en vivo como para regenerarlo desde el historial.
+function _htmlPDFNegocio(cierre, d) {
     const dist    = d.distribucion || {};
     const periodo = d.periodo || {};
     const paq     = d.paquetes_resumen || [];
@@ -1890,7 +1874,22 @@ function generarPDFNegocio() {
     const neg = dist.negocio || {};
     const prov = dist.proveedor || {};
 
-    _abrirVentanaPDF(`<!DOCTYPE html><html lang="es"><head>
+    // El pie de la tabla suma sus PROPIAS filas: así el desglose siempre cuadra a la vista.
+    // En el cierre en vivo esto es idéntico a dist.total_ingresos (se deriva de los paquetes).
+    // En un cierre histórico puede diferir del total oficial guardado si las ventas del
+    // período cambiaron después de cerrar; en ese caso se aclara cuál manda, en vez de
+    // imprimir un TOTAL que contradice las filas de arriba.
+    const totalPaq  = paq.reduce((s, p) => s + (+p.ingresos_totales || 0), 0);
+    const totalOfic = +dist.total_ingresos || 0;
+    const descuadre = Math.round(totalPaq) !== Math.round(totalOfic);
+    const notaDescuadre = descuadre ? `<div class="meta" style="margin-top:.4rem">
+        El desglose de paquetes y métodos de pago se recalcula del período y suma
+        ${fmtP(totalPaq)}. El total oficial de este cierre es <strong>${fmtP(totalOfic)}</strong>
+        (el de los indicadores y la distribución de arriba, que es el que manda);
+        diferencia de ${fmtP(Math.abs(totalPaq - totalOfic))}.
+    </div>` : '';
+
+    return `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
 <title>Liquidación Negocio — ${periodo.fecha_inicio} al ${periodo.fecha_fin}</title>
 <style>${_pdfStyles} h1{color:#065f46;border-color:#059669} h2{border-color:#059669}</style>
@@ -1939,9 +1938,10 @@ function generarPDFNegocio() {
   <tbody>${paqRows}</tbody>
   <tfoot><tr>
     <td colspan="3"><strong>TOTAL</strong></td>
-    <td class="r"><strong>${fmtP(dist.total_ingresos)}</strong></td>
+    <td class="r"><strong>${fmtP(totalPaq)}</strong></td>
   </tr></tfoot>
 </table>
+${notaDescuadre}
 
 ${metodos.length ? `<h2>Métodos de Pago Recibidos</h2>
 <table>
@@ -1958,14 +1958,20 @@ ${observaciones ? `<h2>Observaciones del Cierre</h2><div class="inv-block">${obs
 </div>
 
 <div class="footer">Inversiones Arcade &mdash; Comprobante oficial de cierre &mdash; Solo para uso interno</div>
-</body></html>`);
+</body></html>`;
 }
 
 function generarPDFInversionistas() {
     if (!currentData) { toast('Calcula primero una liquidación', 'error'); return; }
-    const cierre  = _getCierreOficial();
+    const cierre = _getCierreOficial();
     if (!cierre) return;
-    const d       = currentData;
+    const html = _htmlPDFInversionistas(cierre, currentData);
+    if (html) _abrirVentanaPDF(html);
+}
+
+// Comprobante de inversionistas. Mismo contrato de datos que _htmlPDFNegocio.
+// Devuelve null (y avisa) si el período no tiene inversionistas configurados.
+function _htmlPDFInversionistas(cierre, d) {
     const dist    = d.distribucion || {};
     const periodo = d.periodo || {};
     const inv     = d.inversionistas || [];
@@ -1975,7 +1981,7 @@ function generarPDFInversionistas() {
     const responsable = escapeHtml(cierre.responsable || 'Administrador');
     const observaciones = escapeHtml(cierre.observaciones || '');
 
-    if (!inv.length) { toast('No hay inversionistas configurados en este período', 'error'); return; }
+    if (!inv.length) { toast('No hay inversionistas configurados en este período', 'error'); return null; }
 
     const invHtml = inv.map(i => {
         const maqRows = i.maquinas.map(m => `<tr>
@@ -2002,7 +2008,31 @@ function generarPDFInversionistas() {
 
     const util = dist.utilidad || {};
 
-    _abrirVentanaPDF(`<!DOCTYPE html><html lang="es"><head>
+    // La participación de cada inversionista se calcula BOTTOM-UP: máquina por máquina, sobre
+    // los ingresos atribuidos por turnos jugados y con el % de utilidad de ESA máquina. La
+    // utilidad del reparto oficial es TOP-DOWN: QR vendidos × porcentaje promedio. Son dos
+    // caminos distintos y no tienen por qué coincidir, así que se muestra el que se paga (el
+    // distribuido) y se declara la diferencia, en vez de imprimir ambos como si cuadraran.
+    // Ojo: una máquina compartida aparece en la lista de cada dueño → deduplicar por id.
+    const baseMaq = {};
+    inv.forEach(i => (i.maquinas || []).forEach(m => { baseMaq[m.maquina_id] = +m.ingresos_maquina || 0; }));
+    const totalBaseMaq  = Object.values(baseMaq).reduce((s, v) => s + v, 0);
+    const totalDistrib  = inv.reduce((s, i) => s + (+i.total_participacion || 0), 0);
+    const utilOficial   = +util.monto || 0;
+    const residual      = utilOficial - totalDistrib;
+    const notaResidual  = Math.round(residual) !== 0 ? `<div class="meta" style="margin-top:.4rem">
+        Cada participación se calcula máquina por máquina: ingresos atribuidos por turnos jugados
+        &times; % de utilidad de esa máquina &times; % de propiedad. La utilidad del reparto oficial
+        del cierre (${fmtP(utilOficial)}) se calcula por otro camino &mdash; sobre los QR vendidos
+        (${fmtP(dist.total_ingresos)}) con un porcentaje promedio &mdash;, por eso no coincide con lo
+        distribuido: diferencia de ${fmtP(Math.abs(residual))}
+        ${residual > 0
+            ? '(utilidad del cierre no atribuida a ninguna máquina con inversionista: QR vendidos que no se jugaron, o máquinas sin dueño registrado).'
+            : '(las máquinas con inversionista acumularon más turnos jugados de los que cubren los QR vendidos en el período).'}
+        <strong>Lo que se paga es el total distribuido.</strong>
+    </div>` : '';
+
+    return `<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8">
 <title>Liquidación Inversionistas — ${periodo.fecha_inicio} al ${periodo.fecha_fin}</title>
 <style>${_pdfStyles} h1{color:#4c1d95;border-color:#7c3aed} h2{border-color:#7c3aed}</style>
@@ -2021,18 +2051,19 @@ function generarPDFInversionistas() {
     <div class="kpi-label">Ingresos Totales</div>
     <div class="kpi-value">${fmtP(dist.total_ingresos)}</div>
   </div>
-  <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
-    <div class="kpi-label">% Utilidad (${(+util.pct||0).toFixed(1)}%)</div>
-    <div class="kpi-value">${fmtP(util.monto)}</div>
+  <div class="kpi" style="border-color:#2563eb;background:#eff6ff">
+    <div class="kpi-label">Base atribuida a máquinas (turnos jugados)</div>
+    <div class="kpi-value">${fmtP(totalBaseMaq)}</div>
   </div>
   <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
-    <div class="kpi-label">Total distribuido</div>
-    <div class="kpi-value">${fmtP(inv.reduce((s,i) => s + i.total_participacion, 0))}</div>
+    <div class="kpi-label">Utilidad distribuida a inversionistas</div>
+    <div class="kpi-value">${fmtP(totalDistrib)}</div>
   </div>
 </div>
 
 <h2>Pagos Sugeridos por Inversionista</h2>
 ${invHtml}
+${notaResidual}
 
 ${observaciones ? `<h2>Observaciones del Cierre</h2><div class="inv-block">${observaciones}</div>` : ''}
 
@@ -2043,7 +2074,7 @@ ${observaciones ? `<h2>Observaciones del Cierre</h2><div class="inv-block">${obs
 </div>
 
 <div class="footer">Inversiones Arcade &mdash; Comprobante oficial de cierre &mdash; Confidencial</div>
-</body></html>`);
+</body></html>`;
 }
 
 // ─── Modal helpers ────────────────────────────────────────────────────────────

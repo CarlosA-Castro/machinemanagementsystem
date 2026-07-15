@@ -310,6 +310,61 @@ def _find_existing_cierre(cursor, local_id, inicio_dt, fin_dt):
 
 # ─── Helpers de consulta ──────────────────────────────────────────────────────
 
+def _fetch_payment_methods(cursor, inicio_dt, fin_dt, usa_propietarios):
+    """Totales por método de pago del período, acotados al local del scope de sesión.
+
+    Extraído de `calcular_liquidacion` para que el comprobante de un cierre histórico
+    pueda reconstruir exactamente la misma tabla desde `detalle_cierre`.
+    """
+    if usa_propietarios:
+        loc_cond, loc_params = _tp_location_cond()
+        sql = f"""
+            SELECT
+                COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
+                COUNT(DISTINCT qh.qr_code) AS total_ventas,
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS valor_total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
+              AND qr.turnPackageId IS NOT NULL
+              AND qh.es_venta_real = TRUE
+              {loc_cond}
+            GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+            ORDER BY valor_total DESC, total_ventas DESC
+        """
+        params = [inicio_dt, fin_dt] + loc_params
+    else:
+        sql, params = apply_location_filter(
+            """
+            SELECT
+                COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
+                COUNT(DISTINCT qh.qr_code) AS total_ventas,
+                COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS valor_total
+            FROM qrhistory qh
+            JOIN qrcode qr ON qr.code = qh.qr_code
+            JOIN turnpackage tp ON qr.turnPackageId = tp.id
+            WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
+              AND qr.turnPackageId IS NOT NULL
+              AND qh.es_venta_real = TRUE
+            GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
+            ORDER BY valor_total DESC, total_ventas DESC
+            """,
+            [inicio_dt, fin_dt],
+            column='location_id', table_alias='tp',
+        )
+    cursor.execute(sql, params)
+    return [
+        {
+            'payment_method': row['payment_method'],
+            'label': _payment_method_label(row['payment_method']),
+            'total_ventas': int(row['total_ventas'] or 0),
+            'valor_total': float(row['valor_total'] or 0),
+        }
+        for row in cursor.fetchall()
+    ]
+
+
 def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
     """Resumen de paquetes vendidos en el período, con turnos usados y restantes."""
     sql, params = apply_location_filter(
@@ -1139,55 +1194,10 @@ def calcular_liquidacion():
                 'descuento':              round(precio_base - precio_final, 2),
             })
 
-        if tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios:
-            loc_cond, loc_params = _tp_location_cond()
-            metodos_sql = f"""
-                SELECT
-                    COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
-                    COUNT(DISTINCT qh.qr_code) AS total_ventas,
-                    COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS valor_total
-                FROM qrhistory qh
-                JOIN qrcode qr ON qr.code = qh.qr_code
-                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
-                  AND qr.turnPackageId IS NOT NULL
-                  
-                  AND qh.es_venta_real = TRUE
-                  {loc_cond}
-                GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
-                ORDER BY valor_total DESC, total_ventas DESC
-            """
-            metodos_params = [inicio_dt, fin_dt] + loc_params
-        else:
-            metodos_sql, metodos_params = apply_location_filter(
-                """
-                SELECT
-                    COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar') AS payment_method,
-                    COUNT(DISTINCT qh.qr_code) AS total_ventas,
-                    COALESCE(SUM(COALESCE(qh.final_price, tp.price)), 0) AS valor_total
-                FROM qrhistory qh
-                JOIN qrcode qr ON qr.code = qh.qr_code
-                JOIN turnpackage tp ON qr.turnPackageId = tp.id
-                WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
-                  AND qr.turnPackageId IS NOT NULL
-                  
-                  AND qh.es_venta_real = TRUE
-                GROUP BY COALESCE(NULLIF(qh.payment_method, ''), 'sin_registrar')
-                ORDER BY valor_total DESC, total_ventas DESC
-                """,
-                [inicio_dt, fin_dt],
-                column='location_id', table_alias='tp',
-            )
-        cursor.execute(metodos_sql, metodos_params)
-        resumen_metodos = [
-            {
-                'payment_method': row['payment_method'],
-                'label': _payment_method_label(row['payment_method']),
-                'total_ventas': int(row['total_ventas'] or 0),
-                'valor_total': float(row['valor_total'] or 0),
-            }
-            for row in cursor.fetchall()
-        ]
+        resumen_metodos = _fetch_payment_methods(
+            cursor, inicio_dt, fin_dt,
+            tiene_porcentaje and tiene_propietarios and tiene_tabla_propietarios,
+        )
 
         historial = _fetch_historial_cierres(cursor, limite=5)
         gastos    = _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin)
@@ -1667,6 +1677,16 @@ def detalle_cierre(cierre_id):
             resumen_maquinas = _build_machine_summary(cursor, inicio_dt, fin_dt, tiene_admin)[0]
             distribucion_propietarios = _build_propietarios_distribution(cursor, inicio_dt, fin_dt)
             gastos = _fetch_gastos_periodo(cursor, row['fecha_inicio'], row['fecha_fin'])
+            # Insumos del comprobante oficial: mismos helpers que usa el cierre en vivo,
+            # para que el PDF de un cierre histórico sea idéntico al del momento del cierre.
+            paquetes_resumen = _fetch_package_summary(cursor, inicio_dt, fin_dt)
+            resumen_metodos  = _fetch_payment_methods(
+                cursor, inicio_dt, fin_dt,
+                _table_exists(cursor, 'maquinaporcentajerestaurante')
+                and _table_exists(cursor, 'maquinapropietario')
+                and _table_exists(cursor, 'propietarios'),
+            )
+            inversionistas = _build_investor_liquidation(cursor, resumen_maquinas, inicio_dt, fin_dt)
 
         maquinas = sorted(
             resumen_maquinas.values(),
@@ -1682,21 +1702,47 @@ def detalle_cierre(cierre_id):
             )
         ]
 
+        # La distribución del comprobante sale de los totales GUARDADOS al cerrar (son los
+        # autoritativos, los que se le entregaron al negocio), no de un recálculo: si los
+        # porcentajes por máquina cambiaron después, el comprobante histórico no debe moverse.
+        ingresos_g = float(row['total_ingresos'])
+        negocio_g  = float(row['total_negocio'])
+        admin_g    = float(row['total_admin'])
+        utilidad_g = float(row['total_utilidad'])
+        pct_neg_g  = float(row['pct_negocio'])
+        pct_adm_g  = float(row['pct_admin'])
+        distribucion = {
+            'total_ingresos': round(ingresos_g, 2),
+            'negocio':   {'pct': round(pct_neg_g, 2), 'monto': round(negocio_g, 2)},
+            'admin':     {'pct': round(pct_adm_g, 2), 'monto': round(admin_g, 2)},
+            'utilidad':  {'pct': round(100 - pct_neg_g - pct_adm_g, 2), 'monto': round(utilidad_g, 2)},
+            'proveedor': {'pct': round(100 - pct_neg_g, 2), 'monto': round(admin_g + utilidad_g, 2)},
+        }
+
         return jsonify({
             'success': True,
             'cierre': {
                 **_serialize_cierre(row),
-                'total_ingresos': float(row['total_ingresos']),
-                'total_negocio':  float(row['total_negocio']),
-                'total_admin':    float(row['total_admin']),
-                'total_utilidad': float(row['total_utilidad']),
-                'pct_negocio':    float(row['pct_negocio']),
-                'pct_admin':      float(row['pct_admin']),
+                'total_ingresos': ingresos_g,
+                'total_negocio':  negocio_g,
+                'total_admin':    admin_g,
+                'total_utilidad': utilidad_g,
+                'pct_negocio':    pct_neg_g,
+                'pct_admin':      pct_adm_g,
             },
             'periodo': {
-                'inicio_dt': str(inicio_dt),
-                'fin_dt':    str(fin_dt),
+                'inicio_dt':    str(inicio_dt),
+                'fin_dt':       str(fin_dt),
+                'fecha_inicio': str(row['fecha_inicio']),
+                'fecha_fin':    str(row['fecha_fin']),
+                'local_id':     local_id,
+                'local_nombre': row['local_nombre'],
+                'total_ventas': sum(p['paquetes_vendidos'] for p in paquetes_resumen),
             },
+            'distribucion':              distribucion,
+            'paquetes_resumen':          paquetes_resumen,
+            'resumen_metodos':           resumen_metodos,
+            'inversionistas':            inversionistas,
             'resumen_maquinas':          maquinas,
             'distribucion_propietarios': propietarios,
             'gastos':                    gastos,
