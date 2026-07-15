@@ -392,13 +392,13 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
     cursor.execute(sql, params)
     rows = cursor.fetchall()
 
-    # Turnos realmente jugados por tipo de paquete: se cuentan los registros de turnusage
-    # de los QR vendidos en el período, jugados ANTES de que el período cierre.
-    # La cota tu.usedAt < fecha_fin es la que hace que 'turnos_restantes' signifique el
-    # DINERO FLOTANTE del cierre (turnos vendidos y no jugados, que quedan a Inversiones
-    # Arcade). Sin ella el flotante de un cierre pasado se encoge solo cada vez que un
-    # cliente juega un turno rezagado. Para el período en curso fecha_fin es 'ahora'
-    # (ver _resolve_period_bounds) → no excluye nada.
+    # Turnos realmente jugados por tipo de paquete:
+    # se cuentan los registros de turnusage de los QR vendidos en el período.
+    # SIN cota de fecha a propósito: 'turnos_restantes' = turnos vendidos que AÚN no se han
+    # jugado, o sea la plata que Arcade retiene y que todavía puede reclamarse mientras el QR
+    # no venza. No es un saldo que se congele al cerrar: si el turno aparece después, se le
+    # paga al dueño de la máquina en el período donde apareció (ver _build_investor_liquidation,
+    # que atribuye por fecha de juego).
     cursor.execute(
         """
         SELECT qr.turnPackageId AS paquete_id, COUNT(tu.id) AS turnos_jugados
@@ -410,10 +410,10 @@ def _fetch_package_summary(cursor, fecha_inicio, fecha_fin):
               AND qh2.es_venta_real = TRUE
         )
           AND qr.turnPackageId IS NOT NULL
-          AND tu.usedAt < %s
+
         GROUP BY qr.turnPackageId
         """,
-        (fecha_inicio, fecha_fin, fecha_fin),
+        (fecha_inicio, fecha_fin),
     )
     plays_by_pkg = {r['paquete_id']: int(r['turnos_jugados']) for r in cursor.fetchall()}
 
@@ -765,14 +765,15 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
     Liquidación por inversionista usando maquinapropietario + propietarios.
     Calcula participación sobre la utilidad (100 - pct_negocio - pct_admin) de cada máquina.
 
-    Los QR se toman por FECHA DE VENTA dentro del período, pero solo cuentan los turnos
-    JUGADOS antes de que el período cierre (tu.usedAt < fecha_fin). Los turnos vendidos y
-    no jugados al cerrar son dinero flotante que queda a Inversiones Arcade: si el cliente
-    los juega después, no pueden devolverse retroactivamente al inversionista, o el
-    comprobante de un cierre pasado cambiaría cada vez que se regenera.
+    Se atribuye por FECHA DE JUEGO (tu.usedAt dentro del período), NO por fecha de venta
+    del QR. Al inversionista se le paga por los turnos que se jugaron en su máquina; si un
+    turno se vendió en un período anterior y aparece en este, se paga en este. Que el turno
+    se haya podido jugar ya implica que el QR no estaba vencido — el vencimiento se valida
+    aguas arriba, un QR vencido no genera turnos.
 
-    Para el período en curso fecha_fin es 'ahora' (ver _resolve_period_bounds), así que la
-    cota no excluye nada: no altera el cálculo del cierre en vivo.
+    Es un eje DISTINTO al del restaurante, que se cobra por paquetes VENDIDOS en el período
+    (_fetch_package_summary). No tienen por qué cuadrar: la diferencia son los turnos
+    vendidos y aún no jugados, plata que retiene Arcade hasta que se juegue o el QR venza.
     """
     if not (_table_exists(cursor, 'maquinapropietario') and _table_exists(cursor, 'propietarios')):
         return []
@@ -805,8 +806,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
         JOIN maquinapropietario mp ON mp.maquina_id   = m.id
         JOIN propietarios        p ON p.id             = mp.propietario_id
         LEFT JOIN maquinaporcentajerestaurante mpr ON mpr.maquina_id = m.id
-        WHERE qh.fecha_hora >= %s AND qh.fecha_hora < %s
-          AND tu.usedAt < %s
+        WHERE tu.usedAt >= %s AND tu.usedAt < %s
           AND qr.turnPackageId IS NOT NULL
           {loc_sql}
           AND qh.es_venta_real = TRUE
@@ -815,7 +815,7 @@ def _build_investor_liquidation(cursor, resumen_maquinas, fecha_inicio, fecha_fi
                  mpr.porcentaje_restaurante, {admin_expr}
         ORDER BY p.nombre, m.name, turnos_jugados DESC
         """,
-        [fecha_inicio, fecha_fin, fecha_fin, *loc_params],
+        [fecha_inicio, fecha_fin, *loc_params],
         column='location_id', table_alias='tp',
     )
     cursor.execute(sql, params)
@@ -1695,7 +1695,6 @@ def detalle_cierre(cierre_id):
             # Insumos del comprobante oficial: mismos helpers que usa el cierre en vivo,
             # para que el PDF de un cierre histórico sea idéntico al del momento del cierre.
             paquetes_resumen = _fetch_package_summary(cursor, inicio_dt, fin_dt)
-            turnos_summary   = _fetch_turnos_summary(cursor, inicio_dt, fin_dt, paquetes_resumen)
             resumen_metodos  = _fetch_payment_methods(
                 cursor, inicio_dt, fin_dt,
                 _table_exists(cursor, 'maquinaporcentajerestaurante')
@@ -1756,7 +1755,6 @@ def detalle_cierre(cierre_id):
                 'total_ventas': sum(p['paquetes_vendidos'] for p in paquetes_resumen),
             },
             'distribucion':              distribucion,
-            'turnos':                    turnos_summary,
             'paquetes_resumen':          paquetes_resumen,
             'resumen_metodos':           resumen_metodos,
             'inversionistas':            inversionistas,
