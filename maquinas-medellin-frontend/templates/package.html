@@ -529,17 +529,13 @@
       scannerActivo: false,
       qrInfoData: null,
 
-      campanasActivas: [],
-
-      // Cargar paquetes y campañas activas
+      // Cargar paquetes. /api/paquetes ya trae el efecto de la campaña activa resuelto por
+      // el backend (final_price / final_turns / campaign_name), así que aquí no se
+      // reimplementan las reglas ni hace falta consultar las campañas aparte.
       cargarPaquetes: async function() {
         try {
-          const [resPaq, resCamp] = await Promise.all([
-            fetch('/api/paquetes', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
-            fetch('/api/admin/campaigns/activas-ahora', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(() => null),
-          ]);
+          const resPaq = await fetch('/api/paquetes', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
           const paquetes = await resPaq.json();
-          this.campanasActivas = resCamp ? ((await resCamp.json()).data || []) : [];
           this.paquetesData = paquetes;
           this.renderizarPaquetes(paquetes);
         } catch (error) {
@@ -548,58 +544,55 @@
         }
       },
 
-      _getCampaña: function() {
-        return (this.campanasActivas || [])[0] || null;
-      },
-
-      _aplicarCampaña: function(price, turns) {
-        const camp = this._getCampaña();
-        if (!camp) return { price, turns, campaign: null };
-        const rval = camp.rule_value || {}, rtype = camp.rule_type;
-        let fp = parseFloat(price), ft = parseInt(turns);
-        if (rtype === 'free')           fp = 0;
-        else if (rtype === 'discount_pct')   fp = Math.round(fp*(1-(rval.pct||0)/100)/100)*100;
-        else if (rtype === 'discount_fixed') fp = Math.max(0, fp-(rval.amount||0));
-        else if (rtype === 'fixed_price')    fp = rval.price||fp;
-        else if (rtype === 'bonus_turns')    ft += rval.bonus||0;
-        else if (rtype === 'buy_x_get_y')    ft = rval.get||ft;
-        return { price: fp, turns: ft, campaign: camp };
-      },
-
       // Renderizar botones de paquetes con info de campaña
       renderizarPaquetes: function(paquetes) {
         const container = document.getElementById('paquetes-container');
         container.innerHTML = '';
 
-        if (this.campanasActivas && this.campanasActivas.length) {
+        // El banner sale de los propios paquetes: si el backend les aplicó campaña, viene
+        // con campaign_name. Una sola fuente de verdad, sin consultar campañas por separado.
+        const nombresCampana = [...new Set(paquetes.filter(p => p.campaign_id).map(p => p.campaign_name))];
+        if (nombresCampana.length) {
           const banner = document.createElement('div');
           banner.className = 'col-span-full mb-2';
           banner.innerHTML = `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:6px 12px;font-size:.78rem;font-weight:700;color:#92400e;">
-            ⚡ Campaña activa: ${this.campanasActivas.map(c=>c.name).join(', ')}
+            ⚡ Campaña activa: ${nombresCampana.join(', ')}
           </div>`;
           container.appendChild(banner);
         }
 
         paquetes.forEach(paquete => {
-          const applied = this._aplicarCampaña(paquete.price, paquete.turns);
+          // Precio y turnos efectivos los calcula el BACKEND (/api/paquetes ya viene con
+          // final_price/final_turns del mismo helper que aplica la venta). Antes se
+          // recalculaban aquí con una copia de las reglas en JS que no cubría todos los
+          // rule_type — p.ej. fixed_price_per_turn — así que el cajero podía ver un precio
+          // y el backend cobrar otro.
+          const precioBase = parseFloat(paquete.price);
+          const turnosBase = parseInt(paquete.turns);
+          const precioFinal = paquete.final_price != null ? parseFloat(paquete.final_price) : precioBase;
+          const turnosFinal = paquete.final_turns != null ? parseInt(paquete.final_turns) : turnosBase;
+          const campaign = paquete.campaign_id
+            ? { id: paquete.campaign_id, name: paquete.campaign_name }
+            : null;
+
           const button = document.createElement('button');
           button.className = 'btnPaquete btn-touch';
           button.id = `paquete-${paquete.id}`;
-          const priceHtml = applied.campaign
-            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">$${parseFloat(paquete.price).toLocaleString('es-CO')}</span><br>
-               <span style="color:${applied.price===0?'#16a34a':'#f97316'};font-weight:700;">${applied.price===0?'GRATIS':'$'+parseFloat(applied.price).toLocaleString('es-CO')}</span>`
-            : `$${parseFloat(paquete.price).toLocaleString('es-CO')}`;
-          const turnsHtml = applied.turns !== parseInt(paquete.turns)
-            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">${paquete.turns}</span> <span style="color:#16a34a;font-weight:700;">${applied.turns}</span>`
-            : `${applied.turns}`;
+          const priceHtml = (campaign && precioFinal !== precioBase)
+            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">$${precioBase.toLocaleString('es-CO')}</span><br>
+               <span style="color:${precioFinal===0?'#16a34a':'#f97316'};font-weight:700;">${precioFinal===0?'GRATIS':'$'+precioFinal.toLocaleString('es-CO')}</span>`
+            : `$${precioFinal.toLocaleString('es-CO')}`;
+          const turnsHtml = turnosFinal !== turnosBase
+            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:.72rem;">${turnosBase}</span> <span style="color:#16a34a;font-weight:700;">${turnosFinal}</span>`
+            : `${turnosFinal}`;
           button.innerHTML = `
             <div class="font-bold">P${paquete.id}</div>
             <div class="paquete-info">
               ${turnsHtml} turnos<br>${priceHtml}
-              ${applied.campaign ? `<div style="font-size:.6rem;color:#f97316;margin-top:2px;">⚡ ${applied.campaign.name}</div>` : ''}
+              ${campaign ? `<div style="font-size:.6rem;color:#f97316;margin-top:2px;">⚡ ${campaign.name}</div>` : ''}
             </div>
           `;
-          button.onclick = () => this.abrirConfirmacion(paquete.id, applied.turns, applied.price, parseFloat(paquete.price), parseInt(paquete.turns), applied.campaign);
+          button.onclick = () => this.abrirConfirmacion(paquete.id, turnosFinal, precioFinal, precioBase, turnosBase, campaign);
           container.appendChild(button);
         });
       },

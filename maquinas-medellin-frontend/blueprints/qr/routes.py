@@ -922,7 +922,35 @@ def obtener_paquetes():
                 (eff,)
             )
 
-        return jsonify(cursor.fetchall())
+        paquetes = cursor.fetchall()
+
+        # Efecto de la campaña activa, calculado por el MISMO helper que aplica la venta
+        # (get_active_campaign_for_package). Antes el cajero lo recalculaba en JS con una
+        # copia de las reglas que no cubría todos los rule_type (p.ej. fixed_price_per_turn),
+        # así que podía mostrar un precio distinto al que el backend cobraba.
+        #
+        # `price`/`turns` NO se tocan: esta misma ruta la consume gestionpaquetes.html
+        # (admin), donde el precio del paquete debe verse crudo. El efecto va aparte y quien
+        # venda usa final_price/final_turns.
+        for p in paquetes:
+            p['campaign_id'] = None
+            p['campaign_name'] = None
+            p['final_price'] = float(p.get('price') or 0)
+            p['final_turns'] = int(p.get('turns') or 0)
+            p['savings_pct'] = 0.0
+            try:
+                camp = get_active_campaign_for_package(p['id'], active_id, cursor)
+            except Exception as e:
+                logger.warning(f"No se pudo evaluar campaña para paquete {p['id']}: {e}")
+                camp = None
+            if camp:
+                p['campaign_id'] = camp['campaign_id']
+                p['campaign_name'] = camp['campaign_name']
+                p['final_price'] = camp['final_price']
+                p['final_turns'] = camp['final_turns']
+                p['savings_pct'] = camp.get('savings_pct', 0.0)
+
+        return jsonify(paquetes)
     except Exception as e:
         logger.error(f"Error obteniendo paquetes: {e}")
         sentry_sdk.capture_exception(e)
@@ -980,6 +1008,21 @@ def asignar_paquete():
         # fecha de vencimiento coherente con la generación en lote.
         duration_days = int(paquete['duration_days']) if paquete.get('duration_days') else 30
         location_id_activo = session.get('active_location_id')
+
+        # Campaña activa: mismo helper y mismas reglas que la generación en lote. Sin esto
+        # el cajero cobraba los turnos de la campaña y el QR recibía los del paquete base,
+        # o sea el cliente pagaba por turnos que nunca le llegaban.
+        campaign_result = get_active_campaign_for_package(paquete_id, location_id_activo, cursor)
+        if campaign_result:
+            turns = campaign_result['final_turns']
+            price = campaign_result['final_price']
+            if campaign_result.get('qr_duration_days'):
+                duration_days = int(campaign_result['qr_duration_days'])
+            logger.info(
+                f"[campaign] '{campaign_result['campaign_name']}' aplicada a QR {codigo_qr}: "
+                f"{campaign_result['original_turns']}t → {turns}t | "
+                f"${campaign_result['original_price']:,.0f} → ${price:,.0f}"
+            )
 
         cursor.execute("SELECT id FROM qrcode WHERE code = %s", (codigo_qr,))
         qr_existente = cursor.fetchone()
@@ -1997,12 +2040,57 @@ def registrar_venta():
 
         hora_colombia = get_colombia_time()
 
+        # Precio REAL de la venta. Se recalcula en el servidor con el mismo helper que usa
+        # el resto del sistema: el `precio` que manda el front es informativo y no se puede
+        # tomar como autoritativo (el cliente podría enviar cualquier cosa).
+        #
+        # Antes esta venta se guardaba SIN final_price ni campaign_id: las liquidaciones
+        # hacen COALESCE(qh.final_price, tp.price), así que una venta con descuento se
+        # facturaba al precio BASE y el restaurante terminaba pagando sobre plata que nunca
+        # entró a su caja.
+        location_id_activo = session.get('active_location_id')
+        cursor.execute("SELECT price FROM turnpackage WHERE id = %s", (paquete_id,))
+        _pkg = cursor.fetchone()
+        if not _pkg:
+            return api_response('Q004', http_status=404)
+        final_price = float(_pkg['price'])
+        campaign_id = None
+
+        campaign_result = get_active_campaign_for_package(paquete_id, location_id_activo, cursor)
+        if campaign_result:
+            final_price = campaign_result['final_price']
+            campaign_id = campaign_result['campaign_id']
+
+        # El front manda el precio que le mostró al cajero. No manda, pero si no coincide con
+        # el del servidor es que le cobraron al cliente algo distinto a lo que se va a
+        # liquidar: se deja rastro para poder detectarlo.
+        if precio is not None:
+            try:
+                if abs(float(precio) - final_price) >= 1:
+                    logger.warning(
+                        f"Venta {qr_code}: el front mostró ${float(precio):,.0f} pero el "
+                        f"servidor calculó ${final_price:,.0f} (paquete {paquete_id}, "
+                        f"campaña {campaign_id}). Se liquida por el del servidor."
+                    )
+            except (TypeError, ValueError):
+                pass
+
         cursor.execute("""
-            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name, es_venta_real, payment_method)
+            INSERT INTO qrhistory (qr_code, user_id, user_name, local, fecha_hora, qr_name,
+                                   es_venta_real, payment_method, final_price, campaign_id)
             VALUES (%s, %s, %s, %s, %s,
                     (SELECT qr_name FROM qrcode WHERE code = %s LIMIT 1),
-                    TRUE, %s)
-        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia), qr_code, payment_method))
+                    TRUE, %s, %s, %s)
+        """, (qr_code, user_id, user_name, local, format_datetime_for_db(hora_colombia),
+              qr_code, payment_method, final_price, campaign_id))
+
+        # Analítica de campañas: sin esto, las ventas de esta pantalla no aparecían en
+        # campaign_redemption y la campaña parecía no haberse usado.
+        if campaign_result:
+            record_redemption(
+                cursor, campaign_result, qr_code, user_id, location_id_activo,
+                package_id=paquete_id
+            )
 
         connection.commit()
 
