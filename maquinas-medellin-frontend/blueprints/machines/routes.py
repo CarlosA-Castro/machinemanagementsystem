@@ -1668,6 +1668,20 @@ def _merge_station_pins(incoming, existing):
     return out
 
 
+def _clamp_relay_pulses(value):
+    """Pulsos del relé de turno por jugada: entero en 1..5.
+
+    El tope no es capricho: cada pulso extra alarga el tren (500ms + 300ms de gap), y un
+    dedo pesado escribiendo 50 dejaría el relé castañeteando ~40s y acreditando partidas
+    de más. El firmware vuelve a clampear igual, pero no queremos basura en la BD.
+    """
+    try:
+        pulses = int(value)
+    except (TypeError, ValueError):
+        return 1
+    return max(1, min(5, pulses))
+
+
 @machines_bp.route('/api/maquinas/<int:maquina_id>/technical', methods=['POST'])
 @handle_api_errors
 @require_admin_access('maquinas')
@@ -1704,6 +1718,7 @@ def guardar_technical_maquina(maquina_id):
             data.get('invert_display', True),
             data.get('failure_report_window_seconds', 15),
             data.get('boot_time_seconds', 30),
+            _clamp_relay_pulses(data.get('relay_pulses_per_turn', 1)),
         )
 
         if existe:
@@ -1713,6 +1728,7 @@ def guardar_technical_maquina(maquina_id):
                     reset_time_seconds=%s, machine_subtype=%s, station_names=%s,
                     game_type=%s, has_failure_report=%s, show_station_selection=%s,
                     invert_display=%s, failure_report_window_seconds=%s, boot_time_seconds=%s,
+                    relay_pulses_per_turn=%s,
                     updated_at=NOW()
                 WHERE machine_id=%s
             """, (*params_comunes, maquina_id))
@@ -1722,8 +1738,9 @@ def guardar_technical_maquina(maquina_id):
                     (machine_id, credits_virtual, credits_machine, game_duration_seconds,
                      reset_time_seconds, machine_subtype, station_names, game_type,
                      has_failure_report, show_station_selection, invert_display,
-                     failure_report_window_seconds, boot_time_seconds)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     failure_report_window_seconds, boot_time_seconds,
+                     relay_pulses_per_turn)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (maquina_id, *params_comunes))
 
         connection.commit()

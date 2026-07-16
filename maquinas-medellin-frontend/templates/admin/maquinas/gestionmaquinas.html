@@ -725,6 +725,12 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Créditos Máquina (turnos que descuenta por jugada)</label>
                             <input type="number" id="creditsMachine" min="1" value="1" class="w-full border border-gray-300 rounded-lg p-3">
+                            <p class="text-xs text-gray-500 mt-1">Cuántos turnos se le descuentan al QR por cada jugada. Es contabilidad: no tiene nada que ver con los pulsos del relé.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pulsos por Turno (relé)</label>
+                            <input type="number" id="relayPulsesPerTurn" min="1" max="5" value="1" class="w-full border border-gray-300 rounded-lg p-3">
+                            <p class="text-xs text-gray-500 mt-1">Cuántas veces cierra el relé para arrancar la partida. Casi todas las máquinas: 1. Súbelo solo si esta placa necesita 2 o más pulsos para acreditar el juego.</p>
                         </div>
                     </div>
                     
@@ -1284,6 +1290,7 @@
                     reset_time_seconds: 5,
                     failure_report_window_seconds: 15,
                     boot_time_seconds: 30,
+                    relay_pulses_per_turn: 1,
                     has_failure_report: true,
                     invert_display: true,
                     station_names: [maquina.name],
@@ -1497,6 +1504,7 @@
                 document.getElementById('resetTimeSeconds').value = '5';
                 document.getElementById('failureReportWindowSeconds').value = '15';
                 document.getElementById('bootTimeSeconds').value = '30';
+                document.getElementById('relayPulsesPerTurn').value = '1';
                 document.getElementById('valorPorTurno').value = '3000';
                 document.getElementById('imagenFilename').value = 'default.jpg';
                 document.getElementById('imagenPreview').src = '/static/img/default.jpg';
@@ -1550,6 +1558,7 @@
                     document.getElementById('resetTimeSeconds').value = techData.data?.reset_time_seconds || 5;
                     document.getElementById('failureReportWindowSeconds').value = techData.data?.failure_report_window_seconds || 15;
                     document.getElementById('bootTimeSeconds').value = techData.data?.boot_time_seconds ?? 30;
+                    document.getElementById('relayPulsesPerTurn').value = techData.data?.relay_pulses_per_turn || 1;
                     document.getElementById('hasFailureReport').checked = techData.data?.has_failure_report !== false;
                     document.getElementById('invertDisplay').checked = techData.data?.invert_display !== false;
                     
@@ -1896,6 +1905,7 @@
                     reset_time_seconds: parseInt(document.getElementById('resetTimeSeconds').value),
                     failure_report_window_seconds: parseInt(document.getElementById('failureReportWindowSeconds').value),
                     boot_time_seconds: parseInt(document.getElementById('bootTimeSeconds').value),
+                    relay_pulses_per_turn: parseInt(document.getElementById('relayPulsesPerTurn').value) || 1,
                     has_failure_report: document.getElementById('hasFailureReport').checked,
                     invert_display: document.getElementById('invertDisplay').checked,
                     relay_pins: relayPins

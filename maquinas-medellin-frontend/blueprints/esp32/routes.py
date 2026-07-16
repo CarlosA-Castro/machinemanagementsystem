@@ -705,6 +705,21 @@ def esp32_machine_config(machine_id):
         except Exception:
             logger.warning("machinetechnical sin columnas V64 (failure_report_window/boot) — usando defaults")
 
+        # Pulsos del relé de turno (V78) — consulta APARTE de la de V64 a propósito: si se
+        # deploya el código antes de correr la migración, un fallo aquí no debe arrastrar
+        # también los tiempos de V64 a sus defaults.
+        relay_pulses_per_turn = 1
+        try:
+            cursor.execute(
+                "SELECT relay_pulses_per_turn FROM machinetechnical WHERE machine_id = %s",
+                (machine_id,)
+            )
+            _rp = cursor.fetchone()
+            if _rp:
+                relay_pulses_per_turn = _rp.get('relay_pulses_per_turn') or 1
+        except Exception:
+            logger.warning("machinetechnical sin columna V78 (relay_pulses_per_turn) — usando default 1")
+
         # Procesar station_names (JSON string → array)
         station_names = []
         if config['station_names']:
@@ -748,6 +763,7 @@ def esp32_machine_config(machine_id):
             'reset_time_seconds': config['reset_time_seconds'] or 5,
             'failure_report_window_seconds': failure_report_window_seconds,
             'boot_time_seconds': boot_time_seconds,
+            'relay_pulses_per_turn': relay_pulses_per_turn,
             'machine_subtype': config['machine_subtype'] or 'simple',
             'station_names': station_names,
             'game_type': config['game_type'] or 'time_based',
