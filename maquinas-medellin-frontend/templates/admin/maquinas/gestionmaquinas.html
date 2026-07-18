@@ -2796,7 +2796,6 @@
         const MantenimientoManager = {
             eventos: [],
             resumenMaquinas: [],
-            overview: {},
             maquinas: [],
             intervalId: null,
 
@@ -2831,13 +2830,11 @@
                     const data = await response.json();
                     this.eventos = Array.isArray(data.eventos) ? data.eventos : [];
                     this.resumenMaquinas = Array.isArray(data.resumen_maquinas) ? data.resumen_maquinas : [];
-                    this.overview = data.overview || {};
                     this.render();
                 } catch (error) {
                     console.error('Error cargando mantenimientos:', error);
                     this.eventos = [];
                     this.resumenMaquinas = [];
-                    this.overview = {};
                     this.renderError();
                 }
             },
@@ -2868,7 +2865,7 @@
                 }).map(item => {
                     const eventosMaquina = eventosFiltrados.filter(evento => String(evento.machine_id) === String(item.machine_id));
                     const eventosActivos = eventosMaquina.filter(evento => evento.is_active);
-                    const totalSegundos = eventosMaquina.reduce((acc, evento) => acc + (evento.duration_seconds || 0), 0);
+                    const totalSegundos = this.mergeIntervalsSeconds(eventosMaquina);
                     const ultimoEvento = eventosMaquina[0];
                     const eventoActivoMasLargo = [...eventosActivos].sort((a, b) => (b.duration_seconds || 0) - (a.duration_seconds || 0))[0];
 
@@ -2905,7 +2902,10 @@
             actualizarKpis: function(eventosFiltrados, resumenFiltrado) {
                 const totalEventos = eventosFiltrados.length;
                 const activos = eventosFiltrados.filter(evento => evento.is_active).length;
-                const totalSegundos = eventosFiltrados.reduce((acc, evento) => acc + (evento.duration_seconds || 0), 0);
+                // Suma del tiempo YA fusionado por máquina (resumenFiltrado), no de eventos
+                // sueltos: así no se sobrecuenta cuando una máquina tuvo varias estaciones
+                // caídas a la vez.
+                const totalSegundos = resumenFiltrado.reduce((acc, item) => acc + (item.filtered_total_duration_seconds || 0), 0);
                 const topMachine = [...resumenFiltrado].sort((a, b) => (b.filtered_total_duration_seconds || 0) - (a.filtered_total_duration_seconds || 0))[0];
 
                 const totalEventosEl = document.getElementById('mantenimiento-total-eventos');
@@ -3026,6 +3026,34 @@
                 const hora = date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
                 const dia = date.toLocaleDateString('es-CO');
                 return `${dia} · ${hora}`;
+            },
+
+            mergeIntervalsSeconds: function(eventos) {
+                // Fusiona intervalos [inicio, fin] solapados para no contar dos veces el
+                // tiempo en que una máquina tuvo varias estaciones caídas a la vez. El fin
+                // se deriva de started_at + duration_seconds para cuadrar con el backend
+                // (que calcula la duración del evento activo al momento de la petición).
+                const intervals = (eventos || []).map(evento => {
+                    const start = new Date(evento.started_at).getTime();
+                    const dur = (evento.duration_seconds || 0) * 1000;
+                    return [start, start + dur];
+                }).filter(([s, e]) => Number.isFinite(s) && Number.isFinite(e) && e >= s)
+                  .sort((a, b) => a[0] - b[0]);
+
+                let total = 0;
+                let curStart = null;
+                let curEnd = null;
+                intervals.forEach(([s, e]) => {
+                    if (curEnd === null || s > curEnd) {
+                        if (curEnd !== null) total += curEnd - curStart;
+                        curStart = s;
+                        curEnd = e;
+                    } else if (e > curEnd) {
+                        curEnd = e;
+                    }
+                });
+                if (curEnd !== null) total += curEnd - curStart;
+                return Math.floor(total / 1000);
             },
 
             formatDuration: function(totalSeconds) {

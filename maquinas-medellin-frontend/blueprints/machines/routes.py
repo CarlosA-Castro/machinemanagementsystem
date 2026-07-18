@@ -215,12 +215,38 @@ def _normalize_colombia_datetime(value):
     return None
 
 
+# Sentinela aware para ordenar eventos sin fecha de inicio sin mezclar naive/aware.
+_EPOCH_AWARE = parse_db_datetime('1970-01-01 00:00:00')
+
+
+def _merge_intervals_seconds(intervals):
+    """Suma la duración de una lista de intervalos [inicio, fin] fusionando los que
+    se solapan, para no contar dos veces el tiempo en que una máquina tuvo varias
+    estaciones caídas a la vez."""
+    clean = sorted(
+        ((s, e) for (s, e) in intervals if s and e and e >= s),
+        key=lambda pair: pair[0],
+    )
+    if not clean:
+        return 0
+
+    total = 0
+    cur_start, cur_end = clean[0]
+    for start, end in clean[1:]:
+        if start > cur_end:
+            total += int((cur_end - cur_start).total_seconds())
+            cur_start, cur_end = start, end
+        elif end > cur_end:
+            cur_end = end
+    total += int((cur_end - cur_start).total_seconds())
+    return max(total, 0)
+
+
 def _build_maintenance_insights(maintenance_rows, now_dt):
     """Consolida eventos de mantenimiento y calcula sus duraciones."""
     now_dt = _normalize_colombia_datetime(now_dt) or get_colombia_time()
     events = []
     machine_rollup = {}
-    total_duration_seconds = 0
     active_events = 0
 
     for raw_row in maintenance_rows:
@@ -283,7 +309,7 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
             'reported_by': row.get('reported_by') or '',
             'description': row.get('description') or '',
             'detail_message': detail_message,
-            '_started_at_sort': started_at or datetime.min,
+            '_started_at_sort': started_at or _EPOCH_AWARE,
         }
         events.append(event_data)
 
@@ -297,7 +323,7 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
                 'event_count': 0,
                 'active_count': 0,
                 'resolved_count': 0,
-                'total_duration_seconds': 0,
+                '_intervals': [],
                 'longest_event_seconds': 0,
                 'longest_event_text': _format_connectivity_duration(0),
                 'current_longest_seconds': None,
@@ -310,12 +336,14 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
         )
 
         summary['event_count'] += 1
-        if duration_seconds is not None:
-            summary['total_duration_seconds'] += duration_seconds
-            total_duration_seconds += duration_seconds
-            if duration_seconds > summary['longest_event_seconds']:
-                summary['longest_event_seconds'] = duration_seconds
-                summary['longest_event_text'] = duration_text
+        if duration_seconds is not None and duration_seconds > summary['longest_event_seconds']:
+            summary['longest_event_seconds'] = duration_seconds
+            summary['longest_event_text'] = duration_text
+
+        if started_at:
+            interval_end = resolved_at if (not is_active and resolved_at) else now_dt
+            if interval_end and interval_end >= started_at:
+                summary['_intervals'].append((started_at, interval_end))
 
         if is_active:
             summary['active_count'] += 1
@@ -336,7 +364,10 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
     events.sort(key=lambda item: (item['_started_at_sort'], item['id'] or 0), reverse=True)
 
     summaries = []
+    overview_total_duration = 0
     for summary in machine_rollup.values():
+        merged_total = _merge_intervals_seconds(summary['_intervals'])
+        overview_total_duration += merged_total
         if summary['active_count'] > 1:
             summary_message = (
                 f"Tiene {summary['active_count']} mantenimientos activos. "
@@ -359,8 +390,8 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
                 'active_count': summary['active_count'],
                 'resolved_count': summary['resolved_count'],
                 'has_active_maintenance': summary['active_count'] > 0,
-                'total_duration_seconds': summary['total_duration_seconds'],
-                'total_duration_text': _format_connectivity_duration(summary['total_duration_seconds']),
+                'total_duration_seconds': merged_total,
+                'total_duration_text': _format_connectivity_duration(merged_total),
                 'longest_event_seconds': summary['longest_event_seconds'],
                 'longest_event_text': summary['longest_event_text'],
                 'current_longest_seconds': summary['current_longest_seconds'],
@@ -390,8 +421,8 @@ def _build_maintenance_insights(maintenance_rows, now_dt):
         'event_count': len(events),
         'active_events': active_events,
         'machines_with_active_maintenance': sum(1 for item in summaries if item['has_active_maintenance']),
-        'total_duration_seconds': total_duration_seconds,
-        'total_duration_text': _format_connectivity_duration(total_duration_seconds),
+        'total_duration_seconds': overview_total_duration,
+        'total_duration_text': _format_connectivity_duration(overview_total_duration),
         'top_machine_name': top_machine['machine_name'] if top_machine else None,
         'top_machine_total_text': top_machine['total_duration_text'] if top_machine else None,
     }
@@ -1064,14 +1095,23 @@ def obtener_historial_mantenimientos():
         report_rows = cursor.fetchall() or []
 
         now_dt = get_colombia_time()
-        eventos, resumen_maquinas, overview = _build_maintenance_insights(
-            list(failure_rows) + list(report_rows),
-            now_dt,
+
+        # Ambas queries traen hasta `limit` filas cada una. Unimos, ordenamos por
+        # inicio y recortamos a `limit` ANTES de calcular, para que eventos, resumen
+        # y overview salgan del mismo conjunto (antes el resumen contaba filas que
+        # luego no se mostraban).
+        combined_rows = list(failure_rows) + list(report_rows)
+        combined_rows.sort(
+            key=lambda r: _normalize_colombia_datetime(r.get('started_at')) or _EPOCH_AWARE,
+            reverse=True,
         )
+        combined_rows = combined_rows[:limit]
+
+        eventos, resumen_maquinas, overview = _build_maintenance_insights(combined_rows, now_dt)
 
         return jsonify(
             {
-                'eventos': eventos[:limit],
+                'eventos': eventos,
                 'resumen_maquinas': resumen_maquinas,
                 'overview': overview,
                 'generated_at': _serialize_iso_datetime(now_dt),
