@@ -708,7 +708,12 @@
     mostrarLogsEnConsola: function(logs) {
     const consola = document.getElementById('consolaLogs');
     const orden = document.getElementById('ordenLogs').value;
-    
+
+    // Escapa datos de log (mensaje, path, IP, etc.) antes de inyectarlos en innerHTML.
+    // El path de access_logs lo puede fijar cualquiera (petición no autenticada) → XSS.
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
     let html = '';
     
     if (!logs || logs.length === 0) {
@@ -748,19 +753,19 @@
                 const tipo = log.tipo || '';
                 const color = tipoColores[tipo] || '#94a3b8';
                 const monto = log.monto != null ? `<span style="color:#f59e0b;font-weight:bold"> ${formatMoney(log.monto)}</span>` : '';
-                const maquina = log.maquina_nombre ? `<span style="color:#60a5fa"> [${log.maquina_nombre}]</span>` : '';
-                const usuario = log.usuario ? `<span style="color:#94a3b8"> · ${log.usuario}</span>` : '';
+                const maquina = log.maquina_nombre ? `<span style="color:#60a5fa"> [${esc(log.maquina_nombre)}]</span>` : '';
+                const usuario = log.usuario ? `<span style="color:#94a3b8"> · ${esc(log.usuario)}</span>` : '';
                 const extra = log.datos_extra ? Object.entries(log.datos_extra)
                     .filter(([k]) => !['origen','estado'].includes(k))
-                    .map(([k,v]) => `<span style="color:#6b7280">${k}=</span><span style="color:#d1d5db">${v}</span>`)
+                    .map(([k,v]) => `<span style="color:#6b7280">${esc(k)}=</span><span style="color:#d1d5db">${esc(v)}</span>`)
                     .join(' ') : '';
 
                 html += `
                     <div class="log-line" style="border-left:3px solid ${color}">
                         <span class="log-timestamp">${timestamp}</span>
-                        <span style="color:${color};font-weight:bold;padding:0 4px;border:1px solid ${color};border-radius:3px;font-size:0.75rem">${tipo.toUpperCase()}</span>
+                        <span style="color:${color};font-weight:bold;padding:0 4px;border:1px solid ${color};border-radius:3px;font-size:0.75rem">${esc(tipo.toUpperCase())}</span>
                         ${maquina}${monto}${usuario}
-                        <span class="text-gray-300"> ${log.mensaje.replace(/^\[TXN:[^\]]+\] /,'')}</span>
+                        <span class="text-gray-300"> ${esc(log.mensaje.replace(/^\[TXN:[^\]]+\] /,''))}</span>
                         ${extra ? `<div style="margin-left:12px;font-size:0.78rem;color:#6b7280;margin-top:2px">${extra}</div>` : ''}
                     </div>
                 `;
@@ -772,10 +777,10 @@
                     <div class="log-line log-line-access">
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="log-level ${levelClass}">${level}</span>
-                        <span style="color:#60a5fa">${log.metodo || ''}</span>
-                        <span class="text-gray-300"> ${log.path || message}</span>
+                        <span style="color:#60a5fa">${esc(log.metodo || '')}</span>
+                        <span class="text-gray-300"> ${esc(log.path || message)}</span>
                         <span style="color:${statusColor};font-weight:bold"> ${status}</span>${rt}
-                        ${log.ip ? `<span style="color:#6b7280"> · ${log.ip}</span>` : ''}
+                        ${log.ip ? `<span style="color:#6b7280"> · ${esc(log.ip)}</span>` : ''}
                     </div>
                 `;
             } else {
@@ -783,8 +788,8 @@
                     <div class="log-line ${lineClass}">
                         <span class="log-timestamp">${timestamp}</span>
                         <span class="log-level ${levelClass}">${level}</span>
-                        <span class="text-gray-300"> ${message}</span>
-                        ${modulo ? `<span class="text-gray-500 text-xs"> (${modulo})</span>` : ''}
+                        <span class="text-gray-300"> ${esc(message)}</span>
+                        ${modulo ? `<span class="text-gray-500 text-xs"> (${esc(modulo)})</span>` : ''}
                     </div>
                 `;
             }

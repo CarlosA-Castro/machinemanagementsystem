@@ -389,6 +389,12 @@ const LT = {
     chart: null,
     arTimer: null,
 
+    // ─── Escape HTML (previene XSS al inyectar datos de log en innerHTML) ──
+    esc(s) {
+        return String(s==null?'':s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    },
+
     // ─── Formateo de fechas ─────────────────────────────────────────────
     fmtFecha(iso) {
         if (!iso) return '—';
@@ -539,7 +545,7 @@ const LT = {
             ? top.map(p=>`
                 <div>
                     <div class="flex justify-between text-xs mb-0.5">
-                        <span class="font-semibold text-gray-700">${p.paquete}</span>
+                        <span class="font-semibold text-gray-700">${this.esc(p.paquete)}</span>
                         <span class="text-gray-400">${p.cantidad} · ${this.fmtPeso(p.total)}</span>
                     </div>
                     <div class="bg-gray-200 rounded-full h-1.5">
@@ -565,13 +571,13 @@ const LT = {
             <tr class="border-b border-gray-100 hover:bg-green-50 transition-colors" style="${i%2===0?'background:#f9fafb':''}">
                 <td class="py-1.5 px-2 font-mono text-gray-500 text-xs">${this.fmtHora(v.fecha_hora)}</td>
                 <td class="py-1.5 px-2">
-                    <div class="font-semibold text-gray-800 text-xs">${v.qr_name||v.qr_code}</div>
-                    <div class="text-gray-400 text-xs">${v.qr_code}</div>
+                    <div class="font-semibold text-gray-800 text-xs">${this.esc(v.qr_name||v.qr_code)}</div>
+                    <div class="text-gray-400 text-xs">${this.esc(v.qr_code)}</div>
                 </td>
-                <td class="py-1.5 px-2"><span class="badge" style="background:#dbeafe;color:#1e40af">${v.paquete||'—'}</span></td>
+                <td class="py-1.5 px-2"><span class="badge" style="background:#dbeafe;color:#1e40af">${this.esc(v.paquete||'—')}</span></td>
                 <td class="py-1.5 px-2 text-right font-bold text-green-700">${this.fmtPeso(v.precio)}</td>
                 <td class="py-1.5 px-2">${_metodoBadge(v.payment_method||'sin_registrar')}</td>
-                <td class="py-1.5 px-2 text-gray-500 text-xs">${v.cajero||'—'}</td>
+                <td class="py-1.5 px-2 text-gray-500 text-xs">${this.esc(v.cajero||'—')}</td>
             </tr>`).join('');
     },
 
@@ -592,17 +598,17 @@ const LT = {
                             ? `<span class="badge" style="background:#ede9fe;color:#4c1d95">Est. ${f.station_index}</span>`
                             : '<span class="text-gray-300">—</span>'}
                     </td>
-                    <td class="py-1 px-2 text-blue-700 font-semibold text-xs">${f.qr_name||f.qr_code||'—'}</td>
+                    <td class="py-1 px-2 text-blue-700 font-semibold text-xs">${this.esc(f.qr_name||f.qr_code||'—')}</td>
                     <td class="py-1 px-2 text-center text-xs">
                         <span class="badge" style="background:#fff7ed;color:#c2410c" title="Turnos devueltos al cliente">↩ ${f.turnos_devueltos} dev.</span>
                     </td>
                     <td class="py-1 px-2 text-xs"><span class="badge ${f.is_forced?'b-resolver_falla':'b-falla_maquina'}">${f.is_forced?'forzado':'TFT'}</span></td>
-                    <td class="py-1 px-2 text-gray-400 text-xs">${f.notes||'—'}</td>
+                    <td class="py-1 px-2 text-gray-400 text-xs">${this.esc(f.notes||'—')}</td>
                 </tr>`).join('');
             return `
                 <tr class="maq-row border-b border-gray-100" onclick="LT.toggleMaq(${m.id})" style="${!m.turnos_periodo?'opacity:.5':''}">
                     <td class="py-2 px-2 font-semibold text-gray-800 text-xs">
-                        <i class="fas fa-chevron-right text-gray-300 mr-1 text-xs transition-transform" id="chv-${m.id}"></i>${m.nombre}
+                        <i class="fas fa-chevron-right text-gray-300 mr-1 text-xs transition-transform" id="chv-${m.id}"></i>${this.esc(m.nombre)}
                     </td>
                     <td class="py-2 px-2 text-center font-bold text-purple-700 text-sm">${m.turnos_periodo}</td>
                     <td class="py-2 px-2 text-center text-xs">
@@ -615,12 +621,12 @@ const LT = {
                             ? `<span class="badge" style="background:#fff7ed;color:#c2410c">↩ ${m.turnos_devueltos_periodo} dev.</span>`
                             : `<span class="text-gray-300">0 dev.</span>`}
                     </td>
-                    <td class="py-2 px-2"><span class="badge ${sC}">${m.estado}</span></td>
+                    <td class="py-2 px-2"><span class="badge ${sC}">${this.esc(m.estado)}</span></td>
                     <td class="py-2 px-2 text-gray-400 text-xs">${m.ultimo_uso?this.fmtFecha(m.ultimo_uso):'—'}</td>
                 </tr>
                 ${m.fallas_periodo>0?`<tbody class="maq-detail" id="det-${m.id}">
                     <tr style="background:#fff0f0"><td colspan="6" class="px-3 pt-1 pb-0 text-xs font-semibold text-red-600 uppercase">
-                        <i class="fas fa-exclamation-triangle mr-1"></i>Fallas — ${m.nombre}</td></tr>
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Fallas — ${this.esc(m.nombre)}</td></tr>
                     ${fl}
                     <tr><td colspan="6" class="py-1"></td></tr>
                 </tbody>`:''}`;
@@ -639,7 +645,7 @@ const LT = {
         const sel = document.getElementById('filtroMaqFalla');
         const maqs = [...new Map(fallas.map(f=>[f.machine_id,f.machine_name])).entries()];
         sel.innerHTML = '<option value="">Todas las máquinas</option>'
-            + maqs.map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+            + maqs.map(([id,n])=>`<option value="${id}">${this.esc(n)}</option>`).join('');
         this.filtrarFallas();
     },
     filtrarFallas() {
@@ -660,21 +666,21 @@ const LT = {
         tb.innerHTML = fil.map((f,i)=>`
             <tr class="border-b border-gray-100 hover:bg-red-50" style="${i%2===0?'':'background:#fafafa'}">
                 <td class="py-1.5 px-2 font-mono text-gray-500 text-xs">${this.fmtFecha(f.reported_at)}</td>
-                <td class="py-1.5 px-2 font-semibold text-gray-800 text-xs">${f.machine_name}</td>
+                <td class="py-1.5 px-2 font-semibold text-gray-800 text-xs">${this.esc(f.machine_name)}</td>
                 <td class="py-1.5 px-2 text-center">
                     ${f.station_index!=null?`<span class="badge" style="background:#ede9fe;color:#4c1d95">Est.${f.station_index}</span>`:'<span class="text-gray-300">—</span>'}
                 </td>
                 <td class="py-1.5 px-2">
-                    <div class="font-semibold text-blue-700 text-xs">${f.qr_name||f.qr_code||'—'}</div>
-                    ${f.qr_name&&f.qr_code?`<div class="text-gray-400 text-xs">${f.qr_code}</div>`:''}
+                    <div class="font-semibold text-blue-700 text-xs">${this.esc(f.qr_name||f.qr_code||'—')}</div>
+                    ${f.qr_name&&f.qr_code?`<div class="text-gray-400 text-xs">${this.esc(f.qr_code)}</div>`:''}
                 </td>
                 <td class="py-1.5 px-2 text-center font-bold text-orange-600">${f.turnos_devueltos}</td>
                 <td class="py-1.5 px-2">
                     <span class="badge ${f.is_forced?'b-resolver_falla':'b-falla_maquina'}">
-                        ${f.is_forced?`<i class="fas fa-user"></i>${f.forced_by||'cajero'}`:'<i class="fas fa-microchip"></i>TFT'}
+                        ${f.is_forced?`<i class="fas fa-user"></i>${this.esc(f.forced_by||'cajero')}`:'<i class="fas fa-microchip"></i>TFT'}
                     </span>
                 </td>
-                <td class="py-1.5 px-2 text-gray-500 text-xs max-w-xs" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.notes}">${f.notes||'—'}</td>
+                <td class="py-1.5 px-2 text-gray-500 text-xs max-w-xs" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${this.esc(f.notes)}">${this.esc(f.notes||'—')}</td>
             </tr>`).join('');
     },
 
@@ -703,17 +709,17 @@ const LT = {
                 <div class="sale-price">${this.fmtPeso(v.precio)}</div>
                 <div class="sale-meta">
                     <div class="flex items-center gap-2 mb-0.5 flex-wrap">
-                        <span class="font-bold text-gray-800 text-sm">${v.qr_name||v.qr_code}</span>
-                        <span class="badge" style="background:#dbeafe;color:#1e40af">${v.paquete||'—'}</span>
+                        <span class="font-bold text-gray-800 text-sm">${this.esc(v.qr_name||v.qr_code)}</span>
+                        <span class="badge" style="background:#dbeafe;color:#1e40af">${this.esc(v.paquete||'—')}</span>
                         ${_feedMetodoBadge(v.payment_method||'sin_registrar')}
                     </div>
                     <div class="text-xs text-gray-500">
                         <span class="font-mono">${this.fmtFecha(v.fecha_hora)}</span>
                         <span class="mx-1">·</span>
-                        <i class="fas fa-user text-gray-400 mr-0.5"></i>${v.cajero||'—'}
+                        <i class="fas fa-user text-gray-400 mr-0.5"></i>${this.esc(v.cajero||'—')}
                         ${v.turnos_paquete?`<span class="mx-1">·</span><i class="fas fa-gamepad text-gray-400 mr-0.5"></i>${v.turnos_paquete} turnos`:''}
                     </div>
-                    <div class="text-xs text-gray-400 mt-0.5">QR: <span class="font-mono">${v.qr_code}</span></div>
+                    <div class="text-xs text-gray-400 mt-0.5">QR: <span class="font-mono">${this.esc(v.qr_code)}</span></div>
                 </div>
             </div>`).join('');
     },
@@ -750,10 +756,10 @@ const LT = {
 
             // Build a rich data section
             const campos = [];
-            if(e.maquina_nombre) campos.push(`<span class="text-gray-500"><i class="fas fa-gamepad mr-0.5 text-gray-400"></i>${e.maquina_nombre}</span>`);
-            if(e.usuario)        campos.push(`<span class="text-gray-500"><i class="fas fa-user mr-0.5 text-gray-400"></i>${e.usuario}</span>`);
-            if(e.ip_address)     campos.push(`<span class="text-gray-400 text-xs font-mono">${e.ip_address}</span>`);
-            if(e.entidad && e.entidad_id) campos.push(`<span class="text-gray-400 text-xs">${e.entidad} #${e.entidad_id}</span>`);
+            if(e.maquina_nombre) campos.push(`<span class="text-gray-500"><i class="fas fa-gamepad mr-0.5 text-gray-400"></i>${this.esc(e.maquina_nombre)}</span>`);
+            if(e.usuario)        campos.push(`<span class="text-gray-500"><i class="fas fa-user mr-0.5 text-gray-400"></i>${this.esc(e.usuario)}</span>`);
+            if(e.ip_address)     campos.push(`<span class="text-gray-400 text-xs font-mono">${this.esc(e.ip_address)}</span>`);
+            if(e.entidad && e.entidad_id) campos.push(`<span class="text-gray-400 text-xs">${this.esc(e.entidad)} #${e.entidad_id}</span>`);
 
             const extraFmt = extra ? this._fmtExtra(e.datos_extra) : null;
 
@@ -762,11 +768,11 @@ const LT = {
                     <i class="${meta.i} text-sm mt-0.5" style="min-width:14px"></i>
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-1 mb-0.5">
-                            <span class="badge b-${e.tipo}">${meta.label}</span>
+                            <span class="badge b-${this.esc(e.tipo)}">${this.esc(meta.label)}</span>
                             ${e.estado==='error'?'<span class="badge b-error">error</span>':e.estado==='advertencia'?'<span class="badge b-advertencia">advertencia</span>':''}
                             <span class="text-xs text-gray-400 font-mono">${this.fmtFecha(e.created_at)}</span>
                         </div>
-                        <p class="text-sm text-gray-700 leading-snug mb-0.5">${e.descripcion||'—'}</p>
+                        <p class="text-sm text-gray-700 leading-snug mb-0.5">${this.esc(e.descripcion||'—')}</p>
                         ${e.monto!=null?`<div class="text-green-600 font-bold text-sm">${this.fmtPeso(e.monto)}</div>`:''}
                         <div class="flex flex-wrap gap-2 mt-0.5 text-xs">${campos.join('')}</div>
                     </div>
@@ -780,7 +786,7 @@ const LT = {
         // Format datos_extra as human-readable key:value pairs
         const lines = Object.entries(obj).map(([k,v])=>{
             const vs = v===null?'null':v===true?'sí':v===false?'no':String(v);
-            return `<span class="text-blue-300">${k}</span>: <span class="text-green-300">${vs}</span>`;
+            return `<span class="text-blue-300">${this.esc(k)}</span>: <span class="text-green-300">${this.esc(vs)}</span>`;
         });
         return lines.join('\n');
     },

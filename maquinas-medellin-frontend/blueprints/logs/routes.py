@@ -777,7 +777,8 @@ def obtener_logs_consola():
         nivel = request.args.get('nivel', 'todos')
         buscar = request.args.get('buscar', '').strip()
         fuente = request.args.get('fuente', 'todos')
-        orden = request.args.get('orden', 'desc')
+        # Whitelist: `orden` se interpola en el ORDER BY, así que NUNCA debe venir crudo.
+        orden = 'ASC' if request.args.get('orden', 'desc').strip().lower() == 'asc' else 'DESC'
         fecha_inicio = request.args.get('fecha_inicio')
         fecha_fin = request.args.get('fecha_fin')
         tail = request.args.get('tail', 'false').lower() == 'true'
@@ -1278,7 +1279,7 @@ def crear_alerta_logs():
         cursor.execute(
             """
             INSERT INTO log_alerts
-                (alert_type, alert_message, severity, condition, notification_method)
+                (alert_type, alert_message, severity, alert_condition, notification_method)
             VALUES (%s, %s, %s, %s, %s)
             """,
             (
@@ -1357,14 +1358,19 @@ def limpiar_logs_sistema():
     cursor = None
     try:
         data = request.get_json(silent=True) or {}
-        dias = int(data.get('dias', 30))
+        try:
+            dias = int(data.get('dias', 30))
+        except (TypeError, ValueError):
+            dias = 30
+        # Cota inferior: dias<=0 borraría TODOS los logs (o con fecha futura). Mínimo 1.
+        dias = max(1, dias)
 
         connection = get_db_connection()
         if not connection:
             return api_response('E006', http_status=500)
 
         cursor = get_db_cursor(connection)
-        fecha_limite = (datetime.now() - timedelta(days=dias)).strftime('%Y-%m-%d')
+        fecha_limite = (get_colombia_time() - timedelta(days=dias)).strftime('%Y-%m-%d')
 
         tablas = {
             'app_logs': 'created_at',
@@ -1383,7 +1389,7 @@ def limpiar_logs_sistema():
             )
             total_eliminados += cursor.rowcount
 
-        backup_suffix = datetime.now().strftime('%Y%m%d')
+        backup_suffix = get_colombia_time().strftime('%Y%m%d')
         cursor.execute(
             f"""
             CREATE TABLE IF NOT EXISTS log_statistics_backup_{backup_suffix}

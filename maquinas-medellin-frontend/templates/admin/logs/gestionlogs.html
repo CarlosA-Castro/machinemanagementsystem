@@ -527,6 +527,10 @@
                     }
 
                     const data = await response.json();
+                    // Escapa el nombre del endpoint (proviene de access_logs.path, fijable
+                    // por cualquiera) antes de inyectarlo en innerHTML → evita XSS.
+                    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+                        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
                     const labels = {
                         hoy: 'Hoy',
                         semana: 'Últimos 7 días',
@@ -570,7 +574,7 @@
                                     <div class="flex items-center space-x-3">
                                         <span class="text-lg">${index + 1}.</span>
                                         <div>
-                                            <p class="text-sm font-medium text-gray-800">${endpoint.endpoint || 'Desconocido'}</p>
+                                            <p class="text-sm font-medium text-gray-800">${esc(endpoint.endpoint || 'Desconocido')}</p>
                                             <p class="text-xs text-gray-600">${endpoint.total || 0} accesos | ${endpoint.ips_unicas || 0} IPs</p>
                                         </div>
                                     </div>
