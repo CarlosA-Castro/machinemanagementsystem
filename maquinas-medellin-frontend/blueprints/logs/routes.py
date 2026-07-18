@@ -318,19 +318,24 @@ def obtener_logs_transaccional_consolidado():
                 row['periodo'] = row['periodo'].isoformat()
             grafica_turnos_fmt.append(row)
 
+        # Filtro por local: transaction_logs no tiene location_id, así que se scoping
+        # vía la máquina (maquina_id → machine.location_id), igual que el resto del
+        # panel. Con local activo, un evento sin máquina (o de otra máquina) queda
+        # fuera; sin local (admin global, _id_clause vacío) se muestra todo.
         cursor.execute(
-            """
+            f"""
             SELECT
                 tl.id, tl.tipo, tl.categoria, tl.descripcion,
                 tl.usuario, tl.maquina_nombre, tl.maquina_id,
                 tl.entidad, tl.entidad_id, tl.monto,
                 tl.datos_extra, tl.ip_address, tl.estado, tl.created_at
             FROM transaction_logs tl
-            WHERE DATE(tl.created_at) BETWEEN %s AND %s
+            LEFT JOIN machine m ON tl.maquina_id = m.id
+            WHERE DATE(tl.created_at) BETWEEN %s AND %s{_id_clause}
             ORDER BY tl.created_at DESC
             LIMIT %s
             """,
-            (fecha_inicio, fecha_fin, limit_feed),
+            (fecha_inicio, fecha_fin, *_id_p, limit_feed),
         )
         feed = []
         for row in cursor.fetchall():
