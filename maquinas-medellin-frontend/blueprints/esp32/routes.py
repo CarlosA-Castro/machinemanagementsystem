@@ -1231,6 +1231,17 @@ def esp32_sync_offline():
         _mloc = cursor.fetchone()
         machine_location_id = _mloc['location_id'] if _mloc else None
 
+        # Último cierre que aplica a este local: sirve para marcar jugadas que llegan
+        # TARDE (played_at dentro de un período ya cerrado). Esas jugadas no entran en
+        # ninguna liquidación pagable, así que se registran para ajuste manual.
+        cursor.execute(
+            """SELECT MAX(fin_dt) AS last_fin FROM cierre_liquidacion
+               WHERE fin_dt IS NOT NULL AND (local_id = %s OR local_id IS NULL)""",
+            (machine_location_id,),
+        )
+        _lc = cursor.fetchone()
+        last_close_fin = _lc.get('last_fin') if _lc else None
+
         results = []
         for tx in txs:
             qr_code       = tx.get('qr_code', '')
@@ -1342,6 +1353,28 @@ def esp32_sync_offline():
                 (qr_id, machine_id, station_index, turns_after, play_id, played_at),
             )
             results.append({'qr_code': qr_code, 'status': 'ok', 'turns_remaining': turns_after})
+
+            # Jugada tardía: su período ya se cerró → quedaría fuera de la liquidación.
+            # Se marca en auditoría para que el admin la vea en la sección de liquidaciones.
+            played_naive = played_at.replace(tzinfo=None) if played_at.tzinfo else played_at
+            if last_close_fin and played_naive < last_close_fin:
+                log_transaccion(
+                    tipo='offline_tardio',
+                    categoria='auditoria',
+                    descripcion=(
+                        f"Jugada offline llego tarde: jugada {played_naive}, "
+                        f"cierre ya cerrado {last_close_fin}"
+                    ),
+                    maquina_id=machine_id,
+                    entidad='qr',
+                    entidad_id=qr_id,
+                    datos_extra={
+                        'qr_code':        qr_code,
+                        'station_index':  station_index,
+                        'played_at':      played_naive.isoformat(),
+                        'last_close_fin': last_close_fin.isoformat() if hasattr(last_close_fin, 'isoformat') else str(last_close_fin),
+                    },
+                )
 
         connection.commit()
 

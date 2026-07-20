@@ -97,6 +97,45 @@ def _last_close_fin_dt(cursor, local_id):
         return None
 
 
+def _fetch_jugadas_tardias(cursor, local_id):
+    """Jugadas offline que llegaron TARDE: se sincronizaron con played_at dentro de un
+    período YA cerrado (las marca sync-offline como 'offline_tardio'). No entran en ninguna
+    liquidación pagable → se listan para que el admin las ajuste a mano. Ventana: registradas
+    después del último cierre (las que aparecieron desde que cerraste por última vez)."""
+    last_fin = _last_close_fin_dt(cursor, local_id)
+    if last_fin is None or not _table_exists(cursor, 'transaction_logs'):
+        return {'count': 0, 'detalle': []}
+    params = [last_fin]
+    loc_clause = ""
+    if local_id is not None:
+        loc_clause = " AND m.location_id = %s"
+        params.append(local_id)
+    try:
+        cursor.execute(
+            f"""
+            SELECT tl.id, tl.maquina_nombre, tl.descripcion, tl.created_at
+            FROM transaction_logs tl
+            JOIN machine m ON tl.maquina_id = m.id
+            WHERE tl.tipo = 'offline_tardio'
+              AND tl.created_at > %s{loc_clause}
+            ORDER BY tl.created_at DESC
+            LIMIT 50
+            """,
+            params,
+        )
+        rows = cursor.fetchall() or []
+    except Exception as e:
+        logger.warning(f"No se pudieron leer jugadas tardías: {e}")
+        return {'count': 0, 'detalle': []}
+    detalle = []
+    for r in rows:
+        d = dict(r)
+        if hasattr(d.get('created_at'), 'isoformat'):
+            d['created_at'] = d['created_at'].isoformat()
+        detalle.append(d)
+    return {'count': len(detalle), 'detalle': detalle}
+
+
 def _resolve_period_bounds(cursor, local_id, fecha_inicio, fecha_fin):
     """Convierte el rango de fechas elegido en límites datetime medio-abiertos [inicio_dt, fin_dt).
 
@@ -1216,9 +1255,11 @@ def calcular_liquidacion():
 
         historial = _fetch_historial_cierres(cursor, limite=5)
         gastos    = _fetch_gastos_periodo(cursor, fecha_inicio, fecha_fin)
+        jugadas_tardias = _fetch_jugadas_tardias(cursor, local_id)
 
         return jsonify({
             'success': True,
+            'jugadas_tardias':        jugadas_tardias,
             'configuracion': {
                 'porcentaje_negocio_default':      RESTAURANT_PERCENTAGE_DEFAULT,
                 'porcentaje_administracion_default': ADMIN_PERCENTAGE_DEFAULT,
@@ -1555,6 +1596,34 @@ def cerrar_liquidacion():
                 ),
                 'existing_close': existing_close,
             }), 409
+
+        # Aviso: máquinas 'activa' del local sin heartbeat reciente pueden tener jugadas
+        # offline sin sincronizar que quedarían fuera de este cierre. El admin confirma y
+        # cierra igual (confirmar_offline=true). Import lazy para evitar import circular.
+        if local_id is not None and not data.get('confirmar_offline'):
+            from blueprints.esp32.state import get_heartbeat_fields
+            cursor.execute(
+                "SELECT id, name FROM machine WHERE location_id = %s AND status = 'activa'",
+                (local_id,),
+            )
+            _maqs = cursor.fetchall() or []
+            offline = [
+                {'id': m['id'], 'name': m['name']}
+                for m in _maqs
+                if not get_heartbeat_fields(m['id']).get('esp32_online')
+            ]
+            if offline:
+                nombres = ', '.join(m['name'] for m in offline)
+                return jsonify({
+                    'success': False,
+                    'needs_confirmation': True,
+                    'reason': 'maquinas_offline',
+                    'offline_machines': offline,
+                    'message': (
+                        f"{len(offline)} maquina(s) offline ({nombres}) pueden tener jugadas "
+                        "sin sincronizar que quedarian fuera de este cierre."
+                    ),
+                }), 200
 
         cursor.execute(
             """INSERT INTO cierre_liquidacion

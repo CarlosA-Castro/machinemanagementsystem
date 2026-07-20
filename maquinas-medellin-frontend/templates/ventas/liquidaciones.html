@@ -256,6 +256,19 @@
             </div>
         </div>
 
+        <!-- Aviso: jugadas offline que llegaron tarde (después de un cierre ya hecho) -->
+        <div id="bannerJugadasTardias" class="hidden glass-card bg-orange-50 border border-orange-300 text-orange-800 mb-4">
+            <div class="flex items-start gap-3 p-1">
+                <i class="fas fa-triangle-exclamation text-orange-500 text-xl mt-0.5"></i>
+                <div class="flex-1">
+                    <div class="font-semibold"><span id="jugadasTardiasCount">0</span> jugada(s) llegaron tarde tras el último cierre</div>
+                    <div class="text-sm text-orange-700 mt-0.5">Se jugaron offline en un período que ya habías cerrado, así que no entraron en esa liquidación. Revísalas y ajústalas a mano si corresponde.</div>
+                    <button type="button" onclick="toggleJugadasTardias()" class="text-sm underline mt-1">Ver detalle</button>
+                    <div id="jugadasTardiasDetalle" class="hidden mt-2 text-xs bg-white bg-opacity-60 rounded p-2 max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Sin datos banner -->
         <div id="bannerSinDatos" class="hidden glass-card bg-yellow-50 border border-yellow-200 text-yellow-800 text-center py-6">
             <i class="fas fa-info-circle text-2xl mb-2 block"></i>
@@ -816,6 +829,8 @@ async function calcular() {
             banner.classList.remove('hidden');
         }
 
+        renderJugadasTardias(data.jugadas_tardias || { count: 0 });
+
         const sinDatos = !data.periodo || data.periodo.total_ventas === 0;
 
         document.getElementById('bannerSinDatos').classList.toggle('hidden', !sinDatos);
@@ -835,6 +850,27 @@ async function calcular() {
     } finally {
         showLoading(false);
     }
+}
+
+// ─── JUGADAS TARDÍAS (offline que llegaron tras un cierre) ──────────────────────
+function renderJugadasTardias(jt) {
+    const banner = document.getElementById('bannerJugadasTardias');
+    if (!banner) return;
+    const count = (jt && jt.count) || 0;
+    if (!count) { banner.classList.add('hidden'); return; }
+    document.getElementById('jugadasTardiasCount').textContent = count;
+    const cont = document.getElementById('jugadasTardiasDetalle');
+    cont.innerHTML = (jt.detalle || []).map(d => `
+        <div class="border-b border-orange-100 py-1 last:border-0">
+            <span class="font-semibold">${escapeHtml(d.maquina_nombre || '—')}</span>
+            <span class="text-gray-500"> · ${escapeHtml(d.created_at || '')}</span>
+            <div class="text-gray-600">${escapeHtml(d.descripcion || '')}</div>
+        </div>`).join('');
+    banner.classList.remove('hidden');
+}
+function toggleJugadasTardias() {
+    const el = document.getElementById('jugadasTardiasDetalle');
+    if (el) el.classList.toggle('hidden');
 }
 
 // ─── RENDER NEGOCIO ────────────────────────────────────────────────────────────
@@ -1285,7 +1321,7 @@ function abrirModalCierre() {
     abrirModal('modalCierre');
 }
 
-async function confirmarCierre() {
+async function confirmarCierre(force = false) {
     if (!currentData) return;
     const d = currentData.distribucion || {};
     const p = currentData.periodo || {};
@@ -1306,9 +1342,18 @@ async function confirmarCierre() {
                 pct_negocio:    (d.negocio || {}).pct,
                 pct_admin:      (d.admin   || {}).pct,
                 observaciones:  obs,
+                confirmar_offline: force,
             })
         });
         const res = await r.json();
+        // El backend avisa si hay máquinas offline (posibles jugadas sin sincronizar).
+        if (res.needs_confirmation && res.reason === 'maquinas_offline') {
+            const nombres = (res.offline_machines || []).map(m => m.name).join(', ');
+            if (confirm(`Estas máquinas están offline y pueden tener jugadas sin sincronizar:\n\n${nombres}\n\nSi cierras ahora, esas jugadas podrían quedar fuera de la liquidación.\n\n¿Cerrar de todos modos?`)) {
+                return confirmarCierre(true);
+            }
+            return;
+        }
         if (!r.ok || !res.success) throw new Error(res.message || 'Error al guardar cierre');
 
         toast('¡Liquidación cerrada correctamente!');
