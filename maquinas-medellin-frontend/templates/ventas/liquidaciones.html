@@ -881,10 +881,12 @@ function renderNegocio(data) {
 
     document.getElementById('kpiTotal').textContent = fmt(d.total_ingresos);
     document.getElementById('kpiTotalPct').innerHTML = pctBadge(variacion) + ' vs período anterior';
+    // Sin % en el split restaurante/proveedor: el corte del negocio es por máquina (30/35 de
+    // cada una sobre lo jugado) y un % único mezclaría eso con el flotante. Se muestran montos.
     document.getElementById('kpiNeg').textContent    = fmt((d.negocio || {}).monto);
-    document.getElementById('kpiNegPct').textContent = fmtD((d.negocio || {}).pct);
+    document.getElementById('kpiNegPct').textContent = '';
     document.getElementById('kpiProv').textContent    = fmt((d.proveedor || {}).monto);
-    document.getElementById('kpiProvPct').textContent = fmtD((d.proveedor || {}).pct);
+    document.getElementById('kpiProvPct').textContent = '';
 
     document.getElementById('comparPct').innerHTML =
         `<i class="fas fa-arrow-${variacion >= 0 ? 'up' : 'down'} mr-1"></i>${Math.abs(variacion).toFixed(1)}% vs anterior`;
@@ -1313,9 +1315,9 @@ function abrirModalCierre() {
             <strong>${p.local_nombre || 'Todos los locales'}</strong></div>
         <div class="flex justify-between"><span class="text-gray-600">Ingresos totales</span>
             <strong class="text-blue-700">${fmt(d.total_ingresos)}</strong></div>
-        <div class="flex justify-between"><span class="text-gray-600">Corresponde al negocio (${fmtD((d.negocio||{}).pct)})</span>
+        <div class="flex justify-between"><span class="text-gray-600">Corresponde al negocio</span>
             <strong class="text-green-700">${fmt((d.negocio||{}).monto)}</strong></div>
-        <div class="flex justify-between"><span class="text-gray-600">Total proveedor (${fmtD((d.proveedor||{}).pct)})</span>
+        <div class="flex justify-between"><span class="text-gray-600">Total proveedor</span>
             <strong class="text-purple-700">${fmt((d.proveedor||{}).monto)}</strong></div>
     `;
     abrirModal('modalCierre');
@@ -1977,11 +1979,11 @@ function _htmlPDFNegocio(cierre, d) {
     <div class="kpi-value">${fmtP(dist.total_ingresos)}</div>
   </div>
   <div class="kpi" style="border-color:#059669;background:#f0fdf4">
-    <div class="kpi-label">Corresponde al Negocio (${(+neg.pct||0).toFixed(1)}%)</div>
+    <div class="kpi-label">Corresponde al Negocio</div>
     <div class="kpi-value">${fmtP(neg.monto)}</div>
   </div>
   <div class="kpi" style="border-color:#7c3aed;background:#f5f3ff">
-    <div class="kpi-label">Total proveedor (${(+prov.pct||0).toFixed(1)}%)</div>
+    <div class="kpi-label">Total proveedor</div>
     <div class="kpi-value">${fmtP(prov.monto)}</div>
   </div>
 </div>
@@ -1993,10 +1995,10 @@ function _htmlPDFNegocio(cierre, d) {
 
 <h2>Distribución Oficial del Cierre</h2>
 <table>
-  <thead><tr><th>Concepto</th><th>Porcentaje</th><th>Total</th></tr></thead>
+  <thead><tr><th>Concepto</th><th>Total</th></tr></thead>
   <tbody>
-    <tr><td>Corresponde al negocio</td><td class="r">${(+neg.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(neg.monto)}</strong></td></tr>
-    <tr><td>Total proveedor (a entregar)</td><td class="r">${(+prov.pct||0).toFixed(1)}%</td><td class="r"><strong>${fmtP(prov.monto)}</strong></td></tr>
+    <tr><td>Corresponde al negocio</td><td class="r"><strong>${fmtP(neg.monto)}</strong></td></tr>
+    <tr><td>Total proveedor (a entregar)</td><td class="r"><strong>${fmtP(prov.monto)}</strong></td></tr>
   </tbody>
 </table>
 

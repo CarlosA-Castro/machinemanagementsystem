@@ -1128,36 +1128,45 @@ def calcular_liquidacion():
         inversionistas = _build_investor_liquidation(cursor, resumen_maquinas, inicio_dt, fin_dt)
         comparativos   = _build_period_comparison(cursor, inicio_dt, fin_dt)
 
-        # Porcentajes promedio configurados por máquina (o defaults si no hay config)
-        pct_negocio = RESTAURANT_PERCENTAGE_DEFAULT
-        pct_admin   = ADMIN_PERCENTAGE_DEFAULT
-        if tiene_porcentaje:
-            admin_col = 'COALESCE(porcentaje_admin, 25.00)' if tiene_admin else '25.00'
-            cursor.execute(
-                f"""SELECT AVG(COALESCE(porcentaje_restaurante, 35.00)) AS avg_neg,
-                           AVG({admin_col}) AS avg_adm
-                    FROM maquinaporcentajerestaurante"""
-            )
-            row_pct = cursor.fetchone()
-            if row_pct and row_pct['avg_neg']:
-                pct_negocio = float(row_pct['avg_neg'])
-                pct_admin   = float(row_pct['avg_adm'])
+        # ── Reparto POR MÁQUINA (no promedio plano) ────────────────────────────
+        # Cada turno jugado aporta el % de SU máquina (algunas 30%, otras 35%), como se
+        # pactó con el restaurante. resumen_maquinas ya trae, por máquina, los ingresos de
+        # los turnos JUGADOS en el período (ingresos_totales) ya partidos con su
+        # porcentaje_restaurante / admin propios. Sumar esos cortes = reparto correcto.
+        #
+        # Antes se aplicaba un AVG plano de los porcentajes a TODA la venta. Eso ignoraba
+        # cuánto vendió cada máquina (Peluches, al 30%, pesa mucho más que 2/14) y mezclaba
+        # locales. El resultado le pagaba de más al restaurante.
+        base_reparto     = sum(_to_float(m['ingresos_totales'])     for m in resumen_maquinas.values())
+        total_negocio_v  = sum(_to_float(m['ingresos_restaurante']) for m in resumen_maquinas.values())
+        total_admin_v    = sum(_to_float(m['ingresos_admin'])       for m in resumen_maquinas.values())
+        total_utilidad_v = sum(_to_float(m['ingresos_utilidad'])    for m in resumen_maquinas.values())
 
-        # Distribución siempre sobre ingresos reales (QR vendidos), no sobre turnos jugados
-        total_negocio_v  = total_ingresos * pct_negocio / 100
-        total_admin_v    = total_ingresos * pct_admin   / 100
-        total_utilidad_v = total_ingresos - total_negocio_v - total_admin_v
-        # "Proveedor" = lo que el negocio entrega a Inversiones Arcade = ingreso - negocio.
-        # Internamente se descompone en admin (Arcade) + utilidad (inversionistas), pero
-        # de cara al restaurante se muestra como una sola cifra (sin desglosar admin).
-        total_proveedor_v = total_admin_v + total_utilidad_v
+        # Flotante: turnos vendidos pero aún NO jugados este período (venta menos lo jugado).
+        # Queda a Inversiones Arcade hasta que se jueguen o el QR venza; no se reparte al
+        # restaurante ni a inversionistas. Puede ser negativo si se jugaron más turnos de
+        # los vendidos en el período (QR de períodos anteriores jugados ahora).
+        total_flotante_v = total_ingresos - base_reparto
+
+        # El restaurante conserva SOLO su % de lo jugado. Todo lo demás — la parte de Arcade
+        # en lo jugado (admin + utilidad) más el flotante — se le entrega al proveedor.
+        total_proveedor_v = total_ingresos - total_negocio_v
+
+        # % efectivos, ponderados por lo realmente jugado (no un promedio de máquinas).
+        pct_negocio = (total_negocio_v / base_reparto * 100) if base_reparto else RESTAURANT_PERCENTAGE_DEFAULT
+        pct_admin   = (total_admin_v   / base_reparto * 100) if base_reparto else ADMIN_PERCENTAGE_DEFAULT
 
         distribucion = {
-            'total_ingresos': total_ingresos,
-            'negocio':  {'pct': round(pct_negocio, 2),           'monto': round(total_negocio_v, 2)},
-            'admin':    {'pct': round(pct_admin, 2),             'monto': round(total_admin_v, 2)},
-            'utilidad': {'pct': round(100 - pct_negocio - pct_admin, 2), 'monto': round(total_utilidad_v, 2)},
-            'proveedor': {'pct': round(100 - pct_negocio, 2),    'monto': round(total_proveedor_v, 2)},
+            'total_ingresos': total_ingresos,               # ventas del período (lo que entró)
+            'base_reparto':   round(base_reparto, 2),        # ingresos de turnos jugados (lo que se reparte)
+            'negocio':  {'pct': round(pct_negocio, 2),  'monto': round(total_negocio_v, 2)},
+            'admin':    {'pct': round(pct_admin, 2),    'monto': round(total_admin_v, 2)},
+            'utilidad': {'pct': round(max(0.0, 100 - pct_negocio - pct_admin), 2), 'monto': round(total_utilidad_v, 2)},
+            'flotante': {'monto': round(total_flotante_v, 2)},
+            'proveedor': {
+                'pct':   round((total_proveedor_v / total_ingresos * 100) if total_ingresos else 0.0, 2),
+                'monto': round(total_proveedor_v, 2),
+            },
         }
 
         # Tabla detallada
@@ -1795,12 +1804,20 @@ def detalle_cierre(cierre_id):
         utilidad_g = float(row['total_utilidad'])
         pct_neg_g  = float(row['pct_negocio'])
         pct_adm_g  = float(row['pct_admin'])
+        # Proveedor = ventas - negocio: el restaurante conserva solo su corte por máquina y
+        # entrega el resto (parte de Arcade en lo jugado + flotante). El flotante se deriva
+        # de los totales guardados. En cierres viejos (modelo plano) negocio+admin+utilidad
+        # sumaban a las ventas, así que el flotante sale ~0 y todo sigue cuadrando.
+        proveedor_g = ingresos_g - negocio_g
+        flotante_g  = ingresos_g - negocio_g - admin_g - utilidad_g
         distribucion = {
             'total_ingresos': round(ingresos_g, 2),
             'negocio':   {'pct': round(pct_neg_g, 2), 'monto': round(negocio_g, 2)},
             'admin':     {'pct': round(pct_adm_g, 2), 'monto': round(admin_g, 2)},
             'utilidad':  {'pct': round(100 - pct_neg_g - pct_adm_g, 2), 'monto': round(utilidad_g, 2)},
-            'proveedor': {'pct': round(100 - pct_neg_g, 2), 'monto': round(admin_g + utilidad_g, 2)},
+            'flotante':  {'monto': round(flotante_g, 2)},
+            'proveedor': {'pct': round((proveedor_g / ingresos_g * 100) if ingresos_g else 0.0, 2),
+                          'monto': round(proveedor_g, 2)},
         }
 
         return jsonify({
