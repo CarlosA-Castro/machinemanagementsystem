@@ -1722,6 +1722,21 @@ def _clamp_relay_pulses(value):
     return max(1, min(5, pulses))
 
 
+def _clamp_relay_pulse_ms(value):
+    """Duración (ms) de CADA pulso del relé de turno: entero en 50..3000.
+
+    Aplica igual a máquinas de 1 pulso y multi-pulso (V79). El piso de 50ms es lo que una
+    placa de créditos necesita para ver el flanco; el techo de 3000ms evita que un tren
+    multi-pulso se salga de la pantalla "RELE ACTIVADO" o deje el relé pegado. El firmware
+    vuelve a clampear igual, pero no queremos basura en la BD.
+    """
+    try:
+        ms = int(value)
+    except (TypeError, ValueError):
+        return 250
+    return max(50, min(3000, ms))
+
+
 @machines_bp.route('/api/maquinas/<int:maquina_id>/technical', methods=['POST'])
 @handle_api_errors
 @require_admin_access('maquinas')
@@ -1759,6 +1774,7 @@ def guardar_technical_maquina(maquina_id):
             data.get('failure_report_window_seconds', 15),
             data.get('boot_time_seconds', 30),
             _clamp_relay_pulses(data.get('relay_pulses_per_turn', 1)),
+            _clamp_relay_pulse_ms(data.get('relay_pulse_duration_ms', 250)),
         )
 
         if existe:
@@ -1768,7 +1784,7 @@ def guardar_technical_maquina(maquina_id):
                     reset_time_seconds=%s, machine_subtype=%s, station_names=%s,
                     game_type=%s, has_failure_report=%s, show_station_selection=%s,
                     invert_display=%s, failure_report_window_seconds=%s, boot_time_seconds=%s,
-                    relay_pulses_per_turn=%s,
+                    relay_pulses_per_turn=%s, relay_pulse_duration_ms=%s,
                     updated_at=NOW()
                 WHERE machine_id=%s
             """, (*params_comunes, maquina_id))
@@ -1779,8 +1795,8 @@ def guardar_technical_maquina(maquina_id):
                      reset_time_seconds, machine_subtype, station_names, game_type,
                      has_failure_report, show_station_selection, invert_display,
                      failure_report_window_seconds, boot_time_seconds,
-                     relay_pulses_per_turn)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     relay_pulses_per_turn, relay_pulse_duration_ms)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (maquina_id, *params_comunes))
 
         connection.commit()

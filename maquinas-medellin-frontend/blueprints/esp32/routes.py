@@ -720,6 +720,21 @@ def esp32_machine_config(machine_id):
         except Exception:
             logger.warning("machinetechnical sin columna V78 (relay_pulses_per_turn) — usando default 1")
 
+        # Duración (ms) de cada pulso del relé de turno (V79) — consulta APARTE, mismo
+        # motivo que V78: si el código se deploya antes de correr la migración, un fallo
+        # aquí no debe arrastrar a los otros campos a sus defaults.
+        relay_pulse_duration_ms = 250
+        try:
+            cursor.execute(
+                "SELECT relay_pulse_duration_ms FROM machinetechnical WHERE machine_id = %s",
+                (machine_id,)
+            )
+            _rpd = cursor.fetchone()
+            if _rpd:
+                relay_pulse_duration_ms = _rpd.get('relay_pulse_duration_ms') or 250
+        except Exception:
+            logger.warning("machinetechnical sin columna V79 (relay_pulse_duration_ms) — usando default 250")
+
         # Procesar station_names (JSON string → array)
         station_names = []
         if config['station_names']:
@@ -764,6 +779,7 @@ def esp32_machine_config(machine_id):
             'failure_report_window_seconds': failure_report_window_seconds,
             'boot_time_seconds': boot_time_seconds,
             'relay_pulses_per_turn': relay_pulses_per_turn,
+            'relay_pulse_duration_ms': relay_pulse_duration_ms,
             'machine_subtype': config['machine_subtype'] or 'simple',
             'station_names': station_names,
             'game_type': config['game_type'] or 'time_based',
